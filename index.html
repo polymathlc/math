@@ -139,8 +139,10 @@ a { color: var(--primary); }
 /* ========== CARDS / GRID ========== */
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
 .card-pad { padding: 20px; }
-.grid { display: grid; grid-template-columns: 360px 1fr; gap: 20px; align-items: start; }
-@media (max-width: 880px) { .grid { grid-template-columns: 1fr; } }
+.worksheet-layout { max-width: 940px; margin: 0 auto; }
+.worksheet-card { padding: 20px; }
+.worksheet-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.worksheet-top .q-nav { margin-top: 0; margin-left: auto; }
 .section-label { font-family: 'Space Mono', monospace; font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; }
 
 /* ========== BUTTONS ========== */
@@ -157,13 +159,19 @@ a { color: var(--primary); }
 .btn-sm { padding: 7px 11px; font-size: 0.82rem; }
 
 /* ========== QUESTION (student practice) ========== */
-.q-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.q-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex: 1; }
 .chip { font-family: 'Space Mono', monospace; font-size: 0.62rem; letter-spacing: 0.08em; padding: 4px 9px; border-radius: 999px; background: var(--primary-light); color: var(--primary); font-weight: 700; }
 .chip.topic { background: var(--accent-blue-light); color: var(--accent-blue); }
-.q-counter { margin-left: auto; font-size: 0.78rem; color: var(--text-muted); font-family: 'Space Mono', monospace; }
+.q-counter { font-size: 0.78rem; color: var(--text-muted); font-family: 'Space Mono', monospace; }
 .q-body { font-size: 1.12rem; font-weight: 500; line-height: 1.55; color: var(--text); }
 .q-body p { margin-bottom: 8px; }
-.q-body img { max-width: 100%; border-radius: var(--radius-md); margin: 8px 0; border: 1px solid var(--border); }
+.q-body img { max-width: 100%; max-height: 260px; border-radius: var(--radius-md); margin: 8px 0; border: 1px solid var(--border); }
+.math-frac { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; vertical-align: -0.45em; line-height: 1; margin: 0 0.08em; font-size: 0.96em; }
+.math-frac .num { border-bottom: 1.5px solid currentColor; padding: 0 0.2em 0.08em; min-width: 1.1em; text-align: center; }
+.math-frac .den { padding: 0.08em 0.2em 0; min-width: 1.1em; text-align: center; }
+.math-sqrt { display: inline-flex; align-items: flex-start; vertical-align: -0.1em; margin: 0 0.08em; }
+.math-sqrt .root { font-size: 1.1em; line-height: 1; padding-right: 0.04em; }
+.math-sqrt .radicand { border-top: 1.5px solid currentColor; padding: 0.02em 0.18em 0; line-height: 1.15; }
 .final-answer { margin-top: 18px; }
 .final-answer label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; }
 .final-answer input { width: 100%; padding: 11px 13px; font-size: 1.05rem; font-family: 'Space Grotesk', sans-serif; border: 1.5px solid var(--border); border-radius: var(--radius-md); background: var(--surface-alt); }
@@ -185,10 +193,13 @@ a { color: var(--primary); }
 .swatch:hover { transform: scale(1.12); }
 .swatch.active { box-shadow: 0 0 0 2px var(--primary); transform: scale(1.12); }
 .width-range { width: 90px; accent-color: var(--primary); }
-.canvas-wrap { position: relative; border: 1px solid var(--border); border-radius: 0 0 var(--radius-md) var(--radius-md); overflow: hidden; background: #fff; background-image: linear-gradient(rgba(74,124,89,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(74,124,89,0.07) 1px, transparent 1px); background-size: 28px 28px; }
-#padCanvas { display: block; width: 100%; height: 460px; touch-action: none; cursor: crosshair; }
-@media (max-width: 880px) { #padCanvas { height: 56vh; } }
-.canvas-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; color: var(--text-light); font-size: 0.95rem; gap: 8px; text-align: center; padding: 20px; }
+.worksheet-surface { position: relative; min-height: 680px; border: 1px solid var(--border); border-radius: 0 0 var(--radius-md) var(--radius-md); overflow: hidden; background: #fff; background-image: linear-gradient(rgba(74,124,89,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(74,124,89,0.07) 1px, transparent 1px); background-size: 28px 28px; }
+.worksheet-content { position: relative; z-index: 1; min-height: 680px; padding: 18px 20px 26px; pointer-events: none; }
+.worksheet-question { max-width: 820px; }
+.worksheet-working-label { margin-top: 28px; font-family: 'Space Mono', monospace; font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-light); }
+#padCanvas { position: absolute; inset: 0; z-index: 2; display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+@media (max-width: 880px) { .worksheet-surface, .worksheet-content { min-height: 66vh; } }
+.canvas-empty { position: absolute; inset: auto 18px 18px auto; z-index: 3; display: flex; align-items: flex-end; justify-content: flex-end; pointer-events: none; color: var(--text-light); font-size: 0.95rem; gap: 8px; text-align: right; padding: 0; max-width: min(360px, calc(100% - 36px)); }
 .typed-working { margin-top: 14px; }
 .typed-working label { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; }
 .typed-working textarea { width: 100%; min-height: 90px; resize: vertical; padding: 11px 13px; font-size: 1rem; font-family: 'Space Grotesk', sans-serif; line-height: 1.55; border: 1.5px solid var(--border); border-radius: var(--radius-md); background: var(--surface-alt); }
@@ -353,71 +364,72 @@ a { color: var(--primary); }
 
     <!-- ================= PRACTICE PAGE ================= -->
     <div class="page active" id="page-practice">
-      <div class="grid">
-        <div>
-          <div class="card card-pad" id="questionCard">
-            <div class="section-label">Question</div>
+      <div class="worksheet-layout">
+        <div class="card card-pad worksheet-card" id="questionCard">
+          <div class="worksheet-top">
             <div class="q-meta" id="qMeta">
               <span class="chip" id="qLevel">—</span>
               <span class="chip topic" id="qTopic">—</span>
               <span class="q-counter" id="qCounter">0 / 0</span>
-            </div>
-            <div class="q-body" id="qBody"></div>
-            <div class="final-answer">
-              <label for="finalAnswer">Your final answer <span style="color:var(--text-light);font-weight:400;">(optional)</span></label>
-              <input id="finalAnswer" type="text" inputmode="text" autocomplete="off" placeholder="e.g. 42 cm²">
             </div>
             <div class="q-nav">
               <button class="btn btn-ghost" id="prevBtn">‹ Prev</button>
               <button class="btn btn-ghost" id="nextBtn">Next ›</button>
             </div>
           </div>
-        </div>
 
-        <div>
-          <div class="card card-pad">
-            <div class="pad-head"><h2>✍️ Your working</h2><span class="pad-hint">Write with Apple Pencil or your finger</span></div>
-            <div class="toolbar">
-              <div class="tool-group">
-                <button class="tool-btn active" id="toolPen" title="Pen">✏️</button>
-                <button class="tool-btn" id="toolEraser" title="Eraser">🧽</button>
+          <div class="pad-head"><h2>✍️ Worksheet</h2><span class="pad-hint">Underline the question or make working anywhere</span></div>
+          <div class="toolbar">
+            <div class="tool-group">
+              <button class="tool-btn active" id="toolPen" title="Pen">✏️</button>
+              <button class="tool-btn" id="toolEraser" title="Eraser">🧽</button>
+            </div>
+            <div class="tool-divider"></div>
+            <div class="tool-group" id="swatches"></div>
+            <div class="tool-divider"></div>
+            <div class="tool-group"><input class="width-range" id="penWidth" type="range" min="1" max="14" value="3" title="Pen size"></div>
+            <div class="tool-divider"></div>
+            <div class="tool-group">
+              <button class="tool-btn" id="undoBtn" title="Undo">↶</button>
+              <button class="tool-btn" id="redoBtn" title="Redo">↷</button>
+              <button class="tool-btn" id="clearBtn" title="Clear all">🗑️</button>
+            </div>
+          </div>
+          <div class="worksheet-surface" id="worksheetSurface">
+            <div class="worksheet-content" id="worksheetContent">
+              <div class="worksheet-question">
+                <div class="section-label">Question</div>
+                <div class="q-body" id="qBody"></div>
               </div>
-              <div class="tool-divider"></div>
-              <div class="tool-group" id="swatches"></div>
-              <div class="tool-divider"></div>
-              <div class="tool-group"><input class="width-range" id="penWidth" type="range" min="1" max="14" value="3" title="Pen size"></div>
-              <div class="tool-divider"></div>
-              <div class="tool-group">
-                <button class="tool-btn" id="undoBtn" title="Undo">↶</button>
-                <button class="tool-btn" id="redoBtn" title="Redo">↷</button>
-                <button class="tool-btn" id="clearBtn" title="Clear all">🗑️</button>
-              </div>
+              <div class="worksheet-working-label">Working</div>
             </div>
-            <div class="canvas-wrap">
-              <canvas id="padCanvas"></canvas>
-              <div class="canvas-empty" id="canvasEmpty">Start writing your working here ✦</div>
-            </div>
-            <div class="typed-working">
-              <label for="typedWorking">⌨️ Or type your working <span style="color:var(--text-light);font-weight:400;">(use this instead of writing if you prefer)</span></label>
-              <textarea id="typedWorking" placeholder="Type your steps here, e.g.&#10;2/5 = 8/20, 1/4 = 5/20&#10;eaten = 13/20&#10;left = 7/20"></textarea>
-            </div>
-            <div class="practice-actions">
-              <button class="btn btn-ghost btn-lg" id="hintBtn"><span id="hintLabel">AI hint</span></button>
-              <button class="btn btn-primary btn-lg" id="submitBtn"><span id="submitLabel">📸 Submit for AI marking</span></button>
-            </div>
-            <div class="ai-hint-card" id="aiHintCard"><h4>Next step hint</h4><p id="aiHintText"></p></div>
+            <canvas id="padCanvas"></canvas>
+            <div class="canvas-empty" id="canvasEmpty">Underline the question or start your working here ✦</div>
+          </div>
+          <div class="typed-working">
+            <label for="typedWorking">⌨️ Or type your working <span style="color:var(--text-light);font-weight:400;">(use this instead of writing if you prefer)</span></label>
+            <textarea id="typedWorking" placeholder="Type your steps here, e.g.&#10;2/5 = 8/20, 1/4 = 5/20&#10;eaten = 13/20&#10;left = 7/20"></textarea>
+          </div>
+          <div class="final-answer">
+            <label for="finalAnswer">Your final answer <span style="color:var(--text-light);font-weight:400;">(optional)</span></label>
+            <input id="finalAnswer" type="text" inputmode="text" autocomplete="off" placeholder="e.g. 42 cm²">
+          </div>
+          <div class="practice-actions">
+            <button class="btn btn-ghost btn-lg" id="hintBtn"><span id="hintLabel">AI hint</span></button>
+            <button class="btn btn-primary btn-lg" id="submitBtn"><span id="submitLabel">📸 Submit for AI marking</span></button>
+          </div>
+          <div class="ai-hint-card" id="aiHintCard"><h4>Next step hint</h4><p id="aiHintText"></p></div>
 
-            <div class="result" id="result">
-              <div class="verdict-banner" id="verdictBanner">
-                <div class="verdict-icon" id="verdictIcon">✓</div>
-                <div class="verdict-text"><h3 id="verdictTitle">Correct</h3><div class="score" id="verdictScore"></div></div>
-              </div>
-              <div class="feedback-block"><h4>💬 Feedback</h4><p id="fbFeedback"></p></div>
-              <div class="feedback-block" id="mistakesBlock" style="display:none;"><h4>🔍 What to check</h4><ul id="fbMistakes"></ul></div>
-              <div class="feedback-block" id="nextStepBlock" style="display:none;"><h4>➡️ Next step</h4><p id="fbNextStep"></p></div>
-              <div class="feedback-block"><h4>📸 Working sent to the AI</h4>
-                <div class="captured"><img id="capturedImg" alt="Your working"><div class="captured-cap">This screenshot of your working is what the AI marked.</div></div>
-              </div>
+          <div class="result" id="result">
+            <div class="verdict-banner" id="verdictBanner">
+              <div class="verdict-icon" id="verdictIcon">✓</div>
+              <div class="verdict-text"><h3 id="verdictTitle">Correct</h3><div class="score" id="verdictScore"></div></div>
+            </div>
+            <div class="feedback-block"><h4>💬 Feedback</h4><p id="fbFeedback"></p></div>
+            <div class="feedback-block" id="mistakesBlock" style="display:none;"><h4>🔍 What to check</h4><ul id="fbMistakes"></ul></div>
+            <div class="feedback-block" id="nextStepBlock" style="display:none;"><h4>➡️ Next step</h4><p id="fbNextStep"></p></div>
+            <div class="feedback-block"><h4>📸 Worksheet sent to the AI</h4>
+              <div class="captured"><img id="capturedImg" alt="Your worksheet"><div class="captured-cap">This screenshot of your question, annotations, and working is what the AI marked.</div></div>
             </div>
           </div>
         </div>
@@ -585,6 +597,85 @@ function _fileToBase64(file) {
 }
 const $ = (id) => document.getElementById(id);
 const escapeHtml = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const VULGAR_FRACTIONS = {
+  "¼": ["1", "4"], "½": ["1", "2"], "¾": ["3", "4"],
+  "⅐": ["1", "7"], "⅑": ["1", "9"], "⅒": ["1", "10"],
+  "⅓": ["1", "3"], "⅔": ["2", "3"], "⅕": ["1", "5"],
+  "⅖": ["2", "5"], "⅗": ["3", "5"], "⅘": ["4", "5"],
+  "⅙": ["1", "6"], "⅚": ["5", "6"], "⅛": ["1", "8"],
+  "⅜": ["3", "8"], "⅝": ["5", "8"], "⅞": ["7", "8"]
+};
+function normalizeMathSymbols(s) {
+  return String(s == null ? "" : s)
+    .replace(/\r\n?/g, "\n")
+    .replace(/\\times|\\cdot/gi, "×")
+    .replace(/\\div/gi, "÷")
+    .replace(/\\pm|\+\-/gi, "±")
+    .replace(/\\approx|~=/gi, "≈")
+    .replace(/\\neq?|!=/gi, "≠")
+    .replace(/\\leq?|<=/gi, "≤")
+    .replace(/\\geq?|>=/gi, "≥")
+    .replace(/<->/g, "↔")
+    .replace(/->/g, "→")
+    .replace(/\\pi|\bpi\b/gi, "π")
+    .replace(/\\theta|\btheta\b/gi, "θ")
+    .replace(/\\alpha|\balpha\b/gi, "α")
+    .replace(/\\beta|\bbeta\b/gi, "β")
+    .replace(/\\gamma|\bgamma\b/gi, "γ")
+    .replace(/\\angle|\bangle\b/gi, "∠")
+    .replace(/\\triangle|\btriangle\b/gi, "△")
+    .replace(/\\parallel/gi, "∥")
+    .replace(/\\perp/gi, "⊥")
+    .replace(/\\degree|\bdegrees?\b/gi, "°")
+    .replace(/(\d)\s*[xX]\s*(\d)/g, "$1 × $2")
+    .replace(/([A-Za-z0-9)\]}])\s*\*\s*([A-Za-z0-9([{])/g, "$1 × $2");
+}
+function renderMathPlain(text) {
+  let s = escapeHtml(normalizeMathSymbols(text));
+  const safeExp = (v) => escapeHtml(normalizeMathSymbols(v));
+  s = s.replace(/\^\{([^{}]+)\}/g, (_, exp) => `<sup>${safeExp(exp)}</sup>`);
+  s = s.replace(/_\{([^{}]+)\}/g, (_, sub) => `<sub>${safeExp(sub)}</sub>`);
+  s = s.replace(/\^(-?\d+(?:\.\d+)?|[A-Za-zαβγθπ]+)/g, (_, exp) => `<sup>${safeExp(exp)}</sup>`);
+  s = s.replace(/_(-?\d+(?:\.\d+)?|[A-Za-zαβγθπ]+)/g, (_, sub) => `<sub>${safeExp(sub)}</sub>`);
+  return s;
+}
+function fractionHtml(n, d) {
+  const num = String(n || "").trim();
+  const den = String(d || "").trim();
+  return `<span class="math-frac" aria-label="${escapeHtml(num + " over " + den)}"><span class="num">${renderMathPlain(num)}</span><span class="den">${renderMathPlain(den)}</span></span>`;
+}
+function sqrtHtml(v) {
+  const text = String(v || "").trim();
+  return `<span class="math-sqrt" aria-label="square root of ${escapeHtml(text)}"><span class="root">√</span><span class="radicand">${renderMathPlain(text)}</span></span>`;
+}
+function renderMathInline(text) {
+  const pieces = [];
+  const stash = (html) => {
+    const token = `@@MATH${pieces.length}@@`;
+    pieces.push(html);
+    return token;
+  };
+  let s = normalizeMathSymbols(text);
+  for (const [glyph, parts] of Object.entries(VULGAR_FRACTIONS)) {
+    if (s.includes(glyph)) s = s.split(glyph).join(stash(fractionHtml(parts[0], parts[1])));
+  }
+  s = s.replace(/\\frac\s*\{([^{}]+)\}\s*\{([^{}]+)\}/gi, (_, n, d) => stash(fractionHtml(n, d)));
+  s = s.replace(/\bfrac\s*\(\s*([^,()]+?)\s*,\s*([^)]+?)\s*\)/gi, (_, n, d) => stash(fractionHtml(n, d)));
+  s = s.replace(/\\sqrt\s*\{([^{}]+)\}/gi, (_, v) => stash(sqrtHtml(v)));
+  s = s.replace(/\bsqrt\s*\(\s*([^)]+?)\s*\)/gi, (_, v) => stash(sqrtHtml(v)));
+  s = s.replace(/\(([^()\n]{1,40})\)\s*[\/⁄]\s*\(([^()\n]{1,40})\)/g, (_, n, d) => stash(fractionHtml(n, d)));
+  const atom = "-?(?:\\d+(?:\\.\\d+)?|[A-Za-zαβγθπ]+\\d*|\\d+[A-Za-zαβγθπ]*)";
+  const overFraction = new RegExp(`(^|[^\\w./:@-])(${atom})\\s+over\\s+(${atom})(?=$|[^\\w./])`, "gi");
+  s = s.replace(overFraction, (_, prefix, n, d) => prefix + stash(fractionHtml(n, d)));
+  const simpleFraction = new RegExp(`(^|[^\\w./:@-])(${atom})\\s*[\\/⁄]\\s*(${atom})(?=$|[^\\w./])`, "g");
+  s = s.replace(simpleFraction, (_, prefix, n, d) => prefix + stash(fractionHtml(n, d)));
+  let html = renderMathPlain(s);
+  pieces.forEach((piece, i) => { html = html.split(`@@MATH${i}@@`).join(piece); });
+  return html;
+}
+function renderMathBlock(text) {
+  return String(text == null ? "" : text).split(/\n/).map(line => renderMathInline(line)).join("<br>");
+}
 
 // =====================================================================
 // Built-in starter questions (used as a fallback when the bank is empty)
@@ -1111,33 +1202,144 @@ function wrapTextLines(measureCtx, text, maxWidth) {
   });
   return out;
 }
-// Flatten the handwriting (and any typed working) onto a white PNG — this is
-// the "screenshot" the AI marks, so typed text must be baked into the image.
-function exportWorkingPng() {
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result || ""));
+    r.onerror = reject;
+    r.readAsDataURL(blob);
+  });
+}
+function svgDataUrl(svg) {
+  return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+}
+function worksheetExportCss() {
+  return `
+    * { box-sizing: border-box; }
+    .worksheet-content { min-height: 680px; padding: 18px 20px 26px; color: #2c2a27; font-family: 'Space Grotesk', Arial, sans-serif; }
+    .worksheet-question { max-width: 820px; }
+    .section-label, .worksheet-working-label { font-family: 'Space Mono', Consolas, monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: #9b958d; margin-bottom: 10px; }
+    .worksheet-working-label { margin-top: 28px; }
+    .q-body { font-size: 18px; font-weight: 500; line-height: 1.55; color: #2c2a27; }
+    .q-body p { margin: 0 0 8px; }
+    .q-body img { max-width: 100%; max-height: 260px; border-radius: 8px; margin: 8px 0; border: 1px solid #e2ddd5; }
+    .math-frac { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; vertical-align: -0.45em; line-height: 1; margin: 0 0.08em; font-size: 0.96em; }
+    .math-frac .num { border-bottom: 1.5px solid currentColor; padding: 0 0.2em 0.08em; min-width: 1.1em; text-align: center; }
+    .math-frac .den { padding: 0.08em 0.2em 0; min-width: 1.1em; text-align: center; }
+    .math-sqrt { display: inline-flex; align-items: flex-start; vertical-align: -0.1em; margin: 0 0.08em; }
+    .math-sqrt .root { font-size: 1.1em; line-height: 1; padding-right: 0.04em; }
+    .math-sqrt .radicand { border-top: 1.5px solid currentColor; padding: 0.02em 0.18em 0; line-height: 1.15; }
+    .export-image-note { display: inline-block; padding: 12px 14px; border: 1px dashed #d8d1c8; border-radius: 8px; color: #7a756d; background: #fbf8f3; font-size: 14px; }
+  `;
+}
+async function prepareWorksheetClone(content) {
+  const clone = content.cloneNode(true);
+  clone.setAttribute("xmlns", "http://www.w3.org/1999/xhtml");
+  const style = document.createElement("style");
+  style.textContent = worksheetExportCss();
+  clone.prepend(style);
+  const imgs = Array.from(clone.querySelectorAll("img"));
+  await Promise.all(imgs.map(async img => {
+    const src = img.getAttribute("src");
+    if (!src || src.startsWith("data:")) return;
+    try {
+      const url = new URL(src, window.location.href).href;
+      const res = await fetch(url, { mode: "cors" });
+      if (!res.ok) throw new Error("image fetch failed");
+      img.setAttribute("src", await blobToDataUrl(await res.blob()));
+    } catch (e) {
+      const note = document.createElement("div");
+      note.className = "export-image-note";
+      note.textContent = "Diagram shown in the worksheet question";
+      img.replaceWith(note);
+    }
+  }));
+  return new XMLSerializer().serializeToString(clone);
+}
+function drawWorksheetGrid(o, w, h) {
+  o.fillStyle = "#fff";
+  o.fillRect(0, 0, w, h);
+  o.strokeStyle = "rgba(74,124,89,0.12)";
+  o.lineWidth = 1;
+  for (let y = 0; y <= h; y += 28) {
+    o.beginPath(); o.moveTo(0, y); o.lineTo(w, y); o.stroke();
+  }
+  for (let x = 0; x <= w; x += 28) {
+    o.beginPath(); o.moveTo(x, 0); o.lineTo(x, h); o.stroke();
+  }
+}
+function drawPlainQuestionFallback(o, w) {
+  const q = questionBank[qIndex] || {};
+  const text = questionText(q);
+  const padX = 20;
+  o.fillStyle = "#9b958d";
+  o.font = "10px 'Space Mono', Consolas, monospace";
+  o.fillText("QUESTION", padX, 32);
+  o.fillStyle = "#2c2a27";
+  o.font = "18px 'Space Grotesk', Arial, sans-serif";
+  const lines = wrapTextLines(o, text, w - padX * 2);
+  let y = 58;
+  for (const ln of lines) { o.fillText(ln, padX, y); y += 28; }
+  o.fillStyle = "#b6afa6";
+  o.font = "10px 'Space Mono', Consolas, monospace";
+  o.fillText("WORKING", padX, Math.max(y + 28, 150));
+}
+// Compose the whole worksheet — question, annotations, handwriting, and typed
+// working — into one PNG so the AI sees the same context as the student.
+async function exportWorkingPng() {
+  const surface = $("worksheetSurface");
+  const content = $("worksheetContent");
   const typed = $("typedWorking").value.trim();
-  const out = document.createElement("canvas");
-  const o = out.getContext("2d");
-  const fontPx = Math.round(16 * dpr), lineH = Math.round(25 * dpr);
-  const padX = Math.round(16 * dpr), padY = Math.round(14 * dpr), labelPx = Math.round(11 * dpr);
+  const rect = surface ? surface.getBoundingClientRect() : { width: 0, height: 0 };
+  const cssW = Math.max(1, Math.round(rect.width || canvas.width / dpr || 840));
+  const cssH = Math.max(1, Math.round(rect.height || canvas.height / dpr || 680));
+  const exportDpr = Math.max(1, window.devicePixelRatio || 1);
+  const padX = 16, padY = 14, labelPx = 11, fontPx = 16, lineH = 25;
+  const measure = document.createElement("canvas").getContext("2d");
+  measure.font = `${fontPx}px 'Space Grotesk', sans-serif`;
   let lines = [], blockH = 0;
   if (typed) {
-    o.font = `${fontPx}px 'Space Grotesk', sans-serif`;
-    lines = wrapTextLines(o, typed, canvas.width - padX * 2);
-    blockH = padY * 2 + labelPx + Math.round(8 * dpr) + lines.length * lineH;
+    lines = wrapTextLines(measure, typed, cssW - padX * 2);
+    blockH = padY * 2 + labelPx + 8 + lines.length * lineH;
   }
-  out.width = canvas.width;
-  out.height = canvas.height + blockH;
-  o.fillStyle = "#fff"; o.fillRect(0, 0, out.width, out.height);
+  const out = document.createElement("canvas");
+  out.width = Math.round(cssW * exportDpr);
+  out.height = Math.round((cssH + blockH) * exportDpr);
+  const o = out.getContext("2d");
+  o.setTransform(exportDpr, 0, 0, exportDpr, 0, 0);
+  drawWorksheetGrid(o, cssW, cssH);
+  if (content) {
+    try {
+      const html = await prepareWorksheetClone(content);
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${cssW}" height="${cssH}" viewBox="0 0 ${cssW} ${cssH}"><foreignObject width="${cssW}" height="${cssH}">${html}</foreignObject></svg>`;
+      const contentImg = await loadImage(svgDataUrl(svg));
+      o.drawImage(contentImg, 0, 0, cssW, cssH);
+    } catch (e) {
+      console.warn("Worksheet export question layer failed:", e);
+      drawPlainQuestionFallback(o, cssW);
+    }
+  }
+  o.drawImage(canvas, 0, 0, cssW, cssH);
   if (typed) {
+    o.fillStyle = "#fff";
+    o.fillRect(0, cssH, cssW, blockH);
+    o.strokeStyle = "#e2ddd5";
+    o.lineWidth = 1;
+    o.beginPath(); o.moveTo(0, cssH); o.lineTo(cssW, cssH); o.stroke();
     o.fillStyle = "#7a756d"; o.font = `${labelPx}px 'Space Mono', monospace`;
-    o.fillText("TYPED WORKING", padX, padY + labelPx);
+    o.fillText("TYPED WORKING", padX, cssH + padY + labelPx);
     o.fillStyle = "#2c2a27"; o.font = `${fontPx}px 'Space Grotesk', sans-serif`;
-    let y = padY + labelPx + Math.round(8 * dpr) + fontPx;
+    let y = cssH + padY + labelPx + 8 + fontPx;
     for (const ln of lines) { o.fillText(ln, padX, y); y += lineH; }
-    o.strokeStyle = "#e2ddd5"; o.lineWidth = Math.max(1, dpr);
-    o.beginPath(); o.moveTo(0, blockH); o.lineTo(out.width, blockH); o.stroke();
   }
-  o.drawImage(canvas, 0, blockH);
   return out.toDataURL("image/png");
 }
 
@@ -1152,7 +1354,6 @@ function showHint(text) {
   $("aiHintCard").classList.toggle("show", !!text);
 }
 function renderQuestion() {
-  const card = $("questionCard");
   if (!questionBank.length) {
     $("qMeta").style.display = "none";
     $("qBody").innerHTML = `<div class="empty-note">No questions available yet.${currentUser && currentUser.role === "admin" ? " Add some in <b>Create Question</b>." : ""}</div>`;
@@ -1168,10 +1369,12 @@ function renderQuestion() {
   $("qCounter").textContent = `${qIndex + 1} / ${questionBank.length}`;
   $("qBody").innerHTML = (q.blocks || []).map(b => b.type === "image"
     ? (b.url ? `<img src="${escapeHtml(b.url)}" alt="diagram">` : "")
-    : `<p>${escapeHtml(b.content || "").replace(/\n/g, "<br>")}</p>`).join("");
+    : `<p>${renderMathBlock(b.content || "")}</p>`).join("");
+  $("qBody").querySelectorAll("img").forEach(img => img.addEventListener("load", setupCanvasSize, { once: true }));
   $("finalAnswer").value = "";
   $("typedWorking").value = "";
   strokes = []; redoStack = []; current = null; redraw();
+  requestAnimationFrame(setupCanvasSize);
   hideResult();
   hideHint();
 }
@@ -1210,7 +1413,7 @@ $("hintBtn").addEventListener("click", async () => {
   const q = questionBank[qIndex];
   const typedWorking = $("typedWorking").value.trim();
   const finalAnswer = $("finalAnswer").value.trim();
-  const png = exportWorkingPng();
+  const png = await exportWorkingPng();
   const b64 = png.split(",")[1];
   const btn = $("hintBtn");
   const label = $("hintLabel");
@@ -1219,13 +1422,13 @@ $("hintBtn").addEventListener("click", async () => {
   try {
     const prompt =
       `You are a friendly Singapore primary-school math tutor giving a student's next-step hint before marking. ` +
-      `The attached image is the student's current working on a digital whiteboard. It may contain handwriting, typed text, or both.\n` +
+      `The attached image is the student's current worksheet. It includes the question, any underlining or annotations, handwriting, typed text, or both.\n` +
       `${markingPreamble(q.markingGuide)}\n\n` +
       `QUESTION: "${questionText(q)}"\n` +
       `CORRECT ANSWER (private - do not reveal it): "${q.expected}"\n` +
       `STUDENT'S TYPED WORKING (if any): "${typedWorking || "(none - read it from the image)"}"\n` +
       `STUDENT'S TYPED FINAL ANSWER (if any): "${finalAnswer || "(none typed)"}"\n\n` +
-      `Use the student's current working to decide what they should do next. ` +
+      `Use the question and the student's current workings together to decide what they should do next. ` +
       `Give exactly one helpful hint that nudges the next step. Do not solve the whole question, do not reveal the final answer, and do not give marks. ` +
       `If their working has a specific mistake, point to the kind of step to re-check without rewriting the full solution. ` +
       `If they have not started, suggest a sensible first step. Address the student as "you".\n\n` +
@@ -1244,21 +1447,21 @@ $("submitBtn").addEventListener("click", async () => {
   if (!aiReady()) { toast("AI marking isn't ready yet — please wait a moment", "error"); return; }
   if (!questionBank.length) return;
   const typedWorking = $("typedWorking").value.trim();
-  if (!strokes.length && !typedWorking && !$("finalAnswer").value.trim()) { toast("Write or type your working first", "error"); return; }
+  if (!strokes.length && !typedWorking && !$("finalAnswer").value.trim()) { toast("Write, type, or enter an answer first", "error"); return; }
   const q = questionBank[qIndex];
-  const png = exportWorkingPng();
+  const png = await exportWorkingPng();
   const b64 = png.split(",")[1];
-  const btn = $("submitBtn"); btn.disabled = true; $("submitLabel").innerHTML = '<span class="spinner"></span> Marking your working…';
+  const btn = $("submitBtn"); btn.disabled = true; $("submitLabel").innerHTML = '<span class="spinner"></span> Marking your worksheet…';
   const qText = questionText(q);
   const prompt =
-    `You are a friendly, encouraging Singapore primary-school math teacher marking a student's HANDWRITTEN working. ` +
-    `The attached image is a screenshot of the student's working on a digital whiteboard — it may contain handwriting, typed text, or both.\n` +
+    `You are a friendly, encouraging Singapore primary-school math teacher marking a student's worksheet. ` +
+    `The attached image is a screenshot of the whole worksheet, including the question, any underlining or annotations, handwriting, typed text, or both.\n` +
     `${markingPreamble(q.markingGuide)}\n\n` +
     `QUESTION: "${qText}"\n` +
     `CORRECT ANSWER: "${q.expected}"\n` +
     `STUDENT'S TYPED WORKING (if any): "${typedWorking || "(none — read it from the image)"}"\n` +
     `STUDENT'S TYPED FINAL ANSWER: "${$("finalAnswer").value.trim() || "(none typed — read it from the working)"}"\n\n` +
-    `Read both the handwriting and any typed text carefully, follow the working step by step, and decide if the method and final answer are right. ` +
+    `Read the question and the student's annotations, handwriting, and typed text carefully; follow the working step by step and decide if the method and final answer are right. ` +
     `Award method marks even if the final answer is wrong but the approach is sound. Address the student as "you". ` +
     `If you genuinely cannot read the handwriting, say so in the feedback.\n\n` +
     `Return ONLY JSON: {"verdict":"correct"|"partial"|"incorrect","marks":<number>,"outOf":<number>,` +
