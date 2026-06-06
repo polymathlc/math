@@ -690,7 +690,36 @@ function parseAIJson(raw) {
   s = s.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
   const start = s.search(/[\[{]/);
   if (start > 0) s = s.slice(start);
-  return JSON.parse(s);
+  try { return JSON.parse(s); }
+  catch (firstError) {
+    const repaired = repairAIJsonText(s);
+    try { return JSON.parse(repaired); }
+    catch (_) { throw firstError; }
+  }
+}
+function repairAIJsonText(s) {
+  let out = "", inString = false, escaped = false;
+  const closers = [];
+  for (const ch of String(s || "")) {
+    if (inString) {
+      if (escaped) { out += ch; escaped = false; continue; }
+      if (ch === "\\") { out += ch; escaped = true; continue; }
+      if (ch === "\"") { out += ch; inString = false; continue; }
+      if (ch === "\n") { out += "\\n"; continue; }
+      if (ch === "\r") continue;
+      if (ch === "\t") { out += "\\t"; continue; }
+      out += ch;
+      continue;
+    }
+    if (ch === "\"") { out += ch; inString = true; continue; }
+    if (ch === "{") closers.push("}");
+    else if (ch === "[") closers.push("]");
+    else if ((ch === "}" || ch === "]") && closers[closers.length - 1] === ch) closers.pop();
+    out += ch;
+  }
+  if (inString) out += "\"";
+  while (closers.length) out += closers.pop();
+  return out.replace(/,\s*([}\]])/g, "$1");
 }
 function _fileToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -1548,11 +1577,11 @@ async function runAiBuildFromMedia(source) {
       genPreamble() +
       `For "topic", use only a broad content topic students can safely see, such as Fractions, Ratio, Percentage, Geometry, Speed, Algebra, or Problem Solving. ` +
       `Do not use solution strategies or concepts that would give away the method, such as Assumption, Guess and Check, Working Backwards, or Model Method.\n` +
-      `Read the question carefully and return ONLY JSON in this exact shape:\n` +
+      `Read the question carefully and return ONLY valid JSON in this exact shape. Escape any line breaks inside string values as \\n and do not include markdown fences:\n` +
       `{"title":"<short title>","level":"<e.g. P5 or Sec 1>","topic":"<e.g. Fractions>",` +
       `"questionText":"<the full question text, cleaned up>","expected":"<the correct final answer, with units>",` +
       `"markingGuide":"<concise worked solution / what to look for in the working>","hasDiagram":<true if the question relies on a figure/diagram, else false>}`;
-    const raw = await askGeminiVision(prompt, [{ mimeType: source.mimeType, data: source.data }], { maxOutputTokens: 900, json: true });
+    const raw = await askGeminiVision(prompt, [{ mimeType: source.mimeType, data: source.data }], { maxOutputTokens: 2200, json: true });
     const data = parseAIJson(raw);
     populateEditorFromAi(data);
     closeOverlay("aiBuildOverlay");
