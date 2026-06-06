@@ -193,12 +193,22 @@ a { color: var(--primary); }
 .swatch:hover { transform: scale(1.12); }
 .swatch.active { box-shadow: 0 0 0 2px var(--primary); transform: scale(1.12); }
 .width-range { width: 90px; accent-color: var(--primary); }
-.worksheet-surface { position: relative; min-height: 680px; border: 1px solid var(--border); border-radius: 0 0 var(--radius-md) var(--radius-md); overflow: hidden; background: #fff; background-image: linear-gradient(rgba(74,124,89,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(74,124,89,0.07) 1px, transparent 1px); background-size: 28px 28px; }
-.worksheet-content { position: relative; z-index: 1; min-height: 680px; padding: 18px 20px 26px; pointer-events: none; }
+.worksheet-surface { position: relative; min-height: 680px; border: 1px solid var(--border); border-radius: 0 0 var(--radius-md) var(--radius-md); overflow: hidden; background: #fff; background-image: linear-gradient(rgba(74,124,89,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(74,124,89,0.07) 1px, transparent 1px); background-size: 28px 28px; touch-action: none; overscroll-behavior: contain; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.worksheet-surface * { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.worksheet-content { position: relative; z-index: 1; min-height: 680px; padding: 18px 20px 26px; pointer-events: none; user-select: none; -webkit-user-select: none; }
 .worksheet-question { max-width: 820px; }
 .worksheet-working-label { margin-top: 28px; font-family: 'Space Mono', monospace; font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-light); }
-#padCanvas { position: absolute; inset: 0; z-index: 2; display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
-@media (max-width: 880px) { .worksheet-surface, .worksheet-content { min-height: 66vh; } }
+#padCanvas { position: absolute; inset: 0; z-index: 2; display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+body.drawing-active { overscroll-behavior: none; touch-action: none; }
+@media (max-width: 880px) {
+  .page { padding: 12px; }
+  .worksheet-card { padding: 12px; }
+  .worksheet-surface, .worksheet-content { min-height: min(72vh, 760px); }
+  .worksheet-content { padding: 16px 18px 24px; }
+  .toolbar { gap: 6px; padding: 9px; }
+  .tool-btn { width: 44px; height: 44px; }
+  .swatch { width: 30px; height: 30px; }
+}
 .canvas-empty { position: absolute; inset: auto 18px 18px auto; z-index: 3; display: flex; align-items: flex-end; justify-content: flex-end; pointer-events: none; color: var(--text-light); font-size: 0.95rem; gap: 8px; text-align: right; padding: 0; max-width: min(360px, calc(100% - 36px)); }
 .typed-working { margin-top: 14px; }
 .typed-working label { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; }
@@ -937,11 +947,16 @@ async function enterApp(user) {
   }
   renderQuestion();
 }
+function canManageQuestions() { return !!currentUser && currentUser.role === "admin"; }
 
 // =====================================================================
 // NAVIGATION
 // =====================================================================
 function navigateTo(page) {
+  if (["create", "bank", "worksheet"].includes(page) && !canManageQuestions()) {
+    page = "practice";
+    toast("Student accounts can practise questions only", "error");
+  }
   document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
   document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
   const pageEl = $("page-" + page); if (pageEl) pageEl.classList.add("active");
@@ -984,19 +999,25 @@ async function loadGenSettings(uid) {
   catch (e) { console.warn("gen load", e); }
 }
 function openMarking() {
+  if (!canManageQuestions()) { toast("Only admin accounts can edit marking settings", "error"); return; }
   $("mkStrictness").value = aiMarkingSettings.strictness || 3;
   $("mkStrictnessLabel").textContent = STRICTNESS_LABELS[aiMarkingSettings.strictness || 3];
   $("mkInstructions").value = aiMarkingSettings.instructions || "";
   $("markingOverlay").classList.add("show");
 }
-function openGen() { $("genInstructions").value = aiGenSettings.instructions || ""; $("genOverlay").classList.add("show"); }
+function openGen() {
+  if (!canManageQuestions()) { toast("Only admin accounts can edit generation settings", "error"); return; }
+  $("genInstructions").value = aiGenSettings.instructions || ""; $("genOverlay").classList.add("show");
+}
 $("mkStrictness").addEventListener("input", e => $("mkStrictnessLabel").textContent = STRICTNESS_LABELS[e.target.value]);
 $("saveMarkingBtn").addEventListener("click", async () => {
+  if (!canManageQuestions()) { toast("Only admin accounts can edit marking settings", "error"); return; }
   aiMarkingSettings = { strictness: parseInt($("mkStrictness").value, 10) || 3, instructions: $("mkInstructions").value.trim() };
   try { await setDoc(doc(db, "users", currentUser.uid, "settings", "mathMarking"), aiMarkingSettings, { merge: true }); toast("Marking guide saved", "success"); closeOverlay("markingOverlay"); }
   catch (e) { toast("Save failed: " + e.message, "error"); }
 });
 $("saveGenBtn").addEventListener("click", async () => {
+  if (!canManageQuestions()) { toast("Only admin accounts can edit generation settings", "error"); return; }
   aiGenSettings = { instructions: $("genInstructions").value.trim() };
   try { await setDoc(doc(db, "users", currentUser.uid, "settings", "mathGeneration"), aiGenSettings, { merge: true }); toast("Generation guide saved", "success"); closeOverlay("genOverlay"); }
   catch (e) { toast("Save failed: " + e.message, "error"); }
@@ -1030,13 +1051,16 @@ async function loadBank(uid) {
   } catch (e) { console.warn("bank load", e); }
 }
 async function saveQuestionDoc(q) {
+  if (!canManageQuestions()) throw new Error("Only admin accounts can save questions");
   await setDoc(doc(db, "users", currentUser.uid, "mathQuestions", q.id), q);
 }
 async function deleteQuestionDoc(id) {
+  if (!canManageQuestions()) throw new Error("Only admin accounts can delete questions");
   await deleteDoc(doc(db, "users", currentUser.uid, "mathQuestions", id));
 }
 
 function renderBank() {
+  if (!canManageQuestions()) { navigateTo("practice"); return; }
   const list = $("bankList");
   $("bankCount").textContent = questionBank.length ? `${questionBank.length} question${questionBank.length > 1 ? "s" : ""}.` : "";
   if (!questionBank.length) { list.innerHTML = `<div class="empty-note">No questions yet. Go to <b>Create Question</b> to add one ✦</div>`; return; }
@@ -1059,6 +1083,7 @@ function renderBank() {
   list.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => removeQuestion(b.dataset.del)));
 }
 async function removeQuestion(id) {
+  if (!canManageQuestions()) { toast("Only admin accounts can delete questions", "error"); return; }
   if (!confirm("Delete this question? This cannot be undone.")) return;
   try {
     await deleteQuestionDoc(id);
@@ -1202,6 +1227,7 @@ $("clearQBtn").addEventListener("click", () => { if (confirm("Clear the editor?"
 $("cancelEditBtn").addEventListener("click", () => { resetEditor(); navigateTo("bank"); });
 
 function editQuestion(id) {
+  if (!canManageQuestions()) { toast("Only admin accounts can edit questions", "error"); navigateTo("practice"); return; }
   const q = questionBank.find(x => x.id === id); if (!q) return;
   currentEditingId = id;
   editorBlocks = JSON.parse(JSON.stringify(q.blocks || []));
@@ -1234,6 +1260,7 @@ function collectQuestion() {
   };
 }
 $("saveQBtn").addEventListener("click", async () => {
+  if (!canManageQuestions()) { toast("Only admin accounts can save questions", "error"); navigateTo("practice"); return; }
   const q = collectQuestion();
   if (!q.blocks.some(b => b.type === "text") && !q.blocks.some(b => b.type === "image")) { toast("Add some question content first", "error"); return; }
   if (!q.expected && !q.markingGuide && !q.answerKeyImageUrl) { toast("Add a correct answer, marking guide, or answer key image", "error"); return; }
@@ -1254,6 +1281,7 @@ $("saveQBtn").addEventListener("click", async () => {
 // =====================================================================
 function genPreamble() { return aiGenSettings.instructions ? ("Follow the teacher's generation guidance: " + aiGenSettings.instructions + " ") : ""; }
 $("aiBuildBtn").addEventListener("click", () => {
+  if (!canManageQuestions()) { toast("Only admin accounts can build questions", "error"); return; }
   if (!aiReady()) { toast("AI isn't ready yet — please wait a moment", "error"); return; }
   $("aiBuildStatus").textContent = ""; $("aiBuildOverlay").classList.add("show");
 });
@@ -1316,9 +1344,12 @@ function populateEditorFromAi(d) {
 const canvas = $("padCanvas");
 const ctx = canvas.getContext("2d");
 const emptyHint = $("canvasEmpty");
+const worksheetSurface = $("worksheetSurface");
 let dpr = Math.max(1, window.devicePixelRatio || 1);
-let strokes = [], redoStack = [], current = null, drawing = false, activePointerId = null;
+let strokes = [], redoStack = [], current = null, drawing = false, activePointerId = null, activePointerKind = "";
 let penColor = "#2c2a27", penWidth = 3, isEraser = false;
+let lastPenAt = 0;
+const activeTouchPointers = new Set();
 const COLORS = ["#2c2a27", "#4a7c59", "#4a6fa5", "#d94f4f", "#d4882a", "#7b5ea7"];
 
 function setupCanvasSize() {
@@ -1338,38 +1369,83 @@ function redraw() {
 function drawStroke(s) {
   if (!s.points.length) return;
   ctx.lineCap = "round"; ctx.lineJoin = "round";
-  if (s.eraser) { ctx.globalCompositeOperation = "destination-out"; ctx.strokeStyle = "rgba(0,0,0,1)"; ctx.lineWidth = s.width * 4; }
-  else { ctx.globalCompositeOperation = "source-over"; ctx.strokeStyle = s.color; ctx.lineWidth = s.width; }
-  ctx.beginPath();
-  const p0 = s.points[0]; ctx.moveTo(p0.x, p0.y);
-  if (s.points.length === 1) ctx.lineTo(p0.x + 0.01, p0.y + 0.01);
-  for (let i = 1; i < s.points.length; i++) ctx.lineTo(s.points[i].x, s.points[i].y);
-  ctx.stroke();
+  ctx.globalCompositeOperation = s.eraser ? "destination-out" : "source-over";
+  ctx.strokeStyle = s.eraser ? "rgba(0,0,0,1)" : s.color;
+  const drawWidth = (p) => (p.width || s.width || penWidth) * (s.eraser ? 4 : 1);
+  const p0 = s.points[0];
+  if (s.points.length === 1) {
+    ctx.lineWidth = drawWidth(p0);
+    ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p0.x + 0.01, p0.y + 0.01); ctx.stroke();
+    ctx.globalCompositeOperation = "source-over";
+    return;
+  }
+  for (let i = 1; i < s.points.length; i++) {
+    const a = s.points[i - 1], b = s.points[i];
+    ctx.lineWidth = Math.max(0.75, (drawWidth(a) + drawWidth(b)) / 2);
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  }
   ctx.globalCompositeOperation = "source-over";
 }
-function posFromEvent(e) { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+function eventPoint(e) {
+  const r = canvas.getBoundingClientRect();
+  const pressure = e.pointerType === "pen" && e.pressure ? e.pressure : 0.5;
+  const pressureWidth = e.pointerType === "pen" ? penWidth * (0.7 + pressure * 0.65) : penWidth;
+  return { x: e.clientX - r.left, y: e.clientY - r.top, width: pressureWidth };
+}
+function isPalmLikeTouch(e) {
+  if (e.pointerType !== "touch") return false;
+  if (e.isPrimary === false) return true;
+  if (Date.now() - lastPenAt < 900) return true;
+  if (activeTouchPointers.size > (activeTouchPointers.has(e.pointerId) ? 1 : 0)) return true;
+  const contact = Math.max(e.width || 1, e.height || 1);
+  return contact >= 34;
+}
+function canStartStroke(e) {
+  if (e.button != null && e.button !== 0) return false;
+  if (e.pointerType === "pen") return true;
+  if (e.pointerType === "touch") return !isPalmLikeTouch(e);
+  return e.pointerType === "mouse" || !e.pointerType;
+}
+function preventWorksheetGesture(e) {
+  if (e.cancelable) e.preventDefault();
+}
+["selectstart", "dragstart", "contextmenu"].forEach(type => {
+  worksheetSurface.addEventListener(type, preventWorksheetGesture);
+  canvas.addEventListener(type, preventWorksheetGesture);
+});
 canvas.addEventListener("pointerdown", e => {
+  if (e.pointerType === "touch") activeTouchPointers.add(e.pointerId);
+  if (e.pointerType === "pen") lastPenAt = Date.now();
+  if (!canStartStroke(e)) { preventWorksheetGesture(e); return; }
   if (drawing) return;
   hideHint();
-  drawing = true; activePointerId = e.pointerId; canvas.setPointerCapture(e.pointerId); redoStack = [];
-  current = { color: penColor, width: penWidth, eraser: isEraser, points: [posFromEvent(e)] };
-  emptyHint.style.display = "none"; e.preventDefault();
-});
+  drawing = true; activePointerId = e.pointerId; activePointerKind = e.pointerType || "mouse";
+  try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+  document.body.classList.add("drawing-active");
+  redoStack = [];
+  current = { color: penColor, width: penWidth, eraser: isEraser, pointerType: activePointerKind, points: [eventPoint(e)] };
+  emptyHint.style.display = "none"; preventWorksheetGesture(e);
+}, { passive: false });
 canvas.addEventListener("pointermove", e => {
   if (!drawing || e.pointerId !== activePointerId) return;
+  if (e.pointerType === "pen") lastPenAt = Date.now();
   const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
-  for (const ev of evs) current.points.push(posFromEvent(ev));
-  redraw(); drawStroke(current); e.preventDefault();
-});
+  for (const ev of evs) current.points.push(eventPoint(ev));
+  redraw(); drawStroke(current); preventWorksheetGesture(e);
+}, { passive: false });
 function endStroke(e) {
+  if (e && e.pointerType === "touch") activeTouchPointers.delete(e.pointerId);
+  if (e && e.pointerType === "pen") lastPenAt = Date.now();
   if (!drawing || (e && e.pointerId !== activePointerId)) return;
-  drawing = false; activePointerId = null;
+  drawing = false; activePointerId = null; activePointerKind = "";
+  document.body.classList.remove("drawing-active");
   if (current && current.points.length) strokes.push(current);
   current = null; redraw();
+  if (e) preventWorksheetGesture(e);
 }
-canvas.addEventListener("pointerup", endStroke);
-canvas.addEventListener("pointercancel", endStroke);
-canvas.addEventListener("pointerleave", endStroke);
+canvas.addEventListener("pointerup", endStroke, { passive: false });
+canvas.addEventListener("pointercancel", endStroke, { passive: false });
+canvas.addEventListener("pointerleave", endStroke, { passive: false });
 
 const swatchWrap = $("swatches");
 COLORS.forEach((c, i) => {
