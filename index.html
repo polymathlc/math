@@ -184,9 +184,11 @@ a { color: var(--primary); }
 .pad-head h2 { font-size: 1rem; font-weight: 700; }
 .pad-hint { font-size: 0.78rem; color: var(--text-muted); margin-left: auto; }
 .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 12px; background: var(--surface-alt); border: 1px solid var(--border); border-bottom: none; border-radius: var(--radius-md) var(--radius-md) 0 0; }
+.worksheet-card, .pad-head, .toolbar, .practice-actions { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.typed-working textarea, .final-answer input { user-select: text; -webkit-user-select: text; touch-action: manipulation; }
 .tool-group { display: flex; align-items: center; gap: 6px; }
 .tool-divider { width: 1px; align-self: stretch; background: var(--border); margin: 2px 4px; }
-.tool-btn { width: 38px; height: 38px; border-radius: var(--radius-sm); border: 1.5px solid var(--border); background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.05rem; color: var(--text); transition: all var(--transition); padding: 0; }
+.tool-btn { width: 38px; height: 38px; border-radius: var(--radius-sm); border: 1.5px solid var(--border); background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.05rem; color: var(--text); transition: all var(--transition); padding: 0; touch-action: manipulation; }
 .tool-btn:hover { border-color: var(--text-light); }
 .tool-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
 .swatch { width: 26px; height: 26px; border-radius: 50%; cursor: pointer; border: 2px solid #fff; box-shadow: 0 0 0 1.5px var(--border); transition: transform var(--transition); }
@@ -214,9 +216,20 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .typed-working label { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; }
 .typed-working textarea { width: 100%; min-height: 90px; resize: vertical; padding: 11px 13px; font-size: 1rem; font-family: 'Space Grotesk', sans-serif; line-height: 1.55; border: 1.5px solid var(--border); border-radius: var(--radius-md); background: var(--surface-alt); }
 .typed-working textarea:focus { outline: none; border-color: var(--border-focus); background: #fff; }
-.practice-actions { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.3fr); gap: 10px; margin-top: 16px; }
+.solution-photo { display: none; align-items: center; gap: 12px; margin-top: 14px; padding: 10px; border: 1.5px solid var(--border); border-radius: var(--radius-md); background: #fff; }
+.solution-photo.show { display: flex; }
+.solution-photo img { width: 86px; height: 86px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface-alt); flex-shrink: 0; }
+.solution-photo-info { min-width: 0; flex: 1; }
+.solution-photo-title { font-weight: 700; margin-bottom: 3px; }
+.solution-photo-meta { font-size: 0.85rem; color: var(--text-muted); line-height: 1.35; }
+.solution-photo .btn { flex-shrink: 0; }
+.practice-actions { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 0.9fr) minmax(0, 1.3fr); gap: 10px; margin-top: 16px; }
 .practice-actions .btn { width: 100%; }
-@media (max-width: 560px) { .practice-actions { grid-template-columns: 1fr; } }
+@media (max-width: 720px) {
+  .practice-actions { grid-template-columns: 1fr; }
+  .solution-photo { align-items: stretch; flex-direction: column; }
+  .solution-photo img { width: 100%; height: auto; max-height: 220px; }
+}
 .ai-hint-card { display: none; margin-top: 12px; padding: 13px 14px; border: 1px solid var(--accent-blue); border-radius: var(--radius-md); background: var(--accent-blue-light); }
 .ai-hint-card.show { display: block; }
 .ai-hint-card h4 { font-family: 'Space Mono', monospace; font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-blue); margin-bottom: 6px; }
@@ -427,7 +440,17 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
             <label for="finalAnswer">Your final answer <span style="color:var(--text-light);font-weight:400;">(optional)</span></label>
             <input id="finalAnswer" type="text" inputmode="text" autocomplete="off" placeholder="e.g. 42 cm²">
           </div>
+          <input id="solutionPhotoInput" class="hidden" type="file" accept="image/*" capture="environment">
+          <div class="solution-photo" id="solutionPhotoWrap">
+            <img id="solutionPhotoPreview" alt="Student photographed solution preview">
+            <div class="solution-photo-info">
+              <div class="solution-photo-title">Photo answer attached</div>
+              <div class="solution-photo-meta" id="solutionPhotoMeta">The AI will read this together with the worksheet.</div>
+            </div>
+            <button class="btn btn-ghost" id="clearSolutionPhotoBtn" type="button">Remove</button>
+          </div>
           <div class="practice-actions">
+            <button class="btn btn-ghost btn-lg" id="photoSolutionBtn"><span id="photoSolutionLabel">📷 Photo answer</span></button>
             <button class="btn btn-ghost btn-lg" id="hintBtn"><span id="hintLabel">AI hint</span></button>
             <button class="btn btn-primary btn-lg" id="submitBtn"><span id="submitLabel">📸 Submit for AI marking</span></button>
           </div>
@@ -444,7 +467,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
             <div class="feedback-block" id="reviewPlanBlock" style="display:none;"><h4>🗓️ Review plan</h4><p id="fbReviewPlan"></p></div>
             <div class="feedback-block" id="answerKeyBlock" style="display:none;"><h4>🧾 Full answer key</h4><p class="answer-key-text" id="fbAnswerKey"></p></div>
             <div class="feedback-block"><h4>📸 Worksheet sent to the AI</h4>
-              <div class="captured"><img id="capturedImg" alt="Your worksheet"><div class="captured-cap">This screenshot of your question, annotations, and working is what the AI marked.</div></div>
+              <div class="captured"><img id="capturedImg" alt="Your worksheet"><div class="captured-cap" id="capturedCap">This screenshot of your question, annotations, and working is what the AI marked.</div></div>
             </div>
           </div>
         </div>
@@ -1349,15 +1372,34 @@ let dpr = Math.max(1, window.devicePixelRatio || 1);
 let strokes = [], redoStack = [], current = null, drawing = false, activePointerId = null, activePointerKind = "";
 let penColor = "#2c2a27", penWidth = 3, isEraser = false;
 let lastPenAt = 0;
+let canvasCssW = 0, canvasCssH = 0, redrawQueued = false;
 const activeTouchPointers = new Set();
 const COLORS = ["#2c2a27", "#4a7c59", "#4a6fa5", "#d94f4f", "#d4882a", "#7b5ea7"];
 
+function scalePointList(points, sx, sy) {
+  points.forEach(p => { p.x *= sx; p.y *= sy; });
+}
+function scaleStrokesForSize(nextW, nextH) {
+  if (!canvasCssW || !canvasCssH) { canvasCssW = nextW; canvasCssH = nextH; return; }
+  if (!nextW || !nextH) return;
+  const sx = nextW / canvasCssW, sy = nextH / canvasCssH;
+  if (Math.abs(sx - 1) > 0.002 || Math.abs(sy - 1) > 0.002) {
+    strokes.forEach(s => scalePointList(s.points, sx, sy));
+    redoStack.forEach(s => scalePointList(s.points, sx, sy));
+    if (current) scalePointList(current.points, sx, sy);
+  }
+  canvasCssW = nextW;
+  canvasCssH = nextH;
+}
 function setupCanvasSize() {
   const rect = canvas.getBoundingClientRect();
   if (!rect.width) return;
   dpr = Math.max(1, window.devicePixelRatio || 1);
-  canvas.width = Math.round(rect.width * dpr);
-  canvas.height = Math.round(rect.height * dpr);
+  const cssW = Math.round(rect.width);
+  const cssH = Math.round(rect.height);
+  scaleStrokesForSize(cssW, cssH);
+  canvas.width = Math.round(cssW * dpr);
+  canvas.height = Math.round(cssH * dpr);
   redraw();
 }
 function redraw() {
@@ -1386,6 +1428,15 @@ function drawStroke(s) {
   }
   ctx.globalCompositeOperation = "source-over";
 }
+function scheduleLiveRedraw() {
+  if (redrawQueued) return;
+  redrawQueued = true;
+  requestAnimationFrame(() => {
+    redrawQueued = false;
+    redraw();
+    if (current) drawStroke(current);
+  });
+}
 function eventPoint(e) {
   const r = canvas.getBoundingClientRect();
   const pressure = e.pointerType === "pen" && e.pressure ? e.pressure : 0.5;
@@ -1413,6 +1464,15 @@ function preventWorksheetGesture(e) {
   worksheetSurface.addEventListener(type, preventWorksheetGesture);
   canvas.addEventListener(type, preventWorksheetGesture);
 });
+["touchstart", "touchmove"].forEach(type => {
+  worksheetSurface.addEventListener(type, preventWorksheetGesture, { passive: false });
+  canvas.addEventListener(type, preventWorksheetGesture, { passive: false });
+});
+function notePointerFinished(e) {
+  if (e.pointerType === "touch") activeTouchPointers.delete(e.pointerId);
+  if (e.pointerType === "pen") lastPenAt = Date.now();
+}
+["pointerup", "pointercancel"].forEach(type => window.addEventListener(type, notePointerFinished, true));
 canvas.addEventListener("pointerdown", e => {
   if (e.pointerType === "touch") activeTouchPointers.add(e.pointerId);
   if (e.pointerType === "pen") lastPenAt = Date.now();
@@ -1431,7 +1491,7 @@ canvas.addEventListener("pointermove", e => {
   if (e.pointerType === "pen") lastPenAt = Date.now();
   const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
   for (const ev of evs) current.points.push(eventPoint(ev));
-  redraw(); drawStroke(current); preventWorksheetGesture(e);
+  scheduleLiveRedraw(); preventWorksheetGesture(e);
 }, { passive: false });
 function endStroke(e) {
   if (e && e.pointerType === "touch") activeTouchPointers.delete(e.pointerId);
@@ -1445,7 +1505,10 @@ function endStroke(e) {
 }
 canvas.addEventListener("pointerup", endStroke, { passive: false });
 canvas.addEventListener("pointercancel", endStroke, { passive: false });
-canvas.addEventListener("pointerleave", endStroke, { passive: false });
+canvas.addEventListener("lostpointercapture", endStroke, { passive: false });
+canvas.addEventListener("pointerleave", e => {
+  if (!canvas.hasPointerCapture || !canvas.hasPointerCapture(e.pointerId)) endStroke(e);
+}, { passive: false });
 
 const swatchWrap = $("swatches");
 COLORS.forEach((c, i) => {
@@ -1460,8 +1523,22 @@ $("toolEraser").addEventListener("click", () => setTool("eraser"));
 $("penWidth").addEventListener("input", e => penWidth = parseInt(e.target.value, 10) || 3);
 $("undoBtn").addEventListener("click", () => { if (strokes.length) { hideHint(); redoStack.push(strokes.pop()); redraw(); } });
 $("redoBtn").addEventListener("click", () => { if (redoStack.length) { hideHint(); strokes.push(redoStack.pop()); redraw(); } });
-$("clearBtn").addEventListener("click", () => { if ((strokes.length || current || $("typedWorking").value.trim()) && confirm("Clear all your working?")) { hideHint(); strokes = []; redoStack = []; current = null; $("typedWorking").value = ""; redraw(); } });
+$("clearBtn").addEventListener("click", () => {
+  if ((strokes.length || current || $("typedWorking").value.trim() || solutionPhotoDataUrl) && confirm("Clear all your working?")) {
+    hideHint();
+    hideResult();
+    strokes = [];
+    redoStack = [];
+    current = null;
+    $("typedWorking").value = "";
+    clearSolutionPhoto({ silent: true });
+    redraw();
+  }
+});
 window.addEventListener("resize", () => setupCanvasSize());
+if ("ResizeObserver" in window) new ResizeObserver(() => setupCanvasSize()).observe(worksheetSurface);
+if (window.visualViewport) window.visualViewport.addEventListener("resize", () => setupCanvasSize());
+window.addEventListener("orientationchange", () => setTimeout(setupCanvasSize, 250));
 function wrapTextLines(measureCtx, text, maxWidth) {
   const out = [];
   String(text || "").split(/\n/).forEach(para => {
@@ -1648,6 +1725,81 @@ async function answerKeyMedia(q) {
     return [];
   }
 }
+let solutionPhotoDataUrl = "";
+let solutionPhotoName = "";
+function bytesLabel(n) {
+  if (!Number.isFinite(n) || n <= 0) return "";
+  if (n < 1024 * 1024) return `${Math.max(1, Math.round(n / 1024))} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+async function imageFileToOptimizedDataUrl(file) {
+  const original = await blobToDataUrl(file);
+  try {
+    const img = await loadImage(original);
+    const w = img.naturalWidth || img.width || 0;
+    const h = img.naturalHeight || img.height || 0;
+    if (!w || !h) return original;
+    const maxSide = 1800;
+    const scale = Math.min(1, maxSide / Math.max(w, h));
+    if (scale >= 1 && file.size < 1400000) return original;
+    const out = document.createElement("canvas");
+    out.width = Math.max(1, Math.round(w * scale));
+    out.height = Math.max(1, Math.round(h * scale));
+    const o = out.getContext("2d");
+    o.fillStyle = "#fff";
+    o.fillRect(0, 0, out.width, out.height);
+    o.drawImage(img, 0, 0, out.width, out.height);
+    return out.toDataURL("image/jpeg", 0.86);
+  } catch (e) {
+    console.warn("photo compression skipped", e);
+    return original;
+  }
+}
+function solutionPhotoInlineMedia() {
+  if (!solutionPhotoDataUrl) return null;
+  const match = solutionPhotoDataUrl.match(/^data:([^;,]+)[^,]*,(.*)$/);
+  if (!match) return null;
+  return { mimeType: match[1] || "image/jpeg", data: match[2] };
+}
+function updateSolutionPhotoView(file = null) {
+  const wrap = $("solutionPhotoWrap");
+  wrap.classList.toggle("show", !!solutionPhotoDataUrl);
+  if (solutionPhotoDataUrl) {
+    $("solutionPhotoPreview").src = solutionPhotoDataUrl;
+    const detail = [solutionPhotoName, file ? bytesLabel(file.size) : ""].filter(Boolean).join(" • ");
+    $("solutionPhotoMeta").textContent = `${detail || "Photo"} will be read together with the worksheet.`;
+  } else {
+    $("solutionPhotoPreview").removeAttribute("src");
+    $("solutionPhotoMeta").textContent = "The AI will read this together with the worksheet.";
+  }
+}
+function clearSolutionPhoto({ silent = false } = {}) {
+  solutionPhotoDataUrl = "";
+  solutionPhotoName = "";
+  $("solutionPhotoInput").value = "";
+  updateSolutionPhotoView();
+  if (!silent) { hideHint(); hideResult(); }
+}
+async function attachSolutionPhoto(file) {
+  if (!file) return;
+  if (!file.type.startsWith("image/")) { toast("Please choose a photo image", "error"); return; }
+  if (file.size > 18 * 1024 * 1024) { toast("Photo is too large; please choose one under 18 MB", "error"); return; }
+  solutionPhotoDataUrl = await imageFileToOptimizedDataUrl(file);
+  solutionPhotoName = file.name || "Camera photo";
+  updateSolutionPhotoView(file);
+  hideHint();
+  hideResult();
+  toast("Photo answer attached", "success");
+}
+function buildPracticeMedia(worksheetB64, solutionMedia, keyMedia) {
+  const media = [{ mimeType: "image/png", data: worksheetB64 }];
+  if (solutionMedia) media.push(solutionMedia);
+  media.push(...keyMedia);
+  const labels = ["1) worksheet screenshot"];
+  if (solutionMedia) labels.push(`${labels.length + 1}) student's photographed paper solution`);
+  if (keyMedia.length) labels.push(`${labels.length + 1}) teacher's private answer key/worked solution`);
+  return { media, note: `Attached images: ${labels.join("; ")}.\n` };
+}
 function hideHint() { $("aiHintCard").classList.remove("show"); $("aiHintText").textContent = ""; }
 function showHint(text) {
   $("aiHintText").textContent = text || "";
@@ -1658,6 +1810,8 @@ function renderQuestion() {
     $("qMeta").style.display = "none";
     $("qBody").innerHTML = `<div class="empty-note">No questions available yet.${currentUser && currentUser.role === "admin" ? " Add some in <b>Create Question</b>." : ""}</div>`;
     $("finalAnswer").value = "";
+    $("typedWorking").value = "";
+    clearSolutionPhoto({ silent: true });
     hideHint();
     return;
   }
@@ -1673,6 +1827,7 @@ function renderQuestion() {
   $("qBody").querySelectorAll("img").forEach(img => img.addEventListener("load", setupCanvasSize, { once: true }));
   $("finalAnswer").value = "";
   $("typedWorking").value = "";
+  clearSolutionPhoto({ silent: true });
   strokes = []; redoStack = []; current = null; redraw();
   requestAnimationFrame(setupCanvasSize);
   hideResult();
@@ -1686,17 +1841,30 @@ function changeQuestion(delta) {
     if (dueIndex >= 0) ni = dueIndex;
   }
   if (ni < 0 || ni >= questionBank.length) return;
-  if ((strokes.length || $("typedWorking").value.trim()) && !confirm("Move on? Your current working will be cleared.")) return;
+  if ((strokes.length || $("typedWorking").value.trim() || solutionPhotoDataUrl) && !confirm("Move on? Your current working will be cleared.")) return;
   qIndex = ni; renderQuestion();
 }
 $("prevBtn").addEventListener("click", () => changeQuestion(-1));
 $("nextBtn").addEventListener("click", () => changeQuestion(1));
 $("typedWorking").addEventListener("input", hideHint);
 $("finalAnswer").addEventListener("input", hideHint);
+$("photoSolutionBtn").addEventListener("click", () => $("solutionPhotoInput").click());
+$("solutionPhotoInput").addEventListener("change", async e => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  const btn = $("photoSolutionBtn");
+  const label = $("photoSolutionLabel");
+  btn.disabled = true;
+  label.innerHTML = '<span class="spinner dark"></span> Attaching...';
+  try { await attachSolutionPhoto(file); }
+  catch (err) { console.error(err); toast("Photo attach error: " + (err.message || err), "error"); }
+  finally { btn.disabled = false; label.textContent = "📷 Photo answer"; }
+});
+$("clearSolutionPhotoBtn").addEventListener("click", () => clearSolutionPhoto());
 
 const resultEl = $("result");
 function hideResult() { resultEl.classList.remove("show"); }
-function showResult(v, png, reviewPlan = "") {
+function showResult(v, png, reviewPlan = "", usedPhoto = false) {
   const verdict = (v.verdict || "incorrect").toLowerCase();
   const klass = verdict === "correct" ? "correct" : verdict === "partial" ? "partial" : "incorrect";
   $("verdictBanner").className = "verdict-banner " + klass;
@@ -1712,6 +1880,9 @@ function showResult(v, png, reviewPlan = "") {
   const fullAnswerKey = String(v.fullAnswerKey || v.answerKey || "").trim();
   if (fullAnswerKey) { $("fbAnswerKey").textContent = fullAnswerKey; $("answerKeyBlock").style.display = "block"; } else $("answerKeyBlock").style.display = "none";
   $("capturedImg").src = png;
+  $("capturedCap").textContent = usedPhoto
+    ? "The AI marked this worksheet screenshot together with your attached photo answer."
+    : "This screenshot of your question, annotations, and working is what the AI marked.";
   resultEl.classList.add("show");
   resultEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
@@ -1730,11 +1901,15 @@ $("hintBtn").addEventListener("click", async () => {
   label.innerHTML = '<span class="spinner dark"></span> Thinking...';
   try {
     const keyMedia = await answerKeyMedia(q);
+    const solutionMedia = solutionPhotoInlineMedia();
     const hasAnswerKeyImage = keyMedia.length > 0;
+    const { media, note: mediaNote } = buildPracticeMedia(b64, solutionMedia, keyMedia);
     const prompt =
       `You are a friendly Singapore primary-school math tutor giving a student's next-step hint before marking. ` +
-      `The attached image is the student's current worksheet. It includes the question, any underlining or annotations, handwriting, typed text, or both.\n` +
-      `${hasAnswerKeyImage ? "A second private image contains the teacher's answer key or worked solution. Use it only to understand the intended method; do not reveal the full solution or final answer.\n" : ""}` +
+      `${mediaNote}` +
+      `The worksheet screenshot includes the question, any underlining or annotations, handwriting, typed text, or both. ` +
+      `${solutionMedia ? "The photographed paper solution may contain extra student working that is not on the worksheet screenshot; read both as one answer.\n" : "\n"}` +
+      `${hasAnswerKeyImage ? "The teacher's private answer key or worked solution is for you only. Use it to understand the intended method; do not reveal the full solution or final answer.\n" : ""}` +
       `${studentLearningPreamble()}` +
       `${markingPreamble(q.markingGuide)}\n\n` +
       `QUESTION: "${questionText(q)}"\n` +
@@ -1746,7 +1921,7 @@ $("hintBtn").addEventListener("click", async () => {
       `If their working has a specific mistake, point to the kind of step to re-check without rewriting the full solution. ` +
       `If they have not started, suggest a sensible first step. Address the student as "you".\n\n` +
       `Return ONLY JSON: {"hint":"<one concise next-step hint>"}`;
-    const raw = await askGeminiVision(prompt, [{ mimeType: "image/png", data: b64 }, ...keyMedia], { maxOutputTokens: 450, json: true });
+    const raw = await askGeminiVision(prompt, media, { maxOutputTokens: 450, json: true });
     const data = parseAIJson(raw);
     const hint = String(data.hint || "").trim();
     if (!hint) throw new Error("empty hint - please try again");
@@ -1760,7 +1935,7 @@ $("submitBtn").addEventListener("click", async () => {
   if (!aiReady()) { toast("AI marking isn't ready yet — please wait a moment", "error"); return; }
   if (!questionBank.length) return;
   const typedWorking = $("typedWorking").value.trim();
-  if (!strokes.length && !typedWorking && !$("finalAnswer").value.trim()) { toast("Write, type, or enter an answer first", "error"); return; }
+  if (!strokes.length && !typedWorking && !$("finalAnswer").value.trim() && !solutionPhotoDataUrl) { toast("Write, type, take a photo, or enter an answer first", "error"); return; }
   const q = questionBank[qIndex];
   const png = await exportWorkingPng();
   const b64 = png.split(",")[1];
@@ -1768,11 +1943,15 @@ $("submitBtn").addEventListener("click", async () => {
   const qText = questionText(q);
   try {
     const keyMedia = await answerKeyMedia(q);
+    const solutionMedia = solutionPhotoInlineMedia();
     const hasAnswerKeyImage = keyMedia.length > 0;
+    const { media, note: mediaNote } = buildPracticeMedia(b64, solutionMedia, keyMedia);
     const prompt =
       `You are a friendly, encouraging Singapore primary-school math teacher marking a student's worksheet. ` +
-      `The first attached image is a screenshot of the whole worksheet, including the question, any underlining or annotations, handwriting, typed text, or both.\n` +
-      `${hasAnswerKeyImage ? "The second attached image is the teacher's private answer key or worked solution. Read it carefully and use it with the teacher guidance below.\n" : ""}` +
+      `${mediaNote}` +
+      `The worksheet screenshot includes the question, any underlining or annotations, handwriting, typed text, or both. ` +
+      `${solutionMedia ? "The photographed paper solution may contain extra student working that is not on the worksheet screenshot; read both as one complete submission.\n" : "\n"}` +
+      `${hasAnswerKeyImage ? "The teacher's private answer key or worked solution is the authority for the intended solution. Read it carefully and use it with the teacher guidance below.\n" : ""}` +
       `${studentLearningPreamble()}` +
       `${markingPreamble(q.markingGuide)}\n\n` +
       `QUESTION: "${qText}"\n` +
@@ -1790,10 +1969,10 @@ $("submitBtn").addEventListener("click", async () => {
       `"fullAnswerKey":"<complete worked answer key generated from the teacher guidance and answer key image>",` +
       `"weaknesses":["<private short weakness label for teacher memory>", ...],` +
       `"learningNote":"<one private sentence about what this student seems to need next>"}`;
-    const raw = await askGeminiVision(prompt, [{ mimeType: "image/png", data: b64 }, ...keyMedia], { maxOutputTokens: 1500, json: true });
+    const raw = await askGeminiVision(prompt, media, { maxOutputTokens: 1500, json: true });
     const v = parseAIJson(raw);
     const reviewPlan = await recordLearningAttempt(q, v);
-    showResult(v, png, reviewPlan);
+    showResult(v, png, reviewPlan, !!solutionMedia);
     const verdict = (v.verdict || "").toLowerCase();
     toast(verdict === "correct" ? "Great work! 🎉" : "Marked — see the feedback", verdict === "correct" ? "success" : "");
   } catch (e) { console.error(e); toast("AI mark error: " + (e.message || e), "error"); }
