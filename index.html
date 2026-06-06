@@ -193,6 +193,13 @@ a { color: var(--primary); }
 .typed-working label { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; }
 .typed-working textarea { width: 100%; min-height: 90px; resize: vertical; padding: 11px 13px; font-size: 1rem; font-family: 'Space Grotesk', sans-serif; line-height: 1.55; border: 1.5px solid var(--border); border-radius: var(--radius-md); background: var(--surface-alt); }
 .typed-working textarea:focus { outline: none; border-color: var(--border-focus); background: #fff; }
+.practice-actions { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.3fr); gap: 10px; margin-top: 16px; }
+.practice-actions .btn { width: 100%; }
+@media (max-width: 560px) { .practice-actions { grid-template-columns: 1fr; } }
+.ai-hint-card { display: none; margin-top: 12px; padding: 13px 14px; border: 1px solid var(--accent-blue); border-radius: var(--radius-md); background: var(--accent-blue-light); }
+.ai-hint-card.show { display: block; }
+.ai-hint-card h4 { font-family: 'Space Mono', monospace; font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-blue); margin-bottom: 6px; }
+.ai-hint-card p { font-size: 0.95rem; line-height: 1.55; color: var(--text); }
 
 /* ========== RESULT ========== */
 .result { margin-top: 18px; display: none; }
@@ -394,9 +401,11 @@ a { color: var(--primary); }
               <label for="typedWorking">⌨️ Or type your working <span style="color:var(--text-light);font-weight:400;">(use this instead of writing if you prefer)</span></label>
               <textarea id="typedWorking" placeholder="Type your steps here, e.g.&#10;2/5 = 8/20, 1/4 = 5/20&#10;eaten = 13/20&#10;left = 7/20"></textarea>
             </div>
-            <button class="btn btn-primary btn-block btn-lg" id="submitBtn" style="margin-top:16px;">
-              <span id="submitLabel">📸 Submit for AI marking</span>
-            </button>
+            <div class="practice-actions">
+              <button class="btn btn-ghost btn-lg" id="hintBtn"><span id="hintLabel">AI hint</span></button>
+              <button class="btn btn-primary btn-lg" id="submitBtn"><span id="submitLabel">📸 Submit for AI marking</span></button>
+            </div>
+            <div class="ai-hint-card" id="aiHintCard"><h4>Next step hint</h4><p id="aiHintText"></p></div>
 
             <div class="result" id="result">
               <div class="verdict-banner" id="verdictBanner">
@@ -1052,6 +1061,7 @@ function drawStroke(s) {
 function posFromEvent(e) { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
 canvas.addEventListener("pointerdown", e => {
   if (drawing) return;
+  hideHint();
   drawing = true; activePointerId = e.pointerId; canvas.setPointerCapture(e.pointerId); redoStack = [];
   current = { color: penColor, width: penWidth, eraser: isEraser, points: [posFromEvent(e)] };
   emptyHint.style.display = "none"; e.preventDefault();
@@ -1083,9 +1093,9 @@ function setTool(t) { isEraser = (t === "eraser"); $("toolPen").classList.toggle
 $("toolPen").addEventListener("click", () => setTool("pen"));
 $("toolEraser").addEventListener("click", () => setTool("eraser"));
 $("penWidth").addEventListener("input", e => penWidth = parseInt(e.target.value, 10) || 3);
-$("undoBtn").addEventListener("click", () => { if (strokes.length) { redoStack.push(strokes.pop()); redraw(); } });
-$("redoBtn").addEventListener("click", () => { if (redoStack.length) { strokes.push(redoStack.pop()); redraw(); } });
-$("clearBtn").addEventListener("click", () => { if ((strokes.length || current || $("typedWorking").value.trim()) && confirm("Clear all your working?")) { strokes = []; redoStack = []; current = null; $("typedWorking").value = ""; redraw(); } });
+$("undoBtn").addEventListener("click", () => { if (strokes.length) { hideHint(); redoStack.push(strokes.pop()); redraw(); } });
+$("redoBtn").addEventListener("click", () => { if (redoStack.length) { hideHint(); strokes.push(redoStack.pop()); redraw(); } });
+$("clearBtn").addEventListener("click", () => { if ((strokes.length || current || $("typedWorking").value.trim()) && confirm("Clear all your working?")) { hideHint(); strokes = []; redoStack = []; current = null; $("typedWorking").value = ""; redraw(); } });
 window.addEventListener("resize", () => setupCanvasSize());
 function wrapTextLines(measureCtx, text, maxWidth) {
   const out = [];
@@ -1135,12 +1145,20 @@ function exportWorkingPng() {
 // PRACTICE — render question + AI marking
 // =====================================================================
 function stripHtml(s) { const d = document.createElement("div"); d.innerHTML = s || ""; return (d.textContent || "").trim(); }
+function questionText(q) { return (q.blocks || []).filter(b => b.type === "text").map(b => stripHtml(b.content)).join(" "); }
+function hideHint() { $("aiHintCard").classList.remove("show"); $("aiHintText").textContent = ""; }
+function showHint(text) {
+  $("aiHintText").textContent = text || "";
+  $("aiHintCard").classList.toggle("show", !!text);
+}
 function renderQuestion() {
   const card = $("questionCard");
   if (!questionBank.length) {
     $("qMeta").style.display = "none";
     $("qBody").innerHTML = `<div class="empty-note">No questions available yet.${currentUser && currentUser.role === "admin" ? " Add some in <b>Create Question</b>." : ""}</div>`;
-    $("finalAnswer").value = ""; return;
+    $("finalAnswer").value = "";
+    hideHint();
+    return;
   }
   $("qMeta").style.display = "flex";
   if (qIndex >= questionBank.length) qIndex = 0;
@@ -1155,6 +1173,7 @@ function renderQuestion() {
   $("typedWorking").value = "";
   strokes = []; redoStack = []; current = null; redraw();
   hideResult();
+  hideHint();
 }
 function changeQuestion(delta) {
   const ni = qIndex + delta; if (ni < 0 || ni >= questionBank.length) return;
@@ -1163,6 +1182,8 @@ function changeQuestion(delta) {
 }
 $("prevBtn").addEventListener("click", () => changeQuestion(-1));
 $("nextBtn").addEventListener("click", () => changeQuestion(1));
+$("typedWorking").addEventListener("input", hideHint);
+$("finalAnswer").addEventListener("input", hideHint);
 
 const resultEl = $("result");
 function hideResult() { resultEl.classList.remove("show"); }
@@ -1183,6 +1204,42 @@ function showResult(v, png) {
   resultEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
+$("hintBtn").addEventListener("click", async () => {
+  if (!aiReady()) { toast("AI hint isn't ready yet - please wait a moment", "error"); return; }
+  if (!questionBank.length) return;
+  const q = questionBank[qIndex];
+  const typedWorking = $("typedWorking").value.trim();
+  const finalAnswer = $("finalAnswer").value.trim();
+  const png = exportWorkingPng();
+  const b64 = png.split(",")[1];
+  const btn = $("hintBtn");
+  const label = $("hintLabel");
+  btn.disabled = true;
+  label.innerHTML = '<span class="spinner dark"></span> Thinking...';
+  try {
+    const prompt =
+      `You are a friendly Singapore primary-school math tutor giving a student's next-step hint before marking. ` +
+      `The attached image is the student's current working on a digital whiteboard. It may contain handwriting, typed text, or both.\n` +
+      `${markingPreamble(q.markingGuide)}\n\n` +
+      `QUESTION: "${questionText(q)}"\n` +
+      `CORRECT ANSWER (private - do not reveal it): "${q.expected}"\n` +
+      `STUDENT'S TYPED WORKING (if any): "${typedWorking || "(none - read it from the image)"}"\n` +
+      `STUDENT'S TYPED FINAL ANSWER (if any): "${finalAnswer || "(none typed)"}"\n\n` +
+      `Use the student's current working to decide what they should do next. ` +
+      `Give exactly one helpful hint that nudges the next step. Do not solve the whole question, do not reveal the final answer, and do not give marks. ` +
+      `If their working has a specific mistake, point to the kind of step to re-check without rewriting the full solution. ` +
+      `If they have not started, suggest a sensible first step. Address the student as "you".\n\n` +
+      `Return ONLY JSON: {"hint":"<one concise next-step hint>"}`;
+    const raw = await askGeminiVision(prompt, [{ mimeType: "image/png", data: b64 }], { maxOutputTokens: 450, json: true });
+    const data = parseAIJson(raw);
+    const hint = String(data.hint || "").trim();
+    if (!hint) throw new Error("empty hint - please try again");
+    showHint(hint);
+    toast("Hint ready", "success");
+  } catch (e) { console.error(e); toast("AI hint error: " + (e.message || e), "error"); }
+  finally { btn.disabled = false; label.textContent = "AI hint"; }
+});
+
 $("submitBtn").addEventListener("click", async () => {
   if (!aiReady()) { toast("AI marking isn't ready yet — please wait a moment", "error"); return; }
   if (!questionBank.length) return;
@@ -1192,7 +1249,7 @@ $("submitBtn").addEventListener("click", async () => {
   const png = exportWorkingPng();
   const b64 = png.split(",")[1];
   const btn = $("submitBtn"); btn.disabled = true; $("submitLabel").innerHTML = '<span class="spinner"></span> Marking your working…';
-  const qText = (q.blocks || []).filter(b => b.type === "text").map(b => stripHtml(b.content)).join(" ");
+  const qText = questionText(q);
   const prompt =
     `You are a friendly, encouraging Singapore primary-school math teacher marking a student's HANDWRITTEN working. ` +
     `The attached image is a screenshot of the student's working on a digital whiteboard — it may contain handwriting, typed text, or both.\n` +
