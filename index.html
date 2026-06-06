@@ -228,6 +228,7 @@ a { color: var(--primary); }
 .feedback-block { margin-bottom: 14px; }
 .feedback-block h4 { font-family: 'Space Mono', monospace; font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
 .feedback-block p { font-size: 0.95rem; line-height: 1.55; }
+.feedback-block .answer-key-text { white-space: pre-line; }
 .feedback-block ul { margin: 4px 0 0 18px; }
 .feedback-block li { font-size: 0.92rem; margin-bottom: 4px; }
 .captured { margin-top: 4px; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: var(--surface-alt); }
@@ -261,6 +262,8 @@ a { color: var(--primary); }
 .img-zone { border: 1.5px dashed var(--border); border-radius: var(--radius-sm); padding: 16px; text-align: center; color: var(--text-muted); font-size: 0.85rem; cursor: pointer; background: #fff; }
 .img-zone:hover { border-color: var(--primary); color: var(--primary); }
 .img-preview { max-width: 100%; border-radius: var(--radius-sm); margin-top: 8px; display: none; }
+.answer-key-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: start; }
+.answer-key-row input { margin: 0; }
 .add-block-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 18px; }
 
 /* ========== BANK ========== */
@@ -428,6 +431,7 @@ a { color: var(--primary); }
             <div class="feedback-block"><h4>💬 Feedback</h4><p id="fbFeedback"></p></div>
             <div class="feedback-block" id="mistakesBlock" style="display:none;"><h4>🔍 What to check</h4><ul id="fbMistakes"></ul></div>
             <div class="feedback-block" id="nextStepBlock" style="display:none;"><h4>➡️ Next step</h4><p id="fbNextStep"></p></div>
+            <div class="feedback-block" id="answerKeyBlock" style="display:none;"><h4>🧾 Full answer key</h4><p class="answer-key-text" id="fbAnswerKey"></p></div>
             <div class="feedback-block"><h4>📸 Worksheet sent to the AI</h4>
               <div class="captured"><img id="capturedImg" alt="Your worksheet"><div class="captured-cap">This screenshot of your question, annotations, and working is what the AI marked.</div></div>
             </div>
@@ -458,8 +462,19 @@ a { color: var(--primary); }
           <button class="btn btn-ghost btn-sm" id="addImageBtn">＋ Image / diagram</button>
         </div>
 
-        <div class="editor-field"><label>Correct answer</label><input id="qExpectedInput" type="text" placeholder="e.g. 7/20"><div class="hint">The expected final answer. The AI compares the student's working against this.</div></div>
+        <div class="editor-field"><label>Correct answer <span style="color:var(--text-light);font-weight:400;">(optional if you attach a guide/image)</span></label><input id="qExpectedInput" type="text" placeholder="e.g. 7/20"><div class="hint">The expected final answer. You can also provide the worked answer in the marking guide or answer key image.</div></div>
         <div class="editor-field"><label>Marking guide <span style="color:var(--text-light);font-weight:400;">(per-question)</span></label><textarea id="qGuideInput" placeholder="Worked solution / what to look for in the working. e.g. Common denominator 20; 2/5=8/20, 1/4=5/20; eaten 13/20; left 7/20."></textarea><div class="hint">Private notes for the AI marker — students never see this.</div></div>
+        <div class="editor-field">
+          <label>Answer key image <span style="color:var(--text-light);font-weight:400;">(optional)</span></label>
+          <div class="img-zone" id="answerKeyZone" tabindex="0">📎 Click, paste or drop a worked answer key image here</div>
+          <input id="answerKeyFile" type="file" accept="image/*" class="hidden">
+          <div class="answer-key-row" style="margin-top:8px;">
+            <input id="answerKeyUrlInput" type="text" placeholder="…or paste an answer key image URL">
+            <button class="btn btn-ghost btn-sm" id="clearAnswerKeyBtn" type="button">Clear</button>
+          </div>
+          <img class="img-preview" id="answerKeyPreview" alt="Answer key preview">
+          <div class="hint">Private reference for the AI marker. Students do not see this image, but the AI uses it with your marking guide.</div>
+        </div>
 
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
           <button class="btn btn-primary" id="saveQBtn">💾 Save to Question Bank</button>
@@ -887,9 +902,10 @@ function renderBank() {
     const preview = firstText ? stripHtml(firstText.content).slice(0, 90) : "(no text)";
     const el = document.createElement("div");
     el.className = "bank-item";
+    const answerKeyBadge = q.answerKeyImageUrl ? `<span>Answer key image</span>` : "";
     el.innerHTML =
       `<div class="bank-item-main"><h4>${escapeHtml(q.title || "Untitled")}</h4>
-        <div class="meta"><span class="chip">${escapeHtml(q.level || "—")}</span><span class="chip topic">${escapeHtml(q.topic || "—")}</span><span>${escapeHtml(preview)}</span></div></div>
+        <div class="meta"><span class="chip">${escapeHtml(q.level || "—")}</span><span class="chip topic">${escapeHtml(q.topic || "—")}</span>${answerKeyBadge}<span>${escapeHtml(preview)}</span></div></div>
        <div class="bank-item-actions">
         <button class="btn btn-ghost btn-sm" data-edit="${q.id}">Edit</button>
         <button class="btn btn-danger btn-sm" data-del="${q.id}">Delete</button></div>`;
@@ -975,22 +991,54 @@ function handleImgPaste(id, e) {
   const items = (e.clipboardData || {}).items || [];
   for (const it of items) { if (it.type && it.type.startsWith("image/")) { e.preventDefault(); uploadImgFile(id, it.getAsFile()); return; } }
 }
-async function uploadImgFile(id, file) {
-  if (!file || !file.type.startsWith("image/")) { toast("That's not an image", "error"); return; }
-  if (file.size > 6 * 1024 * 1024) { toast("Image too large (max 6 MB)", "error"); return; }
+async function uploadImageToStorage(file, folder = "mathImages") {
+  if (!file || !file.type.startsWith("image/")) { toast("That's not an image", "error"); throw new Error("not an image"); }
+  if (file.size > 6 * 1024 * 1024) { toast("Image too large (max 6 MB)", "error"); throw new Error("image too large"); }
   toast("Uploading image…");
+  const dataUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
+  const ext = (file.type.split("/")[1] || "png").replace(/[^a-z0-9]/gi, "").toLowerCase() || "png";
+  const path = `${folder}/${currentUser.uid}/${Date.now()}_${Math.random().toString(36).slice(2, 6)}.${ext}`;
+  const sref = storageRef(storage, path);
+  await uploadString(sref, dataUrl, "data_url");
+  return getDownloadURL(sref);
+}
+async function uploadImgFile(id, file) {
   try {
-    const dataUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
-    const path = `mathImages/${currentUser.uid}/${Date.now()}_${Math.random().toString(36).slice(2, 6)}.png`;
-    const sref = storageRef(storage, path);
-    await uploadString(sref, dataUrl, "data_url");
-    const url = await getDownloadURL(sref);
+    const url = await uploadImageToStorage(file, "mathImages");
     setBlockField(id, "url", url);
     const inp = $("blocksList").querySelector(`[data-imgurl="${id}"]`); if (inp) inp.value = url;
     syncImgPreview(id, url);
     toast("Image added", "success");
   } catch (e) { console.warn(e); toast("Upload failed: " + e.message, "error"); }
 }
+function setAnswerKeyImage(url) {
+  const clean = String(url || "").trim();
+  $("answerKeyUrlInput").value = clean;
+  const preview = $("answerKeyPreview");
+  preview.src = clean;
+  preview.style.display = clean ? "block" : "none";
+}
+function handleAnswerKeyPaste(e) {
+  const items = (e.clipboardData || {}).items || [];
+  for (const it of items) {
+    if (it.type && it.type.startsWith("image/")) { e.preventDefault(); uploadAnswerKeyFile(it.getAsFile()); return; }
+  }
+}
+async function uploadAnswerKeyFile(file) {
+  try {
+    const url = await uploadImageToStorage(file, "mathAnswerKeys");
+    setAnswerKeyImage(url);
+    toast("Answer key image added", "success");
+  } catch (e) { console.warn(e); toast("Answer key upload failed: " + e.message, "error"); }
+}
+
+$("answerKeyZone").addEventListener("click", () => $("answerKeyFile").click());
+$("answerKeyZone").addEventListener("paste", handleAnswerKeyPaste);
+$("answerKeyZone").addEventListener("dragover", e => e.preventDefault());
+$("answerKeyZone").addEventListener("drop", e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) uploadAnswerKeyFile(f); });
+$("answerKeyFile").addEventListener("change", e => { const f = e.target.files[0]; if (f) uploadAnswerKeyFile(f); e.target.value = ""; });
+$("answerKeyUrlInput").addEventListener("input", e => setAnswerKeyImage(e.target.value));
+$("clearAnswerKeyBtn").addEventListener("click", () => setAnswerKeyImage(""));
 
 $("addTextBtn").addEventListener("click", () => addBlock("text"));
 $("addImageBtn").addEventListener("click", () => addBlock("image"));
@@ -1000,6 +1048,7 @@ function resetEditor() {
   editorBlocks = [{ id: genBlockId(), type: "text", content: "" }];
   $("qTitleInput").value = ""; $("qLevelInput").value = ""; $("qTopicInput").value = "";
   $("qExpectedInput").value = ""; $("qGuideInput").value = "";
+  setAnswerKeyImage("");
   $("createHeading").textContent = "Create Question";
   $("saveQBtn").textContent = "💾 Save to Question Bank";
   $("cancelEditBtn").style.display = "none";
@@ -1015,6 +1064,7 @@ function editQuestion(id) {
   if (!editorBlocks.length) editorBlocks = [{ id: genBlockId(), type: "text", content: "" }];
   $("qTitleInput").value = q.title || ""; $("qLevelInput").value = q.level || ""; $("qTopicInput").value = q.topic || "";
   $("qExpectedInput").value = q.expected || ""; $("qGuideInput").value = q.markingGuide || "";
+  setAnswerKeyImage(q.answerKeyImageUrl || "");
   $("createHeading").textContent = "Edit Question";
   $("saveQBtn").textContent = "💾 Save changes";
   $("cancelEditBtn").style.display = "";
@@ -1034,6 +1084,7 @@ function collectQuestion() {
     blocks,
     expected: $("qExpectedInput").value.trim(),
     markingGuide: $("qGuideInput").value.trim(),
+    answerKeyImageUrl: $("answerKeyUrlInput").value.trim(),
     createdAt: currentEditingId ? (questionBank.find(q => q.id === currentEditingId) || {}).createdAt || new Date().toISOString() : new Date().toISOString(),
     createdBy: currentUser ? currentUser.name : "Admin"
   };
@@ -1041,7 +1092,7 @@ function collectQuestion() {
 $("saveQBtn").addEventListener("click", async () => {
   const q = collectQuestion();
   if (!q.blocks.some(b => b.type === "text") && !q.blocks.some(b => b.type === "image")) { toast("Add some question content first", "error"); return; }
-  if (!q.expected) { toast("Enter the correct answer", "error"); return; }
+  if (!q.expected && !q.markingGuide && !q.answerKeyImageUrl) { toast("Add a correct answer, marking guide, or answer key image", "error"); return; }
   const btn = $("saveQBtn"); const orig = btn.textContent; btn.disabled = true; btn.textContent = "Saving…";
   try {
     await saveQuestionDoc(q);
@@ -1106,6 +1157,7 @@ function populateEditorFromAi(d) {
   $("qTopicInput").value = d.topic || "";
   $("qExpectedInput").value = d.expected || "";
   $("qGuideInput").value = d.markingGuide || "";
+  setAnswerKeyImage("");
   $("createHeading").textContent = "Create Question";
   $("saveQBtn").textContent = "💾 Save to Question Bank";
   $("cancelEditBtn").style.display = "none";
@@ -1348,6 +1400,32 @@ async function exportWorkingPng() {
 // =====================================================================
 function stripHtml(s) { const d = document.createElement("div"); d.innerHTML = s || ""; return (d.textContent || "").trim(); }
 function questionText(q) { return (q.blocks || []).filter(b => b.type === "text").map(b => stripHtml(b.content)).join(" "); }
+async function imageUrlToInlineMedia(url) {
+  const clean = String(url || "").trim();
+  if (!clean) return null;
+  if (clean.startsWith("data:")) {
+    const match = clean.match(/^data:([^;,]+)[^,]*,(.*)$/);
+    if (!match) throw new Error("invalid data URL");
+    return { mimeType: match[1] || "image/png", data: match[2] };
+  }
+  const res = await fetch(clean, { mode: "cors" });
+  if (!res.ok) throw new Error("answer key image could not be loaded");
+  const blob = await res.blob();
+  const dataUrl = await blobToDataUrl(blob);
+  const comma = dataUrl.indexOf(",");
+  return { mimeType: blob.type || "image/png", data: comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl };
+}
+async function answerKeyMedia(q) {
+  if (!q || !q.answerKeyImageUrl) return [];
+  try {
+    const media = await imageUrlToInlineMedia(q.answerKeyImageUrl);
+    return media ? [media] : [];
+  } catch (e) {
+    console.warn("answer key image unavailable", e);
+    toast("Couldn't attach the answer key image; using text guidance only", "error");
+    return [];
+  }
+}
 function hideHint() { $("aiHintCard").classList.remove("show"); $("aiHintText").textContent = ""; }
 function showHint(text) {
   $("aiHintText").textContent = text || "";
@@ -1402,6 +1480,8 @@ function showResult(v, png) {
   if (mistakes.length) { $("fbMistakes").innerHTML = mistakes.map(m => `<li>${escapeHtml(m)}</li>`).join(""); $("mistakesBlock").style.display = "block"; }
   else $("mistakesBlock").style.display = "none";
   if (v.nextStep) { $("fbNextStep").textContent = v.nextStep; $("nextStepBlock").style.display = "block"; } else $("nextStepBlock").style.display = "none";
+  const fullAnswerKey = String(v.fullAnswerKey || v.answerKey || "").trim();
+  if (fullAnswerKey) { $("fbAnswerKey").textContent = fullAnswerKey; $("answerKeyBlock").style.display = "block"; } else $("answerKeyBlock").style.display = "none";
   $("capturedImg").src = png;
   resultEl.classList.add("show");
   resultEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -1420,12 +1500,15 @@ $("hintBtn").addEventListener("click", async () => {
   btn.disabled = true;
   label.innerHTML = '<span class="spinner dark"></span> Thinking...';
   try {
+    const keyMedia = await answerKeyMedia(q);
+    const hasAnswerKeyImage = keyMedia.length > 0;
     const prompt =
       `You are a friendly Singapore primary-school math tutor giving a student's next-step hint before marking. ` +
       `The attached image is the student's current worksheet. It includes the question, any underlining or annotations, handwriting, typed text, or both.\n` +
+      `${hasAnswerKeyImage ? "A second private image contains the teacher's answer key or worked solution. Use it only to understand the intended method; do not reveal the full solution or final answer.\n" : ""}` +
       `${markingPreamble(q.markingGuide)}\n\n` +
       `QUESTION: "${questionText(q)}"\n` +
-      `CORRECT ANSWER (private - do not reveal it): "${q.expected}"\n` +
+      `CORRECT ANSWER (private - do not reveal it): "${q.expected || "(use the marking guide and answer key image if provided)"}"\n` +
       `STUDENT'S TYPED WORKING (if any): "${typedWorking || "(none - read it from the image)"}"\n` +
       `STUDENT'S TYPED FINAL ANSWER (if any): "${finalAnswer || "(none typed)"}"\n\n` +
       `Use the question and the student's current workings together to decide what they should do next. ` +
@@ -1433,7 +1516,7 @@ $("hintBtn").addEventListener("click", async () => {
       `If their working has a specific mistake, point to the kind of step to re-check without rewriting the full solution. ` +
       `If they have not started, suggest a sensible first step. Address the student as "you".\n\n` +
       `Return ONLY JSON: {"hint":"<one concise next-step hint>"}`;
-    const raw = await askGeminiVision(prompt, [{ mimeType: "image/png", data: b64 }], { maxOutputTokens: 450, json: true });
+    const raw = await askGeminiVision(prompt, [{ mimeType: "image/png", data: b64 }, ...keyMedia], { maxOutputTokens: 450, json: true });
     const data = parseAIJson(raw);
     const hint = String(data.hint || "").trim();
     if (!hint) throw new Error("empty hint - please try again");
@@ -1453,22 +1536,28 @@ $("submitBtn").addEventListener("click", async () => {
   const b64 = png.split(",")[1];
   const btn = $("submitBtn"); btn.disabled = true; $("submitLabel").innerHTML = '<span class="spinner"></span> Marking your worksheet…';
   const qText = questionText(q);
-  const prompt =
-    `You are a friendly, encouraging Singapore primary-school math teacher marking a student's worksheet. ` +
-    `The attached image is a screenshot of the whole worksheet, including the question, any underlining or annotations, handwriting, typed text, or both.\n` +
-    `${markingPreamble(q.markingGuide)}\n\n` +
-    `QUESTION: "${qText}"\n` +
-    `CORRECT ANSWER: "${q.expected}"\n` +
-    `STUDENT'S TYPED WORKING (if any): "${typedWorking || "(none — read it from the image)"}"\n` +
-    `STUDENT'S TYPED FINAL ANSWER: "${$("finalAnswer").value.trim() || "(none typed — read it from the working)"}"\n\n` +
-    `Read the question and the student's annotations, handwriting, and typed text carefully; follow the working step by step and decide if the method and final answer are right. ` +
-    `Award method marks even if the final answer is wrong but the approach is sound. Address the student as "you". ` +
-    `If you genuinely cannot read the handwriting, say so in the feedback.\n\n` +
-    `Return ONLY JSON: {"verdict":"correct"|"partial"|"incorrect","marks":<number>,"outOf":<number>,` +
-    `"feedback":"<2-3 warm sentences>","mistakes":["<specific slip or misread step>", ...],` +
-    `"nextStep":"<one concrete hint, or empty string if fully correct>"}`;
   try {
-    const raw = await askGeminiVision(prompt, [{ mimeType: "image/png", data: b64 }], { maxOutputTokens: 900, json: true });
+    const keyMedia = await answerKeyMedia(q);
+    const hasAnswerKeyImage = keyMedia.length > 0;
+    const prompt =
+      `You are a friendly, encouraging Singapore primary-school math teacher marking a student's worksheet. ` +
+      `The first attached image is a screenshot of the whole worksheet, including the question, any underlining or annotations, handwriting, typed text, or both.\n` +
+      `${hasAnswerKeyImage ? "The second attached image is the teacher's private answer key or worked solution. Read it carefully and use it with the teacher guidance below.\n" : ""}` +
+      `${markingPreamble(q.markingGuide)}\n\n` +
+      `QUESTION: "${qText}"\n` +
+      `CORRECT ANSWER: "${q.expected || "(use the marking guide and answer key image if provided)"}"\n` +
+      `STUDENT'S TYPED WORKING (if any): "${typedWorking || "(none — read it from the image)"}"\n` +
+      `STUDENT'S TYPED FINAL ANSWER: "${$("finalAnswer").value.trim() || "(none typed — read it from the working)"}"\n\n` +
+      `Read the question and the student's annotations, handwriting, and typed text carefully; follow the working step by step and decide if the method and final answer are right. ` +
+      `Use the correct-answer text, teacher marking guide, and answer-key image as the authority for the intended solution. ` +
+      `Generate a full worked answer key from that guidance, including the main method steps and final answer, so the student can learn after submitting. ` +
+      `Award method marks even if the final answer is wrong but the approach is sound. Address the student as "you". ` +
+      `If you genuinely cannot read the handwriting or answer-key image, say so in the feedback.\n\n` +
+      `Return ONLY JSON: {"verdict":"correct"|"partial"|"incorrect","marks":<number>,"outOf":<number>,` +
+      `"feedback":"<2-3 warm sentences>","mistakes":["<specific slip or misread step>", ...],` +
+      `"nextStep":"<one concrete hint, or empty string if fully correct>",` +
+      `"fullAnswerKey":"<complete worked answer key generated from the teacher guidance and answer key image>"}`;
+    const raw = await askGeminiVision(prompt, [{ mimeType: "image/png", data: b64 }, ...keyMedia], { maxOutputTokens: 1500, json: true });
     const v = parseAIJson(raw);
     showResult(v, png);
     const verdict = (v.verdict || "").toLowerCase();
