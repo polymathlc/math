@@ -431,6 +431,7 @@ a { color: var(--primary); }
             <div class="feedback-block"><h4>💬 Feedback</h4><p id="fbFeedback"></p></div>
             <div class="feedback-block" id="mistakesBlock" style="display:none;"><h4>🔍 What to check</h4><ul id="fbMistakes"></ul></div>
             <div class="feedback-block" id="nextStepBlock" style="display:none;"><h4>➡️ Next step</h4><p id="fbNextStep"></p></div>
+            <div class="feedback-block" id="reviewPlanBlock" style="display:none;"><h4>🗓️ Review plan</h4><p id="fbReviewPlan"></p></div>
             <div class="feedback-block" id="answerKeyBlock" style="display:none;"><h4>🧾 Full answer key</h4><p class="answer-key-text" id="fbAnswerKey"></p></div>
             <div class="feedback-block"><h4>📸 Worksheet sent to the AI</h4>
               <div class="captured"><img id="capturedImg" alt="Your worksheet"><div class="captured-cap">This screenshot of your question, annotations, and working is what the AI marked.</div></div>
@@ -691,6 +692,145 @@ function renderMathInline(text) {
 function renderMathBlock(text) {
   return String(text == null ? "" : text).split(/\n/).map(line => renderMathInline(line)).join("<br>");
 }
+const CLUE_TOPIC_WORDS = [
+  "assumption", "supposition", "guess", "guess and check", "trial and error",
+  "working backwards", "work backwards", "model method", "bar model",
+  "before after", "before-after", "heuristic", "casework", "strategy"
+];
+function studentTopicLabel(topic) {
+  const raw = String(topic || "").trim();
+  if (!raw) return "Math";
+  const withoutClueParens = raw.replace(/\([^)]*\)/g, part => CLUE_TOPIC_WORDS.some(w => part.toLowerCase().includes(w)) ? "" : part).trim();
+  const source = withoutClueParens || raw;
+  const parts = source.split(/\s*[-–—:|/]\s*/).map(p => p.trim()).filter(Boolean);
+  const firstSafe = parts.find(p => !CLUE_TOPIC_WORDS.some(w => p.toLowerCase().includes(w)));
+  const candidate = firstSafe || source;
+  const lower = candidate.toLowerCase();
+  if (CLUE_TOPIC_WORDS.some(w => lower.includes(w))) return "Problem Solving";
+  return candidate;
+}
+function topicForMemory(q) { return studentTopicLabel((q && q.topic) || "Math"); }
+function progressDocId(q) {
+  return String((q && q.id) || "question").replace(/[\/\\#?\[\]]/g, "_").slice(0, 140);
+}
+function parseTimeMs(value) {
+  const ms = Date.parse(value || "");
+  return Number.isFinite(ms) ? ms : 0;
+}
+function dueTime(progress) { return parseTimeMs(progress && progress.nextReviewAt); }
+function prioritizeReviewQuestions(resetIndex = true) {
+  if (!questionBank.length || !currentUser || currentUser.role !== "student") return;
+  const now = Date.now();
+  questionBank.sort((a, b) => {
+    const pa = studentProgress[a.id] || {};
+    const pb = studentProgress[b.id] || {};
+    const da = dueTime(pa), db = dueTime(pb);
+    const aDue = da && da <= now, bDue = db && db <= now;
+    if (aDue !== bDue) return aDue ? -1 : 1;
+    if (aDue && bDue && da !== db) return da - db;
+    const wa = pa.wrongCount || 0, wb = pb.wrongCount || 0;
+    if (wa !== wb) return wb - wa;
+    return parseTimeMs(a.createdAt) - parseTimeMs(b.createdAt);
+  });
+  if (resetIndex) qIndex = 0;
+}
+async function loadStudentLearningState(uid) {
+  studentProgress = {};
+  studentLearningProfile = { weaknesses: {}, recentNotes: [] };
+  try {
+    const snap = await getDocs(collection(db, "users", uid, "mathQuestionProgress"));
+    snap.forEach(d => {
+      const data = d.data();
+      if (data && data.questionId) studentProgress[data.questionId] = data;
+    });
+  } catch (e) { console.warn("progress load", e); }
+  try {
+    const s = await getDoc(doc(db, "users", uid, "settings", "mathLearningProfile"));
+    if (s.exists()) studentLearningProfile = Object.assign({ weaknesses: {}, recentNotes: [] }, s.data());
+  } catch (e) { console.warn("learning profile load", e); }
+}
+function studentLearningPreamble() {
+  if (!currentUser || currentUser.role !== "student") return "";
+  const weaknesses = studentLearningProfile.weaknesses || {};
+  const top = Object.entries(weaknesses)
+    .sort((a, b) => ((b[1] && b[1].score) || 0) - ((a[1] && a[1].score) || 0))
+    .slice(0, 5)
+    .map(([label, data]) => `${label} (${data.topic || "Math"}, seen ${data.count || 1}x)`);
+  const notes = Array.isArray(studentLearningProfile.recentNotes) ? studentLearningProfile.recentNotes.slice(-3) : [];
+  if (!top.length && !notes.length) return "";
+  return `Private student learning memory: ${top.join("; ") || "no repeated weaknesses yet"}. ` +
+    `${notes.length ? "Recent notes: " + notes.join(" | ") + ". " : ""}` +
+    `Use this to adapt hints and feedback, but do not reveal hidden weakness labels to the student.\n`;
+}
+function weaknessLabelsFromResult(v, q) {
+  const raw = Array.isArray(v.weaknesses) ? v.weaknesses : [];
+  const labels = raw.map(w => {
+    if (typeof w === "string") return w;
+    if (w && typeof w === "object") return w.label || w.topic || w.name || w.weakness || "";
+    return "";
+  }).map(s => String(s).trim()).filter(Boolean);
+  if (!labels.length && (v.verdict || "").toLowerCase() !== "correct") labels.push(`${topicForMemory(q)} foundations`);
+  return [...new Set(labels)].slice(0, 4);
+}
+function nextReviewDelayMs(verdict, progress) {
+  const correctStreak = progress.correctStreak || 0;
+  const wrongCount = progress.wrongCount || 0;
+  if (verdict === "correct") {
+    const days = [1, 3, 7, 14, 30][Math.min(correctStreak, 4)];
+    return days * 24 * 60 * 60 * 1000;
+  }
+  if (verdict === "partial") return wrongCount ? 2 * 60 * 60 * 1000 : 45 * 60 * 1000;
+  return wrongCount ? 60 * 60 * 1000 : 15 * 60 * 1000;
+}
+function reviewPlanText(verdict, nextReviewAt) {
+  if (verdict === "correct") return "";
+  const mins = Math.max(1, Math.round((parseTimeMs(nextReviewAt) - Date.now()) / 60000));
+  const when = mins < 60 ? `about ${mins} minute${mins === 1 ? "" : "s"}` : `about ${Math.round(mins / 60)} hour${Math.round(mins / 60) === 1 ? "" : "s"}`;
+  return `This question is queued for review again in ${when}. Once you get it right, the next review will be spaced further out.`;
+}
+async function recordLearningAttempt(q, v) {
+  if (!currentUser || currentUser.role !== "student" || !q) return "";
+  const verdict = (v.verdict || "incorrect").toLowerCase();
+  const isCorrect = verdict === "correct";
+  const nowIso = new Date().toISOString();
+  const existing = studentProgress[q.id] || { questionId: q.id, attempts: 0, wrongCount: 0, correctStreak: 0 };
+  const next = Object.assign({}, existing, {
+    questionId: q.id,
+    title: q.title || "",
+    topic: topicForMemory(q),
+    attempts: (existing.attempts || 0) + 1,
+    lastAttemptAt: nowIso,
+    lastVerdict: verdict,
+    correctStreak: isCorrect ? (existing.correctStreak || 0) + 1 : 0,
+    wrongCount: isCorrect ? (existing.wrongCount || 0) : (existing.wrongCount || 0) + 1
+  });
+  if (!isCorrect) next.lastWrongAt = nowIso;
+  next.nextReviewAt = new Date(Date.now() + nextReviewDelayMs(verdict, existing)).toISOString();
+  const labels = weaknessLabelsFromResult(v, q);
+  if (labels.length) next.lastWeaknesses = labels;
+  studentProgress[q.id] = next;
+
+  const weaknesses = Object.assign({}, studentLearningProfile.weaknesses || {});
+  labels.forEach(label => {
+    const prev = weaknesses[label] || { count: 0, score: 0, topic: topicForMemory(q) };
+    weaknesses[label] = {
+      count: (prev.count || 0) + 1,
+      score: (prev.score || 0) + (isCorrect ? 0.5 : 1.5),
+      topic: topicForMemory(q),
+      lastSeenAt: nowIso
+    };
+  });
+  const note = String(v.learningNote || v.profileNote || "").trim();
+  const recentNotes = Array.isArray(studentLearningProfile.recentNotes) ? studentLearningProfile.recentNotes.slice(-7) : [];
+  if (note) recentNotes.push(note.slice(0, 180));
+  studentLearningProfile = { weaknesses, recentNotes, updatedAt: nowIso };
+
+  try {
+    await setDoc(doc(db, "users", currentUser.uid, "mathQuestionProgress", progressDocId(q)), next, { merge: true });
+    await setDoc(doc(db, "users", currentUser.uid, "settings", "mathLearningProfile"), studentLearningProfile, { merge: true });
+  } catch (e) { console.warn("learning save", e); }
+  return reviewPlanText(verdict, next.nextReviewAt);
+}
 
 // =====================================================================
 // Built-in starter questions (used as a fallback when the bank is empty)
@@ -712,6 +852,8 @@ let editorBlocks = [];           // editor block list
 let currentEditingId = null;
 let aiMarkingSettings = { instructions: "", strictness: 3 };
 let aiGenSettings = { instructions: "" };
+let studentProgress = {};        // per-question spaced-review state for students
+let studentLearningProfile = { weaknesses: {}, recentNotes: [] };
 
 // =====================================================================
 // AUTH
@@ -789,6 +931,8 @@ async function enterApp(user) {
     try { const cfg = await getDoc(doc(db, "config", "mathAdmin")); if (cfg.exists()) adminUid = cfg.data().uid; } catch (e) { console.warn(e); }
     if (adminUid) { await loadMarkingSettings(adminUid); await loadBank(adminUid); }
     if (!questionBank.length) questionBank = STARTER_QUESTIONS.slice();
+    await loadStudentLearningState(user.uid);
+    prioritizeReviewQuestions();
     navigateTo("practice");
   }
   renderQuestion();
@@ -1133,6 +1277,8 @@ async function handleAiBuild(file) {
     const prompt =
       `You are helping a Singapore primary-school math teacher turn an exam question (in the attached ${isPdf ? "PDF" : "image"}) into a practice question. ` +
       genPreamble() +
+      `For "topic", use only a broad content topic students can safely see, such as Fractions, Ratio, Percentage, Geometry, Speed, Algebra, or Problem Solving. ` +
+      `Do not use solution strategies or concepts that would give away the method, such as Assumption, Guess and Check, Working Backwards, or Model Method.\n` +
       `Read the question carefully and return ONLY JSON in this exact shape:\n` +
       `{"title":"<short title>","level":"<e.g. P5 or Sec 1>","topic":"<e.g. Fractions>",` +
       `"questionText":"<the full question text, cleaned up>","expected":"<the correct final answer, with units>",` +
@@ -1154,7 +1300,7 @@ function populateEditorFromAi(d) {
   if (d.hasDiagram) editorBlocks.push({ id: genBlockId(), type: "image", url: "" });
   $("qTitleInput").value = d.title || "";
   $("qLevelInput").value = d.level || "";
-  $("qTopicInput").value = d.topic || "";
+  $("qTopicInput").value = studentTopicLabel(d.topic || "");
   $("qExpectedInput").value = d.expected || "";
   $("qGuideInput").value = d.markingGuide || "";
   setAnswerKeyImage("");
@@ -1443,7 +1589,7 @@ function renderQuestion() {
   if (qIndex >= questionBank.length) qIndex = 0;
   const q = questionBank[qIndex];
   $("qLevel").textContent = q.level || "—";
-  $("qTopic").textContent = q.topic || "—";
+  $("qTopic").textContent = studentTopicLabel(q.topic || "Math");
   $("qCounter").textContent = `${qIndex + 1} / ${questionBank.length}`;
   $("qBody").innerHTML = (q.blocks || []).map(b => b.type === "image"
     ? (b.url ? `<img src="${escapeHtml(b.url)}" alt="diagram">` : "")
@@ -1457,7 +1603,13 @@ function renderQuestion() {
   hideHint();
 }
 function changeQuestion(delta) {
-  const ni = qIndex + delta; if (ni < 0 || ni >= questionBank.length) return;
+  let ni = qIndex + delta;
+  if (delta > 0 && currentUser && currentUser.role === "student") {
+    const now = Date.now();
+    const dueIndex = questionBank.findIndex((q, i) => i !== qIndex && dueTime(studentProgress[q.id]) && dueTime(studentProgress[q.id]) <= now);
+    if (dueIndex >= 0) ni = dueIndex;
+  }
+  if (ni < 0 || ni >= questionBank.length) return;
   if ((strokes.length || $("typedWorking").value.trim()) && !confirm("Move on? Your current working will be cleared.")) return;
   qIndex = ni; renderQuestion();
 }
@@ -1468,7 +1620,7 @@ $("finalAnswer").addEventListener("input", hideHint);
 
 const resultEl = $("result");
 function hideResult() { resultEl.classList.remove("show"); }
-function showResult(v, png) {
+function showResult(v, png, reviewPlan = "") {
   const verdict = (v.verdict || "incorrect").toLowerCase();
   const klass = verdict === "correct" ? "correct" : verdict === "partial" ? "partial" : "incorrect";
   $("verdictBanner").className = "verdict-banner " + klass;
@@ -1480,6 +1632,7 @@ function showResult(v, png) {
   if (mistakes.length) { $("fbMistakes").innerHTML = mistakes.map(m => `<li>${escapeHtml(m)}</li>`).join(""); $("mistakesBlock").style.display = "block"; }
   else $("mistakesBlock").style.display = "none";
   if (v.nextStep) { $("fbNextStep").textContent = v.nextStep; $("nextStepBlock").style.display = "block"; } else $("nextStepBlock").style.display = "none";
+  if (reviewPlan) { $("fbReviewPlan").textContent = reviewPlan; $("reviewPlanBlock").style.display = "block"; } else $("reviewPlanBlock").style.display = "none";
   const fullAnswerKey = String(v.fullAnswerKey || v.answerKey || "").trim();
   if (fullAnswerKey) { $("fbAnswerKey").textContent = fullAnswerKey; $("answerKeyBlock").style.display = "block"; } else $("answerKeyBlock").style.display = "none";
   $("capturedImg").src = png;
@@ -1506,6 +1659,7 @@ $("hintBtn").addEventListener("click", async () => {
       `You are a friendly Singapore primary-school math tutor giving a student's next-step hint before marking. ` +
       `The attached image is the student's current worksheet. It includes the question, any underlining or annotations, handwriting, typed text, or both.\n` +
       `${hasAnswerKeyImage ? "A second private image contains the teacher's answer key or worked solution. Use it only to understand the intended method; do not reveal the full solution or final answer.\n" : ""}` +
+      `${studentLearningPreamble()}` +
       `${markingPreamble(q.markingGuide)}\n\n` +
       `QUESTION: "${questionText(q)}"\n` +
       `CORRECT ANSWER (private - do not reveal it): "${q.expected || "(use the marking guide and answer key image if provided)"}"\n` +
@@ -1543,6 +1697,7 @@ $("submitBtn").addEventListener("click", async () => {
       `You are a friendly, encouraging Singapore primary-school math teacher marking a student's worksheet. ` +
       `The first attached image is a screenshot of the whole worksheet, including the question, any underlining or annotations, handwriting, typed text, or both.\n` +
       `${hasAnswerKeyImage ? "The second attached image is the teacher's private answer key or worked solution. Read it carefully and use it with the teacher guidance below.\n" : ""}` +
+      `${studentLearningPreamble()}` +
       `${markingPreamble(q.markingGuide)}\n\n` +
       `QUESTION: "${qText}"\n` +
       `CORRECT ANSWER: "${q.expected || "(use the marking guide and answer key image if provided)"}"\n` +
@@ -1556,10 +1711,13 @@ $("submitBtn").addEventListener("click", async () => {
       `Return ONLY JSON: {"verdict":"correct"|"partial"|"incorrect","marks":<number>,"outOf":<number>,` +
       `"feedback":"<2-3 warm sentences>","mistakes":["<specific slip or misread step>", ...],` +
       `"nextStep":"<one concrete hint, or empty string if fully correct>",` +
-      `"fullAnswerKey":"<complete worked answer key generated from the teacher guidance and answer key image>"}`;
+      `"fullAnswerKey":"<complete worked answer key generated from the teacher guidance and answer key image>",` +
+      `"weaknesses":["<private short weakness label for teacher memory>", ...],` +
+      `"learningNote":"<one private sentence about what this student seems to need next>"}`;
     const raw = await askGeminiVision(prompt, [{ mimeType: "image/png", data: b64 }, ...keyMedia], { maxOutputTokens: 1500, json: true });
     const v = parseAIJson(raw);
-    showResult(v, png);
+    const reviewPlan = await recordLearningAttempt(q, v);
+    showResult(v, png, reviewPlan);
     const verdict = (v.verdict || "").toLowerCase();
     toast(verdict === "correct" ? "Great work! 🎉" : "Marked — see the feedback", verdict === "correct" ? "success" : "");
   } catch (e) { console.error(e); toast("AI mark error: " + (e.message || e), "error"); }
