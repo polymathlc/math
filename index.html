@@ -311,6 +311,14 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .ai-drop { border: 2px dashed var(--border); border-radius: var(--radius-md); padding: 30px 20px; text-align: center; color: var(--text-muted); cursor: pointer; }
 .ai-drop:hover { border-color: var(--primary); color: var(--primary); background: var(--surface-alt); }
 .ai-drop b { color: var(--text); }
+.ai-build-preview { display: none; margin-top: 14px; border: 1.5px solid var(--border); border-radius: var(--radius-md); background: var(--surface-alt); overflow: hidden; }
+.ai-build-preview.show { display: block; }
+.ai-build-preview img { display: block; width: 100%; max-height: 260px; object-fit: contain; background: #fff; border-bottom: 1px solid var(--border); }
+.ai-build-preview-body { padding: 12px; }
+.ai-build-preview-title { font-weight: 700; margin-bottom: 4px; }
+.ai-build-preview-meta { color: var(--text-muted); font-size: 0.86rem; line-height: 1.35; }
+.ai-build-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+@media (max-width: 560px) { .ai-build-actions { grid-template-columns: 1fr; } }
 
 /* ========== TOAST / SPINNER ========== */
 #toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--text); color: #fff; padding: 12px 18px; border-radius: var(--radius-md); font-size: 0.88rem; box-shadow: var(--shadow-lg); opacity: 0; pointer-events: none; transition: all var(--transition); z-index: 400; max-width: 90vw; }
@@ -570,6 +578,18 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
         <b>Click to choose</b>, or paste (⌘V) / drop a file here<br><span style="font-size:0.8rem;">Image or PDF, up to 18 MB</span>
       </div>
       <input id="aiBuildFile" type="file" accept="image/*,application/pdf" class="hidden">
+      <div class="ai-build-preview" id="aiBuildPreviewWrap">
+        <img id="aiBuildPreview" alt="Uploaded question preview">
+        <div class="ai-build-preview-body">
+          <div class="ai-build-preview-title" id="aiBuildPreviewTitle">Image ready</div>
+          <div class="ai-build-preview-meta" id="aiBuildPreviewMeta">Choose how to build the question.</div>
+          <div class="ai-build-actions">
+            <button class="btn btn-ghost" id="aiBuildUseOriginalBtn" type="button">Use original</button>
+            <button class="btn btn-primary" id="aiBuildEnhanceBtn" type="button">Enhance with AI</button>
+            <button class="btn btn-primary" id="aiBuildUseEnhancedBtn" type="button" style="display:none;">Use enhanced</button>
+          </div>
+        </div>
+      </div>
       <div id="aiBuildStatus" style="margin-top:14px;font-size:0.88rem;color:var(--text-muted);"></div>
     </div>
   </div>
@@ -590,7 +610,7 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWith
 import { getFirestore, doc, getDoc, setDoc, collection, getDocs, deleteDoc }
   from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app-check.js";
-import { getAI, getGenerativeModel, GoogleAIBackend } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-ai.js";
+import { getAI, getGenerativeModel, GoogleAIBackend, ResponseModality } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-ai.js";
 import { getStorage, ref as storageRef, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-storage.js";
 
 const firebaseConfig = {
@@ -604,6 +624,7 @@ const firebaseConfig = {
 };
 const RECAPTCHA_SITE_KEY = "6Le98gwtAAAAAAzkjJTZXFM5D8tpjx_P4rtRuhuH";
 const AI_MODEL = "gemini-3.5-flash";
+const AI_IMAGE_MODELS = ["gemini-3.1-flash-image-preview", "gemini-2.5-flash-image"];
 const ADMIN_EMAILS = ['chungzhikai@gmail.com', 'abigail.yew@stanfordmanpower.com'];
 
 const app = initializeApp(firebaseConfig);
@@ -616,9 +637,18 @@ if (RECAPTCHA_SITE_KEY && !RECAPTCHA_SITE_KEY.startsWith("PASTE_")) {
   catch (e) { console.warn("App Check init failed:", e); }
 }
 let geminiModel = null;
-try { geminiModel = getGenerativeModel(getAI(app, { backend: new GoogleAIBackend() }), { model: AI_MODEL }); }
+const aiBackend = getAI(app, { backend: new GoogleAIBackend() });
+try { geminiModel = getGenerativeModel(aiBackend, { model: AI_MODEL }); }
 catch (e) { console.warn("Firebase AI init failed:", e); }
+let geminiImageModels = [];
+try {
+  geminiImageModels = AI_IMAGE_MODELS.map(model => getGenerativeModel(aiBackend, {
+    model,
+    generationConfig: { responseModalities: [ResponseModality.TEXT, ResponseModality.IMAGE] }
+  }));
+} catch (e) { console.warn("Firebase image AI init failed:", e); }
 const aiReady = () => !!geminiModel;
+const imageAiReady = () => geminiImageModels.length > 0;
 
 async function askGeminiVision(prompt, media, { maxOutputTokens = 1024, json = true } = {}) {
   if (!geminiModel) throw new Error("AI is not configured yet");
@@ -628,6 +658,43 @@ async function askGeminiVision(prompt, media, { maxOutputTokens = 1024, json = t
   if (json) generationConfig.responseMimeType = "application/json";
   const res = await geminiModel.generateContent({ contents: [{ role: "user", parts }], generationConfig });
   return (res.response.text() || "").trim();
+}
+function extractInlineImage(result) {
+  const inlineParts = result?.response?.inlineDataParts ? result.response.inlineDataParts() : [];
+  for (const p of inlineParts || []) {
+    const img = p.inlineData || p;
+    if (img?.data && img?.mimeType?.startsWith("image/")) return img;
+  }
+  const candidates = result?.response?.candidates || result?.candidates || [];
+  for (const c of candidates) {
+    for (const p of c?.content?.parts || []) {
+      const img = p.inlineData || p.inline_data;
+      if (img?.data && img?.mimeType?.startsWith("image/")) return img;
+      if (img?.data && img?.mime_type?.startsWith("image/")) return { data: img.data, mimeType: img.mime_type };
+    }
+  }
+  return null;
+}
+async function askGeminiImageEdit(prompt, media) {
+  if (!imageAiReady()) throw new Error("AI image enhancement is not configured yet");
+  const parts = [
+    prompt,
+    { inlineData: { mimeType: media.mimeType, data: media.data } }
+  ];
+  let lastError = null;
+  for (const model of geminiImageModels) {
+    try {
+      const result = await model.generateContent(parts);
+      const img = extractInlineImage(result);
+      if (img) return img;
+      const text = result?.response?.text ? result.response.text() : "";
+      throw new Error(text || "Gemini did not return an enhanced image");
+    } catch (e) {
+      lastError = e;
+      console.warn("image enhancement model failed", e);
+    }
+  }
+  throw lastError || new Error("AI image enhancement failed");
 }
 function parseAIJson(raw) {
   let s = (raw || "").trim();
@@ -1194,6 +1261,20 @@ async function uploadImageToStorage(file, folder = "mathImages") {
   await uploadString(sref, dataUrl, "data_url");
   return getDownloadURL(sref);
 }
+function dataUrlInfo(dataUrl) {
+  const match = String(dataUrl || "").match(/^data:([^;,]+)[^,]*,(.*)$/);
+  if (!match) throw new Error("invalid image data");
+  return { mimeType: match[1] || "image/png", data: match[2] };
+}
+async function uploadDataUrlToStorage(dataUrl, folder = "mathImages") {
+  const info = dataUrlInfo(dataUrl);
+  if (!info.mimeType.startsWith("image/")) throw new Error("not an image");
+  const ext = (info.mimeType.split("/")[1] || "png").replace(/[^a-z0-9]/gi, "").toLowerCase() || "png";
+  const path = `${folder}/${currentUser.uid}/${Date.now()}_${Math.random().toString(36).slice(2, 6)}.${ext}`;
+  const sref = storageRef(storage, path);
+  await uploadString(sref, dataUrl, "data_url");
+  return getDownloadURL(sref);
+}
 async function uploadImgFile(id, file) {
   try {
     const url = await uploadImageToStorage(file, "mathImages");
@@ -1303,10 +1384,42 @@ $("saveQBtn").addEventListener("click", async () => {
 // AI GENERATION (build a question from a photo/PDF)
 // =====================================================================
 function genPreamble() { return aiGenSettings.instructions ? ("Follow the teacher's generation guidance: " + aiGenSettings.instructions + " ") : ""; }
+let aiBuildPending = null;
+function resetAiBuildChoice() {
+  aiBuildPending = null;
+  $("aiBuildPreviewWrap").classList.remove("show");
+  $("aiBuildPreview").removeAttribute("src");
+  $("aiBuildPreviewTitle").textContent = "Image ready";
+  $("aiBuildPreviewMeta").textContent = "Choose how to build the question.";
+  $("aiBuildUseOriginalBtn").style.display = "";
+  $("aiBuildEnhanceBtn").style.display = "";
+  $("aiBuildUseEnhancedBtn").style.display = "none";
+  $("aiBuildUseOriginalBtn").disabled = false;
+  $("aiBuildEnhanceBtn").disabled = false;
+  $("aiBuildUseEnhancedBtn").disabled = false;
+}
+function setAiBuildBusy(busy, message = "") {
+  $("aiBuildUseOriginalBtn").disabled = busy;
+  $("aiBuildEnhanceBtn").disabled = busy;
+  $("aiBuildUseEnhancedBtn").disabled = busy;
+  if (message) $("aiBuildStatus").innerHTML = `<span class="spinner dark"></span> ${message}`;
+}
+function showAiBuildPreview(kind = "original") {
+  if (!aiBuildPending) return;
+  const selected = kind === "enhanced" && aiBuildPending.enhanced ? aiBuildPending.enhanced : aiBuildPending.original;
+  $("aiBuildPreview").src = selected.dataUrl;
+  $("aiBuildPreviewWrap").classList.add("show");
+  $("aiBuildPreviewTitle").textContent = selected.enhanced ? "Enhanced image ready" : "Original image ready";
+  $("aiBuildPreviewMeta").textContent = selected.enhanced
+    ? "Review the cleaned image, then build the question from it."
+    : "Use this exact picture, or ask AI to clean it first.";
+}
 $("aiBuildBtn").addEventListener("click", () => {
   if (!canManageQuestions()) { toast("Only admin accounts can build questions", "error"); return; }
   if (!aiReady()) { toast("AI isn't ready yet — please wait a moment", "error"); return; }
-  $("aiBuildStatus").textContent = ""; $("aiBuildOverlay").classList.add("show");
+  $("aiBuildStatus").textContent = "";
+  resetAiBuildChoice();
+  $("aiBuildOverlay").classList.add("show");
 });
 $("aiBuildZone").addEventListener("click", () => $("aiBuildFile").click());
 $("aiBuildZone").addEventListener("dragover", e => e.preventDefault());
@@ -1315,18 +1428,72 @@ $("aiBuildFile").addEventListener("change", e => { const f = e.target.files[0]; 
 document.addEventListener("paste", e => {
   if (!$("aiBuildOverlay").classList.contains("show")) return;
   const items = (e.clipboardData || {}).items || [];
-  for (const it of items) { if (it.type && it.type.startsWith("image/")) { handleAiBuild(it.getAsFile()); return; } }
+  for (const it of items) { if (it.type && it.type.startsWith("image/")) { e.preventDefault(); handleAiBuild(it.getAsFile()); return; } }
 });
 async function handleAiBuild(file) {
   if (!aiReady()) { toast("AI isn't ready yet", "error"); return; }
   const isPdf = file.type === "application/pdf";
   if (!file.type.startsWith("image/") && !isPdf) { toast("Please use an image or PDF", "error"); return; }
   if (file.size > 18 * 1024 * 1024) { toast("File too large (max 18 MB)", "error"); return; }
-  $("aiBuildStatus").innerHTML = '<span class="spinner dark"></span> Reading the question with AI…';
   try {
-    const b64 = await _fileToBase64(file);
+    if (isPdf) {
+      $("aiBuildStatus").innerHTML = '<span class="spinner dark"></span> Reading the PDF with AI…';
+      await runAiBuildFromMedia({ mimeType: file.type, data: await _fileToBase64(file), dataUrl: "", isPdf: true });
+      return;
+    }
+    const dataUrl = await blobToDataUrl(file);
+    const info = dataUrlInfo(dataUrl);
+    aiBuildPending = {
+      original: { dataUrl, mimeType: info.mimeType, data: info.data, enhanced: false, name: file.name || "Pasted image" },
+      enhanced: null
+    };
+    showAiBuildPreview("original");
+    $("aiBuildStatus").textContent = "";
+  } catch (e) { console.error(e); $("aiBuildStatus").textContent = "Couldn't read that — try a clearer image. (" + (e.message || e) + ")"; }
+  finally { $("aiBuildFile").value = ""; }
+}
+async function enhanceAiBuildPending() {
+  if (!aiBuildPending) return;
+  if (!imageAiReady()) { toast("AI image enhancement isn't ready yet", "error"); return; }
+  setAiBuildBusy(true, "Enhancing image with AI…");
+  try {
     const prompt =
-      `You are helping a Singapore primary-school math teacher turn an exam question (in the attached ${isPdf ? "PDF" : "image"}) into a practice question. ` +
+      `Edit the attached exam question image into a clean high-resolution worksheet image. ` +
+      `Preserve every detail exactly: all numbers, symbols, diagrams, labels, line positions, arrows, tick marks, angles, lengths, units, punctuation, answer blanks, and question text. ` +
+      `Do not solve the question. Do not crop, add, remove, reorder, rewrite, simplify, or change any mathematical content. ` +
+      `Only improve image quality: remove blur/noise/shadows, straighten the page, sharpen text, smooth diagram lines, and make fonts/lines clean and readable. ` +
+      `Return one enhanced image only.`;
+    const img = await askGeminiImageEdit(prompt, { mimeType: aiBuildPending.original.mimeType, data: aiBuildPending.original.data });
+    aiBuildPending.enhanced = {
+      dataUrl: `data:${img.mimeType || "image/png"};base64,${img.data}`,
+      mimeType: img.mimeType || "image/png",
+      data: img.data,
+      enhanced: true,
+      name: "AI enhanced image"
+    };
+    showAiBuildPreview("enhanced");
+    $("aiBuildEnhanceBtn").style.display = "none";
+    $("aiBuildUseEnhancedBtn").style.display = "";
+    $("aiBuildStatus").textContent = "Enhanced image ready.";
+    toast("Enhanced image ready", "success");
+  } catch (e) {
+    console.error(e);
+    $("aiBuildStatus").textContent = "Enhancement failed. You can still use the original image. (" + (e.message || e) + ")";
+  } finally {
+    setAiBuildBusy(false);
+  }
+}
+async function runAiBuildFromPending(kind) {
+  if (!aiBuildPending) return;
+  const selected = kind === "enhanced" && aiBuildPending.enhanced ? aiBuildPending.enhanced : aiBuildPending.original;
+  await runAiBuildFromMedia({ ...selected, isPdf: false });
+}
+async function runAiBuildFromMedia(source) {
+  $("aiBuildStatus").innerHTML = `<span class="spinner dark"></span> Reading the ${source.isPdf ? "PDF" : "image"} with AI…`;
+  setAiBuildBusy(true);
+  try {
+    const prompt =
+      `You are helping a Singapore primary-school math teacher turn an exam question (in the attached ${source.isPdf ? "PDF" : "image"}) into a practice question. ` +
       genPreamble() +
       `For "topic", use only a broad content topic students can safely see, such as Fractions, Ratio, Percentage, Geometry, Speed, Algebra, or Problem Solving. ` +
       `Do not use solution strategies or concepts that would give away the method, such as Assumption, Guess and Check, Working Backwards, or Model Method.\n` +
@@ -1334,21 +1501,33 @@ async function handleAiBuild(file) {
       `{"title":"<short title>","level":"<e.g. P5 or Sec 1>","topic":"<e.g. Fractions>",` +
       `"questionText":"<the full question text, cleaned up>","expected":"<the correct final answer, with units>",` +
       `"markingGuide":"<concise worked solution / what to look for in the working>","hasDiagram":<true if the question relies on a figure/diagram, else false>}`;
-    const raw = await askGeminiVision(prompt, [{ mimeType: file.type, data: b64 }], { maxOutputTokens: 900, json: true });
+    const raw = await askGeminiVision(prompt, [{ mimeType: source.mimeType, data: source.data }], { maxOutputTokens: 900, json: true });
     const data = parseAIJson(raw);
-    populateEditorFromAi(data);
+    let sourceImageUrl = "";
+    if (data.hasDiagram && source.dataUrl) {
+      $("aiBuildStatus").innerHTML = `<span class="spinner dark"></span> Saving ${source.enhanced ? "enhanced " : ""}diagram image…`;
+      sourceImageUrl = await uploadDataUrlToStorage(source.dataUrl, "mathImages");
+    }
+    populateEditorFromAi(data, sourceImageUrl);
     closeOverlay("aiBuildOverlay");
     navigateTo("create");
     toast("Draft created — review and save", "success");
-  } catch (e) { console.error(e); $("aiBuildStatus").textContent = "Couldn't read that — try a clearer image. (" + (e.message || e) + ")"; }
-  finally { $("aiBuildFile").value = ""; }
+  } catch (e) {
+    console.error(e);
+    $("aiBuildStatus").textContent = "Couldn't read that — try a clearer image. (" + (e.message || e) + ")";
+  } finally {
+    setAiBuildBusy(false);
+  }
 }
-function populateEditorFromAi(d) {
+$("aiBuildUseOriginalBtn").addEventListener("click", () => runAiBuildFromPending("original"));
+$("aiBuildEnhanceBtn").addEventListener("click", () => enhanceAiBuildPending());
+$("aiBuildUseEnhancedBtn").addEventListener("click", () => runAiBuildFromPending("enhanced"));
+function populateEditorFromAi(d, sourceImageUrl = "") {
   currentEditingId = null;
   editorBlocks = [];
   const qt = String(d.questionText || "").trim();
   editorBlocks.push({ id: genBlockId(), type: "text", content: qt });
-  if (d.hasDiagram) editorBlocks.push({ id: genBlockId(), type: "image", url: "" });
+  if (d.hasDiagram) editorBlocks.push({ id: genBlockId(), type: "image", url: sourceImageUrl || "" });
   $("qTitleInput").value = d.title || "";
   $("qLevelInput").value = d.level || "";
   $("qTopicInput").value = studentTopicLabel(d.topic || "");
