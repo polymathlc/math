@@ -165,7 +165,8 @@ a { color: var(--primary); }
 .q-counter { font-size: 0.78rem; color: var(--text-muted); font-family: 'Space Mono', monospace; }
 .q-body { font-size: 1.12rem; font-weight: 500; line-height: 1.55; color: var(--text); }
 .q-body p { margin-bottom: 8px; }
-.q-body img { max-width: 100%; max-height: 260px; border-radius: var(--radius-md); margin: 8px 0; border: 1px solid var(--border); }
+.q-body img { max-width: 150%; max-height: var(--question-image-max-height, 260px); height: auto; border-radius: var(--radius-md); margin: 8px 0; border: 1px solid var(--border); }
+.question-image { display: block; width: var(--question-image-width, 100%); max-width: 150%; }
 .math-frac { display: inline-block; vertical-align: middle; line-height: 0.98; margin: 0 0.1em; font-size: 0.92em; text-align: center; white-space: nowrap; transform: translateY(-0.04em); }
 .math-frac .num { display: block; border-bottom: 1.5px solid currentColor; padding: 0 0.24em 0.06em; min-width: 1.1em; text-align: center; }
 .math-frac .den { display: block; padding: 0.06em 0.24em 0; min-width: 1.1em; text-align: center; }
@@ -284,7 +285,9 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .block-edit:empty::before { content: attr(data-ph); color: var(--text-light); }
 .img-zone { border: 1.5px dashed var(--border); border-radius: var(--radius-sm); padding: 16px; text-align: center; color: var(--text-muted); font-size: 0.85rem; cursor: pointer; background: #fff; }
 .img-zone:hover { border-color: var(--primary); color: var(--primary); }
-.img-preview { max-width: 100%; border-radius: var(--radius-sm); margin-top: 8px; display: none; }
+.img-preview { width: var(--question-image-width, 100%); max-width: 150%; max-height: var(--question-image-max-height, 260px); border-radius: var(--radius-sm); margin-top: 8px; display: none; }
+.img-size-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.img-size-label { min-width: 56px; text-align: center; font-family: 'Space Mono', monospace; font-size: 0.78rem; color: var(--text-muted); }
 .answer-key-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: start; }
 .answer-key-row input { margin: 0; }
 .add-block-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 18px; }
@@ -295,16 +298,29 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .bank-item-main h4 { font-size: 0.98rem; font-weight: 600; }
 .bank-item-main .meta { font-size: 0.8rem; color: var(--text-muted); display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
 .bank-item-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.bank-item-actions { flex-wrap: wrap; justify-content: flex-end; }
 
 /* ========== OVERLAYS ========== */
 .overlay { display: none; position: fixed; inset: 0; background: rgba(20,18,16,0.5); z-index: 300; align-items: center; justify-content: center; padding: 20px; }
 .overlay.show { display: flex; }
 .overlay-card { background: var(--surface); border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; }
+.overlay-card.wide { max-width: 860px; }
 .overlay-head { display: flex; align-items: center; padding: 18px 22px; border-bottom: 1px solid var(--border); }
 .overlay-head h3 { font-size: 1.1rem; font-weight: 700; }
 .overlay-head .close { margin-left: auto; background: none; border: none; font-size: 1.4rem; cursor: pointer; color: var(--text-muted); }
 .overlay-body { padding: 22px; }
 .overlay-foot { padding: 16px 22px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+.preview-sheet { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 20px; background-image: linear-gradient(rgba(74,124,89,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(74,124,89,0.07) 1px, transparent 1px); background-size: 28px 28px; }
+.preview-title { font-size: 0.78rem; color: var(--text-muted); font-family: 'Space Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 12px; }
+.preview-working { margin-top: 28px; min-height: 220px; }
+.print-options { display: grid; gap: 12px; }
+.print-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.print-list { max-height: 260px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-alt); padding: 8px; }
+.print-check { display: flex; align-items: flex-start; gap: 9px; padding: 8px; border-radius: var(--radius-sm); cursor: pointer; }
+.print-check:hover { background: #fff; }
+.print-check input { margin-top: 2px; accent-color: var(--primary); }
+.print-check-title { display: block; font-weight: 700; font-size: 0.9rem; }
+.print-check-meta { display: block; font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; line-height: 1.35; }
 .range-row { display: flex; align-items: center; gap: 12px; }
 .range-row input[type=range] { flex: 1; accent-color: var(--primary); }
 .range-val { font-family: 'Space Mono', monospace; font-weight: 700; color: var(--primary); min-width: 96px; text-align: right; font-size: 0.82rem; }
@@ -407,6 +423,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
               <span class="q-counter" id="qCounter">0 / 0</span>
             </div>
             <div class="q-nav">
+              <button class="btn btn-ghost" id="practicePrintBtn">Print / PDF</button>
               <button class="btn btn-ghost" id="prevBtn">‹ Prev</button>
               <button class="btn btn-ghost" id="nextBtn">Next ›</button>
             </div>
@@ -486,6 +503,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
     <div class="page" id="page-create">
       <div class="page-head" style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;">
         <div style="flex:1;"><h3 id="createHeading">Create Question</h3><p>Add a math question for your students. They'll see it on the practice pad.</p></div>
+        <button class="btn btn-ghost" id="previewCreateBtn">Preview</button>
         <button class="btn btn-ghost" id="aiBuildBtn">✨ Build with AI</button>
       </div>
       <div class="card card-pad">
@@ -579,6 +597,41 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
       </div>
       <input id="aiBuildFile" type="file" accept="image/*,application/pdf" class="hidden">
       <div id="aiBuildStatus" style="margin-top:14px;font-size:0.88rem;color:var(--text-muted);"></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="previewOverlay">
+  <div class="overlay-card wide">
+    <div class="overlay-head"><h3 id="previewTitle">Question preview</h3><button class="close" data-close="previewOverlay">×</button></div>
+    <div class="overlay-body">
+      <div id="previewBody"></div>
+    </div>
+    <div class="overlay-foot">
+      <button class="btn btn-ghost" data-close="previewOverlay">Close</button>
+      <button class="btn btn-primary" id="previewPrintBtn">Print / Save PDF</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="printOverlay">
+  <div class="overlay-card">
+    <div class="overlay-head"><h3>Print practice</h3><button class="close" data-close="printOverlay">×</button></div>
+    <div class="overlay-body">
+      <div class="print-options">
+        <div class="print-actions">
+          <button class="btn btn-primary" id="printCurrentBtn" type="button">Current question</button>
+          <button class="btn btn-ghost" id="printAllBtn" type="button">Whole practice</button>
+        </div>
+        <div>
+          <div class="hint" style="margin-bottom:8px;">Choose several questions, then print or save as PDF from your browser print dialog.</div>
+          <div class="print-list" id="printQuestionList"></div>
+        </div>
+      </div>
+    </div>
+    <div class="overlay-foot">
+      <button class="btn btn-ghost" data-close="printOverlay">Close</button>
+      <button class="btn btn-primary" id="printSelectedBtn" type="button">Print selected</button>
     </div>
   </div>
 </div>
@@ -730,6 +783,18 @@ function _fileToBase64(file) {
 }
 const $ = (id) => document.getElementById(id);
 const escapeHtml = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const IMAGE_SCALE_MIN = 0.3;
+const IMAGE_SCALE_MAX = 1.5;
+const IMAGE_SCALE_STEP = 0.1;
+function normalizeImageScale(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 1;
+  return Math.max(IMAGE_SCALE_MIN, Math.min(IMAGE_SCALE_MAX, Math.round(n * 10) / 10));
+}
+function imageScalePercent(v) { return Math.round(normalizeImageScale(v) * 100); }
+function imageWidthStyle(v) { return `${imageScalePercent(v)}%`; }
+function imageMaxHeightStyle(v) { return `${Math.round(260 * normalizeImageScale(v))}px`; }
+function imageStyleAttr(v) { return `style="--question-image-width:${imageWidthStyle(v)};--question-image-max-height:${imageMaxHeightStyle(v)};"`; }
 const VULGAR_FRACTIONS = {
   "¼": ["1", "4"], "½": ["1", "2"], "¾": ["3", "4"],
   "⅐": ["1", "7"], "⅑": ["1", "9"], "⅒": ["1", "10"],
@@ -808,6 +873,17 @@ function renderMathInline(text) {
 }
 function renderMathBlock(text) {
   return String(text == null ? "" : text).split(/\n/).map(line => renderMathInline(line)).join("<br>");
+}
+function renderQuestionBlockHtml(b) {
+  if (!b) return "";
+  if (b.type === "image") {
+    const url = String(b.url || "").trim();
+    return url ? `<img class="question-image" src="${escapeHtml(url)}" alt="diagram" ${imageStyleAttr(b.scale)}>` : "";
+  }
+  return `<p>${renderMathBlock(b.content || "")}</p>`;
+}
+function renderQuestionBlocksHtml(blocks) {
+  return (blocks || []).map(renderQuestionBlockHtml).join("");
 }
 const CLUE_TOPIC_WORDS = [
   "assumption", "supposition", "guess", "guess and check", "trial and error",
@@ -1182,10 +1258,15 @@ function renderBank() {
       `<div class="bank-item-main"><h4>${escapeHtml(q.title || "Untitled")}</h4>
         <div class="meta"><span class="chip">${escapeHtml(q.level || "—")}</span><span class="chip topic">${escapeHtml(q.topic || "—")}</span>${answerKeyBadge}<span>${escapeHtml(preview)}</span></div></div>
        <div class="bank-item-actions">
+        <button class="btn btn-ghost btn-sm" data-preview="${q.id}">Preview</button>
         <button class="btn btn-ghost btn-sm" data-edit="${q.id}">Edit</button>
         <button class="btn btn-danger btn-sm" data-del="${q.id}">Delete</button></div>`;
     list.appendChild(el);
   });
+  list.querySelectorAll("[data-preview]").forEach(b => b.addEventListener("click", () => {
+    const q = questionBank.find(x => x.id === b.dataset.preview);
+    if (q) openQuestionPreview(q, "Question bank preview");
+  }));
   list.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => editQuestion(b.dataset.edit)));
   list.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => removeQuestion(b.dataset.del)));
 }
@@ -1206,7 +1287,7 @@ const genBlockId = () => "blk_" + Date.now() + "_" + Math.random().toString(36).
 const imgChoices = new Map();
 
 function addBlock(type) {
-  editorBlocks.push(type === "image" ? { id: genBlockId(), type: "image", url: "" } : { id: genBlockId(), type: "text", content: "" });
+  editorBlocks.push(type === "image" ? { id: genBlockId(), type: "image", url: "", scale: 1 } : { id: genBlockId(), type: "text", content: "" });
   renderEditorBlocks();
 }
 function removeBlockById(id) { imgChoices.delete(id); editorBlocks = editorBlocks.filter(b => b.id !== id); renderEditorBlocks(); }
@@ -1216,6 +1297,29 @@ function moveBlock(id, dir) {
   [editorBlocks[i], editorBlocks[j]] = [editorBlocks[j], editorBlocks[i]]; renderEditorBlocks();
 }
 function setBlockField(id, field, val) { const b = editorBlocks.find(x => x.id === id); if (b) b[field] = val; }
+function setImageScale(id, delta) {
+  const b = editorBlocks.find(x => x.id === id && x.type === "image");
+  if (!b) return;
+  b.scale = normalizeImageScale((b.scale == null ? 1 : b.scale) + delta);
+  syncImageScaleUi(id);
+}
+function syncImageScaleUi(id) {
+  const b = editorBlocks.find(x => x.id === id && x.type === "image");
+  if (!b) return;
+  const scale = normalizeImageScale(b.scale);
+  const wrap = $("blocksList");
+  const label = wrap.querySelector(`[data-imgsize-label="${id}"]`);
+  const preview = wrap.querySelector(`[data-imgprev="${id}"]`);
+  const down = wrap.querySelector(`[data-imgsize-down="${id}"]`);
+  const up = wrap.querySelector(`[data-imgsize-up="${id}"]`);
+  if (label) label.textContent = `${imageScalePercent(scale)}%`;
+  if (preview) {
+    preview.style.setProperty("--question-image-width", imageWidthStyle(scale));
+    preview.style.setProperty("--question-image-max-height", imageMaxHeightStyle(scale));
+  }
+  if (down) down.disabled = scale <= IMAGE_SCALE_MIN;
+  if (up) up.disabled = scale >= IMAGE_SCALE_MAX;
+}
 
 function renderEditorBlocks() {
   const wrap = $("blocksList");
@@ -1256,7 +1360,10 @@ function renderEditorBlocks() {
   wrap.querySelectorAll("[data-use-img-original]").forEach(b => b.addEventListener("click", () => useImgChoice(b.dataset.useImgOriginal, "original")));
   wrap.querySelectorAll("[data-enhance-img]").forEach(b => b.addEventListener("click", () => enhanceImgChoice(b.dataset.enhanceImg)));
   wrap.querySelectorAll("[data-use-img-enhanced]").forEach(b => b.addEventListener("click", () => useImgChoice(b.dataset.useImgEnhanced, "enhanced")));
+  wrap.querySelectorAll("[data-imgsize-down]").forEach(b => b.addEventListener("click", () => setImageScale(b.dataset.imgsizeDown, -IMAGE_SCALE_STEP)));
+  wrap.querySelectorAll("[data-imgsize-up]").forEach(b => b.addEventListener("click", () => setImageScale(b.dataset.imgsizeUp, IMAGE_SCALE_STEP)));
   editorBlocks.filter(b => b.type === "image").forEach(b => renderImgChoice(b.id));
+  editorBlocks.filter(b => b.type === "image").forEach(b => syncImageScaleUi(b.id));
   // nav buttons
   wrap.querySelectorAll("[data-up]").forEach(b => b.addEventListener("click", () => moveBlock(b.dataset.up, -1)));
   wrap.querySelectorAll("[data-down]").forEach(b => b.addEventListener("click", () => moveBlock(b.dataset.down, 1)));
@@ -1267,9 +1374,17 @@ function textBlockHtml(b) {
 }
 function imgBlockHtml(b) {
   const has = b.url ? "block" : "none";
+  const scale = normalizeImageScale(b.scale);
   return `<div class="img-zone" data-imgzone="${b.id}" tabindex="0">📎 Click, paste or drop an image / diagram here</div>
     <input type="file" accept="image/*" class="hidden" data-imgfile="${b.id}">
     <input type="text" data-imgurl="${b.id}" value="${escapeHtml(b.url || "")}" placeholder="…or paste an image URL" style="width:100%;margin-top:8px;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:0.85rem;">
+    <div class="img-size-row">
+      <span class="hint" style="margin:0;">Image size</span>
+      <button class="mini-btn" data-imgsize-down="${b.id}" type="button" title="Make image smaller">-</button>
+      <span class="img-size-label" data-imgsize-label="${b.id}">${imageScalePercent(scale)}%</span>
+      <button class="mini-btn" data-imgsize-up="${b.id}" type="button" title="Make image larger">+</button>
+      <span class="hint" style="margin:0;">30% to 150%</span>
+    </div>
     <div class="img-choice" data-imgchoice="${b.id}">
       <img data-imgchoice-prev="${b.id}" alt="Image preview">
       <div class="img-choice-body">
@@ -1283,9 +1398,18 @@ function imgBlockHtml(b) {
         <div class="img-choice-status" data-imgchoice-status="${b.id}"></div>
       </div>
     </div>
-    <img class="img-preview" data-imgprev="${b.id}" src="${escapeHtml(b.url || "")}" style="display:${has};">`;
+    <img class="img-preview" data-imgprev="${b.id}" src="${escapeHtml(b.url || "")}" style="display:${has};--question-image-width:${imageWidthStyle(scale)};--question-image-max-height:${imageMaxHeightStyle(scale)};">`;
 }
-function syncImgPreview(id, url) { const img = $("blocksList").querySelector(`[data-imgprev="${id}"]`); if (img) { img.src = url; img.style.display = url ? "block" : "none"; } }
+function syncImgPreview(id, url) {
+  const img = $("blocksList").querySelector(`[data-imgprev="${id}"]`);
+  if (img) {
+    const b = editorBlocks.find(x => x.id === id && x.type === "image");
+    img.src = url;
+    img.style.display = url ? "block" : "none";
+    img.style.setProperty("--question-image-width", imageWidthStyle(b ? b.scale : 1));
+    img.style.setProperty("--question-image-max-height", imageMaxHeightStyle(b ? b.scale : 1));
+  }
+}
 function handleImgPaste(id, e) {
   const items = (e.clipboardData || {}).items || [];
   for (const it of items) { if (it.type && it.type.startsWith("image/")) { e.preventDefault(); prepareImgChoice(id, it.getAsFile()); return; } }
@@ -1486,6 +1610,7 @@ function editQuestion(id) {
   currentEditingId = id;
   imgChoices.clear();
   editorBlocks = JSON.parse(JSON.stringify(q.blocks || []));
+  editorBlocks.forEach(b => { if (b.type === "image") b.scale = normalizeImageScale(b.scale); });
   if (!editorBlocks.length) editorBlocks = [{ id: genBlockId(), type: "text", content: "" }];
   $("qTitleInput").value = q.title || ""; $("qLevelInput").value = q.level || ""; $("qTopicInput").value = q.topic || "";
   $("qExpectedInput").value = q.expected || ""; $("qGuideInput").value = q.markingGuide || "";
@@ -1499,7 +1624,7 @@ function editQuestion(id) {
 
 function collectQuestion() {
   const blocks = editorBlocks
-    .map(b => b.type === "image" ? { id: b.id, type: "image", url: (b.url || "").trim() } : { id: b.id, type: "text", content: (b.content || "").trim() })
+    .map(b => b.type === "image" ? { id: b.id, type: "image", url: (b.url || "").trim(), scale: normalizeImageScale(b.scale) } : { id: b.id, type: "text", content: (b.content || "").trim() })
     .filter(b => (b.type === "image" ? b.url : b.content));
   return {
     id: currentEditingId || ("mq_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6)),
@@ -1530,6 +1655,7 @@ $("saveQBtn").addEventListener("click", async () => {
   } catch (e) { toast("Save failed: " + e.message, "error"); }
   finally { btn.disabled = false; btn.textContent = orig; }
 });
+$("previewCreateBtn").addEventListener("click", () => openQuestionPreview(collectQuestion(), "Create question preview"));
 
 // =====================================================================
 // AI GENERATION (build a question from a photo/PDF)
@@ -1598,7 +1724,7 @@ function populateEditorFromAi(d) {
   editorBlocks = [];
   const qt = String(d.questionText || "").trim();
   editorBlocks.push({ id: genBlockId(), type: "text", content: qt });
-  if (d.hasDiagram) editorBlocks.push({ id: genBlockId(), type: "image", url: "" });
+  if (d.hasDiagram) editorBlocks.push({ id: genBlockId(), type: "image", url: "", scale: 1 });
   $("qTitleInput").value = d.title || "";
   $("qLevelInput").value = d.level || "";
   $("qTopicInput").value = studentTopicLabel(d.topic || "");
@@ -1831,7 +1957,8 @@ function worksheetExportCss() {
     .worksheet-working-label { margin-top: 28px; }
     .q-body { font-size: 18px; font-weight: 500; line-height: 1.55; color: #2c2a27; }
     .q-body p { margin: 0 0 8px; }
-    .q-body img { max-width: 100%; max-height: 260px; border-radius: 8px; margin: 8px 0; border: 1px solid #e2ddd5; }
+    .q-body img { max-width: 150%; max-height: var(--question-image-max-height, 260px); height: auto; border-radius: 8px; margin: 8px 0; border: 1px solid #e2ddd5; }
+    .question-image { display: block; width: var(--question-image-width, 100%); max-width: 150%; }
     .math-frac { display: inline-block; vertical-align: middle; line-height: 0.98; margin: 0 0.1em; font-size: 0.92em; text-align: center; white-space: nowrap; transform: translateY(-0.04em); }
     .math-frac .num { display: block; border-bottom: 1.5px solid currentColor; padding: 0 0.24em 0.06em; min-width: 1.1em; text-align: center; }
     .math-frac .den { display: block; padding: 0.06em 0.24em 0; min-width: 1.1em; text-align: center; }
@@ -1949,6 +2076,82 @@ async function exportWorkingPng() {
 // =====================================================================
 function stripHtml(s) { const d = document.createElement("div"); d.innerHTML = s || ""; return (d.textContent || "").trim(); }
 function questionText(q) { return (q.blocks || []).filter(b => b.type === "text").map(b => stripHtml(b.content)).join(" "); }
+let previewPrintQuestions = [];
+function questionPreviewHtml(q, numberLabel = "") {
+  const meta = [q.level, studentTopicLabel(q.topic || "")].filter(Boolean).join(" - ");
+  return `<section class="preview-sheet">
+    <div class="preview-title">${numberLabel ? escapeHtml(numberLabel) + " - " : ""}${escapeHtml(q.title || "Question")}${meta ? ` (${escapeHtml(meta)})` : ""}</div>
+    <div class="q-body">${renderQuestionBlocksHtml(q.blocks || [])}</div>
+    <div class="worksheet-working-label preview-working">Working</div>
+  </section>`;
+}
+function openQuestionPreview(q, title = "Question preview") {
+  if (!q || !(q.blocks || []).length) { toast("Add question content before previewing", "error"); return; }
+  previewPrintQuestions = [q];
+  $("previewTitle").textContent = title;
+  $("previewBody").innerHTML = questionPreviewHtml(q);
+  $("previewOverlay").classList.add("show");
+}
+function printDocumentHtml(questions, title) {
+  const body = questions.map((q, i) => questionPreviewHtml(q, questions.length > 1 ? `Question ${i + 1}` : "")).join("");
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 18px; color: #2c2a27; font-family: Arial, sans-serif; background: #fff; }
+    .preview-sheet { min-height: 92vh; padding: 20px 22px; margin: 0 auto 18px; border: 1px solid #e2ddd5; background-image: linear-gradient(rgba(74,124,89,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(74,124,89,0.07) 1px, transparent 1px); background-size: 28px 28px; page-break-after: always; overflow: visible; }
+    .preview-sheet:last-child { page-break-after: auto; }
+    .preview-title, .worksheet-working-label { font-family: Consolas, monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: #8d887f; margin-bottom: 12px; }
+    .preview-working { margin-top: 30px; min-height: 260px; }
+    .q-body { font-size: 18px; font-weight: 500; line-height: 1.55; color: #2c2a27; overflow: visible; }
+    .q-body p { margin: 0 0 8px; }
+    .q-body img { max-width: 150%; max-height: var(--question-image-max-height, 260px); height: auto; border: 1px solid #e2ddd5; border-radius: 8px; margin: 8px 0; }
+    .question-image { display: block; width: var(--question-image-width, 100%); max-width: 150%; }
+    .math-frac { display: inline-block; vertical-align: middle; line-height: 0.98; margin: 0 0.1em; font-size: 0.92em; text-align: center; white-space: nowrap; transform: translateY(-0.04em); }
+    .math-frac .num { display: block; border-bottom: 1.5px solid currentColor; padding: 0 0.24em 0.06em; min-width: 1.1em; text-align: center; }
+    .math-frac .den { display: block; padding: 0.06em 0.24em 0; min-width: 1.1em; text-align: center; }
+    .math-sqrt { display: inline-flex; align-items: flex-start; vertical-align: -0.1em; margin: 0 0.08em; }
+    .math-sqrt .root { font-size: 1.1em; line-height: 1; padding-right: 0.04em; }
+    .math-sqrt .radicand { border-top: 1.5px solid currentColor; padding: 0.02em 0.18em 0; line-height: 1.15; }
+    @media print {
+      body { padding: 0; }
+      .preview-sheet { border: 0; min-height: 100vh; margin: 0; }
+    }
+  </style></head><body>${body}<script>
+    window.addEventListener("load", () => setTimeout(() => { window.focus(); window.print(); }, 250));
+  <\/script></body></html>`;
+}
+function printQuestions(questions, title = "Math practice") {
+  const list = (questions || []).filter(q => q && (q.blocks || []).length);
+  if (!list.length) { toast("Choose at least one question to print", "error"); return; }
+  const w = window.open("", "_blank");
+  if (!w) { toast("Please allow pop-ups to print or save as PDF", "error"); return; }
+  w.document.open();
+  w.document.write(printDocumentHtml(list, title));
+  w.document.close();
+}
+function questionListSummary(q) {
+  const txt = questionText(q).slice(0, 88);
+  return txt || ((q.blocks || []).some(b => b.type === "image") ? "Image / diagram question" : "No text preview");
+}
+function renderPrintQuestionList() {
+  const list = $("printQuestionList");
+  if (!questionBank.length) {
+    list.innerHTML = `<div class="empty-note" style="padding:20px;">No questions available to print.</div>`;
+    return;
+  }
+  list.innerHTML = questionBank.map((q, i) => `
+    <label class="print-check">
+      <input type="checkbox" value="${i}" ${i === qIndex ? "checked" : ""}>
+      <span>
+        <span class="print-check-title">${escapeHtml(q.title || `Question ${i + 1}`)}</span>
+        <span class="print-check-meta">${escapeHtml([q.level, studentTopicLabel(q.topic || ""), questionListSummary(q)].filter(Boolean).join(" - "))}</span>
+      </span>
+    </label>`).join("");
+}
+function openPrintOverlay() {
+  if (!questionBank.length) { toast("No questions available to print", "error"); return; }
+  renderPrintQuestionList();
+  $("printOverlay").classList.add("show");
+}
 async function imageUrlToInlineMedia(url) {
   const clean = String(url || "").trim();
   if (!clean) return null;
@@ -2071,9 +2274,7 @@ function renderQuestion() {
   $("qLevel").textContent = q.level || "—";
   $("qTopic").textContent = studentTopicLabel(q.topic || "Math");
   $("qCounter").textContent = `${qIndex + 1} / ${questionBank.length}`;
-  $("qBody").innerHTML = (q.blocks || []).map(b => b.type === "image"
-    ? (b.url ? `<img src="${escapeHtml(b.url)}" alt="diagram">` : "")
-    : `<p>${renderMathBlock(b.content || "")}</p>`).join("");
+  $("qBody").innerHTML = renderQuestionBlocksHtml(q.blocks || []);
   $("qBody").querySelectorAll("img").forEach(img => img.addEventListener("load", setupCanvasSize, { once: true }));
   $("finalAnswer").value = "";
   $("typedWorking").value = "";
@@ -2096,6 +2297,16 @@ function changeQuestion(delta) {
 }
 $("prevBtn").addEventListener("click", () => changeQuestion(-1));
 $("nextBtn").addEventListener("click", () => changeQuestion(1));
+$("practicePrintBtn").addEventListener("click", openPrintOverlay);
+$("previewPrintBtn").addEventListener("click", () => printQuestions(previewPrintQuestions, "Question preview"));
+$("printCurrentBtn").addEventListener("click", () => printQuestions([questionBank[qIndex]], "Current math question"));
+$("printAllBtn").addEventListener("click", () => printQuestions(questionBank, "Math practice"));
+$("printSelectedBtn").addEventListener("click", () => {
+  const selected = Array.from($("printQuestionList").querySelectorAll("input[type=checkbox]:checked"))
+    .map(inp => questionBank[Number(inp.value)])
+    .filter(Boolean);
+  printQuestions(selected, "Selected math questions");
+});
 $("typedWorking").addEventListener("input", hideHint);
 $("finalAnswer").addEventListener("input", hideHint);
 $("photoSolutionBtn").addEventListener("click", () => $("solutionPhotoInput").click());
