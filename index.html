@@ -237,6 +237,23 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
   .solution-photo { align-items: stretch; flex-direction: column; }
   .solution-photo img { width: 100%; height: auto; max-height: 220px; }
 }
+.learning-card { margin-top: 14px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-alt); }
+.learning-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.learning-head h4 { font-size: 0.98rem; font-weight: 700; }
+.learning-head p { color: var(--text-muted); font-size: 0.82rem; line-height: 1.35; margin-top: 2px; }
+.learning-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+.learning-stat { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px; }
+.learning-stat b { display: block; font-size: 1.05rem; }
+.learning-stat span { display: block; margin-top: 2px; font-family: 'Space Mono', monospace; font-size: 0.58rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+.learning-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.learning-list { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; min-height: 82px; }
+.learning-list h5 { font-family: 'Space Mono', monospace; font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
+.learning-list ul { margin: 0; padding-left: 18px; }
+.learning-list li { font-size: 0.86rem; margin-bottom: 4px; }
+@media (max-width: 720px) {
+  .learning-head { align-items: stretch; flex-direction: column; }
+  .learning-stats, .learning-grid { grid-template-columns: 1fr; }
+}
 .ai-hint-card { display: none; margin-top: 12px; padding: 13px 14px; border: 1px solid var(--accent-blue); border-radius: var(--radius-md); background: var(--accent-blue-light); }
 .ai-hint-card.show { display: block; }
 .ai-hint-card h4 { font-family: 'Space Mono', monospace; font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-blue); margin-bottom: 6px; }
@@ -499,6 +516,22 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
             <button class="btn btn-ghost btn-lg" id="photoSolutionBtn"><span id="photoSolutionLabel">📷 Photo answer</span></button>
             <button class="btn btn-ghost btn-lg" id="hintBtn"><span id="hintLabel">AI hint</span></button>
             <button class="btn btn-primary btn-lg" id="submitBtn"><span id="submitLabel">📸 Submit for AI marking</span></button>
+          </div>
+          <div class="learning-card student-only" id="learningCard">
+            <div class="learning-head">
+              <div><h4>AI learning profile</h4><p id="learningSummary">Your strengths and review plan will appear after a few marked questions.</p></div>
+              <button class="btn btn-primary btn-sm" id="generateWeaknessBtn" type="button"><span id="generateWeaknessLabel">Generate weakness practice</span></button>
+            </div>
+            <div class="learning-stats">
+              <div class="learning-stat"><b id="learnAttempts">0</b><span>Attempts</span></div>
+              <div class="learning-stat"><b id="learnAccuracy">0%</b><span>Accuracy</span></div>
+              <div class="learning-stat"><b id="learnPoints">0 / 0</b><span>Points</span></div>
+              <div class="learning-stat"><b id="learnDue">0</b><span>Due Reviews</span></div>
+            </div>
+            <div class="learning-grid">
+              <div class="learning-list"><h5>Strengths</h5><ul id="learnStrengths"></ul></div>
+              <div class="learning-list"><h5>Weaknesses</h5><ul id="learnWeaknesses"></ul></div>
+            </div>
           </div>
           <div class="ai-hint-card" id="aiHintCard"><h4>Next step hint</h4><p id="aiHintText"></p></div>
 
@@ -978,6 +1011,78 @@ function parseTimeMs(value) {
   return Number.isFinite(ms) ? ms : 0;
 }
 function dueTime(progress) { return parseTimeMs(progress && progress.nextReviewAt); }
+function learningProfileDefaults() {
+  return { weaknesses: {}, strengths: {}, topicStats: {}, conceptStats: {}, skillStats: {}, totals: {}, recentNotes: [] };
+}
+function pointsEarned(v) {
+  const n = Number(v && v.marks);
+  return Number.isFinite(n) ? Math.max(0, n) : 0;
+}
+function pointsPossible(v) {
+  const n = Number(v && v.outOf);
+  return Number.isFinite(n) && n > 0 ? n : 1;
+}
+function attemptCredit(verdict, v) {
+  if (verdict === "correct") return 1;
+  if (verdict === "partial") return 0.5;
+  const possible = pointsPossible(v);
+  return possible ? Math.max(0, Math.min(1, pointsEarned(v) / possible)) : 0;
+}
+function safeLabels(raw) {
+  return (Array.isArray(raw) ? raw : []).map(x => {
+    if (typeof x === "string") return x;
+    if (x && typeof x === "object") return x.label || x.topic || x.name || x.skill || x.strength || x.weakness || "";
+    return "";
+  }).map(s => String(s).trim()).filter(Boolean);
+}
+function strengthLabelsFromResult(v, q) {
+  const labels = safeLabels(v && v.strengths);
+  if (!labels.length && (v.verdict || "").toLowerCase() === "correct") labels.push(`${topicForMemory(q)} accuracy`);
+  return [...new Set(labels)].slice(0, 4);
+}
+function bumpLearningBucket(bucket, label, q, credit, points, possible, nowIso, mode) {
+  if (!label) return;
+  const prev = bucket[label] || { count: 0, correct: 0, score: 0, pointsEarned: 0, pointsPossible: 0, topic: topicForMemory(q), concept: conceptLabel(q) };
+  const next = Object.assign({}, prev, {
+    count: (prev.count || 0) + 1,
+    correct: (prev.correct || 0) + (credit >= 0.95 ? 1 : 0),
+    partial: (prev.partial || 0) + (credit > 0 && credit < 0.95 ? 1 : 0),
+    score: Math.max(0, (prev.score || 0) + (mode === "weakness" ? (1.5 - credit) : (0.5 + credit))),
+    pointsEarned: (prev.pointsEarned || 0) + points,
+    pointsPossible: (prev.pointsPossible || 0) + possible,
+    topic: topicForMemory(q),
+    concept: conceptLabel(q),
+    lastSeenAt: nowIso
+  });
+  bucket[label] = next;
+}
+function topLearningEntries(map, limit = 4, sortDir = "desc") {
+  return Object.entries(map || {})
+    .sort((a, b) => sortDir === "asc" ? ((a[1].score || 0) - (b[1].score || 0)) : ((b[1].score || 0) - (a[1].score || 0)))
+    .slice(0, limit);
+}
+function renderLearningProfile() {
+  if (!currentUser || currentUser.role !== "student") return;
+  const totals = studentLearningProfile.totals || {};
+  const attempts = totals.attempts || 0;
+  const correct = totals.correct || 0;
+  const possible = totals.pointsPossible || 0;
+  const earned = totals.pointsEarned || 0;
+  const due = Object.values(studentProgress || {}).filter(p => dueTime(p) && dueTime(p) <= Date.now()).length;
+  $("learnAttempts").textContent = String(attempts);
+  $("learnAccuracy").textContent = attempts ? `${Math.round((correct / attempts) * 100)}%` : "0%";
+  $("learnPoints").textContent = `${Math.round(earned * 10) / 10} / ${Math.round(possible * 10) / 10}`;
+  $("learnDue").textContent = String(due);
+  const strengths = topLearningEntries(studentLearningProfile.strengths, 4);
+  const weaknesses = topLearningEntries(studentLearningProfile.weaknesses, 4);
+  $("learnStrengths").innerHTML = strengths.length ? strengths.map(([label, data]) => `<li>${escapeHtml(label)} <span style="color:var(--text-muted);">(${data.topic || "Math"})</span></li>`).join("") : `<li style="color:var(--text-muted);">No strengths recorded yet.</li>`;
+  $("learnWeaknesses").innerHTML = weaknesses.length ? weaknesses.map(([label, data]) => `<li>${escapeHtml(label)} <span style="color:var(--text-muted);">(${data.topic || "Math"})</span></li>`).join("") : `<li style="color:var(--text-muted);">No weaknesses recorded yet.</li>`;
+  const lead = weaknesses[0];
+  $("learningSummary").textContent = attempts
+    ? `AI has tracked ${attempts} attempt${attempts === 1 ? "" : "s"} and is scheduling reviews from your latest work.${lead ? " Current focus: " + lead[0] + "." : ""}`
+    : "Your strengths, weaknesses, points, and review plan will appear after marked questions.";
+  $("generateWeaknessBtn").disabled = !attempts;
+}
 function prioritizeReviewQuestions(resetIndex = true) {
   if (!questionBank.length || !currentUser || currentUser.role !== "student") return;
   const now = Date.now();
@@ -988,6 +1093,8 @@ function prioritizeReviewQuestions(resetIndex = true) {
     const aDue = da && da <= now, bDue = db && db <= now;
     if (aDue !== bDue) return aDue ? -1 : 1;
     if (aDue && bDue && da !== db) return da - db;
+    const aGenerated = a.generatedByAi && !(pa.attempts || 0), bGenerated = b.generatedByAi && !(pb.attempts || 0);
+    if (aGenerated !== bGenerated) return aGenerated ? -1 : 1;
     const wa = pa.wrongCount || 0, wb = pb.wrongCount || 0;
     if (wa !== wb) return wb - wa;
     return parseTimeMs(a.createdAt) - parseTimeMs(b.createdAt);
@@ -996,7 +1103,7 @@ function prioritizeReviewQuestions(resetIndex = true) {
 }
 async function loadStudentLearningState(uid) {
   studentProgress = {};
-  studentLearningProfile = { weaknesses: {}, recentNotes: [] };
+  studentLearningProfile = learningProfileDefaults();
   try {
     const snap = await getDocs(collection(db, "users", uid, "mathQuestionProgress"));
     snap.forEach(d => {
@@ -1006,19 +1113,38 @@ async function loadStudentLearningState(uid) {
   } catch (e) { console.warn("progress load", e); }
   try {
     const s = await getDoc(doc(db, "users", uid, "settings", "mathLearningProfile"));
-    if (s.exists()) studentLearningProfile = Object.assign({ weaknesses: {}, recentNotes: [] }, s.data());
+    if (s.exists()) studentLearningProfile = Object.assign(learningProfileDefaults(), s.data());
   } catch (e) { console.warn("learning profile load", e); }
+  renderLearningProfile();
+}
+async function loadStudentGeneratedQuestions(uid) {
+  studentGeneratedQuestions = [];
+  try {
+    const snap = await getDocs(collection(db, "users", uid, "generatedPracticeQuestions"));
+    snap.forEach(d => studentGeneratedQuestions.push(Object.assign({ id: d.id }, d.data())));
+    studentGeneratedQuestions.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+    const seen = new Set(questionBank.map(q => q.id));
+    studentGeneratedQuestions.forEach(q => { if (q && q.id && !seen.has(q.id)) { questionBank.push(q); seen.add(q.id); } });
+  } catch (e) { console.warn("generated practice load", e); }
 }
 function studentLearningPreamble() {
   if (!currentUser || currentUser.role !== "student") return "";
   const weaknesses = studentLearningProfile.weaknesses || {};
+  const strengths = studentLearningProfile.strengths || {};
+  const totals = studentLearningProfile.totals || {};
   const top = Object.entries(weaknesses)
     .sort((a, b) => ((b[1] && b[1].score) || 0) - ((a[1] && a[1].score) || 0))
     .slice(0, 5)
     .map(([label, data]) => `${label} (${data.topic || "Math"}, seen ${data.count || 1}x)`);
+  const strong = Object.entries(strengths)
+    .sort((a, b) => ((b[1] && b[1].score) || 0) - ((a[1] && a[1].score) || 0))
+    .slice(0, 3)
+    .map(([label, data]) => `${label} (${data.topic || "Math"})`);
   const notes = Array.isArray(studentLearningProfile.recentNotes) ? studentLearningProfile.recentNotes.slice(-3) : [];
-  if (!top.length && !notes.length) return "";
+  if (!top.length && !strong.length && !notes.length && !totals.attempts) return "";
   return `Private student learning memory: ${top.join("; ") || "no repeated weaknesses yet"}. ` +
+    `Strengths: ${strong.join("; ") || "not enough data yet"}. ` +
+    `Attempts: ${totals.attempts || 0}; points: ${Math.round((totals.pointsEarned || 0) * 10) / 10}/${Math.round((totals.pointsPossible || 0) * 10) / 10}. ` +
     `${notes.length ? "Recent notes: " + notes.join(" | ") + ". " : ""}` +
     `Use this to adapt hints and feedback, but do not reveal hidden weakness labels to the student.\n`;
 }
@@ -1052,6 +1178,9 @@ async function recordLearningAttempt(q, v) {
   if (!currentUser || currentUser.role !== "student" || !q) return "";
   const verdict = (v.verdict || "incorrect").toLowerCase();
   const isCorrect = verdict === "correct";
+  const credit = attemptCredit(verdict, v);
+  const earned = pointsEarned(v);
+  const possible = pointsPossible(v);
   const nowIso = new Date().toISOString();
   const existing = studentProgress[q.id] || { questionId: q.id, attempts: 0, wrongCount: 0, correctStreak: 0 };
   const next = Object.assign({}, existing, {
@@ -1061,38 +1190,168 @@ async function recordLearningAttempt(q, v) {
     topics: questionTopics(q),
     concept: conceptLabel(q),
     attempts: (existing.attempts || 0) + 1,
+    pointsEarned: (existing.pointsEarned || 0) + earned,
+    pointsPossible: (existing.pointsPossible || 0) + possible,
     lastAttemptAt: nowIso,
     lastVerdict: verdict,
+    lastMarks: earned,
+    lastOutOf: possible,
     correctStreak: isCorrect ? (existing.correctStreak || 0) + 1 : 0,
     wrongCount: isCorrect ? (existing.wrongCount || 0) : (existing.wrongCount || 0) + 1
   });
   if (!isCorrect) next.lastWrongAt = nowIso;
   next.nextReviewAt = new Date(Date.now() + nextReviewDelayMs(verdict, existing)).toISOString();
   const labels = weaknessLabelsFromResult(v, q);
+  const strengthLabels = strengthLabelsFromResult(v, q);
   if (labels.length) next.lastWeaknesses = labels;
+  if (strengthLabels.length) next.lastStrengths = strengthLabels;
   studentProgress[q.id] = next;
 
   const weaknesses = Object.assign({}, studentLearningProfile.weaknesses || {});
+  const strengths = Object.assign({}, studentLearningProfile.strengths || {});
+  const topicStats = Object.assign({}, studentLearningProfile.topicStats || {});
+  const conceptStats = Object.assign({}, studentLearningProfile.conceptStats || {});
+  const skillStats = Object.assign({}, studentLearningProfile.skillStats || {});
+  const totals = Object.assign({ attempts: 0, correct: 0, partial: 0, incorrect: 0, pointsEarned: 0, pointsPossible: 0 }, studentLearningProfile.totals || {});
+  totals.attempts = (totals.attempts || 0) + 1;
+  totals.correct = (totals.correct || 0) + (verdict === "correct" ? 1 : 0);
+  totals.partial = (totals.partial || 0) + (verdict === "partial" ? 1 : 0);
+  totals.incorrect = (totals.incorrect || 0) + (verdict === "incorrect" ? 1 : 0);
+  totals.pointsEarned = (totals.pointsEarned || 0) + earned;
+  totals.pointsPossible = (totals.pointsPossible || 0) + possible;
+  questionTopics(q).forEach(topic => bumpLearningBucket(topicStats, studentTopicLabel(topic), q, credit, earned, possible, nowIso, credit >= 0.7 ? "strength" : "weakness"));
+  if (conceptLabel(q)) bumpLearningBucket(conceptStats, conceptLabel(q), q, credit, earned, possible, nowIso, credit >= 0.7 ? "strength" : "weakness");
   labels.forEach(label => {
-    const prev = weaknesses[label] || { count: 0, score: 0, topic: topicForMemory(q), concept: conceptLabel(q) };
-    weaknesses[label] = {
-      count: (prev.count || 0) + 1,
-      score: (prev.score || 0) + (isCorrect ? 0.5 : 1.5),
-      topic: topicForMemory(q),
-      concept: conceptLabel(q),
-      lastSeenAt: nowIso
-    };
+    bumpLearningBucket(weaknesses, label, q, credit, earned, possible, nowIso, "weakness");
+  });
+  strengthLabels.forEach(label => {
+    bumpLearningBucket(strengths, label, q, credit, earned, possible, nowIso, "strength");
+  });
+  (Array.isArray(v.skillScores) ? v.skillScores : []).forEach(item => {
+    const label = String(item && (item.label || item.skill || item.name) || "").trim();
+    if (!label) return;
+    bumpLearningBucket(skillStats, label, q, credit, earned, possible, nowIso, credit >= 0.7 ? "strength" : "weakness");
+    skillStats[label].aiScore = Number(item.score) || skillStats[label].aiScore || 0;
+    skillStats[label].evidence = String(item.evidence || "").slice(0, 180);
   });
   const note = String(v.learningNote || v.profileNote || "").trim();
   const recentNotes = Array.isArray(studentLearningProfile.recentNotes) ? studentLearningProfile.recentNotes.slice(-7) : [];
   if (note) recentNotes.push(note.slice(0, 180));
-  studentLearningProfile = { weaknesses, recentNotes, updatedAt: nowIso };
+  studentLearningProfile = { weaknesses, strengths, topicStats, conceptStats, skillStats, totals, recentNotes, updatedAt: nowIso };
+  const attemptId = makeDocId("attempt");
+  const attemptDoc = {
+    id: attemptId,
+    questionId: q.id,
+    questionTitle: q.title || "",
+    topic: topicForMemory(q),
+    topics: questionTopics(q),
+    concept: conceptLabel(q),
+    verdict,
+    marks: earned,
+    outOf: possible,
+    credit,
+    strengths: strengthLabels,
+    weaknesses: labels,
+    skillScores: Array.isArray(v.skillScores) ? v.skillScores : [],
+    learningNote: note,
+    nextReviewAt: next.nextReviewAt,
+    createdAt: nowIso
+  };
 
   try {
     await setDoc(doc(db, "users", currentUser.uid, "mathQuestionProgress", progressDocId(q)), next, { merge: true });
+    await setDoc(doc(db, "users", currentUser.uid, "mathPerformanceAttempts", attemptId), attemptDoc);
     await setDoc(doc(db, "users", currentUser.uid, "settings", "mathLearningProfile"), studentLearningProfile, { merge: true });
   } catch (e) { console.warn("learning save", e); }
+  renderLearningProfile();
   return reviewPlanText(verdict, next.nextReviewAt);
+}
+function weaknessPracticeTarget() {
+  const weaknesses = topLearningEntries(studentLearningProfile.weaknesses, 1);
+  if (weaknesses.length) {
+    const [label, data] = weaknesses[0];
+    return { label, topic: data.topic || "Math", concept: data.concept || "", reason: "weakness" };
+  }
+  const lowTopic = Object.entries(studentLearningProfile.topicStats || {})
+    .filter(([, data]) => (data.pointsPossible || 0) > 0)
+    .sort((a, b) => ((a[1].pointsEarned || 0) / (a[1].pointsPossible || 1)) - ((b[1].pointsEarned || 0) / (b[1].pointsPossible || 1)))[0];
+  if (lowTopic) return { label: lowTopic[0], topic: lowTopic[0], concept: lowTopic[1].concept || "", reason: "lowest topic accuracy" };
+  return null;
+}
+function learningSnapshotForGeneration(target) {
+  const totals = studentLearningProfile.totals || {};
+  const strengths = topLearningEntries(studentLearningProfile.strengths, 3).map(([label, data]) => ({ label, topic: data.topic || "Math" }));
+  const weaknesses = topLearningEntries(studentLearningProfile.weaknesses, 5).map(([label, data]) => ({ label, topic: data.topic || "Math", concept: data.concept || "", score: data.score || 0 }));
+  return {
+    target,
+    totals: {
+      attempts: totals.attempts || 0,
+      correct: totals.correct || 0,
+      partial: totals.partial || 0,
+      incorrect: totals.incorrect || 0,
+      pointsEarned: totals.pointsEarned || 0,
+      pointsPossible: totals.pointsPossible || 0
+    },
+    strengths,
+    weaknesses
+  };
+}
+function questionFromWeaknessAi(d, target) {
+  const topics = parseTopics(d.topics && d.topics.length ? d.topics : (d.topic || target.topic || "Problem Solving")).map(studentTopicLabel).filter(Boolean);
+  const text = String(d.questionText || d.question || "").trim();
+  return {
+    id: makeDocId("aiweak"),
+    title: String(d.title || `${target.topic || "Math"} practice`).trim(),
+    level: String(d.level || "Practice").trim(),
+    topic: (topics.length ? topics : [studentTopicLabel(target.topic || "Problem Solving")]).join(", "),
+    topics: topics.length ? topics : [studentTopicLabel(target.topic || "Problem Solving")],
+    concept: String(d.concept || target.concept || target.label || "").trim(),
+    blocks: [{ id: genBlockId(), type: "text", content: text || "Solve the question carefully and show your working." }],
+    expected: String(d.expected || "").trim(),
+    markingGuide: String(d.markingGuide || "").trim(),
+    generatedForWeakness: target.label,
+    generatedByAi: true,
+    createdAt: new Date().toISOString(),
+    createdBy: "AI weakness practice"
+  };
+}
+async function generateWeaknessPractice() {
+  if (!currentUser || currentUser.role !== "student") return;
+  if (!aiReady()) { toast("AI question generation isn't ready yet", "error"); return; }
+  const target = weaknessPracticeTarget();
+  if (!target) { toast("Complete and submit a few questions first so AI can find a useful weakness", "error"); return; }
+  const btn = $("generateWeaknessBtn");
+  const label = $("generateWeaknessLabel");
+  btn.disabled = true;
+  label.innerHTML = '<span class="spinner"></span> Generating...';
+  try {
+    const snapshot = learningSnapshotForGeneration(target);
+    const prompt =
+      `You are creating one new Singapore-style math practice question for deliberate practice and spaced repetition. ` +
+      `Use the private student performance snapshot to target the weakness, but do not mention weakness labels to the student.\n` +
+      `Private performance snapshot: ${JSON.stringify(snapshot)}\n\n` +
+      `Create a fresh question that practises the target weakness with different numbers and wording from previous questions. ` +
+      `Keep it suitable for worksheet working, no image or diagram required, and make sure the answer and marking guide are correct. ` +
+      `For "topics", use broad safe topic labels only. For "concept", use a private teacher-only method/concept label.\n\n` +
+      `Return ONLY valid JSON in this exact shape: {"title":"<short title>","level":"<e.g. P5>","topics":["<topic>"],"concept":"<private concept>",` +
+      `"questionText":"<full question text>","expected":"<final answer with units>","markingGuide":"<worked solution and method marks>"}`;
+    const raw = await askGeminiVision(prompt, [], { maxOutputTokens: 1800, json: true });
+    const data = parseAIJson(raw);
+    const q = questionFromWeaknessAi(data, target);
+    if (!q.expected || !q.markingGuide) throw new Error("AI generated an incomplete question");
+    await setDoc(doc(db, "users", currentUser.uid, "generatedPracticeQuestions", q.id), q);
+    studentGeneratedQuestions.unshift(q);
+    questionBank.unshift(q);
+    qIndex = 0;
+    renderQuestion();
+    toast("Weakness practice question generated", "success");
+  } catch (e) {
+    console.error(e);
+    toast("Question generation failed: " + (e.message || e), "error");
+  } finally {
+    btn.disabled = false;
+    label.textContent = "Generate weakness practice";
+  }
 }
 
 // =====================================================================
@@ -1110,13 +1369,14 @@ const STARTER_QUESTIONS = [
 let currentUser = null;          // { uid, email, name, role }
 let adminUid = null;             // for students: whose bank to load
 let questionBank = [];           // the active practice questions
+let studentGeneratedQuestions = [];
 let qIndex = 0;
 let editorBlocks = [];           // editor block list
 let currentEditingId = null;
 let aiMarkingSettings = { instructions: "", strictness: 3 };
 let aiGenSettings = { instructions: "" };
 let studentProgress = {};        // per-question spaced-review state for students
-let studentLearningProfile = { weaknesses: {}, recentNotes: [] };
+let studentLearningProfile = { weaknesses: {}, strengths: {}, topicStats: {}, conceptStats: {}, skillStats: {}, totals: {}, recentNotes: [] };
 let flagNotifications = [];
 let emailNewQuestionOptIn = false;
 
@@ -1204,6 +1464,7 @@ async function enterApp(user) {
     if (adminUid) { await loadMarkingSettings(adminUid); await loadBank(adminUid); }
     if (!questionBank.length) questionBank = STARTER_QUESTIONS.slice();
     await loadStudentLearningState(user.uid);
+    await loadStudentGeneratedQuestions(user.uid);
     await loadEmailSubscription();
     prioritizeReviewQuestions();
     navigateTo("practice");
@@ -2534,6 +2795,7 @@ function showHint(text) {
   $("aiHintCard").classList.toggle("show", !!text);
 }
 function renderQuestion() {
+  renderLearningProfile();
   if (!questionBank.length) {
     $("qMeta").style.display = "none";
     $("flagQuestionBtn").disabled = true;
@@ -2600,6 +2862,7 @@ $("solutionPhotoInput").addEventListener("change", async e => {
   finally { btn.disabled = false; label.textContent = "📷 Photo answer"; }
 });
 $("clearSolutionPhotoBtn").addEventListener("click", () => clearSolutionPhoto());
+$("generateWeaknessBtn").addEventListener("click", generateWeaknessPractice);
 
 const resultEl = $("result");
 function hideResult() { resultEl.classList.remove("show"); }
@@ -2703,12 +2966,15 @@ $("submitBtn").addEventListener("click", async () => {
       `Use the correct-answer text, teacher marking guide, and answer-key image as the authority for the intended solution. ` +
       `Generate a full worked answer key from that guidance, including the main method steps and final answer, so the student can learn after submitting. ` +
       `Award method marks even if the final answer is wrong but the approach is sound. Address the student as "you". ` +
+      `Identify the student's strengths, weaknesses, and skill scores from this exact attempt. Use concise private labels for memory, not long explanations. ` +
       `If you genuinely cannot read the handwriting or answer-key image, say so in the feedback.\n\n` +
       `Return ONLY JSON: {"verdict":"correct"|"partial"|"incorrect","marks":<number>,"outOf":<number>,` +
       `"feedback":"<2-3 warm sentences>","mistakes":["<specific slip or misread step>", ...],` +
       `"nextStep":"<one concrete hint, or empty string if fully correct>",` +
       `"fullAnswerKey":"<complete worked answer key generated from the teacher guidance and answer key image>",` +
+      `"strengths":["<private short strength label>", ...],` +
       `"weaknesses":["<private short weakness label for teacher memory>", ...],` +
+      `"skillScores":[{"label":"<skill or concept>","score":<0-100>,"evidence":"<brief private evidence>"}],` +
       `"learningNote":"<one private sentence about what this student seems to need next>"}`;
     const raw = await askGeminiVision(prompt, media, { maxOutputTokens: 1500, json: true });
     const v = parseAIJson(raw);
