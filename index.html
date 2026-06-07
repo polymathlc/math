@@ -511,8 +511,9 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
           <div class="editor-field"><label>Title</label><input id="qTitleInput" type="text" placeholder="e.g. Fractions — pizza left over"></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
             <div class="editor-field" style="margin:0;"><label>Level</label><input id="qLevelInput" type="text" placeholder="e.g. P5"></div>
-            <div class="editor-field" style="margin:0;"><label>Topic</label><input id="qTopicInput" type="text" placeholder="e.g. Fractions"></div>
+            <div class="editor-field" style="margin:0;"><label>Topics</label><input id="qTopicInput" type="text" placeholder="e.g. Fractions, Ratio"></div>
           </div>
+          <div class="editor-field" style="margin:0;"><label>Concept <span style="color:var(--text-light);font-weight:400;">(teacher only)</span></label><input id="qConceptInput" type="text" placeholder="e.g. Assumption, Total unchanged"><div class="hint">Private strategy/concept label for organising and AI guidance. Students only see the topic.</div></div>
         </div>
 
         <label style="display:block;font-size:0.84rem;font-weight:600;margin:6px 0;">Question content</label>
@@ -890,9 +891,23 @@ const CLUE_TOPIC_WORDS = [
   "working backwards", "work backwards", "model method", "bar model",
   "before after", "before-after", "heuristic", "casework", "strategy"
 ];
+function parseTopics(value) {
+  if (Array.isArray(value)) return [...new Set(value.map(v => String(v || "").trim()).filter(Boolean))];
+  return [...new Set(String(value || "").split(/[,;\n|]+/).map(v => v.trim()).filter(Boolean))];
+}
+function questionTopics(q) {
+  const topics = parseTopics(q && q.topics);
+  return topics.length ? topics : parseTopics(q && q.topic);
+}
 function studentTopicLabel(topic) {
+  if (Array.isArray(topic)) {
+    const labels = [...new Set(topic.map(studentTopicLabel).filter(Boolean))];
+    return labels.length ? labels.join(", ") : "Math";
+  }
   const raw = String(topic || "").trim();
   if (!raw) return "Math";
+  const multi = parseTopics(raw);
+  if (multi.length > 1) return studentTopicLabel(multi);
   const withoutClueParens = raw.replace(/\([^)]*\)/g, part => CLUE_TOPIC_WORDS.some(w => part.toLowerCase().includes(w)) ? "" : part).trim();
   const source = withoutClueParens || raw;
   const parts = source.split(/\s*[-–—:|/]\s*/).map(p => p.trim()).filter(Boolean);
@@ -902,7 +917,14 @@ function studentTopicLabel(topic) {
   if (CLUE_TOPIC_WORDS.some(w => lower.includes(w))) return "Problem Solving";
   return candidate;
 }
-function topicForMemory(q) { return studentTopicLabel((q && q.topic) || "Math"); }
+function studentTopicsLabel(q) { return studentTopicLabel(questionTopics(q)); }
+function adminTopicsLabel(q) { return questionTopics(q).join(", ") || studentTopicLabel((q && q.topic) || "Math"); }
+function topicForMemory(q) { return studentTopicsLabel(q); }
+function conceptLabel(q) { return String((q && q.concept) || "").trim(); }
+function teacherConceptNote(q) {
+  const concept = conceptLabel(q);
+  return concept ? `PRIVATE TEACHER CONCEPT LABEL (do not reveal to the student): "${concept}". Use it only to understand the intended method.\n` : "";
+}
 function progressDocId(q) {
   return String((q && q.id) || "question").replace(/[\/\\#?\[\]]/g, "_").slice(0, 140);
 }
@@ -962,7 +984,7 @@ function weaknessLabelsFromResult(v, q) {
     if (w && typeof w === "object") return w.label || w.topic || w.name || w.weakness || "";
     return "";
   }).map(s => String(s).trim()).filter(Boolean);
-  if (!labels.length && (v.verdict || "").toLowerCase() !== "correct") labels.push(`${topicForMemory(q)} foundations`);
+  if (!labels.length && (v.verdict || "").toLowerCase() !== "correct") labels.push(conceptLabel(q) || `${topicForMemory(q)} foundations`);
   return [...new Set(labels)].slice(0, 4);
 }
 function nextReviewDelayMs(verdict, progress) {
@@ -991,6 +1013,8 @@ async function recordLearningAttempt(q, v) {
     questionId: q.id,
     title: q.title || "",
     topic: topicForMemory(q),
+    topics: questionTopics(q),
+    concept: conceptLabel(q),
     attempts: (existing.attempts || 0) + 1,
     lastAttemptAt: nowIso,
     lastVerdict: verdict,
@@ -1005,11 +1029,12 @@ async function recordLearningAttempt(q, v) {
 
   const weaknesses = Object.assign({}, studentLearningProfile.weaknesses || {});
   labels.forEach(label => {
-    const prev = weaknesses[label] || { count: 0, score: 0, topic: topicForMemory(q) };
+    const prev = weaknesses[label] || { count: 0, score: 0, topic: topicForMemory(q), concept: conceptLabel(q) };
     weaknesses[label] = {
       count: (prev.count || 0) + 1,
       score: (prev.score || 0) + (isCorrect ? 0.5 : 1.5),
       topic: topicForMemory(q),
+      concept: conceptLabel(q),
       lastSeenAt: nowIso
     };
   });
@@ -1254,9 +1279,10 @@ function renderBank() {
     const el = document.createElement("div");
     el.className = "bank-item";
     const answerKeyBadge = q.answerKeyImageUrl ? `<span>Answer key image</span>` : "";
+    const conceptBadge = conceptLabel(q) ? `<span>Concept: ${escapeHtml(conceptLabel(q))}</span>` : "";
     el.innerHTML =
       `<div class="bank-item-main"><h4>${escapeHtml(q.title || "Untitled")}</h4>
-        <div class="meta"><span class="chip">${escapeHtml(q.level || "—")}</span><span class="chip topic">${escapeHtml(q.topic || "—")}</span>${answerKeyBadge}<span>${escapeHtml(preview)}</span></div></div>
+        <div class="meta"><span class="chip">${escapeHtml(q.level || "—")}</span><span class="chip topic">${escapeHtml(adminTopicsLabel(q))}</span>${conceptBadge}${answerKeyBadge}<span>${escapeHtml(preview)}</span></div></div>
        <div class="bank-item-actions">
         <button class="btn btn-ghost btn-sm" data-preview="${q.id}">Preview</button>
         <button class="btn btn-ghost btn-sm" data-edit="${q.id}">Edit</button>
@@ -1593,7 +1619,7 @@ function resetEditor() {
   currentEditingId = null;
   imgChoices.clear();
   editorBlocks = [{ id: genBlockId(), type: "text", content: "" }];
-  $("qTitleInput").value = ""; $("qLevelInput").value = ""; $("qTopicInput").value = "";
+  $("qTitleInput").value = ""; $("qLevelInput").value = ""; $("qTopicInput").value = ""; $("qConceptInput").value = "";
   $("qExpectedInput").value = ""; $("qGuideInput").value = "";
   setAnswerKeyImage("");
   $("createHeading").textContent = "Create Question";
@@ -1612,7 +1638,7 @@ function editQuestion(id) {
   editorBlocks = JSON.parse(JSON.stringify(q.blocks || []));
   editorBlocks.forEach(b => { if (b.type === "image") b.scale = normalizeImageScale(b.scale); });
   if (!editorBlocks.length) editorBlocks = [{ id: genBlockId(), type: "text", content: "" }];
-  $("qTitleInput").value = q.title || ""; $("qLevelInput").value = q.level || ""; $("qTopicInput").value = q.topic || "";
+  $("qTitleInput").value = q.title || ""; $("qLevelInput").value = q.level || ""; $("qTopicInput").value = adminTopicsLabel(q); $("qConceptInput").value = conceptLabel(q);
   $("qExpectedInput").value = q.expected || ""; $("qGuideInput").value = q.markingGuide || "";
   setAnswerKeyImage(q.answerKeyImageUrl || "");
   $("createHeading").textContent = "Edit Question";
@@ -1623,6 +1649,7 @@ function editQuestion(id) {
 }
 
 function collectQuestion() {
+  const topics = parseTopics($("qTopicInput").value);
   const blocks = editorBlocks
     .map(b => b.type === "image" ? { id: b.id, type: "image", url: (b.url || "").trim(), scale: normalizeImageScale(b.scale) } : { id: b.id, type: "text", content: (b.content || "").trim() })
     .filter(b => (b.type === "image" ? b.url : b.content));
@@ -1630,7 +1657,9 @@ function collectQuestion() {
     id: currentEditingId || ("mq_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6)),
     title: $("qTitleInput").value.trim() || "Untitled",
     level: $("qLevelInput").value.trim(),
-    topic: $("qTopicInput").value.trim(),
+    topic: topics.join(", "),
+    topics,
+    concept: $("qConceptInput").value.trim(),
     blocks,
     expected: $("qExpectedInput").value.trim(),
     markingGuide: $("qGuideInput").value.trim(),
@@ -1701,10 +1730,11 @@ async function runAiBuildFromMedia(source) {
     const prompt =
       `You are helping a Singapore primary-school math teacher turn an exam question (in the attached ${source.isPdf ? "PDF" : "image"}) into a practice question. ` +
       genPreamble() +
-      `For "topic", use only a broad content topic students can safely see, such as Fractions, Ratio, Percentage, Geometry, Speed, Algebra, or Problem Solving. ` +
-      `Do not use solution strategies or concepts that would give away the method, such as Assumption, Guess and Check, Working Backwards, or Model Method.\n` +
+      `For "topics", use one or more broad content topics students can safely see, such as Fractions, Ratio, Percentage, Geometry, Speed, Algebra, or Problem Solving. ` +
+      `Do not put solution strategies or concepts that would give away the method inside "topics". ` +
+      `For "concept", use a private teacher-only strategy/concept label when useful, such as Assumption, Total unchanged, Difference unchanged, Guess and Check, Working Backwards, or Model Method.\n` +
       `Read the question carefully and return ONLY valid JSON in this exact shape. Escape any line breaks inside string values as \\n and do not include markdown fences:\n` +
-      `{"title":"<short title>","level":"<e.g. P5 or Sec 1>","topic":"<e.g. Fractions>",` +
+      `{"title":"<short title>","level":"<e.g. P5 or Sec 1>","topics":["<e.g. Fractions>","<optional second topic>"],"concept":"<teacher-only concept or strategy label, or empty string>",` +
       `"questionText":"<the full question text, cleaned up>","expected":"<the correct final answer, with units>",` +
       `"markingGuide":"<concise worked solution / what to look for in the working>","hasDiagram":<true if the question relies on a figure/diagram, else false>}`;
     const raw = await askGeminiVision(prompt, [{ mimeType: source.mimeType, data: source.data }], { maxOutputTokens: 2200, json: true });
@@ -1727,7 +1757,9 @@ function populateEditorFromAi(d) {
   if (d.hasDiagram) editorBlocks.push({ id: genBlockId(), type: "image", url: "", scale: 1 });
   $("qTitleInput").value = d.title || "";
   $("qLevelInput").value = d.level || "";
-  $("qTopicInput").value = studentTopicLabel(d.topic || "");
+  const topics = parseTopics(d.topics && d.topics.length ? d.topics : d.topic);
+  $("qTopicInput").value = topics.map(studentTopicLabel).join(", ");
+  $("qConceptInput").value = String(d.concept || "").trim();
   $("qExpectedInput").value = d.expected || "";
   $("qGuideInput").value = d.markingGuide || "";
   setAnswerKeyImage("");
@@ -2078,7 +2110,7 @@ function stripHtml(s) { const d = document.createElement("div"); d.innerHTML = s
 function questionText(q) { return (q.blocks || []).filter(b => b.type === "text").map(b => stripHtml(b.content)).join(" "); }
 let previewPrintQuestions = [];
 function questionPreviewHtml(q, numberLabel = "") {
-  const meta = [q.level, studentTopicLabel(q.topic || "")].filter(Boolean).join(" - ");
+  const meta = [q.level, studentTopicsLabel(q)].filter(Boolean).join(" - ");
   return `<section class="preview-sheet">
     <div class="preview-title">${numberLabel ? escapeHtml(numberLabel) + " - " : ""}${escapeHtml(q.title || "Question")}${meta ? ` (${escapeHtml(meta)})` : ""}</div>
     <div class="q-body">${renderQuestionBlocksHtml(q.blocks || [])}</div>
@@ -2143,7 +2175,7 @@ function renderPrintQuestionList() {
       <input type="checkbox" value="${i}" ${i === qIndex ? "checked" : ""}>
       <span>
         <span class="print-check-title">${escapeHtml(q.title || `Question ${i + 1}`)}</span>
-        <span class="print-check-meta">${escapeHtml([q.level, studentTopicLabel(q.topic || ""), questionListSummary(q)].filter(Boolean).join(" - "))}</span>
+        <span class="print-check-meta">${escapeHtml([q.level, studentTopicsLabel(q), questionListSummary(q)].filter(Boolean).join(" - "))}</span>
       </span>
     </label>`).join("");
 }
@@ -2272,7 +2304,7 @@ function renderQuestion() {
   if (qIndex >= questionBank.length) qIndex = 0;
   const q = questionBank[qIndex];
   $("qLevel").textContent = q.level || "—";
-  $("qTopic").textContent = studentTopicLabel(q.topic || "Math");
+  $("qTopic").textContent = studentTopicsLabel(q);
   $("qCounter").textContent = `${qIndex + 1} / ${questionBank.length}`;
   $("qBody").innerHTML = renderQuestionBlocksHtml(q.blocks || []);
   $("qBody").querySelectorAll("img").forEach(img => img.addEventListener("load", setupCanvasSize, { once: true }));
@@ -2372,6 +2404,7 @@ $("hintBtn").addEventListener("click", async () => {
       `${solutionMedia ? "The photographed paper solution may contain extra student working that is not on the worksheet screenshot; read both as one answer.\n" : "\n"}` +
       `${hasAnswerKeyImage ? "The teacher's private answer key or worked solution is for you only. Use it to understand the intended method; do not reveal the full solution or final answer.\n" : ""}` +
       `${studentLearningPreamble()}` +
+      `${teacherConceptNote(q)}` +
       `${markingPreamble(q.markingGuide)}\n\n` +
       `QUESTION: "${questionText(q)}"\n` +
       `CORRECT ANSWER (private - do not reveal it): "${q.expected || "(use the marking guide and answer key image if provided)"}"\n` +
@@ -2414,6 +2447,7 @@ $("submitBtn").addEventListener("click", async () => {
       `${solutionMedia ? "The photographed paper solution may contain extra student working that is not on the worksheet screenshot; read both as one complete submission.\n" : "\n"}` +
       `${hasAnswerKeyImage ? "The teacher's private answer key or worked solution is the authority for the intended solution. Read it carefully and use it with the teacher guidance below.\n" : ""}` +
       `${studentLearningPreamble()}` +
+      `${teacherConceptNote(q)}` +
       `${markingPreamble(q.markingGuide)}\n\n` +
       `QUESTION: "${qText}"\n` +
       `CORRECT ANSWER: "${q.expected || "(use the marking guide and answer key image if provided)"}"\n` +
