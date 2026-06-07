@@ -127,6 +127,12 @@ a { color: var(--primary); }
 .ai-badge { font-family: 'Space Mono', monospace; font-size: 0.62rem; letter-spacing: 0.08em; padding: 5px 10px; border-radius: 999px; background: var(--surface-alt); border: 1px solid var(--border); display: flex; align-items: center; gap: 6px; color: var(--text-muted); }
 .ai-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-light); }
 .ai-dot.ready { background: #67d68a; box-shadow: 0 0 0 3px rgba(103,214,138,0.2); }
+.topbar-actions { display: flex; align-items: center; gap: 8px; }
+.icon-btn { position: relative; width: 36px; height: 36px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: #fff; color: var(--text); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 1rem; transition: all var(--transition); }
+.icon-btn:hover { border-color: var(--text-light); background: var(--surface-alt); }
+.icon-btn.active { border-color: var(--primary); background: var(--primary-light); color: var(--primary); }
+.notify-count { position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--accent-red); color: #fff; font-family: 'Space Mono', monospace; font-size: 0.62rem; line-height: 18px; text-align: center; display: none; }
+.notify-count.show { display: block; }
 
 .page { display: none; padding: 22px; max-width: 1180px; margin: 0 auto; }
 .page.active { display: block; }
@@ -321,6 +327,16 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .print-check input { margin-top: 2px; accent-color: var(--primary); }
 .print-check-title { display: block; font-weight: 700; font-size: 0.9rem; }
 .print-check-meta { display: block; font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; line-height: 1.35; }
+.flag-question-info { padding: 12px; border-radius: var(--radius-md); background: var(--surface-alt); border: 1px solid var(--border); margin-bottom: 14px; }
+.flag-question-info h4 { font-size: 0.95rem; margin-bottom: 4px; }
+.flag-question-info p { color: var(--text-muted); font-size: 0.84rem; line-height: 1.35; }
+.flag-list { display: grid; gap: 10px; }
+.flag-item { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-alt); padding: 12px; }
+.flag-item-head { display: flex; gap: 10px; align-items: flex-start; justify-content: space-between; margin-bottom: 6px; }
+.flag-item h4 { font-size: 0.94rem; font-weight: 700; }
+.flag-item .meta { font-size: 0.78rem; color: var(--text-muted); line-height: 1.4; }
+.flag-item p { font-size: 0.92rem; line-height: 1.5; margin-top: 8px; white-space: pre-line; }
+.flag-status { font-family: 'Space Mono', monospace; font-size: 0.58rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--primary); }
 .range-row { display: flex; align-items: center; gap: 12px; }
 .range-row input[type=range] { flex: 1; accent-color: var(--primary); }
 .range-val { font-family: 'Space Mono', monospace; font-weight: 700; color: var(--primary); min-width: 96px; text-align: right; font-size: 0.82rem; }
@@ -409,6 +425,10 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
       <button class="menu-toggle" id="menuToggle">☰</button>
       <h2 id="topbarTitle">Practice</h2>
       <div class="topbar-spacer"></div>
+      <div class="topbar-actions">
+        <button class="icon-btn student-only" id="emailBellBtn" type="button" title="Email me when new questions are uploaded">🔔</button>
+        <button class="icon-btn admin-only" id="flagInboxBtn" type="button" title="Flagged questions">🚩<span class="notify-count" id="flagCount">0</span></button>
+      </div>
       <div class="ai-badge"><span class="ai-dot" id="aiDot"></span><span id="aiStatus">AI starting…</span></div>
     </div>
 
@@ -423,6 +443,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
               <span class="q-counter" id="qCounter">0 / 0</span>
             </div>
             <div class="q-nav">
+              <button class="btn btn-ghost" id="flagQuestionBtn">Flag</button>
               <button class="btn btn-ghost" id="practicePrintBtn">Print / PDF</button>
               <button class="btn btn-ghost" id="prevBtn">‹ Prev</button>
               <button class="btn btn-ghost" id="nextBtn">Next ›</button>
@@ -634,6 +655,31 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
       <button class="btn btn-ghost" data-close="printOverlay">Close</button>
       <button class="btn btn-primary" id="printSelectedBtn" type="button">Print selected</button>
     </div>
+  </div>
+</div>
+
+<div class="overlay" id="flagOverlay">
+  <div class="overlay-card">
+    <div class="overlay-head"><h3>Flag question</h3><button class="close" data-close="flagOverlay">×</button></div>
+    <div class="overlay-body">
+      <div class="flag-question-info" id="flagQuestionInfo"></div>
+      <div class="editor-field" style="margin-bottom:0;">
+        <label>What should the admin check?</label>
+        <textarea id="flagFeedbackInput" style="min-height:120px;" placeholder="e.g. The diagram is unclear, the answer key may be wrong, or the wording is confusing."></textarea>
+        <div class="hint">Your feedback is sent to the admin with this question.</div>
+      </div>
+    </div>
+    <div class="overlay-foot"><button class="btn btn-ghost" data-close="flagOverlay">Cancel</button><button class="btn btn-primary" id="submitFlagBtn">Send flag</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="flagInboxOverlay">
+  <div class="overlay-card wide">
+    <div class="overlay-head"><h3>Flagged questions</h3><button class="close" data-close="flagInboxOverlay">×</button></div>
+    <div class="overlay-body">
+      <div class="flag-list" id="flagInboxList"></div>
+    </div>
+    <div class="overlay-foot"><button class="btn btn-ghost" id="refreshFlagsBtn" type="button">Refresh</button><button class="btn btn-primary" data-close="flagInboxOverlay">Done</button></div>
   </div>
 </div>
 
@@ -1071,6 +1117,8 @@ let aiMarkingSettings = { instructions: "", strictness: 3 };
 let aiGenSettings = { instructions: "" };
 let studentProgress = {};        // per-question spaced-review state for students
 let studentLearningProfile = { weaknesses: {}, recentNotes: [] };
+let flagNotifications = [];
+let emailNewQuestionOptIn = false;
 
 // =====================================================================
 // AUTH
@@ -1118,6 +1166,9 @@ onAuthStateChanged(auth, async (user) => {
   if (user) { await enterApp(user); }
   else {
     currentUser = null;
+    adminUid = null;
+    flagNotifications = [];
+    emailNewQuestionOptIn = false;
     $("appShell").classList.remove("show");
     $("authScreen").style.display = "flex";
   }
@@ -1132,6 +1183,9 @@ async function enterApp(user) {
   $("userName").textContent = currentUser.name;
   $("userEmail").textContent = currentUser.email;
   document.querySelectorAll(".admin-only").forEach(el => el.style.display = isAdmin ? "" : "none");
+  document.querySelectorAll(".student-only").forEach(el => el.style.display = isAdmin ? "none" : "");
+  updateFlagBadge();
+  updateEmailBell();
 
   refreshAiStatus();
 
@@ -1142,6 +1196,7 @@ async function enterApp(user) {
     await loadMarkingSettings(user.uid);
     await loadGenSettings(user.uid);
     await loadBank(user.uid);
+    await loadFlagNotifications();
     navigateTo("create");
   } else {
     // students discover the admin and load their bank + marking rubric
@@ -1149,12 +1204,199 @@ async function enterApp(user) {
     if (adminUid) { await loadMarkingSettings(adminUid); await loadBank(adminUid); }
     if (!questionBank.length) questionBank = STARTER_QUESTIONS.slice();
     await loadStudentLearningState(user.uid);
+    await loadEmailSubscription();
     prioritizeReviewQuestions();
     navigateTo("practice");
   }
   renderQuestion();
 }
 function canManageQuestions() { return !!currentUser && currentUser.role === "admin"; }
+function makeDocId(prefix) { return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`; }
+function notificationAdminUid() { return canManageQuestions() ? currentUser.uid : adminUid; }
+function compactQuestionSummary(q) {
+  const text = questionText(q).slice(0, 120);
+  return text || ((q && q.blocks || []).some(b => b.type === "image") ? "Image / diagram question" : "Question");
+}
+function updateFlagBadge() {
+  const countEl = $("flagCount");
+  if (!countEl) return;
+  const count = flagNotifications.filter(f => f.status !== "reviewed").length;
+  countEl.textContent = count > 99 ? "99+" : String(count);
+  countEl.classList.toggle("show", count > 0);
+}
+function updateEmailBell() {
+  const btn = $("emailBellBtn");
+  if (!btn) return;
+  btn.classList.toggle("active", !!emailNewQuestionOptIn);
+  btn.title = emailNewQuestionOptIn
+    ? "You are subscribed to new-question email alerts"
+    : "Email me when new questions are uploaded";
+}
+async function loadFlagNotifications() {
+  flagNotifications = [];
+  if (!canManageQuestions()) { updateFlagBadge(); return; }
+  try {
+    const snap = await getDocs(collection(db, "users", currentUser.uid, "questionFlags"));
+    snap.forEach(d => flagNotifications.push(Object.assign({ id: d.id }, d.data())));
+    flagNotifications.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+  } catch (e) { console.warn("flag load", e); }
+  updateFlagBadge();
+}
+function renderFlagInbox() {
+  const list = $("flagInboxList");
+  if (!list) return;
+  if (!flagNotifications.length) {
+    list.innerHTML = `<div class="empty-note" style="padding:22px;">No flagged questions yet.</div>`;
+    return;
+  }
+  list.innerHTML = flagNotifications.map(f => {
+    const open = f.status !== "reviewed";
+    return `<div class="flag-item">
+      <div class="flag-item-head">
+        <div><h4>${escapeHtml(f.questionTitle || "Question")}</h4><div class="meta">${escapeHtml([f.flaggerName || f.flaggerEmail || "Unknown", f.flaggerRole || "", f.createdAt ? new Date(f.createdAt).toLocaleString() : ""].filter(Boolean).join(" · "))}</div></div>
+        <span class="flag-status">${open ? "Open" : "Reviewed"}</span>
+      </div>
+      <div class="meta">${escapeHtml(f.questionSummary || "")}</div>
+      <p>${escapeHtml(f.feedback || "No feedback provided.")}</p>
+      ${open ? `<button class="btn btn-ghost btn-sm" data-review-flag="${escapeHtml(f.id)}" type="button" style="margin-top:10px;">Mark reviewed</button>` : ""}
+    </div>`;
+  }).join("");
+  list.querySelectorAll("[data-review-flag]").forEach(b => b.addEventListener("click", () => markFlagReviewed(b.dataset.reviewFlag)));
+}
+async function openFlagInbox() {
+  if (!canManageQuestions()) { toast("Only admin accounts can view flagged questions", "error"); return; }
+  await loadFlagNotifications();
+  renderFlagInbox();
+  $("flagInboxOverlay").classList.add("show");
+}
+async function markFlagReviewed(id) {
+  if (!canManageQuestions() || !id) return;
+  try {
+    await setDoc(doc(db, "users", currentUser.uid, "questionFlags", id), {
+      status: "reviewed",
+      reviewedAt: new Date().toISOString(),
+      reviewedBy: currentUser.email || currentUser.uid
+    }, { merge: true });
+    const f = flagNotifications.find(x => x.id === id);
+    if (f) f.status = "reviewed";
+    updateFlagBadge();
+    renderFlagInbox();
+  } catch (e) { toast("Couldn't update flag: " + e.message, "error"); }
+}
+function openFlagQuestion() {
+  if (!questionBank.length) { toast("No question to flag", "error"); return; }
+  const q = questionBank[qIndex];
+  $("flagFeedbackInput").value = "";
+  $("flagQuestionInfo").innerHTML = `<h4>${escapeHtml(q.title || "Question")}</h4><p>${escapeHtml([q.level, studentTopicsLabel(q), compactQuestionSummary(q)].filter(Boolean).join(" · "))}</p>`;
+  $("flagOverlay").classList.add("show");
+}
+async function submitQuestionFlag() {
+  if (!currentUser) return;
+  if (!questionBank.length) { toast("No question to flag", "error"); return; }
+  const feedback = $("flagFeedbackInput").value.trim();
+  if (!feedback) { toast("Add feedback before sending the flag", "error"); return; }
+  const uid = notificationAdminUid();
+  if (!uid) { toast("Admin account not found yet; try again after the questions load", "error"); return; }
+  const q = questionBank[qIndex];
+  const id = makeDocId("flag");
+  const flag = {
+    id,
+    questionId: q.id || "",
+    questionTitle: q.title || "Question",
+    questionSummary: compactQuestionSummary(q),
+    questionTopic: studentTopicsLabel(q),
+    feedback,
+    status: "open",
+    createdAt: new Date().toISOString(),
+    flaggerUid: currentUser.uid,
+    flaggerEmail: currentUser.email || "",
+    flaggerName: currentUser.name || "",
+    flaggerRole: currentUser.role || "student"
+  };
+  const btn = $("submitFlagBtn");
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Sending...";
+  try {
+    await setDoc(doc(db, "users", uid, "questionFlags", id), flag);
+    if (canManageQuestions()) { flagNotifications.unshift(flag); updateFlagBadge(); }
+    closeOverlay("flagOverlay");
+    toast("Question flagged for admin review", "success");
+  } catch (e) { toast("Couldn't send flag: " + e.message, "error"); }
+  finally { btn.disabled = false; btn.textContent = orig; }
+}
+async function loadEmailSubscription() {
+  emailNewQuestionOptIn = false;
+  if (!currentUser || currentUser.role !== "student" || !adminUid) { updateEmailBell(); return; }
+  try {
+    const s = await getDoc(doc(db, "users", adminUid, "questionEmailSubscribers", currentUser.uid));
+    emailNewQuestionOptIn = s.exists() && s.data().enabled !== false;
+  } catch (e) { console.warn("email subscription load", e); }
+  updateEmailBell();
+}
+async function toggleEmailSubscription() {
+  if (!currentUser || currentUser.role !== "student") return;
+  if (!adminUid) { toast("Admin account not found yet; try again after questions load", "error"); return; }
+  const next = !emailNewQuestionOptIn;
+  try {
+    await setDoc(doc(db, "users", adminUid, "questionEmailSubscribers", currentUser.uid), {
+      uid: currentUser.uid,
+      email: currentUser.email || "",
+      name: currentUser.name || "",
+      enabled: next,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+    emailNewQuestionOptIn = next;
+    updateEmailBell();
+    toast(next ? "You will be emailed when new questions are uploaded" : "New-question emails turned off", "success");
+  } catch (e) { toast("Couldn't update email alerts: " + e.message, "error"); }
+}
+function emailForNewQuestion(q, toEmail, toName) {
+  const title = q.title || "New math question";
+  const topic = studentTopicsLabel(q);
+  const text = `Hi ${toName || "there"},\n\nA new ${topic} question has been uploaded in Math Practice: ${title}.\n\nSign in to practise it when you are ready.`;
+  return {
+    to: [toEmail],
+    message: {
+      subject: `New Math Practice question: ${title}`,
+      text,
+      html: `<p>Hi ${escapeHtml(toName || "there")},</p><p>A new <b>${escapeHtml(topic)}</b> question has been uploaded in Math Practice:</p><p><b>${escapeHtml(title)}</b></p><p>Sign in to practise it when you are ready.</p>`
+    }
+  };
+}
+async function notifyQuestionSubscribers(q) {
+  if (!canManageQuestions() || !q) return;
+  let subscribers = [];
+  try {
+    const snap = await getDocs(collection(db, "users", currentUser.uid, "questionEmailSubscribers"));
+    snap.forEach(d => {
+      const data = d.data();
+      if (data && data.enabled !== false && data.email) subscribers.push(Object.assign({ id: d.id }, data));
+    });
+  } catch (e) { console.warn("subscriber load", e); return; }
+  if (!subscribers.length) return;
+  let saved = 0, emailed = 0;
+  for (const sub of subscribers) {
+    const id = `newq_${q.id}_${sub.id}`.replace(/[\/\\#?\[\]]/g, "_").slice(0, 180);
+    const payload = {
+      id,
+      questionId: q.id,
+      questionTitle: q.title || "New question",
+      toEmail: sub.email,
+      toName: sub.name || "",
+      status: "queued",
+      createdAt: new Date().toISOString()
+    };
+    try {
+      await setDoc(doc(db, "users", currentUser.uid, "questionUploadNotifications", id), payload, { merge: true });
+      saved++;
+      try { await setDoc(doc(db, "mail", id), emailForNewQuestion(q, sub.email, sub.name), { merge: true }); emailed++; }
+      catch (mailErr) { console.warn("mail queue unavailable", mailErr); }
+    } catch (e) { console.warn("question upload notification failed", e); }
+  }
+  if (emailed) toast(`New-question email queued for ${emailed} student${emailed === 1 ? "" : "s"}`, "success");
+  else if (saved) toast("New-question notifications saved; email queue is not available yet", "error");
+}
 
 // =====================================================================
 // NAVIGATION
@@ -1192,6 +1434,10 @@ document.querySelectorAll(".nav-item[data-page]").forEach(n => n.addEventListene
 $("menuToggle").addEventListener("click", () => $("sidebar").classList.toggle("open"));
 $("navMarking").addEventListener("click", openMarking);
 $("navGen").addEventListener("click", openGen);
+$("flagInboxBtn").addEventListener("click", openFlagInbox);
+$("emailBellBtn").addEventListener("click", toggleEmailSubscription);
+$("refreshFlagsBtn").addEventListener("click", async () => { await loadFlagNotifications(); renderFlagInbox(); });
+$("submitFlagBtn").addEventListener("click", submitQuestionFlag);
 
 // =====================================================================
 // MARKING + GENERATION SETTINGS
@@ -1665,6 +1911,7 @@ function collectQuestion() {
 }
 $("saveQBtn").addEventListener("click", async () => {
   if (!canManageQuestions()) { toast("Only admin accounts can save questions", "error"); navigateTo("practice"); return; }
+  const isNewQuestion = !currentEditingId;
   const q = collectQuestion();
   if (!q.blocks.some(b => b.type === "text") && !q.blocks.some(b => b.type === "image")) { toast("Add some question content first", "error"); return; }
   if (!q.expected && !q.markingGuide && !q.answerKeyImageUrl) { toast("Add a correct answer, marking guide, or answer key image", "error"); return; }
@@ -1673,6 +1920,7 @@ $("saveQBtn").addEventListener("click", async () => {
     await saveQuestionDoc(q);
     const i = questionBank.findIndex(x => x.id === q.id);
     if (i >= 0) questionBank[i] = q; else questionBank.push(q);
+    if (isNewQuestion) await notifyQuestionSubscribers(q);
     toast(currentEditingId ? "Question updated" : "Question added to bank", "success");
     resetEditor();
     navigateTo("bank");
@@ -2288,6 +2536,7 @@ function showHint(text) {
 function renderQuestion() {
   if (!questionBank.length) {
     $("qMeta").style.display = "none";
+    $("flagQuestionBtn").disabled = true;
     $("qBody").innerHTML = `<div class="empty-note">No questions available yet.${currentUser && currentUser.role === "admin" ? " Add some in <b>Create Question</b>." : ""}</div>`;
     $("finalAnswer").value = "";
     $("typedWorking").value = "";
@@ -2296,6 +2545,7 @@ function renderQuestion() {
     return;
   }
   $("qMeta").style.display = "flex";
+  $("flagQuestionBtn").disabled = false;
   if (qIndex >= questionBank.length) qIndex = 0;
   const q = questionBank[qIndex];
   $("qLevel").textContent = q.level || "—";
@@ -2324,6 +2574,7 @@ function changeQuestion(delta) {
 }
 $("prevBtn").addEventListener("click", () => changeQuestion(-1));
 $("nextBtn").addEventListener("click", () => changeQuestion(1));
+$("flagQuestionBtn").addEventListener("click", openFlagQuestion);
 $("practicePrintBtn").addEventListener("click", openPrintOverlay);
 $("previewPrintBtn").addEventListener("click", () => printQuestions(previewPrintQuestions, "Question preview"));
 $("printCurrentBtn").addEventListener("click", () => printQuestions([questionBank[qIndex]], "Current math question"));
