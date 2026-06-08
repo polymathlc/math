@@ -278,6 +278,8 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .feedback-block .answer-key-text { white-space: pre-line; }
 .feedback-block ul { margin: 4px 0 0 18px; }
 .feedback-block li { font-size: 0.92rem; margin-bottom: 4px; }
+.video-explanation-frame { width: 100%; aspect-ratio: 16 / 9; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: #000; margin-top: 8px; }
+.video-explanation-frame iframe, .video-explanation-frame video { display: block; width: 100%; height: 100%; border: 0; background: #000; }
 .captured { margin-top: 4px; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: var(--surface-alt); }
 .captured img { display: block; width: 100%; }
 .captured-cap { font-size: 0.72rem; color: var(--text-muted); padding: 7px 10px; font-family: 'Space Mono', monospace; }
@@ -545,6 +547,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
             <div class="feedback-block" id="nextStepBlock" style="display:none;"><h4>➡️ Next step</h4><p id="fbNextStep"></p></div>
             <div class="feedback-block" id="reviewPlanBlock" style="display:none;"><h4>🗓️ Review plan</h4><p id="fbReviewPlan"></p></div>
             <div class="feedback-block" id="answerKeyBlock" style="display:none;"><h4>🧾 Full answer key</h4><p class="answer-key-text" id="fbAnswerKey"></p></div>
+            <div class="feedback-block" id="videoExplanationBlock" style="display:none;"><h4>Video explanation</h4><div id="videoExplanationEmbed"></div></div>
             <div class="feedback-block"><h4>📸 Worksheet sent to the AI</h4>
               <div class="captured"><img id="capturedImg" alt="Your worksheet"><div class="captured-cap" id="capturedCap">This screenshot of your question, annotations, and working is what the AI marked.</div></div>
             </div>
@@ -579,6 +582,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 
         <div class="editor-field"><label>Correct answer <span style="color:var(--text-light);font-weight:400;">(optional if you attach a guide/image)</span></label><input id="qExpectedInput" type="text" placeholder="e.g. 7/20"><div class="hint">The expected final answer. You can also provide the worked answer in the marking guide or answer key image.</div></div>
         <div class="editor-field"><label>Marking guide <span style="color:var(--text-light);font-weight:400;">(per-question)</span></label><textarea id="qGuideInput" placeholder="Worked solution / what to look for in the working. e.g. Common denominator 20; 2/5=8/20, 1/4=5/20; eaten 13/20; left 7/20."></textarea><div class="hint">Private notes for the AI marker — students never see this.</div></div>
+        <div class="editor-field"><label>Video explanation link <span style="color:var(--text-light);font-weight:400;">(optional)</span></label><input id="qVideoInput" type="text" placeholder="Dropbox or Google Drive video link"><div class="hint">Shown only after a student uses AI marking. Dropbox and Google Drive share links are converted for embedding automatically.</div></div>
         <div class="editor-field">
           <label>Answer key image <span style="color:var(--text-light);font-weight:400;">(optional)</span></label>
           <div class="img-zone" id="answerKeyZone" tabindex="0">📎 Click, paste or drop a worked answer key image here</div>
@@ -1785,10 +1789,11 @@ function renderBank() {
     const el = document.createElement("div");
     el.className = "bank-item";
     const answerKeyBadge = q.answerKeyImageUrl ? `<span>Answer key image</span>` : "";
+    const videoBadge = q.videoExplanationUrl ? `<span>Video explanation</span>` : "";
     const conceptBadge = conceptLabel(q) ? `<span>Concept: ${escapeHtml(conceptLabel(q))}</span>` : "";
     el.innerHTML =
       `<div class="bank-item-main"><h4>${escapeHtml(q.title || "Untitled")}</h4>
-        <div class="meta"><span class="chip">${escapeHtml(q.level || "—")}</span><span class="chip topic">${escapeHtml(adminTopicsLabel(q))}</span>${conceptBadge}${answerKeyBadge}<span>${escapeHtml(preview)}</span></div></div>
+        <div class="meta"><span class="chip">${escapeHtml(q.level || "—")}</span><span class="chip topic">${escapeHtml(adminTopicsLabel(q))}</span>${conceptBadge}${videoBadge}${answerKeyBadge}<span>${escapeHtml(preview)}</span></div></div>
        <div class="bank-item-actions">
         <button class="btn btn-ghost btn-sm" data-preview="${q.id}">Preview</button>
         <button class="btn btn-ghost btn-sm" data-edit="${q.id}">Edit</button>
@@ -2123,6 +2128,7 @@ function resetEditor() {
   editorBlocks = [{ id: genBlockId(), type: "text", content: "" }];
   $("qTitleInput").value = ""; $("qLevelInput").value = ""; $("qTopicInput").value = ""; $("qConceptInput").value = "";
   $("qExpectedInput").value = ""; $("qGuideInput").value = "";
+  $("qVideoInput").value = "";
   setAnswerKeyImage("");
   $("createHeading").textContent = "Create Question";
   $("saveQBtn").textContent = "💾 Save to Question Bank";
@@ -2142,6 +2148,7 @@ function editQuestion(id) {
   if (!editorBlocks.length) editorBlocks = [{ id: genBlockId(), type: "text", content: "" }];
   $("qTitleInput").value = q.title || ""; $("qLevelInput").value = q.level || ""; $("qTopicInput").value = adminTopicsLabel(q); $("qConceptInput").value = conceptLabel(q);
   $("qExpectedInput").value = q.expected || ""; $("qGuideInput").value = q.markingGuide || "";
+  $("qVideoInput").value = q.videoExplanationUrl || "";
   setAnswerKeyImage(q.answerKeyImageUrl || "");
   $("createHeading").textContent = "Edit Question";
   $("saveQBtn").textContent = "💾 Save changes";
@@ -2165,6 +2172,7 @@ function collectQuestion() {
     blocks,
     expected: $("qExpectedInput").value.trim(),
     markingGuide: $("qGuideInput").value.trim(),
+    videoExplanationUrl: $("qVideoInput").value.trim(),
     answerKeyImageUrl: $("answerKeyUrlInput").value.trim(),
     createdAt: currentEditingId ? (questionBank.find(q => q.id === currentEditingId) || {}).createdAt || new Date().toISOString() : new Date().toISOString(),
     createdBy: currentUser ? currentUser.name : "Admin"
@@ -2266,6 +2274,7 @@ function populateEditorFromAi(d) {
   $("qConceptInput").value = String(d.concept || "").trim();
   $("qExpectedInput").value = d.expected || "";
   $("qGuideInput").value = d.markingGuide || "";
+  $("qVideoInput").value = "";
   setAnswerKeyImage("");
   $("createHeading").textContent = "Create Question";
   $("saveQBtn").textContent = "💾 Save to Question Bank";
@@ -2865,7 +2874,59 @@ $("clearSolutionPhotoBtn").addEventListener("click", () => clearSolutionPhoto())
 $("generateWeaknessBtn").addEventListener("click", generateWeaknessPractice);
 
 const resultEl = $("result");
-function hideResult() { resultEl.classList.remove("show"); }
+function hideResult() {
+  resultEl.classList.remove("show");
+  $("videoExplanationEmbed").innerHTML = "";
+  $("videoExplanationBlock").style.display = "none";
+}
+
+function googleDriveFileId(u) {
+  const pathMatch = u.pathname.match(/\/file\/d\/([^/]+)/);
+  if (pathMatch) return decodeURIComponent(pathMatch[1]);
+  return u.searchParams.get("id") || "";
+}
+
+function normalizeVideoExplanationUrl(raw) {
+  const value = String(raw || "").trim();
+  if (!value) return null;
+  try {
+    const u = new URL(value);
+    const host = u.hostname.toLowerCase().replace(/^www\./, "");
+    if (host === "drive.google.com") {
+      const id = googleDriveFileId(u);
+      if (id) return { kind: "iframe", url: `https://drive.google.com/file/d/${encodeURIComponent(id)}/preview` };
+    }
+    if (host === "dropbox.com" || host.endsWith(".dropbox.com") || host === "dropboxusercontent.com" || host.endsWith(".dropboxusercontent.com")) {
+      u.protocol = "https:";
+      u.hostname = "dl.dropboxusercontent.com";
+      u.searchParams.delete("dl");
+      u.searchParams.delete("raw");
+      u.searchParams.set("raw", "1");
+      return { kind: "video", url: u.toString() };
+    }
+    if (/\.(mp4|webm|ogg|mov|m4v)$/i.test(u.pathname)) return { kind: "video", url: u.toString() };
+    return { kind: "iframe", url: u.toString() };
+  } catch (e) {
+    return null;
+  }
+}
+
+function renderVideoExplanation(q) {
+  const block = $("videoExplanationBlock");
+  const target = $("videoExplanationEmbed");
+  const info = normalizeVideoExplanationUrl(q && q.videoExplanationUrl);
+  if (!info) {
+    target.innerHTML = "";
+    block.style.display = "none";
+    return;
+  }
+  const src = escapeHtml(info.url);
+  target.innerHTML = info.kind === "video"
+    ? `<div class="video-explanation-frame"><video controls preload="metadata" src="${src}"></video></div>`
+    : `<div class="video-explanation-frame"><iframe src="${src}" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen title="Video explanation"></iframe></div>`;
+  block.style.display = "block";
+}
+
 function showResult(v, png, reviewPlan = "", usedPhoto = false) {
   const verdict = (v.verdict || "incorrect").toLowerCase();
   const klass = verdict === "correct" ? "correct" : verdict === "partial" ? "partial" : "incorrect";
@@ -2881,6 +2942,7 @@ function showResult(v, png, reviewPlan = "", usedPhoto = false) {
   if (reviewPlan) { $("fbReviewPlan").textContent = reviewPlan; $("reviewPlanBlock").style.display = "block"; } else $("reviewPlanBlock").style.display = "none";
   const fullAnswerKey = String(v.fullAnswerKey || v.answerKey || "").trim();
   if (fullAnswerKey) { $("fbAnswerKey").textContent = fullAnswerKey; $("answerKeyBlock").style.display = "block"; } else $("answerKeyBlock").style.display = "none";
+  renderVideoExplanation(questionBank[qIndex] || {});
   $("capturedImg").src = png;
   $("capturedCap").textContent = usedPhoto
     ? "The AI marked this worksheet screenshot together with your attached photo answer."
