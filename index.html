@@ -168,6 +168,7 @@ a { color: var(--primary); }
 .q-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex: 1; }
 .chip { font-family: 'Space Mono', monospace; font-size: 0.62rem; letter-spacing: 0.08em; padding: 4px 9px; border-radius: 999px; background: var(--primary-light); color: var(--primary); font-weight: 700; }
 .chip.topic { background: var(--accent-blue-light); color: var(--accent-blue); }
+.chip.diff { background: #fff1e0; color: #9a5a13; }
 .q-counter { font-size: 0.78rem; color: var(--text-muted); font-family: 'Space Mono', monospace; }
 .q-body { font-size: 1.12rem; font-weight: 500; line-height: 1.55; color: var(--text); }
 .q-body p { margin-bottom: 8px; }
@@ -241,7 +242,10 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .learning-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .learning-head h4 { font-size: 0.98rem; font-weight: 700; }
 .learning-head p { color: var(--text-muted); font-size: 0.82rem; line-height: 1.35; margin-top: 2px; }
-.learning-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+.learning-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(76px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.ai-practice-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 14px; padding: 10px 14px; border: 1px solid var(--accent-blue); background: var(--accent-blue-light); border-radius: var(--radius-md); font-size: 0.85rem; line-height: 1.4; color: var(--text); }
+.ai-practice-bar b { color: var(--accent-blue); }
+.ai-practice-bar .ai-practice-close { margin-left: auto; background: none; border: none; cursor: pointer; font-size: 1.15rem; line-height: 1; color: var(--text-muted); flex-shrink: 0; }
 .learning-stat { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px; }
 .learning-stat b { display: block; font-size: 1.05rem; }
 .learning-stat span { display: block; margin-top: 2px; font-family: 'Space Mono', monospace; font-size: 0.58rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
@@ -252,7 +256,8 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .learning-list li { font-size: 0.86rem; margin-bottom: 4px; }
 @media (max-width: 720px) {
   .learning-head { align-items: stretch; flex-direction: column; }
-  .learning-stats, .learning-grid { grid-template-columns: 1fr; }
+  .learning-grid { grid-template-columns: 1fr; }
+  .learning-stats { grid-template-columns: repeat(2, 1fr); }
 }
 .ai-hint-card { display: none; margin-top: 12px; padding: 13px 14px; border: 1px solid var(--accent-blue); border-radius: var(--radius-md); background: var(--accent-blue-light); }
 .ai-hint-card.show { display: block; }
@@ -467,15 +472,18 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
             <div class="q-meta" id="qMeta">
               <span class="chip" id="qLevel">—</span>
               <span class="chip topic" id="qTopic">—</span>
+              <span class="chip diff student-only" id="qDifficulty" title="Question difficulty rating">—</span>
               <span class="q-counter" id="qCounter">0 / 0</span>
             </div>
             <div class="q-nav">
+              <button class="btn btn-primary student-only" id="aiPracticeBtn" title="Practice questions you got wrong, then questions matched to your rating">🤖 AI practice</button>
               <button class="btn btn-ghost" id="flagQuestionBtn">Flag</button>
               <button class="btn btn-ghost" id="practicePrintBtn">Print / PDF</button>
               <button class="btn btn-ghost" id="prevBtn">‹ Prev</button>
               <button class="btn btn-ghost" id="nextBtn">Next ›</button>
             </div>
           </div>
+          <div class="ai-practice-bar student-only" id="aiPracticeBar" style="display:none;"></div>
 
           <div class="pad-head"><h2>✍️ Worksheet</h2><span class="pad-hint">Underline the question or make working anywhere</span></div>
           <div class="toolbar">
@@ -534,6 +542,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
               <button class="btn btn-primary btn-sm" id="generateWeaknessBtn" type="button"><span id="generateWeaknessLabel">Generate weakness practice</span></button>
             </div>
             <div class="learning-stats">
+              <div class="learning-stat"><b id="learnRating">—</b><span>Rating (ELO)</span></div>
               <div class="learning-stat"><b id="learnAttempts">0</b><span>Attempts</span></div>
               <div class="learning-stat"><b id="learnAccuracy">0%</b><span>Accuracy</span></div>
               <div class="learning-stat"><b id="learnPoints">0 / 0</b><span>Points</span></div>
@@ -1044,8 +1053,48 @@ function parseTimeMs(value) {
   return Number.isFinite(ms) ? ms : 0;
 }
 function dueTime(progress) { return parseTimeMs(progress && progress.nextReviewAt); }
+// ===== ELO rating: student skill vs question difficulty =====
+const ELO_DEFAULT = 1000, ELO_MIN = 400, ELO_MAX = 2200;
+function clampElo(n) { return Math.max(ELO_MIN, Math.min(ELO_MAX, Math.round(Number(n) || ELO_DEFAULT))); }
+function levelToRating(level) {
+  const s = String(level || "").toUpperCase();
+  let m = s.match(/P\s*([1-6])\b/);
+  if (m) return 600 + (Number(m[1]) - 1) * 100;           // P1=600 … P6=1100
+  m = s.match(/S(?:EC|ECONDARY)?\s*([1-5])\b/);
+  if (m) return 1200 + (Number(m[1]) - 1) * 100;          // S1=1200 … S5=1600
+  if (/\b(JC|H1|H2|JUNIOR COLLEGE)\b/.test(s)) return 1700;
+  if (/EASY|BASIC|FOUNDATION|BEGINNER/.test(s)) return 800;
+  if (/HARD|CHALLENG|ADVANCE|OLYMPIAD|EXPERT/.test(s)) return 1450;
+  return ELO_DEFAULT;                                      // Practice / unknown
+}
+function questionDifficultyRating(q) {
+  const d = Number(q && q.difficulty);
+  if (Number.isFinite(d) && d > 0) return clampElo(d);
+  return levelToRating(q && q.level);
+}
+function studentEloValue() {
+  const e = Number(studentLearningProfile && studentLearningProfile.elo);
+  return Number.isFinite(e) ? e : ELO_DEFAULT;
+}
+function eloKFactor(attempts) { return attempts <= 8 ? 40 : (attempts <= 20 ? 28 : 20); }
+function computeEloUpdate(q, credit) {
+  const before = studentEloValue();
+  const difficulty = questionDifficultyRating(q);
+  const expected = 1 / (1 + Math.pow(10, (difficulty - before) / 400));
+  const attempts = (Number(studentLearningProfile && studentLearningProfile.eloAttempts) || 0) + 1;
+  const score = Math.max(0, Math.min(1, credit));
+  const after = clampElo(before + eloKFactor(attempts) * (score - expected));
+  return { before, after, expected, difficulty, attempts };
+}
+function eloRelationLabel(difficulty, rating) {
+  const d = difficulty - rating;
+  if (d <= -120) return "Easier";
+  if (d < 60) return "On level";
+  if (d < 180) return "Challenge";
+  return "Stretch";
+}
 function learningProfileDefaults() {
-  return { weaknesses: {}, strengths: {}, topicStats: {}, conceptStats: {}, skillStats: {}, totals: {}, recentNotes: [] };
+  return { weaknesses: {}, strengths: {}, topicStats: {}, conceptStats: {}, skillStats: {}, totals: {}, recentNotes: [], elo: null, eloAttempts: 0, eloHistory: [] };
 }
 function pointsEarned(v) {
   const n = Number(v && v.marks);
@@ -1102,6 +1151,8 @@ function renderLearningProfile() {
   const possible = totals.pointsPossible || 0;
   const earned = totals.pointsEarned || 0;
   const due = Object.values(studentProgress || {}).filter(p => dueTime(p) && dueTime(p) <= Date.now()).length;
+  const rating = studentEloValue();
+  $("learnRating").textContent = (studentLearningProfile.eloAttempts || 0) > 0 ? String(Math.round(rating)) : "—";
   $("learnAttempts").textContent = String(attempts);
   $("learnAccuracy").textContent = attempts ? `${Math.round((correct / attempts) * 100)}%` : "0%";
   $("learnPoints").textContent = `${Math.round(earned * 10) / 10} / ${Math.round(possible * 10) / 10}`;
@@ -1112,7 +1163,7 @@ function renderLearningProfile() {
   $("learnWeaknesses").innerHTML = weaknesses.length ? weaknesses.map(([label, data]) => `<li>${escapeHtml(label)} <span style="color:var(--text-muted);">(${data.topic || "Math"})</span></li>`).join("") : `<li style="color:var(--text-muted);">No weaknesses recorded yet.</li>`;
   const lead = weaknesses[0];
   $("learningSummary").textContent = attempts
-    ? `AI has tracked ${attempts} attempt${attempts === 1 ? "" : "s"} and is scheduling reviews from your latest work.${lead ? " Current focus: " + lead[0] + "." : ""}`
+    ? `AI has tracked ${attempts} attempt${attempts === 1 ? "" : "s"} and is scheduling reviews from your latest work.${(studentLearningProfile.eloAttempts || 0) > 0 ? " Your rating is " + Math.round(rating) + "." : ""}${lead ? " Current focus: " + lead[0] + "." : ""}`
     : "Your strengths, weaknesses, points, and review plan will appear after marked questions.";
   $("generateWeaknessBtn").disabled = !attempts;
 }
@@ -1133,6 +1184,81 @@ function prioritizeReviewQuestions(resetIndex = true) {
     return parseTimeMs(a.createdAt) - parseTimeMs(b.createdAt);
   });
   if (resetIndex) qIndex = 0;
+}
+function updateDifficultyChip(q) {
+  const el = $("qDifficulty");
+  if (!el) return;
+  if (!q || !currentUser || currentUser.role !== "student") { el.style.display = "none"; return; }
+  el.style.display = "";
+  const d = questionDifficultyRating(q);
+  if (aiPracticeActive) {
+    el.textContent = `Lvl ${d} · ${eloRelationLabel(d, studentEloValue())}`;
+    el.title = `Difficulty ${d} vs your rating ${Math.round(studentEloValue())}`;
+  } else {
+    el.textContent = `Lvl ${d}`;
+    el.title = "Question difficulty rating";
+  }
+}
+function questionWrongBefore(p) {
+  if (!p) return false;
+  const v = String(p.lastVerdict || "").toLowerCase();
+  return (p.wrongCount || 0) > 0 || v === "incorrect" || v === "partial";
+}
+function questionMastered(p) { return !!p && (p.correctStreak || 0) >= 2; }
+function startAiPractice() {
+  if (!currentUser || currentUser.role !== "student") return;
+  if (!questionBank.length) { toast("No questions to practise yet", "error"); return; }
+  if ((strokes.length || $("typedWorking").value.trim() || solutionPhotoDataUrl) && !confirm("Start AI practice? Your current working will be cleared.")) return;
+  const now = Date.now();
+  const rating = studentEloValue();
+  const review = [], rest = [];
+  questionBank.forEach(q => {
+    const p = studentProgress[q.id];
+    if (questionWrongBefore(p) && !questionMastered(p)) review.push(q); else rest.push(q);
+  });
+  review.sort((a, b) => {
+    const pa = studentProgress[a.id] || {}, pb = studentProgress[b.id] || {};
+    const da = dueTime(pa), db = dueTime(pb);
+    const aDue = da && da <= now, bDue = db && db <= now;
+    if (aDue !== bDue) return aDue ? -1 : 1;
+    const wa = pa.wrongCount || 0, wb = pb.wrongCount || 0;
+    if (wa !== wb) return wb - wa;
+    return parseTimeMs(pa.lastAttemptAt) - parseTimeMs(pb.lastAttemptAt);
+  });
+  const aimedAt = rating + 25; // nudge slightly above current rating for a productive challenge
+  rest.sort((a, b) => {
+    const pa = studentProgress[a.id], pb = studentProgress[b.id];
+    const seenA = pa && (pa.attempts || 0) > 0 ? 1 : 0, seenB = pb && (pb.attempts || 0) > 0 ? 1 : 0;
+    if (seenA !== seenB) return seenA - seenB; // never-seen questions first
+    return Math.abs(questionDifficultyRating(a) - aimedAt) - Math.abs(questionDifficultyRating(b) - aimedAt);
+  });
+  questionBank = review.concat(rest);
+  qIndex = 0;
+  aiPracticeActive = true;
+  aiPracticeStats = { review: review.length, rest: rest.length };
+  renderAiPracticeBar();
+  renderQuestion();
+  toast(review.length
+    ? `AI practice: ${review.length} to review, then questions matched to rating ${Math.round(rating)}`
+    : `AI practice: questions matched to your rating ${Math.round(rating)}`, "success");
+}
+function renderAiPracticeBar() {
+  const bar = $("aiPracticeBar");
+  if (!bar) return;
+  if (!aiPracticeActive) { bar.style.display = "none"; bar.innerHTML = ""; return; }
+  const rating = Math.round(studentEloValue());
+  const reviewCount = aiPracticeStats.review;
+  const lead = reviewCount
+    ? `Reviewing <b>${reviewCount}</b> question${reviewCount === 1 ? "" : "s"} you got wrong before, then questions matched to your rating.`
+    : `Showing questions matched to your rating — get them right to level up.`;
+  bar.innerHTML = `🤖 <span>AI practice • Your rating <b>${rating}</b>. ${lead}</span><button class="ai-practice-close" id="aiPracticeCloseBtn" type="button" title="Exit AI practice">×</button>`;
+  bar.style.display = "flex";
+  $("aiPracticeCloseBtn").addEventListener("click", stopAiPractice);
+}
+function stopAiPractice() {
+  aiPracticeActive = false;
+  renderAiPracticeBar();
+  if (questionBank[qIndex]) updateDifficultyChip(questionBank[qIndex]);
 }
 async function loadStudentLearningState(uid) {
   studentProgress = {};
@@ -1212,6 +1338,8 @@ async function recordLearningAttempt(q, v) {
   const verdict = (v.verdict || "incorrect").toLowerCase();
   const isCorrect = verdict === "correct";
   const credit = attemptCredit(verdict, v);
+  const eloUpdate = computeEloUpdate(q, credit);
+  lastEloChange = { before: eloUpdate.before, after: eloUpdate.after, difficulty: eloUpdate.difficulty };
   const earned = pointsEarned(v);
   const possible = pointsPossible(v);
   const nowIso = new Date().toISOString();
@@ -1234,6 +1362,8 @@ async function recordLearningAttempt(q, v) {
   });
   if (!isCorrect) next.lastWrongAt = nowIso;
   next.nextReviewAt = new Date(Date.now() + nextReviewDelayMs(verdict, existing)).toISOString();
+  next.questionDifficulty = eloUpdate.difficulty;
+  next.eloAfter = eloUpdate.after;
   const labels = weaknessLabelsFromResult(v, q);
   const strengthLabels = strengthLabelsFromResult(v, q);
   if (labels.length) next.lastWeaknesses = labels;
@@ -1270,7 +1400,9 @@ async function recordLearningAttempt(q, v) {
   const note = String(v.learningNote || v.profileNote || "").trim();
   const recentNotes = Array.isArray(studentLearningProfile.recentNotes) ? studentLearningProfile.recentNotes.slice(-7) : [];
   if (note) recentNotes.push(note.slice(0, 180));
-  studentLearningProfile = { weaknesses, strengths, topicStats, conceptStats, skillStats, totals, recentNotes, updatedAt: nowIso };
+  const eloHistory = Array.isArray(studentLearningProfile.eloHistory) ? studentLearningProfile.eloHistory.slice(-19) : [];
+  eloHistory.push({ at: nowIso, q: q.id, d: eloUpdate.difficulty, before: eloUpdate.before, after: eloUpdate.after, credit: Math.round(credit * 100) / 100 });
+  studentLearningProfile = { weaknesses, strengths, topicStats, conceptStats, skillStats, totals, recentNotes, elo: eloUpdate.after, eloAttempts: eloUpdate.attempts, eloHistory, updatedAt: nowIso };
   const attemptId = makeDocId("attempt");
   const attemptDoc = {
     id: attemptId,
@@ -1410,6 +1542,9 @@ let aiMarkingSettings = { instructions: "", strictness: 3 };
 let aiGenSettings = { instructions: "" };
 let studentProgress = {};        // per-question spaced-review state for students
 let studentLearningProfile = { weaknesses: {}, strengths: {}, topicStats: {}, conceptStats: {}, skillStats: {}, totals: {}, recentNotes: [] };
+let aiPracticeActive = false;    // AI practice queue mode (wrong-first, then ELO-matched)
+let aiPracticeStats = { review: 0, rest: 0 };
+let lastEloChange = null;
 let flagNotifications = [];
 let emailNewQuestionOptIn = false;
 
@@ -2852,6 +2987,8 @@ function renderQuestion() {
   $("qLevel").textContent = q.level || "—";
   $("qTopic").textContent = studentTopicsLabel(q);
   $("qCounter").textContent = `${qIndex + 1} / ${questionBank.length}`;
+  updateDifficultyChip(q);
+  if (aiPracticeActive) renderAiPracticeBar();
   $("qBody").innerHTML = renderQuestionBlocksHtml(q.blocks || []);
   $("qBody").querySelectorAll("img").forEach(img => img.addEventListener("load", setupCanvasSize, { once: true }));
   $("finalAnswer").value = "";
@@ -3007,6 +3144,7 @@ async function canvasToImageFile(canvas, name) {
 }
 $("clearSolutionPhotoBtn").addEventListener("click", () => clearSolutionPhoto());
 $("generateWeaknessBtn").addEventListener("click", generateWeaknessPractice);
+$("aiPracticeBtn").addEventListener("click", startAiPractice);
 
 const resultEl = $("result");
 function hideResult() {
@@ -3178,7 +3316,12 @@ $("submitBtn").addEventListener("click", async () => {
     const reviewPlan = await recordLearningAttempt(q, v);
     showResult(v, png, reviewPlan, !!solutionMedia);
     const verdict = (v.verdict || "").toLowerCase();
-    toast(verdict === "correct" ? "Great work! 🎉" : "Marked — see the feedback", verdict === "correct" ? "success" : "");
+    let markMsg = verdict === "correct" ? "Great work! 🎉" : "Marked — see the feedback";
+    if (lastEloChange && currentUser && currentUser.role === "student") {
+      const delta = lastEloChange.after - lastEloChange.before;
+      markMsg += ` • Rating ${lastEloChange.after}${delta ? ` (${delta > 0 ? "+" : ""}${delta})` : ""}`;
+    }
+    toast(markMsg, verdict === "correct" ? "success" : "");
   } catch (e) { console.error(e); toast("AI mark error: " + (e.message || e), "error"); }
   finally { btn.disabled = false; $("submitLabel").innerHTML = "📸 Submit for AI marking"; }
 });
