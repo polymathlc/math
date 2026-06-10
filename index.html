@@ -249,7 +249,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .learning-stat { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px; }
 .learning-stat b { display: block; font-size: 1.05rem; }
 .learning-stat span { display: block; margin-top: 2px; font-family: 'Space Mono', monospace; font-size: 0.58rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
-.rating-history { margin-bottom: 12px; }
+.rating-history { margin-bottom: 12px; position: relative; }
 .rating-history-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
 .rating-history-head h5 { font-size: 0.8rem; font-weight: 700; }
 .rh-meta { font-family: 'Space Mono', monospace; font-size: 0.62rem; letter-spacing: 0.04em; color: var(--text-muted); white-space: nowrap; }
@@ -264,6 +264,12 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .rh-pt.ok { fill: #1c8a4a; }
 .rh-pt.mid { fill: #c98a16; }
 .rh-pt.bad { fill: #c0392b; }
+.rh-hit { fill: transparent; cursor: pointer; }
+.rh-tip { position: absolute; z-index: 6; transform: translate(-50%, -100%); pointer-events: none; background: var(--text); color: #fff; padding: 6px 9px; border-radius: var(--radius-sm); font-size: 0.7rem; line-height: 1.3; white-space: nowrap; box-shadow: var(--shadow-lg); }
+.rh-tip[hidden] { display: none; }
+.rh-tip b { font-size: 0.82rem; font-weight: 700; }
+.rh-tip .rh-tip-sub { color: rgba(255,255,255,0.72); font-size: 0.64rem; margin-top: 1px; }
+.rh-tip::after { content: ""; position: absolute; left: calc(50% + var(--arrow, 0px)); top: 100%; transform: translateX(-50%); border: 5px solid transparent; border-top-color: var(--text); }
 .learning-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .learning-list { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; min-height: 82px; }
 .learning-list h5 { font-family: 'Space Mono', monospace; font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
@@ -566,6 +572,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
             <div class="rating-history" id="ratingHistory" style="display:none;">
               <div class="rating-history-head"><h5>Rating history</h5><span class="rh-meta" id="ratingHistoryMeta"></span></div>
               <div class="rating-chart" id="ratingChart"></div>
+              <div class="rh-tip" id="ratingTip" hidden></div>
             </div>
             <div class="learning-grid">
               <div class="learning-list"><h5>Strengths</h5><ul id="learnStrengths"></ul></div>
@@ -1192,9 +1199,10 @@ function renderRatingHistory() {
   if (!wrap) return;
   if (!currentUser || currentUser.role !== "student") { wrap.style.display = "none"; return; }
   const hist = Array.isArray(studentLearningProfile.eloHistory) ? studentLearningProfile.eloHistory : [];
-  const series = hist.map(h => ({ after: Number(h.after), credit: Number(h.credit) })).filter(s => Number.isFinite(s.after));
+  const series = hist.map(h => ({ after: Number(h.after), credit: Number(h.credit), at: h.at, d: Number(h.d) })).filter(s => Number.isFinite(s.after));
   if (series.length < 2) { wrap.style.display = "none"; return; }
   wrap.style.display = "";
+  hideRatingTip();
   const chart = $("ratingChart");
   const H = 58, padX = 7, padTop = 9, padBot = 9;
   const innerW = (chart.clientWidth || 0) - 16; // 8px horizontal padding each side
@@ -1215,11 +1223,16 @@ function renderRatingHistory() {
     const cls = s.credit >= 0.95 ? "ok" : (s.credit > 0 ? "mid" : "bad");
     return `<circle class="rh-pt ${cls}" cx="${coords[i][0].toFixed(1)}" cy="${coords[i][1].toFixed(1)}" r="2.6"/>`;
   }).join("");
+  const hits = series.map((s, i) => {
+    const result = s.credit >= 0.95 ? "Correct" : (s.credit > 0 ? "Partial" : "Wrong");
+    return `<circle class="rh-hit" cx="${coords[i][0].toFixed(1)}" cy="${coords[i][1].toFixed(1)}" r="8"` +
+      ` data-rating="${s.after}" data-date="${escapeHtml(s.at || "")}" data-diff="${Number.isFinite(s.d) ? s.d : "?"}" data-result="${result}"></circle>`;
+  }).join("");
   const last = coords[n - 1];
   chart.innerHTML =
     `<svg class="rating-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Your rating over the last ${n} attempts">` +
     `<path class="rh-area" d="${area}"/><path class="rh-line" d="${line}"/>${dots}` +
-    `<circle class="rh-dot" cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3.4"/></svg>`;
+    `<circle class="rh-dot" cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3.4"/>${hits}</svg>`;
   const delta = vals[n - 1] - vals[0];
   const meta = $("ratingHistoryMeta");
   meta.textContent = `${n} attempts · ${delta > 0 ? "▲ +" + delta : (delta < 0 ? "▼ " + delta : "no change")}`;
@@ -1231,6 +1244,41 @@ window.addEventListener("resize", () => {
   clearTimeout(ratingHistoryResizeTimer);
   ratingHistoryResizeTimer = setTimeout(renderRatingHistory, 150);
 });
+function formatHistoryDate(at) {
+  const ms = Date.parse(at || "");
+  if (!Number.isFinite(ms)) return "";
+  const d = new Date(ms);
+  try {
+    return d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) +
+      ", " + d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  } catch (_) { return d.toISOString().slice(0, 16).replace("T", " "); }
+}
+function showRatingTip(el) {
+  const tip = $("ratingTip"), host = $("ratingHistory");
+  if (!tip || !host || !el) return;
+  const date = formatHistoryDate(el.getAttribute("data-date"));
+  tip.innerHTML = `<b>Rating ${escapeHtml(el.getAttribute("data-rating") || "")}</b>` +
+    (date ? `<div class="rh-tip-sub">${escapeHtml(date)}</div>` : "") +
+    `<div class="rh-tip-sub">${escapeHtml(el.getAttribute("data-result") || "")} · difficulty ${escapeHtml(el.getAttribute("data-diff") || "")}</div>`;
+  tip.hidden = false;
+  const cr = el.getBoundingClientRect(), hr = host.getBoundingClientRect();
+  const center = cr.left + cr.width / 2 - hr.left;
+  const tw = tip.offsetWidth;
+  const left = Math.max(tw / 2 + 2, Math.min(hr.width - tw / 2 - 2, center));
+  tip.style.left = left + "px";
+  tip.style.top = (cr.top - hr.top - 8) + "px";
+  tip.style.setProperty("--arrow", (center - left).toFixed(1) + "px");
+}
+function hideRatingTip() { const t = $("ratingTip"); if (t) t.hidden = true; }
+(function setupRatingTip() {
+  const chart = $("ratingChart");
+  if (!chart) return;
+  const hit = e => (e.target && e.target.closest) ? e.target.closest(".rh-hit") : null;
+  chart.addEventListener("mouseover", e => { const h = hit(e); if (h) showRatingTip(h); });
+  chart.addEventListener("mouseout", e => { if (hit(e)) hideRatingTip(); });
+  chart.addEventListener("touchstart", e => { const h = hit(e); if (h) showRatingTip(h); }, { passive: true });
+  document.addEventListener("touchstart", e => { if (!hit(e)) hideRatingTip(); }, { passive: true });
+})();
 function prioritizeReviewQuestions(resetIndex = true) {
   if (!questionBank.length || !currentUser || currentUser.role !== "student") return;
   const now = Date.now();
