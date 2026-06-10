@@ -381,6 +381,10 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .overlay-body { padding: 22px; }
 .overlay-foot { padding: 16px 22px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
 .preview-sheet { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 20px; background-image: linear-gradient(rgba(74,124,89,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(74,124,89,0.07) 1px, transparent 1px); background-size: 28px 28px; }
+.practice-preview .worksheet-surface { min-height: 360px; border-radius: var(--radius-md); }
+.practice-preview .worksheet-content { min-height: 360px; }
+.practice-preview .worksheet-top { margin-bottom: 10px; }
+.practice-preview .preview-note { font-size: 0.78rem; color: var(--text-muted); margin-top: 10px; }
 .preview-title { font-size: 0.78rem; color: var(--text-muted); font-family: 'Space Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 12px; }
 .preview-working { margin-top: 28px; min-height: 220px; }
 .print-options { display: grid; gap: 12px; }
@@ -616,7 +620,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
     <div class="page" id="page-create">
       <div class="page-head" style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;">
         <div style="flex:1;"><h3 id="createHeading">Create Question</h3><p>Add a math question for your students. They'll see it on the practice pad.</p></div>
-        <button class="btn btn-ghost" id="previewCreateBtn">Preview</button>
+        <button class="btn btn-ghost" id="previewCreateBtn">👁️ Preview in practice</button>
         <button class="btn btn-ghost" id="aiBuildBtn">✨ Build with AI</button>
       </div>
       <div class="card card-pad">
@@ -2219,7 +2223,7 @@ function renderBank() {
   });
   list.querySelectorAll("[data-preview]").forEach(b => b.addEventListener("click", () => {
     const q = questionBank.find(x => x.id === b.dataset.preview);
-    if (q) openQuestionPreview(q, "Question bank preview");
+    if (q) openQuestionPreview(q, "Practice preview — as students see it");
   }));
   list.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => editQuestion(b.dataset.edit)));
   list.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => removeQuestion(b.dataset.del)));
@@ -2613,7 +2617,7 @@ $("saveQBtn").addEventListener("click", async () => {
   } catch (e) { toast("Save failed: " + e.message, "error"); }
   finally { btn.disabled = false; btn.textContent = orig; }
 });
-$("previewCreateBtn").addEventListener("click", () => openQuestionPreview(collectQuestion(), "Create question preview"));
+$("previewCreateBtn").addEventListener("click", () => openQuestionPreview(collectQuestion(), "Practice preview — as students see it"));
 
 // =====================================================================
 // AI GENERATION (build a question from a photo/PDF)
@@ -3047,11 +3051,35 @@ function questionPreviewHtml(q, numberLabel = "") {
     <div class="worksheet-working-label preview-working">Working</div>
   </section>`;
 }
-function openQuestionPreview(q, title = "Question preview") {
+function practicePreviewHtml(q) {
+  const d = questionDifficultyRating(q);
+  return `<div class="practice-preview">
+    <div class="worksheet-top">
+      <div class="q-meta">
+        <span class="chip">${escapeHtml(q.level || "—")}</span>
+        <span class="chip topic">${escapeHtml(studentTopicsLabel(q))}</span>
+        <span class="chip diff" title="Difficulty rating used for ELO matching">Lvl ${d}</span>
+      </div>
+    </div>
+    <div class="pad-head"><h2>✍️ Worksheet</h2><span class="pad-hint">Underline the question or make working anywhere</span></div>
+    <div class="worksheet-surface">
+      <div class="worksheet-content">
+        <div class="worksheet-question">
+          <div class="section-label">Question</div>
+          <div class="q-body">${renderQuestionBlocksHtml(q.blocks || [])}</div>
+        </div>
+        <div class="worksheet-working-label">Working</div>
+      </div>
+      <div class="canvas-empty">Underline the question or start your working here ✦</div>
+    </div>
+    <div class="preview-note">This is exactly how students see the question on the practice pad — title, marking guide, and answer key stay private.</div>
+  </div>`;
+}
+function openQuestionPreview(q, title = "Practice preview") {
   if (!q || !(q.blocks || []).length) { toast("Add question content before previewing", "error"); return; }
   previewPrintQuestions = [q];
   $("previewTitle").textContent = title;
-  $("previewBody").innerHTML = questionPreviewHtml(q);
+  $("previewBody").innerHTML = practicePreviewHtml(q);
   $("previewOverlay").classList.add("show");
 }
 function answerKeyPrintHtml(questions) {
