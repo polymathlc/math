@@ -270,6 +270,17 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .rh-tip b { font-size: 0.82rem; font-weight: 700; }
 .rh-tip .rh-tip-sub { color: rgba(255,255,255,0.72); font-size: 0.64rem; margin-top: 1px; }
 .rh-tip::after { content: ""; position: absolute; left: calc(50% + var(--arrow, 0px)); top: 100%; transform: translateX(-50%); border: 5px solid transparent; border-top-color: var(--text); }
+.ai-practice-bar .btn-sm { margin-left: auto; padding: 5px 10px; }
+.sr-table-wrap { overflow-x: auto; }
+.sr-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.sr-table th { text-align: left; font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); font-family: 'Space Mono', monospace; padding: 0 12px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.sr-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.sr-table tbody tr:last-child td { border-bottom: 0; }
+.sr-name { font-weight: 700; }
+.sr-email { font-size: 0.75rem; color: var(--text-muted); }
+.sr-num { font-family: 'Space Mono', monospace; white-space: nowrap; }
+.sr-weak { max-width: 280px; }
+.sr-when { font-size: 0.78rem; color: var(--text-muted); white-space: nowrap; }
 .learning-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .learning-list { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; min-height: 82px; }
 .learning-list h5 { font-family: 'Space Mono', monospace; font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
@@ -463,6 +474,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
       <div class="nav-section admin-only">Admin</div>
       <div class="nav-item admin-only" data-page="create"><span class="ico">➕</span> Create Question</div>
       <div class="nav-item admin-only" data-page="bank"><span class="ico">📚</span> Question Bank</div>
+      <div class="nav-item admin-only" data-page="students"><span class="ico">🎓</span> Student Results</div>
       <div class="nav-item admin-only" data-page="worksheet" title="Math Worksheet Creator — build, export and load worksheets"><span class="ico">📝</span> Worksheet Creator</div>
       <div class="nav-item admin-only" id="navMarking"><span class="ico">⚖️</span> AI Marking Guide</div>
       <div class="nav-item admin-only" id="navGen"><span class="ico">✨</span> AI Generation Guide</div>
@@ -655,6 +667,15 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
       </div>
     </div>
 
+    <!-- ================= STUDENT RESULTS PAGE (admin) ================= -->
+    <div class="page" id="page-students">
+      <div class="page-head" style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;">
+        <div><h3>Student Results</h3><p>Track every student's rating, accuracy and weaknesses. <span id="studentRosterCount"></span></p></div>
+        <button class="btn btn-ghost" id="refreshRosterBtn" type="button" style="margin-left:auto;">Refresh</button>
+      </div>
+      <div id="studentRoster"></div>
+    </div>
+
     <!-- ================= WORKSHEET CREATOR PAGE (admin) ================= -->
     <div class="page embed" id="page-worksheet">
       <iframe id="worksheetFrame" class="embed-frame" title="Math Worksheet Creator"></iframe>
@@ -761,6 +782,20 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
       <div class="flag-list" id="flagInboxList"></div>
     </div>
     <div class="overlay-foot"><button class="btn btn-ghost" id="refreshFlagsBtn" type="button">Refresh</button><button class="btn btn-primary" data-close="flagInboxOverlay">Done</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="aiPrintOverlay">
+  <div class="overlay-card" style="max-width:430px;">
+    <div class="overlay-head"><h3>Print practice set</h3><button class="close" data-close="aiPrintOverlay">×</button></div>
+    <div class="overlay-body">
+      <p style="margin:0;color:var(--text-muted);font-size:0.9rem;">Save your growth-zone set as a PDF (use your browser's “Save as PDF” option). Choose whether to include the answer key.</p>
+    </div>
+    <div class="overlay-foot">
+      <button class="btn btn-ghost" data-close="aiPrintOverlay">Cancel</button>
+      <button class="btn btn-ghost" id="aiPrintWorksheet" type="button">Questions only</button>
+      <button class="btn btn-primary" id="aiPrintWithKey" type="button">With answer key</button>
+    </div>
   </div>
 </div>
 
@@ -1317,16 +1352,32 @@ function questionWrongBefore(p) {
   return (p.wrongCount || 0) > 0 || v === "incorrect" || v === "partial";
 }
 function questionMastered(p) { return !!p && (p.correctStreak || 0) >= 2; }
+function studentWeakTopics() {
+  const weak = new Set();
+  Object.values(studentLearningProfile.weaknesses || {}).forEach(d => { if (d && d.topic) weak.add(String(d.topic).toLowerCase()); });
+  Object.entries(studentLearningProfile.topicStats || {}).forEach(([label, d]) => {
+    if (d && (d.pointsPossible || 0) > 0 && (d.pointsEarned || 0) / d.pointsPossible < 0.7) weak.add(String(label).toLowerCase());
+  });
+  return weak;
+}
+function questionHitsWeakTopic(q, weak) {
+  if (!weak || !weak.size) return false;
+  return questionTopics(q).some(t => weak.has(String(studentTopicLabel(t)).toLowerCase()));
+}
+const AI_PRACTICE_SET_MAX = 12, AI_PRACTICE_REVIEW_MAX = 8;
 function startAiPractice() {
   if (!currentUser || currentUser.role !== "student") return;
   if (!questionBank.length) { toast("No questions to practise yet", "error"); return; }
   if ((strokes.length || $("typedWorking").value.trim() || solutionPhotoDataUrl) && !confirm("Start AI practice? Your current working will be cleared.")) return;
   const now = Date.now();
   const rating = studentEloValue();
-  const review = [], rest = [];
+  const target = rating + 80;            // growth zone: just above the current rating
+  const loBand = rating - 40, hiBand = rating + 200;
+  const weak = studentWeakTopics();
+  const review = [], pool = [];
   questionBank.forEach(q => {
     const p = studentProgress[q.id];
-    if (questionWrongBefore(p) && !questionMastered(p)) review.push(q); else rest.push(q);
+    if (questionWrongBefore(p) && !questionMastered(p)) review.push(q); else pool.push(q);
   });
   review.sort((a, b) => {
     const pa = studentProgress[a.id] || {}, pb = studentProgress[b.id] || {};
@@ -1337,40 +1388,126 @@ function startAiPractice() {
     if (wa !== wb) return wb - wa;
     return parseTimeMs(pa.lastAttemptAt) - parseTimeMs(pb.lastAttemptAt);
   });
-  const aimedAt = rating + 25; // nudge slightly above current rating for a productive challenge
-  rest.sort((a, b) => {
-    const pa = studentProgress[a.id], pb = studentProgress[b.id];
-    const seenA = pa && (pa.attempts || 0) > 0 ? 1 : 0, seenB = pb && (pb.attempts || 0) > 0 ? 1 : 0;
-    if (seenA !== seenB) return seenA - seenB; // never-seen questions first
-    return Math.abs(questionDifficultyRating(a) - aimedAt) - Math.abs(questionDifficultyRating(b) - aimedAt);
+  const growthScore = q => {
+    const d = questionDifficultyRating(q), p = studentProgress[q.id];
+    return {
+      mastered: questionMastered(p) ? 1 : 0,                 // already-mastered questions last
+      inBand: d >= loBand && d <= hiBand ? 0 : 1,            // inside the growth band first
+      weakHit: questionHitsWeakTopic(q, weak) ? 0 : 1,        // weak-topic questions first
+      seen: p && (p.attempts || 0) > 0 ? 1 : 0,              // never-seen questions first
+      dist: Math.abs(d - target)                              // then closest to the target level
+    };
+  };
+  pool.sort((a, b) => {
+    const sa = growthScore(a), sb = growthScore(b);
+    if (sa.mastered !== sb.mastered) return sa.mastered - sb.mastered;
+    if (sa.inBand !== sb.inBand) return sa.inBand - sb.inBand;
+    if (sa.weakHit !== sb.weakHit) return sa.weakHit - sb.weakHit;
+    if (sa.seen !== sb.seen) return sa.seen - sb.seen;
+    return sa.dist - sb.dist;
   });
-  questionBank = review.concat(rest);
+  const reviewSet = review.slice(0, AI_PRACTICE_REVIEW_MAX);
+  const growthSet = pool.slice(0, Math.max(0, AI_PRACTICE_SET_MAX - reviewSet.length));
+  aiPracticeQueue = reviewSet.concat(growthSet);
+  const inSet = new Set(aiPracticeQueue.map(q => q.id));
+  const remainder = review.slice(reviewSet.length).concat(pool.slice(growthSet.length)).filter(q => !inSet.has(q.id));
+  questionBank = aiPracticeQueue.concat(remainder);
   qIndex = 0;
   aiPracticeActive = true;
-  aiPracticeStats = { review: review.length, rest: rest.length };
+  aiPracticeStats = { review: reviewSet.length, growth: growthSet.length, total: aiPracticeQueue.length };
   renderAiPracticeBar();
   renderQuestion();
-  toast(review.length
-    ? `AI practice: ${review.length} to review, then questions matched to rating ${Math.round(rating)}`
-    : `AI practice: questions matched to your rating ${Math.round(rating)}`, "success");
+  toast(`AI practice ready: ${aiPracticeQueue.length} question${aiPracticeQueue.length === 1 ? "" : "s"} in your growth zone (rating ${Math.round(rating)})`, "success");
 }
 function renderAiPracticeBar() {
   const bar = $("aiPracticeBar");
   if (!bar) return;
   if (!aiPracticeActive) { bar.style.display = "none"; bar.innerHTML = ""; return; }
   const rating = Math.round(studentEloValue());
-  const reviewCount = aiPracticeStats.review;
-  const lead = reviewCount
-    ? `Reviewing <b>${reviewCount}</b> question${reviewCount === 1 ? "" : "s"} you got wrong before, then questions matched to your rating.`
-    : `Showing questions matched to your rating — get them right to level up.`;
-  bar.innerHTML = `🤖 <span>AI practice • Your rating <b>${rating}</b>. ${lead}</span><button class="ai-practice-close" id="aiPracticeCloseBtn" type="button" title="Exit AI practice">×</button>`;
+  const r = aiPracticeStats.review || 0, g = aiPracticeStats.growth || 0;
+  const parts = [];
+  if (r) parts.push(`<b>${r}</b> to review`);
+  if (g) parts.push(`<b>${g}</b> in your growth zone`);
+  const lead = parts.length ? parts.join(" + ") + "." : "questions matched to your rating.";
+  bar.innerHTML = `🤖 <span>AI practice • rating <b>${rating}</b> — ${lead}</span>` +
+    `<button class="btn btn-ghost btn-sm" id="aiPrintBtn" type="button" title="Print this practice set as PDF">🖨️ Print set</button>` +
+    `<button class="ai-practice-close" id="aiPracticeCloseBtn" type="button" title="Exit AI practice">×</button>`;
   bar.style.display = "flex";
   $("aiPracticeCloseBtn").addEventListener("click", stopAiPractice);
+  $("aiPrintBtn").addEventListener("click", openAiPrint);
 }
 function stopAiPractice() {
   aiPracticeActive = false;
   renderAiPracticeBar();
   if (questionBank[qIndex]) updateDifficultyChip(questionBank[qIndex]);
+}
+function openAiPrint() {
+  if (!aiPracticeQueue.length) { toast("Start AI practice first to build a set", "error"); return; }
+  $("aiPrintOverlay").classList.add("show");
+}
+// ===== Teacher dashboard: each student publishes a summary the admin can read =====
+async function saveStudentRosterSummary() {
+  if (!currentUser || currentUser.role !== "student") return;
+  const totals = studentLearningProfile.totals || {};
+  const attempts = totals.attempts || 0, correct = totals.correct || 0;
+  const weak = topLearningEntries(studentLearningProfile.weaknesses, 3).map(([label, d]) => ({ label, topic: d.topic || "Math", count: d.count || 0 }));
+  const summary = {
+    uid: currentUser.uid,
+    name: currentUser.name || "",
+    email: currentUser.email || "",
+    elo: (studentLearningProfile.eloAttempts || 0) > 0 ? Math.round(studentEloValue()) : null,
+    eloAttempts: studentLearningProfile.eloAttempts || 0,
+    attempts, correct,
+    accuracy: attempts ? correct / attempts : 0,
+    pointsEarned: Math.round((totals.pointsEarned || 0) * 10) / 10,
+    pointsPossible: Math.round((totals.pointsPossible || 0) * 10) / 10,
+    topWeaknesses: weak,
+    lastActive: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  try { await setDoc(doc(db, "studentProfiles", currentUser.uid), summary, { merge: true }); }
+  catch (e) { console.warn("roster summary save", e); }
+}
+async function loadStudentRoster() {
+  const wrap = $("studentRoster");
+  if (!wrap) return;
+  wrap.innerHTML = `<div class="empty-note" style="padding:20px;">Loading student results…</div>`;
+  let rows = [];
+  try {
+    const snap = await getDocs(collection(db, "studentProfiles"));
+    snap.forEach(d => rows.push(d.data()));
+  } catch (e) {
+    console.warn("roster load", e);
+    $("studentRosterCount").textContent = "";
+    wrap.innerHTML = `<div class="empty-note" style="padding:20px;">Couldn't load student results. Ensure your Firestore rules let admins read the <b>studentProfiles</b> collection.</div>`;
+    return;
+  }
+  rows = rows.filter(r => r && !ADMIN_EMAILS.includes(String(r.email || "").toLowerCase()));
+  renderStudentRoster(rows);
+}
+function renderStudentRoster(rows) {
+  const wrap = $("studentRoster");
+  $("studentRosterCount").textContent = rows.length ? `${rows.length} student${rows.length === 1 ? "" : "s"}` : "";
+  if (!rows.length) {
+    wrap.innerHTML = `<div class="empty-note" style="padding:20px;">No student activity yet. Students appear here after they sign in and submit work.</div>`;
+    return;
+  }
+  rows.sort((a, b) => (b.elo || 0) - (a.elo || 0) || (b.attempts || 0) - (a.attempts || 0));
+  const body = rows.map(r => {
+    const acc = r.attempts ? Math.round((r.accuracy || 0) * 100) + "%" : "—";
+    const weak = (r.topWeaknesses || []).map(w => escapeHtml(w.label || "")).filter(Boolean).slice(0, 3).join(", ") || "—";
+    return `<tr>
+      <td><div class="sr-name">${escapeHtml(r.name || "Student")}</div><div class="sr-email">${escapeHtml(r.email || "")}</div></td>
+      <td class="sr-num">${r.elo != null ? r.elo : "—"}</td>
+      <td class="sr-num">${r.attempts || 0}</td>
+      <td class="sr-num">${acc}</td>
+      <td class="sr-weak">${weak}</td>
+      <td class="sr-when">${escapeHtml(formatHistoryDate(r.lastActive) || "—")}</td>
+    </tr>`;
+  }).join("");
+  wrap.innerHTML = `<div class="card card-pad"><div class="sr-table-wrap"><table class="sr-table">
+    <thead><tr><th>Student</th><th>Rating</th><th>Attempts</th><th>Accuracy</th><th>Top weaknesses</th><th>Last active</th></tr></thead>
+    <tbody>${body}</tbody></table></div></div>`;
 }
 async function loadStudentLearningState(uid) {
   studentProgress = {};
@@ -1541,6 +1678,7 @@ async function recordLearningAttempt(q, v) {
     await setDoc(doc(db, "users", currentUser.uid, "settings", "mathLearningProfile"), studentLearningProfile, { merge: true });
   } catch (e) { console.warn("learning save", e); }
   renderLearningProfile();
+  saveStudentRosterSummary();
   return reviewPlanText(verdict, next.nextReviewAt);
 }
 function weaknessPracticeTarget() {
@@ -1654,8 +1792,9 @@ let aiMarkingSettings = { instructions: "", strictness: 3 };
 let aiGenSettings = { instructions: "" };
 let studentProgress = {};        // per-question spaced-review state for students
 let studentLearningProfile = { weaknesses: {}, strengths: {}, topicStats: {}, conceptStats: {}, skillStats: {}, totals: {}, recentNotes: [] };
-let aiPracticeActive = false;    // AI practice queue mode (wrong-first, then ELO-matched)
-let aiPracticeStats = { review: 0, rest: 0 };
+let aiPracticeActive = false;    // AI practice queue mode (review wrong-first, then growth-zone)
+let aiPracticeStats = { review: 0, growth: 0, total: 0 };
+let aiPracticeQueue = [];        // the focused growth-zone set (also what Print uses)
 let lastEloChange = null;
 let flagNotifications = [];
 let emailNewQuestionOptIn = false;
@@ -1744,6 +1883,7 @@ async function enterApp(user) {
     if (adminUid) { await loadMarkingSettings(adminUid); await loadBank(adminUid); }
     if (!questionBank.length) questionBank = STARTER_QUESTIONS.slice();
     await loadStudentLearningState(user.uid);
+    saveStudentRosterSummary();
     await loadStudentGeneratedQuestions(user.uid);
     await loadEmailSubscription();
     prioritizeReviewQuestions();
@@ -1943,7 +2083,7 @@ async function notifyQuestionSubscribers(q) {
 // NAVIGATION
 // =====================================================================
 function navigateTo(page) {
-  if (["create", "bank", "worksheet"].includes(page) && !canManageQuestions()) {
+  if (["create", "bank", "worksheet", "students"].includes(page) && !canManageQuestions()) {
     page = "practice";
     toast("Student accounts can practise questions only", "error");
   }
@@ -1951,10 +2091,11 @@ function navigateTo(page) {
   document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
   const pageEl = $("page-" + page); if (pageEl) pageEl.classList.add("active");
   const nav = document.querySelector(`.nav-item[data-page="${page}"]`); if (nav) nav.classList.add("active");
-  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", worksheet: "Worksheet Creator" };
+  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", worksheet: "Worksheet Creator", students: "Student Results" };
   $("topbarTitle").textContent = titles[page] || "";
   $("sidebar").classList.remove("open");
   if (page === "bank") renderBank();
+  if (page === "students") loadStudentRoster();
   if (page === "practice") { renderQuestion(); setupCanvasSize(); }
   if (page === "worksheet") {
     const f = $("worksheetFrame");
@@ -2913,8 +3054,20 @@ function openQuestionPreview(q, title = "Question preview") {
   $("previewBody").innerHTML = questionPreviewHtml(q);
   $("previewOverlay").classList.add("show");
 }
-function printDocumentHtml(questions, title) {
-  const body = questions.map((q, i) => questionPreviewHtml(q, questions.length > 1 ? `Question ${i + 1}` : "")).join("");
+function answerKeyPrintHtml(questions) {
+  const items = questions.map((q, i) => {
+    const ans = String(q.expected || "").trim();
+    const guide = String(q.markingGuide || "").trim();
+    const img = q.answerKeyImageUrl ? `<img class="ak-img" src="${escapeHtml(q.answerKeyImageUrl)}" alt="Answer key for question ${i + 1}">` : "";
+    const body = (ans ? `<div class="ak-ans"><b>Answer:</b> ${escapeHtml(ans)}</div>` : "") +
+      (guide ? `<div class="ak-guide">${escapeHtml(guide)}</div>` : "") + img;
+    return `<div class="ak-item"><div class="ak-q">${i + 1}. ${escapeHtml(q.title || "Question")}</div>${body || '<div class="ak-none">No answer key provided.</div>'}</div>`;
+  }).join("");
+  return `<section class="preview-sheet answer-key"><div class="preview-title">Answer key</div>${items}</section>`;
+}
+function printDocumentHtml(questions, title, opts = {}) {
+  const body = questions.map((q, i) => questionPreviewHtml(q, questions.length > 1 ? `Question ${i + 1}` : "")).join("") +
+    (opts && opts.withAnswers ? answerKeyPrintHtml(questions) : "");
   return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>
     * { box-sizing: border-box; }
     body { margin: 0; padding: 18px; color: #2c2a27; font-family: Arial, sans-serif; background: #fff; }
@@ -2932,6 +3085,14 @@ function printDocumentHtml(questions, title) {
     .math-sqrt { display: inline-flex; align-items: flex-start; vertical-align: -0.1em; margin: 0 0.08em; }
     .math-sqrt .root { font-size: 1.1em; line-height: 1; padding-right: 0.04em; }
     .math-sqrt .radicand { border-top: 1.5px solid currentColor; padding: 0.02em 0.18em 0; line-height: 1.15; }
+    .answer-key { background-image: none; }
+    .answer-key .ak-item { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #eee; }
+    .answer-key .ak-item:last-child { border-bottom: 0; }
+    .answer-key .ak-q { font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+    .answer-key .ak-ans { font-size: 14px; margin-bottom: 4px; }
+    .answer-key .ak-guide { font-size: 13px; color: #444; white-space: pre-wrap; line-height: 1.5; }
+    .answer-key .ak-img { display: block; max-width: 100%; margin-top: 8px; border: 1px solid #e2ddd5; border-radius: 6px; }
+    .answer-key .ak-none { font-size: 13px; color: #999; }
     @media print {
       body { padding: 0; }
       .preview-sheet { border: 0; min-height: 100vh; margin: 0; }
@@ -2940,13 +3101,13 @@ function printDocumentHtml(questions, title) {
     window.addEventListener("load", () => setTimeout(() => { window.focus(); window.print(); }, 250));
   <\/script></body></html>`;
 }
-function printQuestions(questions, title = "Math practice") {
+function printQuestions(questions, title = "Math practice", opts = {}) {
   const list = (questions || []).filter(q => q && (q.blocks || []).length);
   if (!list.length) { toast("Choose at least one question to print", "error"); return; }
   const w = window.open("", "_blank");
   if (!w) { toast("Please allow pop-ups to print or save as PDF", "error"); return; }
   w.document.open();
-  w.document.write(printDocumentHtml(list, title));
+  w.document.write(printDocumentHtml(list, title, opts));
   w.document.close();
 }
 function questionListSummary(q) {
@@ -3257,6 +3418,9 @@ async function canvasToImageFile(canvas, name) {
 $("clearSolutionPhotoBtn").addEventListener("click", () => clearSolutionPhoto());
 $("generateWeaknessBtn").addEventListener("click", generateWeaknessPractice);
 $("aiPracticeBtn").addEventListener("click", startAiPractice);
+$("refreshRosterBtn").addEventListener("click", loadStudentRoster);
+$("aiPrintWorksheet").addEventListener("click", () => { closeOverlay("aiPrintOverlay"); printQuestions(aiPracticeQueue, "AI practice — growth zone", { withAnswers: false }); });
+$("aiPrintWithKey").addEventListener("click", () => { closeOverlay("aiPrintOverlay"); printQuestions(aiPracticeQueue, "AI practice — growth zone", { withAnswers: true }); });
 
 const resultEl = $("result");
 function hideResult() {
