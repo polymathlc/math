@@ -249,6 +249,21 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .learning-stat { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px; }
 .learning-stat b { display: block; font-size: 1.05rem; }
 .learning-stat span { display: block; margin-top: 2px; font-family: 'Space Mono', monospace; font-size: 0.58rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+.rating-history { margin-bottom: 12px; }
+.rating-history-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.rating-history-head h5 { font-size: 0.8rem; font-weight: 700; }
+.rh-meta { font-family: 'Space Mono', monospace; font-size: 0.62rem; letter-spacing: 0.04em; color: var(--text-muted); white-space: nowrap; }
+.rh-meta.up { color: #1c8a4a; }
+.rh-meta.down { color: #c0392b; }
+.rating-chart { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 8px; }
+.rating-spark { display: block; width: 100%; height: 58px; }
+.rh-area { stroke: none; fill: var(--accent-blue-light); }
+.rh-line { fill: none; stroke: var(--accent-blue); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; stroke-linecap: round; }
+.rh-dot { fill: var(--accent-blue); stroke: #fff; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.rh-pt { stroke: #fff; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.rh-pt.ok { fill: #1c8a4a; }
+.rh-pt.mid { fill: #c98a16; }
+.rh-pt.bad { fill: #c0392b; }
 .learning-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .learning-list { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; min-height: 82px; }
 .learning-list h5 { font-family: 'Space Mono', monospace; font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
@@ -547,6 +562,10 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
               <div class="learning-stat"><b id="learnAccuracy">0%</b><span>Accuracy</span></div>
               <div class="learning-stat"><b id="learnPoints">0 / 0</b><span>Points</span></div>
               <div class="learning-stat"><b id="learnDue">0</b><span>Due Reviews</span></div>
+            </div>
+            <div class="rating-history" id="ratingHistory" style="display:none;">
+              <div class="rating-history-head"><h5>Rating history</h5><span class="rh-meta" id="ratingHistoryMeta"></span></div>
+              <div class="rating-chart" id="ratingChart"></div>
             </div>
             <div class="learning-grid">
               <div class="learning-list"><h5>Strengths</h5><ul id="learnStrengths"></ul></div>
@@ -1166,7 +1185,52 @@ function renderLearningProfile() {
     ? `AI has tracked ${attempts} attempt${attempts === 1 ? "" : "s"} and is scheduling reviews from your latest work.${(studentLearningProfile.eloAttempts || 0) > 0 ? " Your rating is " + Math.round(rating) + "." : ""}${lead ? " Current focus: " + lead[0] + "." : ""}`
     : "Your strengths, weaknesses, points, and review plan will appear after marked questions.";
   $("generateWeaknessBtn").disabled = !attempts;
+  renderRatingHistory();
 }
+function renderRatingHistory() {
+  const wrap = $("ratingHistory");
+  if (!wrap) return;
+  if (!currentUser || currentUser.role !== "student") { wrap.style.display = "none"; return; }
+  const hist = Array.isArray(studentLearningProfile.eloHistory) ? studentLearningProfile.eloHistory : [];
+  const series = hist.map(h => ({ after: Number(h.after), credit: Number(h.credit) })).filter(s => Number.isFinite(s.after));
+  if (series.length < 2) { wrap.style.display = "none"; return; }
+  wrap.style.display = "";
+  const chart = $("ratingChart");
+  const H = 58, padX = 7, padTop = 9, padBot = 9;
+  const innerW = (chart.clientWidth || 0) - 16; // 8px horizontal padding each side
+  const W = Math.max(200, Math.round(innerW > 0 ? innerW : 300));
+  const n = series.length;
+  const vals = series.map(s => s.after);
+  let min = Math.min(...vals), max = Math.max(...vals);
+  if (max - min < 40) { const mid = (max + min) / 2; min = mid - 20; max = mid + 20; }
+  const padR = (max - min) * 0.18; min -= padR; max += padR;
+  const xFor = i => padX + i * (W - 2 * padX) / (n - 1);
+  const yFor = v => padTop + (H - padTop - padBot) * (1 - (v - min) / (max - min));
+  const coords = vals.map((v, i) => [xFor(i), yFor(v)]);
+  const line = coords.map((c, i) => (i ? "L" : "M") + c[0].toFixed(1) + " " + c[1].toFixed(1)).join(" ");
+  const area = `M${coords[0][0].toFixed(1)} ${(H - padBot).toFixed(1)} ` +
+    coords.map(c => "L" + c[0].toFixed(1) + " " + c[1].toFixed(1)).join(" ") +
+    ` L${coords[n - 1][0].toFixed(1)} ${(H - padBot).toFixed(1)} Z`;
+  const dots = series.map((s, i) => {
+    const cls = s.credit >= 0.95 ? "ok" : (s.credit > 0 ? "mid" : "bad");
+    return `<circle class="rh-pt ${cls}" cx="${coords[i][0].toFixed(1)}" cy="${coords[i][1].toFixed(1)}" r="2.6"/>`;
+  }).join("");
+  const last = coords[n - 1];
+  chart.innerHTML =
+    `<svg class="rating-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Your rating over the last ${n} attempts">` +
+    `<path class="rh-area" d="${area}"/><path class="rh-line" d="${line}"/>${dots}` +
+    `<circle class="rh-dot" cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3.4"/></svg>`;
+  const delta = vals[n - 1] - vals[0];
+  const meta = $("ratingHistoryMeta");
+  meta.textContent = `${n} attempts · ${delta > 0 ? "▲ +" + delta : (delta < 0 ? "▼ " + delta : "no change")}`;
+  meta.className = "rh-meta " + (delta > 0 ? "up" : (delta < 0 ? "down" : ""));
+}
+let ratingHistoryResizeTimer = null;
+window.addEventListener("resize", () => {
+  if (!currentUser || currentUser.role !== "student") return;
+  clearTimeout(ratingHistoryResizeTimer);
+  ratingHistoryResizeTimer = setTimeout(renderRatingHistory, 150);
+});
 function prioritizeReviewQuestions(resetIndex = true) {
   if (!questionBank.length || !currentUser || currentUser.role !== "student") return;
   const now = Date.now();
