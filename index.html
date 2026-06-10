@@ -284,6 +284,14 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .captured img { display: block; width: 100%; }
 .captured-cap { font-size: 0.72rem; color: var(--text-muted); padding: 7px 10px; font-family: 'Space Mono', monospace; }
 
+/* ========== CAMERA ========== */
+.camera-stage { position: relative; width: 100%; aspect-ratio: 3 / 4; max-height: 58vh; background: #000; border-radius: var(--radius-md); overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.camera-stage video { width: 100%; height: 100%; object-fit: cover; display: block; background: #000; }
+.camera-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; color: #fff; font-family: 'Space Mono', monospace; font-size: 0.85rem; }
+.camera-error { margin-top: 12px; padding: 12px 14px; border-radius: var(--radius-md); background: #fff4f0; border: 1px solid #f3c9b8; color: #9a3b12; font-size: 0.88rem; line-height: 1.45; }
+.camera-foot { flex-wrap: wrap; }
+.camera-foot .btn { flex: 1 1 auto; }
+
 /* ========== EDITOR ========== */
 .editor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 @media (max-width: 760px) { .editor-grid { grid-template-columns: 1fr; } }
@@ -505,7 +513,8 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
             <label for="finalAnswer">Your final answer <span style="color:var(--text-light);font-weight:400;">(optional)</span></label>
             <input id="finalAnswer" type="text" inputmode="text" autocomplete="off" placeholder="e.g. 42 cm²">
           </div>
-          <input id="solutionPhotoInput" class="hidden" type="file" accept="image/*" capture="environment">
+          <input id="solutionCameraInput" class="hidden" type="file" accept="image/*" capture="environment">
+          <input id="solutionGalleryInput" class="hidden" type="file" accept="image/*">
           <div class="solution-photo" id="solutionPhotoWrap">
             <img id="solutionPhotoPreview" alt="Student photographed solution preview">
             <div class="solution-photo-info">
@@ -717,6 +726,26 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
       <div class="flag-list" id="flagInboxList"></div>
     </div>
     <div class="overlay-foot"><button class="btn btn-ghost" id="refreshFlagsBtn" type="button">Refresh</button><button class="btn btn-primary" data-close="flagInboxOverlay">Done</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="cameraOverlay">
+  <div class="overlay-card">
+    <div class="overlay-head"><h3>📷 Photo answer</h3><button class="close" id="cameraCloseBtn" type="button">×</button></div>
+    <div class="overlay-body">
+      <div class="camera-stage" id="cameraStage">
+        <video id="cameraVideo" playsinline autoplay muted></video>
+        <div class="camera-loading" id="cameraLoading"><span class="spinner"></span> Starting camera…</div>
+      </div>
+      <div class="camera-error" id="cameraError" style="display:none;"></div>
+      <canvas id="cameraCanvas" class="hidden"></canvas>
+      <div class="hint" id="cameraHint">Point your camera at your working or final answer and tap Capture — or upload an existing photo from your gallery.</div>
+    </div>
+    <div class="overlay-foot camera-foot">
+      <button class="btn btn-ghost" id="cameraSwitchBtn" type="button" style="display:none;">🔄 Switch</button>
+      <button class="btn btn-ghost" id="cameraGalleryBtn" type="button">🖼️ Upload from gallery</button>
+      <button class="btn btn-primary" id="cameraCaptureBtn" type="button" disabled>📸 Capture</button>
+    </div>
   </div>
 </div>
 
@@ -2774,7 +2803,8 @@ function updateSolutionPhotoView(file = null) {
 function clearSolutionPhoto({ silent = false } = {}) {
   solutionPhotoDataUrl = "";
   solutionPhotoName = "";
-  $("solutionPhotoInput").value = "";
+  $("solutionCameraInput").value = "";
+  $("solutionGalleryInput").value = "";
   updateSolutionPhotoView();
   if (!silent) { hideHint(); hideResult(); }
 }
@@ -2858,10 +2888,24 @@ $("printSelectedBtn").addEventListener("click", () => {
 });
 $("typedWorking").addEventListener("input", hideHint);
 $("finalAnswer").addEventListener("input", hideHint);
-$("photoSolutionBtn").addEventListener("click", () => $("solutionPhotoInput").click());
-$("solutionPhotoInput").addEventListener("change", async e => {
+let cameraStream = null;
+let cameraFacing = "environment";
+$("photoSolutionBtn").addEventListener("click", openCameraModal);
+$("cameraCloseBtn").addEventListener("click", closeCameraModal);
+$("cameraOverlay").addEventListener("click", e => { if (e.target === $("cameraOverlay")) closeCameraModal(); });
+$("cameraCaptureBtn").addEventListener("click", captureCameraPhoto);
+$("cameraSwitchBtn").addEventListener("click", () => { cameraFacing = cameraFacing === "environment" ? "user" : "environment"; startCameraStream(); });
+$("cameraGalleryBtn").addEventListener("click", () => $("solutionGalleryInput").click());
+$("solutionCameraInput").addEventListener("change", onSolutionFileInputChange);
+$("solutionGalleryInput").addEventListener("change", onSolutionFileInputChange);
+async function onSolutionFileInputChange(e) {
   const file = e.target.files && e.target.files[0];
+  e.target.value = "";
   if (!file) return;
+  closeCameraModal();
+  await handleSolutionFile(file);
+}
+async function handleSolutionFile(file) {
   const btn = $("photoSolutionBtn");
   const label = $("photoSolutionLabel");
   btn.disabled = true;
@@ -2869,7 +2913,98 @@ $("solutionPhotoInput").addEventListener("change", async e => {
   try { await attachSolutionPhoto(file); }
   catch (err) { console.error(err); toast("Photo attach error: " + (err.message || err), "error"); }
   finally { btn.disabled = false; label.textContent = "📷 Photo answer"; }
-});
+}
+async function openCameraModal() {
+  $("cameraOverlay").classList.add("show");
+  await startCameraStream();
+}
+function closeCameraModal() {
+  stopCameraStream();
+  $("cameraOverlay").classList.remove("show");
+}
+function stopCameraStream() {
+  if (cameraStream) {
+    cameraStream.getTracks().forEach(t => { try { t.stop(); } catch (_) {} });
+    cameraStream = null;
+  }
+  const v = $("cameraVideo");
+  if (v) { try { v.pause(); } catch (_) {} v.srcObject = null; }
+}
+async function startCameraStream() {
+  stopCameraStream();
+  const video = $("cameraVideo");
+  const captureBtn = $("cameraCaptureBtn");
+  const switchBtn = $("cameraSwitchBtn");
+  $("cameraError").style.display = "none";
+  switchBtn.style.display = "none";
+  captureBtn.disabled = true;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.isSecureContext) {
+    showCameraError(null);
+    return;
+  }
+  $("cameraStage").style.display = "flex";
+  $("cameraLoading").style.display = "flex";
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: cameraFacing } }, audio: false });
+    video.srcObject = cameraStream;
+    try { await video.play(); } catch (_) {}
+    $("cameraLoading").style.display = "none";
+    captureBtn.disabled = false;
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      if (devices.filter(d => d.kind === "videoinput").length > 1) switchBtn.style.display = "";
+    } catch (_) {}
+  } catch (err) {
+    console.error("camera error", err);
+    showCameraError(err);
+  }
+}
+function showCameraError(err) {
+  stopCameraStream();
+  $("cameraLoading").style.display = "none";
+  $("cameraStage").style.display = "none";
+  $("cameraCaptureBtn").disabled = true;
+  $("cameraSwitchBtn").style.display = "none";
+  const name = err && err.name;
+  let msg;
+  if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)
+    msg = "The live camera needs a secure (https) connection and isn't available here. You can still take a photo with your device camera, or upload one from your gallery below.";
+  else if (name === "NotAllowedError" || name === "SecurityError" || name === "PermissionDeniedError")
+    msg = "Camera access was blocked. Allow camera permission for this site in your browser settings, then try again — or take a photo with your device / upload from your gallery below.";
+  else if (name === "NotFoundError" || name === "DevicesNotFoundError" || name === "OverconstrainedError")
+    msg = "No usable camera was found on this device. You can take a photo with your device camera or upload one from your gallery below.";
+  else if (name === "NotReadableError" || name === "TrackStartError" || name === "AbortError")
+    msg = "Your camera is busy or being used by another app. Close other apps using the camera, or take a photo with your device / upload from your gallery below.";
+  else
+    msg = "We couldn't start the live camera. You can take a photo with your device camera or upload one from your gallery below.";
+  $("cameraError").innerHTML = escapeHtml(msg) + '<div style="margin-top:10px;"><button class="btn btn-ghost btn-sm" id="cameraNativeBtn" type="button">📷 Take a photo with your device</button></div>';
+  $("cameraError").style.display = "block";
+  $("cameraNativeBtn").addEventListener("click", () => $("solutionCameraInput").click());
+}
+async function captureCameraPhoto() {
+  const video = $("cameraVideo");
+  if (!cameraStream || !video.videoWidth) { toast("Camera isn't ready yet — give it a second", "error"); return; }
+  const canvas = $("cameraCanvas");
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+  let file;
+  try { file = await canvasToImageFile(canvas, `camera-${Date.now()}.jpg`); }
+  catch (err) { console.error(err); toast("Couldn't capture the photo, please try again", "error"); return; }
+  closeCameraModal();
+  await handleSolutionFile(file);
+}
+async function canvasToImageFile(canvas, name) {
+  if (canvas.toBlob) {
+    const blob = await new Promise(res => canvas.toBlob(res, "image/jpeg", 0.92));
+    if (blob) return new File([blob], name, { type: "image/jpeg" });
+  }
+  const b64 = (canvas.toDataURL("image/jpeg", 0.92).split(",")[1]) || "";
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new File([arr], name, { type: "image/jpeg" });
+}
 $("clearSolutionPhotoBtn").addEventListener("click", () => clearSolutionPhoto());
 $("generateWeaknessBtn").addEventListener("click", generateWeaknessPractice);
 
