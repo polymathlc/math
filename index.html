@@ -721,7 +721,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
       <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:16px;">Paste, drop, or choose a photo / screenshot / PDF of an exam question. The AI fills in the editor for you to review.</p>
       <div class="ai-drop" id="aiBuildZone">
         <div style="font-size:1.8rem;margin-bottom:6px;">📸</div>
-        <b>Click to choose</b>, or paste (⌘V) / drop a file here<br><span style="font-size:0.8rem;">Image or PDF, up to 18 MB</span>
+        <b>Click to choose</b>, or paste (⌘V) / drop a file here<br><span style="font-size:0.8rem;">Images are compressed automatically · PDF up to 14 MB</span>
       </div>
       <input id="aiBuildFile" type="file" accept="image/*,application/pdf" class="hidden">
       <div id="aiBuildStatus" style="margin-top:14px;font-size:0.88rem;color:var(--text-muted);"></div>
@@ -852,6 +852,7 @@ const firebaseConfig = {
 };
 const RECAPTCHA_SITE_KEY = "6Le98gwtAAAAAAzkjJTZXFM5D8tpjx_P4rtRuhuH";
 const AI_MODEL = "gemini-3.5-flash";
+const AI_FALLBACK_MODELS = ["gemini-2.5-flash"]; // tried in order when the primary model is overloaded or unreachable
 const AI_IMAGE_MODELS = ["gemini-3.1-flash-image-preview", "gemini-2.5-flash-image"];
 const ADMIN_EMAILS = ['chungzhikai@gmail.com', 'abigail.yew@stanfordmanpower.com'];
 
@@ -865,27 +866,74 @@ if (RECAPTCHA_SITE_KEY && !RECAPTCHA_SITE_KEY.startsWith("PASTE_")) {
   catch (e) { console.warn("App Check init failed:", e); }
 }
 let geminiModel = null;
+let geminiTextModels = [];
+const AI_TEXT_MODEL_NAMES = [AI_MODEL, ...AI_FALLBACK_MODELS];
 const aiBackend = getAI(app, { backend: new GoogleAIBackend() });
-try { geminiModel = getGenerativeModel(aiBackend, { model: AI_MODEL }); }
-catch (e) { console.warn("Firebase AI init failed:", e); }
+const AI_REQUEST_OPTIONS = { timeout: 240000 }; // 4 min — big photo/PDF uploads on slow links abort the SDK's 180s default
+try {
+  geminiTextModels = AI_TEXT_MODEL_NAMES.map(model => getGenerativeModel(aiBackend, { model }, AI_REQUEST_OPTIONS));
+  geminiModel = geminiTextModels[0] || null;
+} catch (e) { console.warn("Firebase AI init failed:", e); }
 let geminiImageModels = [];
 try {
   geminiImageModels = AI_IMAGE_MODELS.map(model => getGenerativeModel(aiBackend, {
     model,
     generationConfig: { responseModalities: [ResponseModality.TEXT, ResponseModality.IMAGE] }
-  }));
+  }, AI_REQUEST_OPTIONS));
 } catch (e) { console.warn("Firebase image AI init failed:", e); }
 const aiReady = () => !!geminiModel;
 const imageAiReady = () => geminiImageModels.length > 0;
 
+function isAiTimeoutError(e) {
+  return /abort|timed? ?out|deadline/.test(String((e && e.message) || e || "").toLowerCase());
+}
+function isTransientAiError(e) {
+  const msg = String((e && e.message) || e || "").toLowerCase();
+  return /abort|timed? ?out|deadline|failed to fetch|networkerror|network error|load failed|overloaded|unavailable|resource.?exhausted|too many requests|\b(429|500|502|503|504)\b/.test(msg);
+}
+async function withAiRetry(run, { tries = 3, baseDelayMs = 1200, timeoutTries = 2 } = {}) {
+  const max = Math.max(1, tries);
+  const timeoutMax = Math.max(1, timeoutTries);
+  for (let i = 0; ; i++) {
+    try { return await run(); }
+    catch (e) {
+      // Timeout-class failures already waited minutes; give them fewer attempts to avoid locking the UI.
+      const outOfTries = i >= max - 1 || (isAiTimeoutError(e) && i + 1 >= timeoutMax);
+      if (!isTransientAiError(e) || outOfTries) throw e;
+      console.warn(`AI call failed (attempt ${i + 1}/${max}), retrying…`, e);
+      await new Promise(res => setTimeout(res, baseDelayMs * Math.pow(2, i)));
+    }
+  }
+}
+function aiErrorMessage(e) {
+  const raw = String((e && e.message) || e || "").replace(/^(AI|Firebase):\s*/, "");
+  const low = raw.toLowerCase();
+  if (/abort|timed? ?out|deadline/.test(low)) return "the AI took too long to respond — usually a large file or slow connection, not your image quality. Please try again";
+  if (/failed to fetch|networkerror|network error|load failed/.test(low)) return "network problem reaching the AI — check your connection and try again";
+  if (/overloaded|unavailable|resource.?exhausted|too many requests|\b(429|500|502|503|504)\b/.test(low)) return "the AI service is busy right now — please try again in a moment";
+  return raw;
+}
+
 async function askGeminiVision(prompt, media, { maxOutputTokens = 1024, json = true } = {}) {
-  if (!geminiModel) throw new Error("AI is not configured yet");
+  if (!geminiTextModels.length) throw new Error("AI is not configured yet");
   const parts = [{ text: prompt }];
   (media || []).forEach(m => parts.push({ inlineData: { mimeType: m.mimeType, data: m.data } }));
   const generationConfig = { maxOutputTokens, temperature: 0.2, thinkingConfig: { thinkingBudget: 0 } };
   if (json) generationConfig.responseMimeType = "application/json";
-  const res = await geminiModel.generateContent({ contents: [{ role: "user", parts }], generationConfig });
-  return (res.response.text() || "").trim();
+  let lastErr = null;
+  for (let i = 0; i < geminiTextModels.length; i++) {
+    try {
+      // Per model: up to 2 quick retries, but a 4-min timeout moves straight to the fallback model.
+      const res = await withAiRetry(() => geminiTextModels[i].generateContent({ contents: [{ role: "user", parts }], generationConfig }), { tries: 2, timeoutTries: 1 });
+      return (res.response.text() || "").trim();
+    } catch (e) {
+      // A non-transient failure on the primary (bad request, safety block) won't be fixed by another model.
+      if (i === 0 && !isTransientAiError(e)) throw e;
+      if (!lastErr || isTransientAiError(e)) lastErr = e;
+      if (i < geminiTextModels.length - 1) console.warn(`AI model "${AI_TEXT_MODEL_NAMES[i]}" failed, trying "${AI_TEXT_MODEL_NAMES[i + 1]}"…`, e);
+    }
+  }
+  throw lastErr || new Error("AI request failed");
 }
 function extractInlineImage(result) {
   const inlineParts = result?.response?.inlineDataParts ? result.response.inlineDataParts() : [];
@@ -1766,7 +1814,7 @@ async function generateWeaknessPractice() {
     toast("Weakness practice question generated", "success");
   } catch (e) {
     console.error(e);
-    toast("Question generation failed: " + (e.message || e), "error");
+    toast("Question generation failed: " + aiErrorMessage(e), "error");
   } finally {
     btn.disabled = false;
     label.textContent = "Generate weakness practice";
@@ -2450,7 +2498,7 @@ async function enhanceImgChoice(id) {
     choice.busy = false;
     choice.statusHtml = "Enhancement failed. You can still use the original image.";
     renderImgChoice(id);
-    toast("Enhancement failed: " + (e.message || e), "error");
+    toast("Enhancement failed: " + aiErrorMessage(e), "error");
   }
 }
 async function useImgChoice(id, kind = "original") {
@@ -2638,25 +2686,43 @@ $("aiBuildBtn").addEventListener("click", () => {
 $("aiBuildZone").addEventListener("click", () => $("aiBuildFile").click());
 $("aiBuildZone").addEventListener("dragover", e => e.preventDefault());
 $("aiBuildZone").addEventListener("drop", e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleAiBuild(f); });
-$("aiBuildFile").addEventListener("change", e => { const f = e.target.files[0]; if (f) handleAiBuild(f); });
+$("aiBuildFile").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) handleAiBuild(f); });
 document.addEventListener("paste", e => {
   if (!$("aiBuildOverlay").classList.contains("show")) return;
   const items = (e.clipboardData || {}).items || [];
   for (const it of items) { if (it.type && it.type.startsWith("image/")) { e.preventDefault(); handleAiBuild(it.getAsFile()); return; } }
 });
+async function imageFileToInlineMedia(file) {
+  const info = dataUrlInfo(await imageFileToOptimizedDataUrl(file));
+  if (!info.data) throw new Error("could not read the image file");
+  return { mimeType: info.mimeType || file.type || "image/jpeg", data: info.data };
+}
 async function handleAiBuild(file) {
   if (!aiReady()) { toast("AI isn't ready yet", "error"); return; }
   const isPdf = file.type === "application/pdf";
   if (!file.type.startsWith("image/") && !isPdf) { toast("Please use an image or PDF", "error"); return; }
-  if (file.size > 18 * 1024 * 1024) { toast("File too large (max 18 MB)", "error"); return; }
-  setAiBuildBusy(true, `Reading the ${isPdf ? "PDF" : "image"} with AI...`);
+  // Gemini caps the whole request near 20 MB and base64 inflates ~33%, so raw PDFs must stay under ~14 MB.
+  if (isPdf && file.size > 14 * 1024 * 1024) { toast("PDF too large (max 14 MB) — try exporting just the page you need", "error"); return; }
+  if (!isPdf && file.size > 25 * 1024 * 1024) { toast("Image too large (max 25 MB)", "error"); return; }
   try {
-    await runAiBuildFromMedia({ mimeType: file.type, data: await _fileToBase64(file), isPdf });
-  } catch (e) { console.error(e); $("aiBuildStatus").textContent = "Couldn't read that — try a clearer image. (" + (e.message || e) + ")"; }
+    setAiBuildBusy(true, `Preparing the ${isPdf ? "PDF" : "image"}...`);
+    const media = isPdf
+      ? { mimeType: file.type, data: await _fileToBase64(file) }
+      : await imageFileToInlineMedia(file);
+    // If compression couldn't shrink it (e.g. unsupported format), refuse rather than upload past the request cap.
+    if (media.data.length > 19000000) { $("aiBuildStatus").textContent = "That image is too large to send even after processing — please use a smaller photo or a screenshot."; return; }
+    setAiBuildBusy(true, `Reading the ${isPdf ? "PDF" : "image"} with AI...`);
+    await runAiBuildFromMedia(Object.assign({ isPdf }, media));
+  } catch (e) { console.error(e); $("aiBuildStatus").textContent = aiBuildFailureText(e); }
   finally {
     $("aiBuildFile").value = "";
     setAiBuildBusy(false);
   }
+}
+function aiBuildFailureText(e) {
+  return isTransientAiError(e)
+    ? "Upload interrupted: " + aiErrorMessage(e) + "."
+    : "Couldn't read that — try a clearer image. (" + aiErrorMessage(e) + ")";
 }
 async function runAiBuildFromMedia(source) {
   try {
@@ -2678,7 +2744,7 @@ async function runAiBuildFromMedia(source) {
     toast("Draft created — review and save", "success");
   } catch (e) {
     console.error(e);
-    $("aiBuildStatus").textContent = "Couldn't read that — try a clearer image. (" + (e.message || e) + ")";
+    $("aiBuildStatus").textContent = aiBuildFailureText(e);
   }
 }
 function populateEditorFromAi(d) {
@@ -3569,7 +3635,7 @@ $("hintBtn").addEventListener("click", async () => {
     if (!hint) throw new Error("empty hint - please try again");
     showHint(hint);
     toast("Hint ready", "success");
-  } catch (e) { console.error(e); toast("AI hint error: " + (e.message || e), "error"); }
+  } catch (e) { console.error(e); toast("AI hint error: " + aiErrorMessage(e), "error"); }
   finally { btn.disabled = false; label.textContent = "AI hint"; }
 });
 
@@ -3626,7 +3692,7 @@ $("submitBtn").addEventListener("click", async () => {
       markMsg += ` • Rating ${lastEloChange.after}${delta ? ` (${delta > 0 ? "+" : ""}${delta})` : ""}`;
     }
     toast(markMsg, verdict === "correct" ? "success" : "");
-  } catch (e) { console.error(e); toast("AI mark error: " + (e.message || e), "error"); }
+  } catch (e) { console.error(e); toast("AI mark error: " + aiErrorMessage(e), "error"); }
   finally { btn.disabled = false; $("submitLabel").innerHTML = "📸 Submit for AI marking"; }
 });
 
