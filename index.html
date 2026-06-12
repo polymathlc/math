@@ -521,6 +521,12 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .rpg-filter-chip { font-family: 'Space Mono', monospace; font-size: 0.64rem; letter-spacing: 0.05em; text-transform: uppercase; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--border); background: #fff; color: var(--text-muted); cursor: pointer; transition: all var(--transition); }
 .rpg-filter-chip.active { background: var(--primary); border-color: var(--primary); color: #fff; }
 /* leaderboard */
+.rpg-raid { display: flex; align-items: center; gap: 14px; padding: 12px 16px; margin-bottom: 14px; border-radius: var(--radius-md); background: linear-gradient(135deg, #2b2640, #3d1f2a); color: #fff; border: 1px solid #5c3a4a; }
+.rpg-raid-boss { font-size: 44px; line-height: 1; animation: rpgBob 2.4s ease-in-out infinite; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5)); }
+.rpg-raid-main { flex: 1; min-width: 0; }
+.rpg-raid-name { font-size: 0.95rem; margin-bottom: 6px; }
+.rpg-raid-sub { font-size: 0.74rem; color: rgba(255,255,255,0.65); margin-top: 5px; }
+.rpg-raid .rpg-bar { background: rgba(0,0,0,0.4); border-color: rgba(0,0,0,0.3); height: 14px; }
 .rpg-prize-banner { display: flex; flex-direction: column; gap: 4px; padding: 12px 16px; margin-bottom: 16px; border-radius: var(--radius-md); background: linear-gradient(135deg, #fdf3d8, #fbe7c2); border: 1px solid #ecd29a; font-size: 0.9rem; line-height: 1.5; }
 .rpg-prize-line b { color: #8a5a13; }
 .rpg-board-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: space-between; margin-bottom: 14px; }
@@ -567,11 +573,12 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 @keyframes advGround { to { background-position: -60px 0, -84px 0; } }
 .adv-actor { position: absolute; bottom: 40px; text-align: center; z-index: 3; }
 .adv-hero { left: 5%; width: 140px; will-change: transform; }
-.adv-hero.marching svg { animation: advWalkBob 0.5s ease-in-out infinite; }
-.adv-foe { will-change: transform; }
-.adv-foe.marching .adv-foe-emoji { animation: rpgBob 0.45s ease-in-out infinite; }
+#advFoes { position: absolute; inset: 0; will-change: transform; pointer-events: none; }
+.adv-foe { will-change: transform; transition: transform 0.12s linear; }
+@keyframes advStep { 0%, 100% { transform: translateY(0) rotate(-1.4deg); } 50% { transform: translateY(-6px) rotate(1.4deg); } }
+.adv-hero svg, .adv-foe .adv-foe-emoji { animation: advStep 0.5s ease-in-out infinite; }
 .adv-hero svg { width: 122px; height: auto; display: block; margin: 0 auto; }
-.adv-foe { right: -30%; min-width: 70px; transition: right 0.85s ease-out; }
+.adv-foe { left: 0; min-width: 70px; }
 .adv-foe.poisoned .adv-foe-emoji { filter: drop-shadow(0 0 9px #3a9e5f) hue-rotate(40deg) saturate(1.3); }
 .adv-foe.burning .adv-foe-emoji { filter: drop-shadow(0 0 10px #ff6b35) saturate(1.5); }
 .adv-foe.chilled .adv-foe-emoji { filter: drop-shadow(0 0 9px #8fd4ee) saturate(0.55); animation-duration: 4.4s; }
@@ -581,8 +588,6 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .adv-foe-emoji { display: inline-block; line-height: 1.05; animation: rpgBob 2.2s ease-in-out infinite; filter: drop-shadow(0 5px 7px rgba(0,0,0,0.3)); }
 .adv-foe.dead { animation: advDie 0.8s ease-in forwards; }
 @keyframes advDie { 40% { transform: rotate(16deg); } 100% { transform: translateY(28px) rotate(80deg); opacity: 0; } }
-.adv-stage.walking .adv-hero { animation: advWalkBob 0.5s ease-in-out infinite; }
-@keyframes advWalkBob { 0%, 100% { transform: translateY(0) rotate(-1.5deg); } 50% { transform: translateY(-7px) rotate(1.5deg); } }
 .adv-hero.hit, .adv-foe.hit { animation: rpgShake 0.4s ease; }
 .adv-tag { font-family: 'Space Mono', monospace; font-size: 0.6rem; font-weight: 700; color: #2c2a27; background: rgba(255,255,255,0.88); border-radius: 999px; padding: 2px 9px; display: inline-block; margin-bottom: 3px; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .adv-bar { height: 9px; width: 112px; margin: 5px auto 0; background: rgba(0,0,0,0.28); border-color: rgba(0,0,0,0.2); }
@@ -604,6 +609,14 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 @keyframes advBoltA { 0% { opacity: 0; transform: scaleY(0.2); } 25% { opacity: 1; transform: scaleY(1); } 70% { opacity: 0.9; } 100% { opacity: 0; } }
 .adv-cloud2 { position: absolute; z-index: 5; font-size: 26px; pointer-events: none; }
 .adv-fall { position: absolute; z-index: 5; font-size: 17px; pointer-events: none; animation: advFallA 0.95s linear forwards; }
+.adv-ghost { display: inline-block; width: 96px; transform: scaleX(-1); }
+.adv-ghost svg { width: 100%; height: auto; opacity: 0.92; filter: drop-shadow(0 0 10px rgba(155,127,212,0.8)); }
+.adv-draft-row { display: flex; gap: 10px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+.adv-draft-card { width: 130px; padding: 12px 8px; border-radius: 12px; border: 2px solid #ffd76a; background: rgba(255,255,255,0.08); color: #fff; cursor: pointer; display: flex; flex-direction: column; gap: 6px; align-items: center; font-family: inherit; transition: all var(--transition); }
+.adv-draft-card:hover { background: rgba(255,215,106,0.22); transform: translateY(-3px); }
+.adv-draft-card .adv-draft-ico { font-size: 30px; line-height: 1; }
+.adv-draft-card b { font-size: 0.85rem; }
+.adv-draft-card span:last-child { font-size: 0.68rem; opacity: 0.85; line-height: 1.35; }
 @keyframes advFallA { to { transform: translateY(225px); opacity: 0.15; } }
 @keyframes advSlashA { from { opacity: 0; transform: rotate(-55deg) scale(0.55); } 30% { opacity: 1; } to { opacity: 0; transform: rotate(30deg) scale(1.2); } }
 .adv-skillbar { display: flex; gap: 12px; justify-content: center; align-items: flex-start; margin-top: 14px; flex-wrap: wrap; min-height: 84px; }
@@ -1029,6 +1042,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
     <!-- ================= LEADERBOARD PAGE (RPG) ================= -->
     <div class="page" id="page-leaderboard">
       <div class="page-head"><h3>🏆 Leaderboard</h3><p>Earn XP by solving questions — climb the board to win Popular vouchers.</p></div>
+      <div id="rpgRaidSlot"></div>
       <div class="rpg-prize-banner">
         <span class="rpg-prize-line">🎁 <b>Monthly prize:</b> the top 10 XP earners each month win a <b>$10 Popular voucher</b> each.</span>
         <span class="rpg-prize-line">🏆 <b>Grand prizes:</b> the top 3 all-time XP earners win <b>$200, $100 and $50 Popular vouchers</b>.</span>
@@ -1217,7 +1231,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/fireba
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
   updateProfile, GoogleAuthProvider, signInWithPopup, signOut, browserPopupRedirectResolver }
   from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, collection, getDocs, deleteDoc }
+import { getFirestore, doc, getDoc, setDoc, collection, getDocs, deleteDoc, increment }
   from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app-check.js";
 import { getAI, getGenerativeModel, GoogleAIBackend, ResponseModality } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-ai.js";
@@ -5299,6 +5313,7 @@ function rpgRolloverMonth() {
   rpgState.monthXp = 0;
 }
 function rpgApplyRewards(gold, xp) {
+  try { rpgRaidContribute(xp); } catch (_) {}
   const before = rpgLevelInfo().level;
   const goldPct = rpgPlayerStats().goldPct || 0;
   if (goldPct && gold > 0) gold = Math.round(gold * (1 + goldPct));
@@ -5889,11 +5904,52 @@ function rpgPublishLeaderboard() {
       lastMonthKey: rpgState.lastMonthKey || null,
       wins: (rpgState.stats && rpgState.stats.wins) || 0,
       bestFloor: (rpgState.stats && rpgState.stats.bestFloor) || 0,
+      arenaWins: (rpgState.stats && rpgState.stats.arenaWins) || 0,
       clazz: rpgState.clazz || null,
       equipment: rpgState.equipment,
       updatedAt: new Date().toISOString()
     }).catch(e => console.warn("leaderboard publish", e));
   }, 1200);
+}
+// ---- Class raid boss: one shared weekly HP pool the whole class chips away ----
+const RAID_MAX_HP = 20000, RAID_BOUNTY = 250;
+function rpgRaidWeek() { return "W" + Math.floor(Date.now() / 604800000); }
+let rpgRaidPending = 0, rpgRaidTimer = null, rpgRaidCache = null;
+function rpgRaidContribute(points) {
+  if (!points || !currentUser || RPG_STORAGE_MODE !== "firestore" || currentUser.role !== "student") return;
+  rpgRaidPending += Math.round(points);
+  clearTimeout(rpgRaidTimer);
+  rpgRaidTimer = setTimeout(() => {
+    const pts = rpgRaidPending;
+    rpgRaidPending = 0;
+    setDoc(doc(db, "raidBoss", "current"), { weekKey: rpgRaidWeek(), maxHp: RAID_MAX_HP, name: "Ancient Math Devourer", emoji: "🐲", dealt: increment(pts) }, { merge: true })
+      .catch(e => console.warn("raid", e));
+  }, 4000);
+}
+async function rpgRaidHtml() {
+  if (RPG_STORAGE_MODE !== "firestore") return "";
+  try {
+    const snap = await getDoc(doc(db, "raidBoss", "current"));
+    let d = snap.exists() ? snap.data() : null;
+    if (!d || d.weekKey !== rpgRaidWeek()) {
+      d = { weekKey: rpgRaidWeek(), maxHp: RAID_MAX_HP, dealt: 0, name: "Ancient Math Devourer", emoji: "🐲" };
+      setDoc(doc(db, "raidBoss", "current"), d).catch(() => {});
+    }
+    rpgRaidCache = d;
+    const left = Math.max(0, (d.maxHp || RAID_MAX_HP) - (d.dealt || 0));
+    const pct = Math.round(left / (d.maxHp || RAID_MAX_HP) * 100);
+    const dead = left <= 0;
+    const claimed = rpgState && rpgState.raidClaim === rpgRaidWeek();
+    return `<div class="rpg-raid">
+      <span class="rpg-raid-boss">${d.emoji || "🐲"}</span>
+      <div class="rpg-raid-main">
+        <div class="rpg-raid-name">${escapeHtml(d.name || "Raid Boss")} — <b>class raid</b> ${dead ? "· DEFEATED! 🎉" : ""}</div>
+        <div class="rpg-bar light"><div class="rpg-bar-fill hp" style="width:${pct}%;"></div><div class="rpg-bar-label">${left} / ${d.maxHp}</div></div>
+        <div class="rpg-raid-sub">Every XP your class earns is damage. New boss every week.</div>
+      </div>
+      ${dead && !claimed && rpgState ? `<button class="btn btn-primary btn-sm" type="button" data-rpg-raidclaim>🎁 Claim 🪙 ${RAID_BOUNTY}</button>` : ""}
+    </div>`;
+  } catch (e) { console.warn("raid load", e); return ""; }
 }
 let rpgBoardTab = "month";
 let rpgBoardRows = null;
@@ -5933,6 +5989,7 @@ async function rpgRenderLeaderboard(force = false) {
   if (!body) return;
   document.querySelectorAll("[data-rpgboard]").forEach(b => b.classList.toggle("active", b.dataset.rpgboard === rpgBoardTab));
   if (!rpgBoardRows) body.innerHTML = `<div class="empty-note">Loading leaderboard…</div>`;
+  rpgRaidHtml().then(h => { const el = $("rpgRaidSlot"); if (el) el.innerHTML = h; });
   const fetched = await rpgFetchLeaderboard(force);
   if (fetched === null) {
     body.innerHTML = `<div class="empty-note">Couldn't load the leaderboard. Ensure your Firestore rules let signed-in users read the <b>gameLeaderboard</b> collection.</div>`;
@@ -5974,9 +6031,10 @@ async function rpgRenderLeaderboard(force = false) {
       <div class="rpg-board-ava">${rpgAvatarSvg(r.equipment || {})}</div>
       <div class="rpg-board-main">
         <div class="rpg-board-name">${r.clazz && RPG_CLASSES[r.clazz] ? RPG_CLASSES[r.clazz].icon + " " : ""}${escapeHtml(r.name)}${me ? `<span class="rpg-you-tag">You</span>` : ""}</div>
-        <div class="rpg-board-meta">Lv ${r.level || 1} · ${r.wins || 0} battles won${r.bestFloor ? ` · 🏰 F${r.bestFloor}` : ""}</div>
+        <div class="rpg-board-meta">Lv ${r.level || 1} · ${r.wins || 0} battles won${r.bestFloor ? ` · 🏰 F${r.bestFloor}` : ""}${r.arenaWins ? ` · ⚔️ ${r.arenaWins}W` : ""}</div>
       </div>
       ${rpgPrizeBadge(rank)}
+      ${!me && r.equipment && currentUser && currentUser.role === "student" ? `<button class="btn btn-ghost btn-sm" type="button" data-rpg-duel="${escapeHtml(r.uid)}">⚔️ Duel</button>` : ""}
       <div class="rpg-board-xp">${r.shownXp} XP<span>${label}</span></div>
     </div>`;
   }).join("");
@@ -6158,6 +6216,8 @@ function rpgRenderAdventure() {
   advUpdateRunsChip();
   $("advHero").innerHTML = advHeroHtml();
   $("advFoes").innerHTML = "";
+  const wEl = $("advFoes");
+  if (wEl && wEl.style) wEl.style.transform = "";
   $("advSkillbar").innerHTML = advSkillbarHtml(advEquippedSkills());
   $("advStatus").textContent = "";
   $("advWaveChip").style.display = "none";
@@ -6179,8 +6239,10 @@ function advStart() {
   advToken++;
   const stats = rpgPlayerStats();
   adv = { phase: "walk", wave: 0, floor: 1, tiers: advWaveTiers(0), stats, heroHp: stats.maxHp, heroMax: stats.maxHp,
-    foes: [], skills: advEquippedSkills(), shield: 0, heroNextAtk: 0, heroX: 0, heroInRange: false, gold: 0, xp: 0, kills: 0, loopId: 0 };
+    foes: [], skills: advEquippedSkills(), shield: 0, heroNextAtk: 0, heroX: 0, heroInRange: false, worldX: 0, scroll: 0, lurch: 0, gold: 0, xp: 0, kills: 0, loopId: 0, rafOn: false, mods: { atkPct: 0, goldPct: 0, cdr: 0, dr: 0, leech: 0, el: {} } };
   adv.loopId = setInterval(advTick, ADV_TICK_MS);
+  adv.rafOn = true;
+  advRaf(Date.now());
   advOverlay("");
   advUpdateRunsChip();
   $("advStartBtn").style.display = "none";
@@ -6189,115 +6251,185 @@ function advStart() {
   $("advSkillbar").innerHTML = advSkillbarHtml(adv.skills);
   advWalk();
 }
+const RPG_DRAFTS = [
+  { id: "fire", icon: "🔥", name: "Flame Soul", desc: "+30% fire damage this run", el: "fire" },
+  { id: "ice", icon: "❄️", name: "Frost Soul", desc: "+30% ice damage this run", el: "ice" },
+  { id: "nature", icon: "🍃", name: "Wild Soul", desc: "+30% nature damage this run", el: "nature" },
+  { id: "shadow", icon: "🌑", name: "Night Soul", desc: "+30% shadow damage this run", el: "shadow" },
+  { id: "holy", icon: "✨", name: "Radiant Soul", desc: "+30% holy damage this run", el: "holy" },
+  { id: "arcane", icon: "💫", name: "Storm Soul", desc: "+30% arcane damage this run", el: "arcane" },
+  { id: "blood", icon: "⚔️", name: "Bloodlust", desc: "+15% ALL damage this run", atkPct: 0.15 },
+  { id: "greed", icon: "🪙", name: "Greed", desc: "+35% gold this run", goldPct: 0.35 },
+  { id: "haste", icon: "⏩", name: "Haste", desc: "Skills cool down 20% faster", cdr: 0.2 },
+  { id: "mend", icon: "💚", name: "Mend", desc: "Heal 50% of max HP right now", healNow: 0.5 },
+  { id: "stone", icon: "🪨", name: "Stoneskin", desc: "Take 3 less damage from every hit", dr: 3 },
+  { id: "leech", icon: "🩸", name: "Vampirism", desc: "Basic attacks heal 4% of damage", leech: 0.04 }
+];
+function advShowDraft() {
+  adv.phase = "draft";
+  adv.scrollTarget = 0;
+  const picks = RPG_DRAFTS.slice().sort(() => Math.random() - 0.5).slice(0, 3);
+  adv.draftOffer = picks;
+  advOverlay(`<div><h4>🏕️ Floor ${adv.floor} cleared — choose a blessing</h4>
+    <div class="adv-draft-row">${picks.map((d, i) =>
+      `<button class="adv-draft-card" type="button" data-rpg-draft="${i}"><span class="adv-draft-ico">${d.icon}</span><b>${escapeHtml(d.name)}</b><span>${escapeHtml(d.desc)}</span></button>`).join("")}</div></div>`);
+}
+function advPickDraft(i) {
+  if (!adv || adv.phase !== "draft" || !adv.draftOffer) return;
+  const d = adv.draftOffer[i];
+  if (!d) return;
+  const m = adv.mods;
+  if (d.el) m.el[d.el] = (m.el[d.el] || 0) + 0.3;
+  if (d.atkPct) m.atkPct += d.atkPct;
+  if (d.goldPct) m.goldPct += d.goldPct;
+  if (d.cdr) m.cdr = Math.min(0.5, m.cdr + d.cdr);
+  if (d.dr) m.dr += d.dr;
+  if (d.leech) m.leech += d.leech;
+  if (d.healNow) advHeal(adv.heroMax * d.healNow, d.icon);
+  adv.draftOffer = null;
+  advOverlay("");
+  toast(`${d.icon} ${d.name}!`, "success");
+  adv.floor++;
+  adv.wave = 0;
+  adv.tiers = advWaveTiers(adv.floor - 1);
+  adv.phase = "between";
+  advAfter(700, advWalk);
+}
+// ---- Ghost Arena: duel an AI copy of a classmate's published build ----
+function rpgGhostStats(row) {
+  const lvl = Math.max(1, row.level || 1);
+  const eq = row.equipment || {};
+  let atk = 4 + lvl, def = 0, crit = 5, hp = 40 + lvl * 10;
+  Object.values(eq).filter(Boolean).forEach(id => {
+    const it = RPG_ITEMS_BY_ID[id];
+    if (!it) return;
+    atk += it.atk || 0; def += it.def || 0; crit += it.crit || 0; hp += it.hp || 0;
+  });
+  if (row.clazz === "warrior") { hp = Math.round(hp * 1.1); def = Math.round(def * 1.15) + 1; }
+  if (row.clazz === "rogue") crit += 8;
+  return { atk, def, crit: Math.min(75, crit), maxHp: hp, weapon: eq.weapon || null };
+}
+function advStartArena(row) {
+  if (!rpgState || adv) { if (adv) { toast("Finish your current run first!", "error"); return; } }
+  navigateTo("adventure");
+  advToken++;
+  const stats = rpgPlayerStats();
+  const g = rpgGhostStats(row);
+  const gKind = rpgWeaponFx(g.weapon).kind;
+  adv = { phase: "fight", wave: 0, floor: 1, tiers: [1, 1, 1, 1, 1], stats, heroHp: stats.maxHp, heroMax: stats.maxHp,
+    foes: [], skills: advEquippedSkills(), shield: 0, heroNextAtk: Date.now() + 1600, heroX: 0, heroInRange: false,
+    worldX: 0, scroll: 0, lurch: 0, gold: 0, xp: 0, kills: 0, loopId: 0, rafOn: false,
+    mods: { atkPct: 0, goldPct: 0, cdr: 0, dr: 0, leech: 0, el: {} },
+    arena: { row, stats: g, skill: g.weapon && RPG_SKILLS[g.weapon] ? { def: RPG_SKILLS[g.weapon], readyAt: Date.now() + 4000 } : null } };
+  adv.loopId = setInterval(advTick, ADV_TICK_MS);
+  adv.rafOn = true;
+  advRaf(Date.now());
+  advOverlay("");
+  $("advStartBtn").style.display = "none";
+  $("advQuitBtn").style.display = "";
+  $("advHero").innerHTML = advHeroHtml();
+  $("advSkillbar").innerHTML = advSkillbarHtml(adv.skills);
+  const stage = $("advStage");
+  const w = (stage && stage.clientWidth) || 600;
+  adv.foes = [{ e: { id: "ghost", name: row.name || "Ghost", emoji: "", atk: g.atk, el: rpgWeaponElement(g.weapon), gold: 0, xp: 0 },
+    boss: false, minion: false, hp: g.maxHp, max: g.maxHp, scale: 1, ranged: gKind === "magic" || gKind === "ranged",
+    wx: Math.round(w * 0.66), reached: false, slot: 0, speed: 0.07, armor: Math.floor(g.def * 0.4),
+    atkMs: 1500, nextAtk: Date.now() + 2200, dots: [], chillUntil: 0, stunned: 0, dead: false, ghost: true }];
+  const chip = $("advWaveChip");
+  chip.style.display = "";
+  chip.textContent = "👻 Arena duel";
+  $("advFoes").innerHTML = `<div class="adv-actor adv-foe" id="advFoeEl0" style="transform:translateX(${adv.foes[0].wx}px);">
+    <div class="adv-tag">👻 ${escapeHtml(row.name || "Ghost")}</div>
+    <span class="adv-ghost">${rpgAvatarSvg(row.equipment || {})}</span>
+    ${advBarHtml("advFoeHp0")}</div>`;
+  $("advStatus").textContent = `Duel vs ${row.name}'s build — Lv ${row.level || 1} ${row.clazz ? RPG_CLASSES[row.clazz].name : "hero"}!`;
+}
+function advArenaEnd(won) {
+  if (!adv || !adv.arena) return;
+  const name = adv.arena.row.name || "the ghost";
+  advStopLoop();
+  adv = null;
+  advToken++;
+  if (won) {
+    rpgState.stats.arenaWins = (rpgState.stats.arenaWins || 0) + 1;
+    rpgApplyRewards(30, 25);
+  } else {
+    rpgState.stats.arenaLosses = (rpgState.stats.arenaLosses || 0) + 1;
+  }
+  rpgSave();
+  rpgPublishLeaderboard();
+  $("advQuitBtn").style.display = "none";
+  $("advStartBtn").style.display = "";
+  advUpdateRunsChip();
+  advOverlay(`<div><h4>${won ? "🏆 Duel won!" : "💀 Duel lost…"}</h4>
+    <p>${won ? `You defeated ${escapeHtml(name)}'s build! +🪙 30, +✨ 25 — your arena record grows.` : `${escapeHtml(name)}'s build was stronger this time. Upgrade and challenge them again — duels are free!`}</p>
+    <div class="rpg-reward-stats"><span>Arena record: ${rpgState.stats.arenaWins || 0}W – ${rpgState.stats.arenaLosses || 0}L</span></div></div>`);
+}
+const ADV_BEAT_EPOCH = Date.now();
+let advRafLast = 0;
+function advRaf(ts) {
+  if (!adv || !adv.rafOn) return;
+  const dt = Math.min(60, advRafLast ? ts - advRafLast : 16);
+  advRafLast = ts;
+  // ease scroll speed toward its target; consume kill-lurch boosts
+  const target = adv.phase === "fight" || adv.phase === "between" ? adv.scrollTarget || 0 : 0;
+  adv.scroll += (target - adv.scroll) * Math.min(1, dt / 220);
+  let dx = adv.scroll * dt / 1000;
+  if (adv.lurch > 0) { const l = Math.min(adv.lurch, dt * 0.12); dx += l; adv.lurch -= l; }
+  if (dx) adv.worldX += dx;
+  const wEl = $("advFoes");
+  if (wEl && wEl.style) wEl.style.transform = `translate3d(${-Math.round(adv.worldX)}px,0,0)`;
+  const stage = $("advStage");
+  if (stage && stage.classList) stage.classList.toggle("walking", adv.scroll > 12);
+  if (typeof requestAnimationFrame === "function") requestAnimationFrame(advRaf);
+}
+function advHeroScreenX() {
+  const hero = $("advHero");
+  return ((hero && hero.offsetLeft != null) ? hero.offsetLeft : 30) + 100;
+}
+function advFoeScreenX(i) { const f = adv.foes[i]; return f ? f.wx - adv.worldX : 400; }
 function advWalk() {
-  adv.phase = "walk";
-  adv.heroX = 0;
-  adv.heroArriveAt = 0;
-  const he = $("advHero");
-  if (he && he.style) { he.style.transition = ""; he.style.transform = ""; }
-  if (he && he.classList) he.classList.remove("marching");
-  adv.foes = [];
-  $("advFoes").innerHTML = "";
-  $("advStage").classList.add("walking");
-  $("advStatus").textContent = `Floor ${adv.floor} — marching to wave ${adv.wave + 1}…`;
-  advAfter(1300, advSpawnWave);
+  // no dead walking phase: the next wave spawns ahead and the squad marches into it
+  adv.phase = "fight";
+  $("advStatus").textContent = `Floor ${adv.floor} — wave ${adv.wave + 1} ahead!`;
+  advSpawnWave();
 }
 function advSpawnWave() {
-  $("advStage").classList.remove("walking");
   const comp = advWaveComp(adv.wave);
   const now = Date.now();
+  const stage = $("advStage");
+  const w = (stage && stage.clientWidth) || 600;
+  const aheadBase = adv.worldX + w + 80;
   adv.foes = comp.map((c, i) => {
     const tier = Math.max(1, Math.min(10, c.tier));
     const over = Math.max(0, c.tier - 10);
     const scale = 1 + 0.22 * over;
     const e = rpgRandomEnemy(tier);
     const max = Math.round(e.maxHp * scale * (c.boss ? 1.5 : c.minion ? 0.45 : 1));
-    return { e, boss: !!c.boss, minion: !!c.minion, hp: max, max, scale, ranged: RPG_RANGED_ENEMIES.has(e.id), x: 0, reached: false, baseLeft: 540 - i * 70,
+    return { e, boss: !!c.boss, minion: !!c.minion, hp: max, max, scale, ranged: RPG_RANGED_ENEMIES.has(e.id),
+      wx: aheadBase + i * 95 + Math.random() * 40, reached: false, slot: i,
+      speed: c.boss ? 0.05 : c.minion ? 0.085 : 0.065,
       armor: Math.floor(tier / 2) + (c.boss ? 2 : 0) + Math.ceil(over / 2),
       atkMs: c.boss ? 1500 : c.minion ? 2700 : 1900,
-      nextAtk: now + 1900 + i * 650 + Math.random() * 400,
+      nextAtk: now + 2400 + i * 600 + Math.random() * 400,
       dots: [], chillUntil: 0, stunned: 0, dead: false };
   });
   const chip = $("advWaveChip");
   chip.style.display = "";
   chip.textContent = `Floor ${adv.floor} · Wave ${adv.wave + 1}/${ADV_WAVES}${adv.foes.some(f => f.boss) ? " — BOSS" : ""}`;
+  const beatDelay = -((Date.now() - ADV_BEAT_EPOCH) % 500);
   $("advFoes").innerHTML = adv.foes.map((f, i) => {
     const size = f.boss ? 84 : f.minion ? 38 : 60;
-    return `<div class="adv-actor adv-foe" id="advFoeEl${i}" style="right:-28%;">
+    return `<div class="adv-actor adv-foe" id="advFoeEl${i}" style="transform:translateX(${Math.round(f.wx)}px);transition:none;">
       <div class="adv-tag">${f.boss ? "👑 " : ""}${escapeHtml(f.e.name)}${RPG_ELEMENTS[f.e.el] && RPG_ELEMENTS[f.e.el].icon ? " " + RPG_ELEMENTS[f.e.el].icon : ""}</div>
-      <span class="adv-foe-emoji" style="font-size:${size}px;">${f.e.emoji}</span>
+      <span class="adv-foe-emoji" style="font-size:${size}px;animation-delay:${beatDelay}ms;">${f.e.emoji}</span>
       ${advBarHtml("advFoeHp" + i)}</div>`;
   }).join("");
-  const targets = [31, 24, 17, 10, 4, -2];
-  adv.foes.forEach((f, i) => {
-    const el = advFoeEl(i);
-    if (el && el.style) advAfter(60 + i * 170, () => { const e2 = advFoeEl(i); if (e2 && e2.style) e2.style.right = (targets[i] != null ? targets[i] : 4) + "%"; });
-  });
+  advAfter(80, () => adv.foes.forEach((f, i) => { const el = advFoeEl(i); if (el && el.style) el.style.transition = ""; }));
   adv.phase = "fight";
-  adv.heroNextAtk = now + 1600;
-  advAfter(1050, advLaunchWalks);
-  $("advStatus").textContent = adv.foes.length > 1 ? `${adv.foes.length} enemies approach!` : `${escapeHtml(adv.foes[0].e.name)} approaches — ${escapeHtml(adv.foes[0].e.flavor)}`;
-}
-function advLaunchWalks() {
-  const stage = $("advStage"), hero = $("advHero");
-  const w = (stage && stage.clientWidth) || 600;
-  const heroBase = (hero && hero.offsetLeft != null) ? hero.offsetLeft : 30;
-  const heroKind = rpgWeaponFx(rpgState.equipment.weapon).kind;
-  const heroMelee = heroKind !== "magic" && heroKind !== "ranged";
-  const now = Date.now();
-  // melee hero takes a forward post; ranged/magic hold the back line
-  adv.heroX = heroMelee ? Math.round(w * 0.3) : 0;
-  adv.heroArriveAt = heroMelee ? now + Math.round(adv.heroX / 0.12) : now;
-  if (hero && hero.style) {
-    if (heroMelee) {
-      hero.style.transition = `transform ${Math.round(adv.heroX / 0.12)}ms linear`;
-      hero.style.transform = `translateX(${adv.heroX}px)`;
-      hero.classList && hero.classList.add("marching");
-    } else {
-      hero.style.transition = "";
-      hero.style.transform = "";
-    }
-  }
-  // melee monsters walk smoothly to the hero's front line (staggered ranks)
-  adv.foes.forEach((f, i) => {
-    if (f.ranged || f.dead) { f.reached = f.ranged ? true : f.reached; return; }
-    const el = advFoeEl(i);
-    const fb = (el && el.offsetLeft != null) ? el.offsetLeft : f.baseLeft;
-    const stand = heroBase + adv.heroX + 100 + (i % 3) * 26;
-    const dist = Math.max(0, fb - stand);
-    const speed = f.boss ? 0.055 : f.minion ? 0.085 : 0.07; // px per ms
-    const dur = Math.round(dist / speed);
-    f.x = -dist;
-    f.tx = -dist;
-    f.arriveAt = now + dur;
-    f.reached = dur <= 0;
-    if (el && el.style) {
-      el.style.transition = `transform ${dur}ms linear`;
-      el.style.transform = `translateX(${-dist}px)`;
-      el.classList && el.classList.add("marching");
-    }
-  });
-}
-function advHeroRetarget() {
-  // when only stationary (ranged) foes remain, the melee hero walks on to them
-  const heroKind = rpgWeaponFx(rpgState.equipment.weapon).kind;
-  if (heroKind === "magic" || heroKind === "ranged") return;
-  if (adv.foes.some(f => !f.dead && !f.ranged)) return;
-  const fi = advFrontFoe();
-  if (fi < 0) return;
-  const hero = $("advHero"), el = advFoeEl(fi);
-  const heroBase = (hero && hero.offsetLeft != null) ? hero.offsetLeft : 30;
-  const fb = (el && el.offsetLeft != null) ? el.offsetLeft : adv.foes[fi].baseLeft;
-  const target = Math.max(0, fb - heroBase - 100);
-  const dist = Math.abs(target - adv.heroX);
-  const dur = Math.max(60, Math.round(dist / 0.12));
-  adv.heroX = target;
-  adv.heroArriveAt = Date.now() + dur;
-  if (hero && hero.style) {
-    hero.style.transition = `transform ${dur}ms linear`;
-    hero.style.transform = `translateX(${target}px)`;
-    hero.classList && hero.classList.add("marching");
-  }
+  adv.scrollTarget = 90;
+  adv.heroNextAtk = now + 1400;
+  $("advStatus").textContent = adv.foes.length > 1 ? `${adv.foes.length} enemies ahead!` : `${escapeHtml(adv.foes[0].e.name)} ahead — ${escapeHtml(adv.foes[0].e.flavor)}`;
 }
 function advFoeEl(i) { return $("advFoeEl" + i); }
 function advFrontFoe() { return adv.foes.findIndex(f => !f.dead); }
@@ -6313,21 +6445,45 @@ function advTick() {
     if (tile && tile.classList) tile.classList.toggle("ready", remain <= 0);
   });
   if (adv.phase !== "fight") return;
-  const heroEl = $("advHero");
   const heroKind = rpgWeaponFx(rpgState.equipment.weapon).kind;
   const heroMelee = heroKind !== "magic" && heroKind !== "ranged";
-  const heroArrived = now >= (adv.heroArriveAt || 0);
-  if (heroArrived && heroEl && heroEl.classList) heroEl.classList.remove("marching");
+  const heroSX = advHeroScreenX();
+  const dt = ADV_TICK_MS;
+  // assign contact slots to the 3 nearest living melee foes; rest queue behind
+  const meleeIdx = advLivingFoes().filter(i => !adv.foes[i].ranged).sort((a, b) => adv.foes[a].wx - adv.foes[b].wx);
+  meleeIdx.forEach((idx, k) => { adv.foes[idx].slot = k; });
+  let frontGap = Infinity;
+  adv.foes.forEach((f, i) => {
+    if (f.dead) return;
+    const desired = f.ranged
+      ? adv.worldX + heroSX + 330 + (i % 3) * 44   // ranged hold a firing band
+      : adv.worldX + heroSX + (Math.min(f.slot, 2) * 34) + Math.max(0, f.slot - 2) * 30 + (f.boss ? 30 : 0);
+    const gap = f.wx - desired;
+    if (!f.ranged) frontGap = Math.min(frontGap, gap);
+    if (gap > 8 && now >= (f.stunned || 0)) {
+      const sp = f.speed * (now < f.chillUntil ? 0.5 : 1) * dt;
+      f.wx = Math.max(desired, f.wx - sp);
+      f.reached = false;
+    } else if (gap < -10 && f.ranged) {
+      f.wx = desired; // kite back to the band as the line pushes forward
+    } else if (!f.ranged && gap <= 8) {
+      f.reached = true;
+    }
+    const el = advFoeEl(i);
+    if (el && el.style) el.style.transform = `translateX(${Math.round(f.wx)}px)`;
+  });
   const fi0 = advFrontFoe();
-  // a melee hero is in range when he has arrived and his target is beside him
-  adv.heroInRange = !heroMelee || (heroArrived && fi0 >= 0 && (adv.foes[fi0].reached || adv.foes[fi0].ranged));
-  if (now >= adv.heroNextAtk && fi0 >= 0 && adv.heroInRange) {
+  const frontOnScreen = fi0 >= 0 && advFoeScreenX(fi0) < ((($("advStage") && $("advStage").clientWidth) || 600) * 0.92);
+  // engage: stop the march when the line meets; push on when only ranged remain in reach
+  adv.scrollTarget = (fi0 >= 0 && (frontGap < 150 || (adv.foes[fi0].ranged && advFoeScreenX(fi0) - heroSX < 340))) ? 0 : 90;
+  adv.heroInRange = fi0 >= 0 && (!heroMelee ? frontOnScreen : (adv.foes[fi0].ranged ? advFoeScreenX(fi0) - heroSX < 130 : adv.foes[fi0].reached));
+  if (now >= adv.heroNextAtk && adv.heroInRange) {
     adv.heroNextAtk = now + ADV_HERO_ATK_MS;
     advAutoAttack();
   }
   adv.skills.forEach((s, i) => {
     if (now >= s.readyAt && (advFrontFoe() >= 0 || s.def.kind === "heal" || s.def.kind === "block")) {
-      s.readyAt = now + s.def.cd * 1000 * (1 - (adv.stats.cdr || 0));
+      s.readyAt = now + s.def.cd * 1000 * (1 - Math.min(0.6, (adv.stats.cdr || 0) + adv.mods.cdr));
       advCast(s, i);
     }
   });
@@ -6345,11 +6501,13 @@ function advTick() {
       el.classList.toggle("chilled", now < f.chillUntil);
       el.classList.toggle("stunned", now < f.stunned);
     }
-    // melee monsters arrive on schedule; they can be shot down mid-march
-    if (!f.ranged && !f.reached && now >= (f.arriveAt || 0)) {
-      f.reached = true;
-      const fel = advFoeEl(i);
-      if (fel && fel.classList) fel.classList.remove("marching");
+    if (f.ghost && adv.arena && adv.arena.skill && now >= adv.arena.skill.readyAt) {
+      adv.arena.skill.readyAt = now + adv.arena.skill.def.cd * 1000;
+      const sd = Math.max(1, Math.round(adv.arena.stats.atk * (adv.arena.skill.def.mult || 1.5) - adv.stats.def * 0.5));
+      advFloat($("advHero"), `${adv.arena.skill.def.icon} -${sd}`, "hurt");
+      adv.heroHp = Math.max(0, adv.heroHp - sd);
+      advSetBar("advHeroHp", adv.heroHp / adv.heroMax);
+      if (adv.heroHp <= 0) { adv.phase = "between"; advAfter(500, () => advArenaEnd(false)); return; }
     }
     if (now >= f.nextAtk) {
       if (!f.ranged && !f.reached) { f.nextAtk = now + 350; return; }
@@ -6386,11 +6544,12 @@ function advAutoAttack() {
       { transform: `translateX(${hx}px)` }
     ], { duration: 360, easing: "ease-in-out" });
   }
-  let dmg = adv.stats.atk * (0.9 + Math.random() * 0.3);
+  let dmg = adv.stats.atk * (0.9 + Math.random() * 0.3) * (1 + adv.mods.atkPct + (adv.mods.el[rpgWeaponElement(rpgState.equipment.weapon)] || 0));
   const crit = Math.random() * 100 < adv.stats.crit;
   if (crit) dmg *= (adv.stats.critMult || 2);
   advAfter(fx.kind === "magic" ? 480 : fx.kind === "ranged" ? 430 : 300, () => {
-    advHurtFoe(fi, dmg, { crit, fx, element: rpgWeaponElement(rpgState.equipment.weapon) });
+    const dealtB = advHurtFoe(fi, dmg, { crit, fx, element: rpgWeaponElement(rpgState.equipment.weapon) });
+    if (adv && adv.mods.leech && dealtB) advHeal(dealtB * adv.mods.leech, "🩸");
     if (adv && adv.stats.poisonOnHit) advAddDot(fi, "poison", Math.max(1, Math.round(adv.stats.atk * 0.12 * adv.stats.poisonOnHit)), 3, "#3a9e5f");
   });
 }
@@ -6425,7 +6584,7 @@ function advFoeDie(i) {
   if (f.dead) return;
   f.dead = true;
   adv.kills++;
-  const mult = (f.boss ? 2 : f.minion ? 0.35 : 1) * (f.scale || 1);
+  const mult = (f.boss ? 2 : f.minion ? 0.35 : 1) * (f.scale || 1) * (1 + adv.mods.goldPct);
   const g = Math.round(f.e.gold * mult), x = Math.round(f.e.xp * mult);
   adv.gold += g;
   adv.xp += x;
@@ -6435,13 +6594,14 @@ function advFoeDie(i) {
     if (el.classList) el.classList.remove("marching");
     if (el.style) {
       el.style.transition = "transform 0.7s ease-in, opacity 0.7s ease-in";
-      el.style.transform = `translateX(${Math.round(f.tx || f.x || 0)}px) translateY(26px) rotate(75deg)`;
+      el.style.transform = `translateX(${Math.round(f.wx)}px) translateY(26px) rotate(75deg)`;
       el.style.opacity = "0";
     } else if (el.classList) {
       el.classList.add("dead");
     }
   }
-  advHeroRetarget();
+  adv.lurch += 28; // the line surges forward on a kill
+  if (adv.arena) { adv.phase = "between"; advAfter(700, () => advArenaEnd(true)); return; }
   if (advFrontFoe() < 0 && adv.phase === "fight") {
     adv.phase = "between";
     adv.wave++;
@@ -6466,18 +6626,15 @@ function advFloorClear() {
     toast(`Floor ${adv.floor} chest: ${loot.name}! (${RPG_RARITY[loot.rarity].label})`, "success");
   }
   rpgState.stats.bestFloor = Math.max((rpgState.stats.bestFloor || 0), adv.floor + 1);
-  $("advStatus").textContent = `🏰 Floor ${adv.floor} cleared! +🪙${bonusGold} +✨${bonusXp} — descending…`;
-  adv.floor++;
-  adv.wave = 0;
-  adv.tiers = advWaveTiers(adv.floor - 1);
-  advAfter(1500, advWalk);
+  $("advStatus").textContent = `🏰 Floor ${adv.floor} cleared! +🪙${bonusGold} +✨${bonusXp}`;
+  advAfter(900, advShowDraft);
 }
 function advFoeBolt(i) {
   const layer = $("advFx"), stage = $("advStage");
   if (!layer || !layer.appendChild) return;
   const f = adv.foes[i], el = advFoeEl(i);
   const w = (stage && stage.clientWidth) || 600;
-  const x = el && el.offsetLeft != null ? el.offsetLeft + 20 : w * 0.6;
+  const x = Math.max(60, Math.min(w - 30, advFoeScreenX(i) + 20));
   const dx = -(x - w * 0.18);
   const col = rpgElColor(f.e.el);
   const p = document.createElement("span");
@@ -6498,7 +6655,7 @@ function advFoeAttack(i) {
     advFoeBolt(i); // ranged monsters cast from where they stand
   } else {
     // melee monster strikes from where it stands (it marched here)
-    const fx0 = Math.round(f.x);
+    const fx0 = Math.round(f.wx);
     advAnimate(el, [
       { transform: `translateX(${fx0}px)` },
       { transform: `translateX(${fx0 - 20}px)`, offset: 0.45 },
@@ -6517,13 +6674,14 @@ function advFoeAttack(i) {
       advFloat(hero, "🛡️ Blocked!", "heal");
       return;
     }
-    const dmg = Math.max(1, Math.round(f.e.atk * 0.6 * (f.scale || 1) * (f.boss ? 1.2 : f.minion ? 0.55 : 1) * (0.85 + Math.random() * 0.3) - adv.stats.def * 0.5));
+    const dmg = Math.max(1, Math.round(f.e.atk * 0.6 * (f.scale || 1) * (f.boss ? 1.2 : f.minion ? 0.55 : 1) * (0.85 + Math.random() * 0.3) - adv.stats.def * 0.5 - adv.mods.dr));
     if (hero.classList) { hero.classList.add("hit"); advAfter(380, () => hero.classList && hero.classList.remove("hit")); }
     advFloat(hero, "-" + dmg, "hurt");
     advBurst(hero, "#e25c5c");
+    adv.worldX -= f.boss ? 16 : 6; // shoved back
     adv.heroHp = Math.max(0, adv.heroHp - dmg);
     advSetBar("advHeroHp", adv.heroHp / adv.heroMax);
-    if (adv.heroHp <= 0) { adv.phase = "between"; advAfter(600, advEnd); }
+    if (adv.heroHp <= 0) { adv.phase = "between"; advAfter(600, adv.arena ? () => advArenaEnd(false) : advEnd); }
   });
 }
 function advHeal(amount, label) {
@@ -6554,7 +6712,7 @@ function advCast(s, idx) {
   const d = s.def;
   const tile = $("advSkill" + idx);
   if (tile && tile.classList) { tile.classList.add("casting"); advAfter(430, () => tile.classList && tile.classList.remove("casting")); }
-  const atk = adv.stats.atk * (1 + (adv.stats.spellPct || 0));
+  const atk = adv.stats.atk * (1 + (adv.stats.spellPct || 0)) * (1 + adv.mods.atkPct + (adv.mods.el[s.def.element || rpgWeaponElement(s.id)] || 0));
   const front = advFrontFoe();
   const stage = $("advStage");
   const wfx = rpgWeaponFx(s.id);
@@ -6637,7 +6795,7 @@ function advSkyBolt(i, color) {
   const layer = $("advFx"), stage = $("advStage");
   if (!layer || !layer.appendChild) return;
   const el = advFoeEl(i);
-  const x = el && el.offsetLeft != null ? el.offsetLeft + 32 : (((stage && stage.clientWidth) || 600) * 0.6);
+  const x = Math.max(60, advFoeScreenX(i) + 32);
   const c = document.createElement("span");
   c.className = "adv-cloud2";
   c.textContent = "☁️";
@@ -6673,8 +6831,8 @@ function advChainFx(indices) {
   try {
     const pts = [];
     const hero = $("advHero");
-    if (hero && hero.offsetLeft != null) pts.push([hero.offsetLeft + 92, (stage.clientHeight || 300) - 150]);
-    indices.forEach(i => { const el = advFoeEl(i); if (el && el.offsetLeft != null) pts.push([el.offsetLeft + 42, (stage.clientHeight || 300) - 150]); });
+    pts.push([advHeroScreenX() - 8, (stage.clientHeight || 300) - 150]);
+    indices.forEach(i => pts.push([advFoeScreenX(i) + 42, (stage.clientHeight || 300) - 150]));
     if (pts.length < 2) return;
     const seg = pts.map((p, k) => (k ? "L" : "M") + Math.round(p[0]) + " " + Math.round(p[1])).join(" ");
     const c = document.createElement("div");
@@ -6684,7 +6842,7 @@ function advChainFx(indices) {
     setTimeout(() => c.remove(), 420);
   } catch (_) {}
 }
-function advStopLoop() { if (adv && adv.loopId) { clearInterval(adv.loopId); adv.loopId = 0; } }
+function advStopLoop() { if (adv) { adv.rafOn = false; if (adv.loopId) clearInterval(adv.loopId); adv.loopId = 0; } advRafLast = 0; const wEl = $("advFoes"); if (wEl && wEl.style) wEl.style.transform = ""; }
 function advEnd() {
   if (!adv) return;
   advStopLoop();
@@ -6804,7 +6962,7 @@ function advArrow(i, fx, miss) {
   layer.appendChild(p);
   const w = stage.clientWidth || 600;
   const el = advFoeEl(i);
-  let dx = (el && el.offsetLeft != null ? el.offsetLeft + 26 : w * 0.62) - w * 0.17;
+  let dx = Math.max(60, advFoeScreenX(i) + 26) - w * 0.17;
   if (miss) dx += 64;
   const arc = 24 + Math.random() * 36;
   advAnimate(p, [
@@ -6819,8 +6977,25 @@ function advArrow(i, fx, miss) {
 $("rpgSide").addEventListener("click", () => navigateTo("character"));
 $("rpgHideToggle").addEventListener("click", () => rpgSetHidden(!rpgGameHidden()));
 $("rpgBoardRefresh").addEventListener("click", () => rpgRenderLeaderboard(true));
+document.addEventListener("click", e => {
+  if (e.target.closest && e.target.closest("[data-rpg-raidclaim]")) {
+    if (!rpgState || rpgState.raidClaim === rpgRaidWeek()) return;
+    rpgState.raidClaim = rpgRaidWeek();
+    rpgState.gold += RAID_BOUNTY;
+    rpgSave();
+    toast(`🎁 Raid bounty claimed: +🪙 ${RAID_BOUNTY}!`, "success");
+    rpgRenderLeaderboard();
+  }
+});
+$("rpgBoardBody").addEventListener("click", e => {
+  const d = e.target.closest("[data-rpg-duel]");
+  if (!d || !rpgBoardRows) return;
+  const row = rpgBoardRows.find(r => r.uid === d.dataset.rpgDuel);
+  if (row) advStartArena(row);
+});
 $("advStartBtn").addEventListener("click", advStart);
 $("advQuitBtn").addEventListener("click", () => advAbandon(true));
+$("advOverlay").addEventListener("click", e => { const d = e.target.closest("[data-rpg-draft]"); if (d) advPickDraft(Number(d.dataset.rpgDraft)); });
 document.querySelectorAll("[data-rpgboard]").forEach(b => b.addEventListener("click", () => { rpgBoardTab = b.dataset.rpgboard; rpgRenderLeaderboard(); }));
 $("rpgTopChip").addEventListener("click", () => navigateTo("character"));
 $("rpgPackAgain").addEventListener("click", rpgOpenPack);
