@@ -437,6 +437,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
   --rar-rare: #4a6fa5;
   --rar-epic: #7b5ea7;
   --rar-legendary: #d4882a;
+  --rar-mythic: #e84393;
   --rpg-hp: #e25c5c;
   --rpg-xp: #5ea7f0;
 }
@@ -611,6 +612,29 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .rpg-set-row { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
 .rpg-set-chip { font-family: 'Space Mono', monospace; font-size: 0.6rem; font-weight: 700; padding: 4px 9px; border-radius: 999px; border: 1px dashed var(--border); color: var(--text-muted); background: #fff; }
 .rpg-set-chip.on { border-style: solid; border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+/* booster packs */
+.pack-hero { display: flex; align-items: center; gap: 16px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-md); background: linear-gradient(135deg, #2b2640, #1f2937); color: #fff; }
+.pack-hero h4 { font-size: 1.1rem; margin-bottom: 3px; }
+.pack-hero p { font-size: 0.84rem; color: rgba(255,255,255,0.75); margin-bottom: 10px; line-height: 1.45; }
+.pack-hero-box { font-size: 64px; line-height: 1; filter: drop-shadow(0 6px 10px rgba(0,0,0,0.4)); animation: rpgBob 2.4s ease-in-out infinite; }
+.pack-rates { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.pack-rate { font-family: 'Space Mono', monospace; font-size: 0.6rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-muted); background: #fff; }
+.pack-stage { position: relative; min-height: 300px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; overflow: hidden; }
+.pack-box { font-size: 96px; line-height: 1; display: inline-block; animation: packShake 1.5s ease-in forwards; filter: drop-shadow(0 8px 14px rgba(0,0,0,0.25)); }
+@keyframes packShake { 0% { transform: scale(0.7) rotate(0); } 20% { transform: scale(1) rotate(-8deg); } 35% { transform: rotate(8deg); } 50% { transform: rotate(-10deg) scale(1.05); } 65% { transform: rotate(10deg) scale(1.12); } 82% { transform: rotate(-6deg) scale(1.2); } 100% { transform: scale(1.4) rotate(0); opacity: 0.85; } }
+.pack-burst { position: absolute; left: 50%; top: 44%; width: 34px; height: 34px; margin: -17px; border-radius: 50%; border: 5px solid; animation: advBurstA 0.8s ease-out forwards; }
+.pack-reveal { animation: packReveal 0.55s cubic-bezier(0.2, 1.4, 0.4, 1) forwards; transform: scale(0); }
+@keyframes packReveal { to { transform: scale(1); } }
+.pack-item-art { width: 136px; height: 136px; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; border-radius: 16px; border: 2px solid transparent; padding: 10px; }
+.pack-item-art svg { height: 100%; width: auto; max-width: 100%; }
+.pack-rarity { font-family: 'Space Mono', monospace; font-weight: 700; font-size: 0.84rem; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 6px; }
+.pack-name { font-size: 1.25rem; font-weight: 700; }
+.pack-sub { color: var(--text-muted); font-size: 0.88rem; margin-top: 4px; }
+.pack-flash { position: absolute; inset: 0; opacity: 0; pointer-events: none; border-radius: var(--radius-md); }
+.pack-flash.on { animation: packFlash 0.8s ease-out forwards; }
+@keyframes packFlash { 0% { opacity: 0.9; } 100% { opacity: 0; } }
+.pack-mythic-text { background: linear-gradient(90deg, #e84393, #ffd76a, #4aa3ff, #e84393); background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: mythicShift 2.2s linear infinite; }
+@keyframes mythicShift { to { background-position: 300% 0; } }
 @media (max-width: 640px) { .adv-stage { height: 238px; } .adv-hero svg { width: 94px; } .adv-hero { width: 108px; } .adv-bar { width: 86px; } .adv-skill { width: 56px; } .adv-skill-tile { width: 48px; height: 48px; font-size: 23px; } }
 .rpg-gold-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-family: 'Space Mono', monospace; font-size: 0.8rem; color: var(--text-muted); }
 .rpg-gold-row b { color: var(--text); font-size: 0.95rem; }
@@ -624,6 +648,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .t-rare { background: linear-gradient(#2f4263, #1c2940); border-color: #4a6fa5 !important; }
 .t-epic { background: linear-gradient(#46336a, #251b38); border-color: #7b5ea7 !important; box-shadow: inset 0 0 14px rgba(160,106,232,0.35); }
 .t-legendary { background: linear-gradient(#5d4413, #2a1d07); border-color: #e8b41f !important; box-shadow: inset 0 0 16px rgba(240,180,41,0.4), 0 0 8px rgba(240,180,41,0.25); }
+.t-mythic { background: linear-gradient(#5c1438, #1f0716); border-color: #e84393 !important; box-shadow: inset 0 0 18px rgba(232,67,147,0.45), 0 0 10px rgba(232,67,147,0.35); }
 .rpg-slot.filled .rpg-slot-label { color: rgba(255,255,255,0.78); }
 .rpg-item-name { font-weight: 700; font-size: 0.82rem; line-height: 1.25; }
 .rpg-item-rarity { font-family: 'Space Mono', monospace; font-size: 0.54rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--rar, var(--rar-common)); font-weight: 700; }
@@ -694,7 +719,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
       <div class="nav-section rpg-el" style="display:none;">Game</div>
       <div class="nav-item rpg-el" data-page="character" style="display:none;"><span class="ico">🛡️</span> Character</div>
       <div class="nav-item rpg-el" data-page="leaderboard" style="display:none;"><span class="ico">🏆</span> Leaderboard</div>
-      <div class="nav-item rpg-el" data-page="adventure" style="display:none;"><span class="ico">🗺️</span> Adventure</div>
+      <div class="nav-item rpg-el" data-page="adventure" style="display:none;"><span class="ico">🏰</span> Dungeon</div>
       <div class="nav-item" id="rpgHideToggle" style="display:none;"><span class="ico">🙈</span> Hide game</div>
       <div class="nav-section admin-only">Admin</div>
       <div class="nav-item admin-only" data-page="create"><span class="ico">➕</span> Create Question</div>
@@ -929,6 +954,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
           <div class="rpg-tabs">
             <button class="rpg-tab active" data-rpgtab="inventory" type="button">🎒 Inventory</button>
             <button class="rpg-tab" data-rpgtab="shop" type="button">🏪 Shop</button>
+            <button class="rpg-tab" data-rpgtab="packs" type="button">🎁 Packs</button>
           </div>
           <div id="rpgTabBody"></div>
         </div>
@@ -937,14 +963,14 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 
     <!-- ================= ADVENTURE PAGE (RPG side-scroller) ================= -->
     <div class="page" id="page-adventure">
-      <div class="page-head"><h3>🗺️ Adventure</h3><p>Your hero fights automatically — weapon skills and pet abilities fire on cooldown, MOBA-style. Equip stronger gear to march further. Bigger rewards, 3 runs a day.</p></div>
+      <div class="page-head"><h3>🏰 Endless Dungeon</h3><p>Your hero fights automatically — weapon skills and pet abilities fire on cooldown. Beat each floor boss to descend deeper, where monsters grow ever stronger and richer. How far can your build go? 3 raids a day.</p></div>
       <div class="card adv-card">
         <div class="adv-top">
           <span class="chip" id="advRunsChip">— runs left today</span>
           <span class="chip topic" id="advWaveChip" style="display:none;">Wave 1 / 5</span>
           <span style="flex:1;"></span>
           <button class="btn btn-ghost btn-sm" id="advQuitBtn" type="button" style="display:none;">🏳️ Give up</button>
-          <button class="btn btn-primary" id="advStartBtn" type="button">▶️ Start adventure</button>
+          <button class="btn btn-primary" id="advStartBtn" type="button">⛏️ Enter dungeon</button>
         </div>
         <div class="adv-stage" id="advStage">
           <div class="adv-sun"></div>
@@ -1124,6 +1150,14 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
       <button class="btn btn-ghost" id="cameraGalleryBtn" type="button">🖼️ Upload from gallery</button>
       <button class="btn btn-primary" id="cameraCaptureBtn" type="button" disabled>📸 Capture</button>
     </div>
+  </div>
+</div>
+
+<div class="overlay" id="rpgPackOverlay">
+  <div class="overlay-card" style="max-width:440px;">
+    <div class="overlay-head"><h3>🎁 Booster Pack</h3><button class="close" data-close="rpgPackOverlay">×</button></div>
+    <div class="overlay-body" id="rpgPackBody"></div>
+    <div class="overlay-foot"><button class="btn btn-ghost" data-close="rpgPackOverlay">Close</button><button class="btn btn-primary" id="rpgPackAgain" type="button" style="display:none;">Open another</button></div>
   </div>
 </div>
 
@@ -2459,7 +2493,7 @@ function navigateTo(page) {
   const nav = document.querySelector(`.nav-item[data-page="${page}"]`); if (nav) nav.classList.add("active");
   if ((page === "character" || page === "leaderboard" || page === "adventure") && rpgGameHidden()) page = "practice";
   if (page !== "adventure") advAbandon();
-  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", worksheet: "Worksheet Creator", students: "Student Results", character: "Character", leaderboard: "Leaderboard", adventure: "Adventure" };
+  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", worksheet: "Worksheet Creator", students: "Student Results", character: "Character", leaderboard: "Leaderboard", adventure: "Dungeon" };
   $("topbarTitle").textContent = titles[page] || "";
   $("sidebar").classList.remove("open");
   if (page === "character") rpgRenderCharacterPage();
@@ -4047,7 +4081,8 @@ const RPG_RARITY = {
   uncommon: { label: "Uncommon", rank: 2, color: "var(--rar-uncommon)" },
   rare: { label: "Rare", rank: 3, color: "var(--rar-rare)" },
   epic: { label: "Epic", rank: 4, color: "var(--rar-epic)" },
-  legendary: { label: "Legendary", rank: 5, color: "var(--rar-legendary)" }
+  legendary: { label: "Legendary", rank: 5, color: "var(--rar-legendary)" },
+  mythic: { label: "Mythic", rank: 6, color: "var(--rar-mythic)" }
 };
 
 // ---- Style kit: auto gradients + outlines (registered once, shared via one <defs> svg) ----
@@ -4666,7 +4701,16 @@ const RPG_ITEMS = [
   { id: "storm_chick", name: "Storm Chick", slot: "pet", rarity: "epic", crit: 8, price: 720, levelReq: 6, box: "12 86 44 44", art: () => svgPetEmoji("🐤") },
   { id: "owl_familiar", name: "Owl Familiar", slot: "pet", rarity: "epic", crit: 8, hp: 10, price: 750, levelReq: 7, box: "16 86 40 44", art: () => svgOwlFamiliar() },
   { id: "star_unicorn", name: "Star Unicorn", slot: "pet", rarity: "legendary", hp: 20, crit: 5, price: 1500, levelReq: 9, box: "12 86 44 44", art: () => svgPetEmoji("🦄") },
-  { id: "pocket_dragon", name: "Dragon Whelp", slot: "pet", rarity: "legendary", atk: 5, crit: 8, hp: 10, price: 1650, levelReq: 10, box: "142 80 44 44", art: () => svgPocketDragon() }
+  { id: "pocket_dragon", name: "Dragon Whelp", slot: "pet", rarity: "legendary", atk: 5, crit: 8, hp: 10, price: 1650, levelReq: 10, box: "142 80 44 44", art: () => svgPocketDragon() },
+  // Mythics — only from booster packs, never sold or dropped
+  { id: "worldender", name: "Worldender", slot: "weapon", rarity: "mythic", atk: 40, crit: 15, price: 3000, levelReq: 1, packOnly: true, art: () => svgGreatsword("#3a2740", "#e84393", "#1d1c28", "#ff7ab8", `<line x1="0" y1="-58" x2="0" y2="-22" stroke="#ff7ab8" stroke-width="1.8" stroke-dasharray="5 4" opacity="0.95"/>`) },
+  { id: "staff_of_creation", name: "Staff of Creation", slot: "weapon", rarity: "mythic", atk: 30, crit: 25, price: 3000, levelReq: 1, packOnly: true, art: () => svgStaff("#e8c8dc", "#e84393", "#ff9ad1") + `<g>${svgStar(10, -76, 3, 1.3, "#ffd76a")}${svgTwinkle(1.6)}</g>` },
+  { id: "eclipse_reaper", name: "Eclipse Reaper", slot: "weapon", rarity: "mythic", atk: 36, crit: 20, price: 3000, levelReq: 1, packOnly: true, art: () => `<circle cx="-12" cy="-48" r="16" fill="#e84393" opacity="0.3">${svgPulse(0.18, 0.4)}</circle>` + svgScythe("#1d1c28", "#b79ae0") },
+  { id: "aegis_eternity", name: "Aegis of Eternity", slot: "shield", rarity: "mythic", def: 18, hp: 25, crit: 8, price: 2800, levelReq: 1, packOnly: true, art: () => `<circle r="23" cy="1" fill="#ff7ab8" opacity="0.3">${svgPulse(0.16, 0.4)}</circle>` + svgShieldArt("#1f0716", "#e84393", `<g>${svgStar(0, 1, 9, 3.8, rpgGrad("#ff9ad1", "r"))}${svgTwinkle(1.8)}</g>`) },
+  { id: "dawnforged_plate", name: "Dawnforged Plate", slot: "armor", rarity: "mythic", def: 16, hp: 40, crit: 8, price: 2800, levelReq: 1, packOnly: true, art: () => svgArmorSpiked("#3a2740", "#e84393", "#ff7ab8") },
+  { id: "crown_infinity", name: "Crown of Infinity", slot: "helmet", rarity: "mythic", def: 8, crit: 18, hp: 20, price: 2800, levelReq: 1, packOnly: true, box: "60 40 80 40", art: () => svgCirclet("#e8c8dc", "#e84393") + `<g>${svgStar(100, 48, 6, 2.6, "#e84393")}${svgTwinkle(1.6)}</g><g>${svgStar(84, 56, 3, 1.3, "#ffd76a")}${svgTwinkle(2.1)}</g>` },
+  { id: "wings_eternity", name: "Wings of Eternity", slot: "accessory", layer: "back", rarity: "mythic", hp: 35, def: 6, crit: 10, atk: 5, price: 2800, levelReq: 1, packOnly: true, box: "20 34 160 100", art: () => svgWings("#ffd9ec", "#e84393") },
+  { id: "eternal_phoenix", name: "Eternal Phoenix", slot: "pet", rarity: "mythic", atk: 8, crit: 12, hp: 20, price: 3000, levelReq: 1, packOnly: true, box: "12 86 44 44", art: () => svgPetEmoji("🐦‍🔥") }
 ];
 const RPG_ITEMS_BY_ID = Object.fromEntries(RPG_ITEMS.map(i => [i.id, i]));
 
@@ -4919,11 +4963,12 @@ function rpgItemIconSvg(it) {
   const rank = RPG_RARITY[it.rarity].rank;
   const [bx, by, bw, bh] = box.split(" ").map(Number);
   const cx = bx + bw / 2, cy = by + bh / 2;
+  const auraColor = rank === 6 ? "#ff7ab8" : rank === 5 ? "#ffd76a" : "#b88ae8";
   const aura = rank >= 4
-    ? `<ellipse cx="${cx}" cy="${cy}" rx="${(bw * 0.3).toFixed(1)}" ry="${(bh * 0.38).toFixed(1)}" fill="${rank === 5 ? "#ffd76a" : "#b88ae8"}" opacity="${rank === 5 ? "0.28" : "0.22"}">${rank === 5 ? svgPulse(0.18, 0.34) : ""}</ellipse>`
+    ? `<ellipse cx="${cx}" cy="${cy}" rx="${(bw * (rank === 6 ? 0.34 : 0.3)).toFixed(1)}" ry="${(bh * (rank === 6 ? 0.42 : 0.38)).toFixed(1)}" fill="${auraColor}" opacity="${rank === 6 ? "0.32" : rank === 5 ? "0.28" : "0.22"}">${rank >= 5 ? svgPulse(0.18, 0.36) : ""}</ellipse>`
     : "";
-  const spark = rank === 5
-    ? `<g>${svgStar(bx + bw * 0.18, by + bh * 0.22, bw * 0.05, bw * 0.022, "#fff")}${svgTwinkle(2)}</g><g>${svgStar(bx + bw * 0.84, by + bh * 0.58, bw * 0.04, bw * 0.018, "#ffe9a3")}${svgTwinkle(1.5)}</g>`
+  const spark = rank >= 5
+    ? `<g>${svgStar(bx + bw * 0.18, by + bh * 0.22, bw * 0.05, bw * 0.022, "#fff")}${svgTwinkle(2)}</g><g>${svgStar(bx + bw * 0.84, by + bh * 0.58, bw * 0.04, bw * 0.018, rank === 6 ? "#ff9ad1" : "#ffe9a3")}${svgTwinkle(1.5)}</g>${rank === 6 ? `<g>${svgStar(bx + bw * 0.78, by + bh * 0.18, bw * 0.045, bw * 0.02, "#ffd76a")}${svgTwinkle(1.2)}</g>` : ""}`
     : "";
   return `<svg viewBox="${box}" xmlns="http://www.w3.org/2000/svg">${aura}${it.art()}${spark}</svg>`;
 }
@@ -5305,7 +5350,7 @@ function rpgRenderCharacterPage() {
   $("rpgAvatarFrame").innerHTML = rpgAvatarSvg();
   $("rpgHeroName").textContent = (currentUser && currentUser.name) || "Hero";
   $("rpgHeroBars").innerHTML =
-    `<div class="rpg-hero-title">Lv ${info.level} math adventurer · ${rpgState.stats.wins} battles won · ${rpgState.monthXp || 0} XP this month</div>
+    `<div class="rpg-hero-title">Lv ${info.level} math adventurer · ${rpgState.stats.wins} battles won${rpgState.stats.bestFloor ? ` · 🏰 best floor ${rpgState.stats.bestFloor}` : ``} · ${rpgState.monthXp || 0} XP this month</div>
     <div class="rpg-bar-row"><div class="rpg-bar-cap"><span>HP</span><span>${rpgState.hp} / ${stats.maxHp}</span></div>
       <div class="rpg-bar light"><div class="rpg-bar-fill hp" style="width:${Math.round((rpgState.hp / stats.maxHp) * 100)}%;"></div></div></div>
     <div class="rpg-bar-row"><div class="rpg-bar-cap"><span>XP</span><span>${info.into} / ${info.need}</span></div>
@@ -5357,6 +5402,10 @@ function rpgItemCardHtml(it, mode) {
     action += up >= RPG_UPGRADE_MAX
       ? `<button class="btn btn-ghost" type="button" disabled>⚒️ MAX</button>`
       : `<button class="btn btn-ghost" type="button" data-rpg-upgrade="${it.id}" ${rpgState.gold < rpgUpgradeCost(it) ? "disabled" : ""} title="+8% to all stats per upgrade level">⚒️ +${up + 1} · 🪙 ${rpgUpgradeCost(it)}</button>`;
+  } else if (mode === "showcase") {
+    action = owned
+      ? `<button class="btn btn-ghost" type="button" disabled>Owned ✓</button>`
+      : `<button class="btn btn-ghost" type="button" disabled>🎁 Pack only</button>`;
   } else {
     action = owned
       ? `<button class="btn btn-ghost" type="button" disabled>Owned</button>`
@@ -5379,18 +5428,109 @@ function rpgShopFilterHtml() {
 function rpgRenderTab() {
   const body = $("rpgTabBody");
   if (!body) return;
-  document.querySelectorAll(".rpg-tab").forEach(b => b.classList.toggle("active", b.dataset.rpgtab === rpgCharTab));
+  document.querySelectorAll(".rpg-tab[data-rpgtab]").forEach(b => b.classList.toggle("active", b.dataset.rpgtab === rpgCharTab));
   const goldRow = `<div class="rpg-gold-row">Your gold: <b>🪙 ${rpgState.gold}</b><span style="margin-left:auto;">Earn more by solving questions ✍️</span></div>`;
+  if (rpgCharTab === "packs") {
+    body.innerHTML = goldRow + rpgPacksTabHtml();
+    return;
+  }
   if (rpgCharTab === "inventory") {
     const owned = RPG_ITEMS.filter(it => rpgState.inventory[it.id]);
     body.innerHTML = goldRow + (owned.length
       ? `<div class="rpg-grid">${owned.map(it => rpgItemCardHtml(it, "inventory")).join("")}</div>`
       : `<div class="empty-note">No items yet — defeat monsters or visit the shop!</div>`);
   } else {
-    const sorted = RPG_ITEMS.filter(it => it.price > 0 && (rpgShopSlot === "all" || it.slot === rpgShopSlot)).slice().sort((a, b) =>
+    const sorted = RPG_ITEMS.filter(it => it.price > 0 && !it.packOnly && (rpgShopSlot === "all" || it.slot === rpgShopSlot)).slice().sort((a, b) =>
       RPG_SLOTS.indexOf(a.slot) - RPG_SLOTS.indexOf(b.slot) || a.price - b.price);
     body.innerHTML = goldRow + rpgShopFilterHtml() + `<div class="rpg-grid">${sorted.map(it => rpgItemCardHtml(it, "shop")).join("")}</div>`;
   }
+}
+const RPG_PACK_COST = 300;
+const RPG_PACK_RATES = [["mythic", 1], ["legendary", 5], ["epic", 10], ["rare", 22], ["uncommon", 27], ["common", 35]];
+let rpgPackToken = 0;
+function rpgPacksTabHtml() {
+  const mythics = RPG_ITEMS.filter(it => it.rarity === "mythic");
+  return `<div class="pack-shop">
+    <div class="pack-hero"><span class="pack-hero-box">🎁</span>
+      <div><h4>Booster Pack</h4><p>One random item from the entire armoury — and the <b class="pack-mythic-text">only</b> way to get Mythic gear.</p>
+      <button class="btn btn-primary" type="button" data-rpg-pack ${rpgState.gold < RPG_PACK_COST ? "disabled" : ""}>Open pack · 🪙 ${RPG_PACK_COST}</button></div>
+    </div>
+    <div class="pack-rates">${RPG_PACK_RATES.map(([r, p]) => `<span class="pack-rate" style="border-color:${RPG_RARITY[r].color};color:${RPG_RARITY[r].color};">${RPG_RARITY[r].label} ${p}%</span>`).join("")}<span class="pack-rate">Duplicates refund gold</span></div>
+    <div class="section-label" style="margin-top:16px;">Mythic treasures</div>
+    <div class="rpg-grid">${mythics.map(it => rpgItemCardHtml(it, "showcase")).join("")}</div>
+  </div>`;
+}
+function rpgRollPackRarity() {
+  const roll = Math.random() * 100;
+  let acc = 0;
+  for (const [rar, p] of RPG_PACK_RATES) { acc += p; if (roll < acc) return rar; }
+  return "common";
+}
+function rpgOpenPack() {
+  if (!rpgState) return;
+  if (rpgState.gold < RPG_PACK_COST) { toast(`A pack costs 🪙 ${RPG_PACK_COST} — solve more questions!`, "error"); return; }
+  rpgState.gold -= RPG_PACK_COST;
+  const rarity = rpgRollPackRarity();
+  const pool = RPG_ITEMS.filter(it => it.rarity === rarity && (it.packOnly || it.price > 0));
+  const it = pool[Math.floor(Math.random() * pool.length)];
+  const dup = !!rpgState.inventory[it.id];
+  let refund = 0;
+  if (dup) { refund = Math.max(30, Math.round((it.price || 1500) * 0.4)); rpgState.gold += refund; }
+  else rpgState.inventory[it.id] = 1;
+  rpgState.stats.packsOpened = (rpgState.stats.packsOpened || 0) + 1;
+  rpgSave();
+  rpgPublishLeaderboard();
+  const token = ++rpgPackToken;
+  const rar = RPG_RARITY[it.rarity];
+  $("rpgPackBody").innerHTML = `<div class="pack-stage"><div class="pack-flash" id="packFlash"></div><span class="pack-box">🎁</span></div>`;
+  const again = $("rpgPackAgain");
+  if (again) again.style.display = "none";
+  $("rpgPackOverlay").classList.add("show");
+  setTimeout(() => { if (rpgPackToken === token) rpgPackReveal(it, dup, refund); }, 1550);
+}
+function rpgPackReveal(it, dup, refund) {
+  const rar = RPG_RARITY[it.rarity];
+  const rank = rar.rank;
+  const mythic = it.rarity === "mythic";
+  const body = $("rpgPackBody");
+  body.innerHTML = `<div class="pack-stage">
+    <div class="pack-flash on" style="background:${rar.color};"></div>
+    <span class="pack-burst" style="border-color:${rar.color};"></span>
+    <div class="pack-reveal">
+      <div class="pack-rarity ${mythic ? "pack-mythic-text" : ""}" style="${mythic ? "" : `color:${rar.color};`}">${mythic ? "✦ MYTHIC ✦" : rar.label}</div>
+      <div class="pack-item-art t-${it.rarity}">${rpgItemIconSvg(it)}</div>
+      <div class="pack-name">${escapeHtml(it.name)}</div>
+      <div class="pack-sub">${escapeHtml(rpgStatLine(it))}${RPG_SKILLS[it.id] ? ` · ${RPG_SKILLS[it.id].icon} ${escapeHtml(RPG_SKILLS[it.id].name)}` : ""}</div>
+      <div class="pack-sub">${dup ? `Duplicate — refunded <b>🪙 ${refund}</b>` : "✨ Added to your inventory!"}</div>
+    </div>
+  </div>`;
+  const stage = body.querySelector ? body.querySelector(".pack-stage") : null;
+  if (stage) {
+    const emojis = mythic ? ["💖", "✨", "⭐"] : rank >= 5 ? ["✨", "⭐"] : ["✨"];
+    for (let i = 0; i < (rank >= 5 ? 14 : 7); i++) {
+      const s = document.createElement("span");
+      s.className = "adv-pop";
+      s.textContent = emojis[i % emojis.length];
+      if (s.style && s.style.setProperty) {
+        s.style.setProperty("--dx", (Math.random() * 220 - 110).toFixed(0) + "px");
+        s.style.setProperty("--dy", (Math.random() * 200 - 100).toFixed(0) + "px");
+        s.style.left = "48%";
+        s.style.top = "42%";
+        s.style.animationDelay = (Math.random() * 0.25).toFixed(2) + "s";
+        s.style.animationDuration = "1.3s";
+      }
+      stage.appendChild(s);
+      setTimeout(() => s.remove(), 1700);
+    }
+  }
+  const again = $("rpgPackAgain");
+  if (again) {
+    again.style.display = "";
+    again.disabled = rpgState.gold < RPG_PACK_COST;
+    again.textContent = `Open another · 🪙 ${RPG_PACK_COST}`;
+  }
+  if (document.querySelector("#page-character.active")) rpgRenderCharacterPage();
+  toast(dup ? `Duplicate ${it.name} → +🪙 ${refund}` : `${rar.label} pull: ${it.name}!`, rank >= 5 ? "success" : "");
 }
 function rpgEquip(itemId) {
   const it = RPG_ITEMS_BY_ID[itemId];
@@ -5447,6 +5587,7 @@ function rpgPublishLeaderboard() {
       lastMonthXp: rpgState.lastMonthXp || 0,
       lastMonthKey: rpgState.lastMonthKey || null,
       wins: (rpgState.stats && rpgState.stats.wins) || 0,
+      bestFloor: (rpgState.stats && rpgState.stats.bestFloor) || 0,
       equipment: rpgState.equipment,
       updatedAt: new Date().toISOString()
     }).catch(e => console.warn("leaderboard publish", e));
@@ -5503,7 +5644,8 @@ async function rpgRenderLeaderboard(force = false) {
       level: rpgLevelInfo().level, xp: rpgState.xp,
       monthXp: rpgState.monthXp || 0, monthKey: rpgState.monthKey || rpgMonthKey(),
       lastMonthXp: rpgState.lastMonthXp || 0, lastMonthKey: rpgState.lastMonthKey || null,
-      wins: (rpgState.stats && rpgState.stats.wins) || 0, equipment: rpgState.equipment,
+      wins: (rpgState.stats && rpgState.stats.wins) || 0, bestFloor: (rpgState.stats && rpgState.stats.bestFloor) || 0,
+      equipment: rpgState.equipment,
       updatedAt: new Date().toISOString()
     };
     const i = rows.findIndex(r => r.uid === currentUser.uid);
@@ -5530,7 +5672,7 @@ async function rpgRenderLeaderboard(force = false) {
       <div class="rpg-board-ava">${rpgAvatarSvg(r.equipment || {})}</div>
       <div class="rpg-board-main">
         <div class="rpg-board-name">${escapeHtml(r.name)}${me ? `<span class="rpg-you-tag">You</span>` : ""}</div>
-        <div class="rpg-board-meta">Lv ${r.level || 1} · ${r.wins || 0} battles won</div>
+        <div class="rpg-board-meta">Lv ${r.level || 1} · ${r.wins || 0} battles won${r.bestFloor ? ` · 🏰 F${r.bestFloor}` : ""}</div>
       </div>
       ${rpgPrizeBadge(rank)}
       <div class="rpg-board-xp">${r.shownXp} XP<span>${label}</span></div>
@@ -5621,7 +5763,11 @@ const RPG_SKILLS = {
   storm_chick:         { name: "Mini Bolt", icon: "⚡", cd: 9, kind: "chain", mult: 1.1, jumps: 2 },
   owl_familiar:        { name: "Night Swoop", icon: "🦉", cd: 8, kind: "pierce", mult: 1.3 },
   star_unicorn:        { name: "Starlight Heal", icon: "🌟", cd: 10, kind: "heal", pct: 0.15 },
-  pocket_dragon:       { name: "Dragonfire", icon: "🔥", cd: 10, kind: "aoe", mult: 1.0, burn: true }
+  pocket_dragon:       { name: "Dragonfire", icon: "🔥", cd: 10, kind: "aoe", mult: 1.0, burn: true },
+  worldender:          { name: "Apocalypse", icon: "🌋", cd: 12, kind: "aoe", mult: 2.2, burn: true, stun: true },
+  staff_of_creation:   { name: "Big Bang", icon: "💥", cd: 12, kind: "chain", mult: 2.0, jumps: 3, healPct: 0.1 },
+  eclipse_reaper:      { name: "Eclipse", icon: "🌒", cd: 12, kind: "aoe", mult: 1.9, lifesteal: 0.4 },
+  eternal_phoenix:     { name: "Rebirth", icon: "🔥", cd: 14, kind: "aoe", mult: 1.2, burn: true, healPct: 0.2 }
 };
 function advSkillDesc(d) {
   const bits = [];
@@ -5643,10 +5789,11 @@ function advSkillDesc(d) {
   if (d.healPct) bits.push(`restores ${Math.round(d.healPct * 100)}% HP`);
   return `${d.name} (${d.cd}s): ` + bits.join(", ");
 }
-function advWaveTiers() {
+function advWaveTiers(floorOffset = 0) {
+  // raw tiers may exceed 10 on deep floors — enemies are picked at tier 10
+  // and scaled up instead, so the dungeon never stops getting harder
   const L = rpgLevelInfo().level;
-  const c = t => Math.max(1, Math.min(10, t));
-  return [c(L - 1), c(L), c(L), c(L + 1), c(L + 2)];
+  return [L - 1, L, L, L + 1, L + 2].map(t => Math.max(1, t + floorOffset));
 }
 // packs: later waves bring 2-3 enemies so AOE and chain skills shine
 function advWaveComp(w) {
@@ -5666,7 +5813,7 @@ function advOverlay(html) {
 }
 function advUpdateRunsChip() {
   const chip = $("advRunsChip");
-  if (chip) chip.textContent = canManageQuestions() ? "∞ runs (teacher preview)" : `${advRunsLeft()} / ${ADV_MAX_RUNS} runs left today`;
+  if (chip) chip.textContent = canManageQuestions() ? "∞ runs (teacher preview)" : `${advRunsLeft()} / ${ADV_MAX_RUNS} raids left today`;
 }
 function advHeroHtml() {
   return `<div class="adv-tag">${escapeHtml((currentUser && currentUser.name) || "You")}</div>` + rpgAvatarSvg() + advBarHtml("advHeroHp");
@@ -5698,9 +5845,10 @@ function rpgRenderAdventure() {
   $("advQuitBtn").style.display = "none";
   $("advStartBtn").style.display = "";
   $("advStage").classList.remove("walking");
+  const best = (rpgState.stats && rpgState.stats.bestFloor) || 0;
   advOverlay(advRunsLeft() > 0 || canManageQuestions()
-    ? `<div><h4>🗺️ The kingdom needs you!</h4><p>Your hero fights on their own — weapon skills and pet abilities cast automatically as their cooldowns come up. Stronger gear = deeper runs and bigger rewards. Good luck, hero!</p></div>`
-    : `<div><h4>🛌 No runs left today</h4><p>You've used all ${ADV_MAX_RUNS} adventures for today. Rest up, hero — come back tomorrow!</p></div>`);
+    ? `<div><h4>🏰 The Endless Dungeon awaits!</h4><p>Your hero fights on their own — skills and pet abilities cast automatically. Beat each floor boss to descend deeper, where monsters grow stronger and pay more. The dungeon never ends… your gear decides how far you go.${best ? ` Your best: <b>Floor ${best}</b>.` : ""}</p></div>`
+    : `<div><h4>🛌 No raids left today</h4><p>You've used all ${ADV_MAX_RUNS} dungeon raids for today. Rest up, hero — come back tomorrow!</p></div>`);
 }
 function advStart() {
   if (!rpgState || adv) return;
@@ -5711,7 +5859,7 @@ function advStart() {
   }
   advToken++;
   const stats = rpgPlayerStats();
-  adv = { phase: "walk", wave: 0, tiers: advWaveTiers(), stats, heroHp: stats.maxHp, heroMax: stats.maxHp,
+  adv = { phase: "walk", wave: 0, floor: 1, tiers: advWaveTiers(0), stats, heroHp: stats.maxHp, heroMax: stats.maxHp,
     foes: [], skills: advEquippedSkills(), shield: 0, heroNextAtk: 0, gold: 0, xp: 0, kills: 0, loopId: 0 };
   adv.loopId = setInterval(advTick, ADV_TICK_MS);
   advOverlay("");
@@ -5727,7 +5875,7 @@ function advWalk() {
   adv.foes = [];
   $("advFoes").innerHTML = "";
   $("advStage").classList.add("walking");
-  $("advStatus").textContent = `Marching to wave ${adv.wave + 1}…`;
+  $("advStatus").textContent = `Floor ${adv.floor} — marching to wave ${adv.wave + 1}…`;
   advAfter(1300, advSpawnWave);
 }
 function advSpawnWave() {
@@ -5735,17 +5883,20 @@ function advSpawnWave() {
   const comp = advWaveComp(adv.wave);
   const now = Date.now();
   adv.foes = comp.map((c, i) => {
-    const e = rpgRandomEnemy(c.tier);
-    const max = Math.round(e.maxHp * (c.boss ? 1.5 : c.minion ? 0.7 : 1));
-    return { e, boss: !!c.boss, minion: !!c.minion, hp: max, max,
-      armor: Math.floor(c.tier / 2) + (c.boss ? 2 : 0),
+    const tier = Math.max(1, Math.min(10, c.tier));
+    const over = Math.max(0, c.tier - 10);
+    const scale = 1 + 0.22 * over;
+    const e = rpgRandomEnemy(tier);
+    const max = Math.round(e.maxHp * scale * (c.boss ? 1.5 : c.minion ? 0.7 : 1));
+    return { e, boss: !!c.boss, minion: !!c.minion, hp: max, max, scale,
+      armor: Math.floor(tier / 2) + (c.boss ? 2 : 0) + Math.ceil(over / 2),
       atkMs: c.boss ? 1500 : c.minion ? 2300 : 1900,
       nextAtk: now + 1900 + i * 650 + Math.random() * 400,
       dots: [], chillUntil: 0, stunned: 0, dead: false };
   });
   const chip = $("advWaveChip");
   chip.style.display = "";
-  chip.textContent = `Wave ${adv.wave + 1} / ${ADV_WAVES}${adv.foes.some(f => f.boss) ? " — BOSS" : ""}`;
+  chip.textContent = `Floor ${adv.floor} · Wave ${adv.wave + 1}/${ADV_WAVES}${adv.foes.some(f => f.boss) ? " — BOSS" : ""}`;
   $("advFoes").innerHTML = adv.foes.map((f, i) => {
     const size = f.boss ? 84 : f.minion ? 46 : 62;
     return `<div class="adv-actor adv-foe" id="advFoeEl${i}" style="right:-28%;">
@@ -5864,7 +6015,7 @@ function advFoeDie(i) {
   if (f.dead) return;
   f.dead = true;
   adv.kills++;
-  const mult = f.boss ? 2 : f.minion ? 0.6 : 1;
+  const mult = (f.boss ? 2 : f.minion ? 0.6 : 1) * (f.scale || 1);
   const g = Math.round(f.e.gold * mult), x = Math.round(f.e.xp * mult);
   adv.gold += g;
   adv.xp += x;
@@ -5876,9 +6027,32 @@ function advFoeDie(i) {
   if (advFrontFoe() < 0 && adv.phase === "fight") {
     adv.phase = "between";
     adv.wave++;
-    if (adv.wave >= ADV_WAVES) advAfter(900, () => advEnd(true));
+    if (adv.wave >= ADV_WAVES) advAfter(900, advFloorClear);
     else advAfter(1000, advWalk);
   }
+}
+function advFloorClear() {
+  // boss down — bonus, heal, then descend to a tougher floor
+  const bonusGold = 15 + adv.floor * 10;
+  const bonusXp = 20 + adv.floor * 12;
+  adv.gold += bonusGold;
+  adv.xp += bonusXp;
+  const heal = Math.round(adv.heroMax * 0.35);
+  adv.heroHp = Math.min(adv.heroMax, adv.heroHp + heal);
+  advSetBar("advHeroHp", adv.heroHp / adv.heroMax);
+  advFloat($("advHero"), `+${heal} 💚`, "heal");
+  const loot = rpgRollLoot(rpgEnemiesOfTier(Math.min(10, adv.tiers[ADV_WAVES - 1]))[0]);
+  if (loot) {
+    rpgState.inventory[loot.id] = (rpgState.inventory[loot.id] || 0) + 1;
+    rpgSave();
+    toast(`Floor ${adv.floor} chest: ${loot.name}! (${RPG_RARITY[loot.rarity].label})`, "success");
+  }
+  rpgState.stats.bestFloor = Math.max((rpgState.stats.bestFloor || 0), adv.floor + 1);
+  $("advStatus").textContent = `🏰 Floor ${adv.floor} cleared! +🪙${bonusGold} +✨${bonusXp} — descending…`;
+  adv.floor++;
+  adv.wave = 0;
+  adv.tiers = advWaveTiers(adv.floor - 1);
+  advAfter(1500, advWalk);
 }
 function advFoeAttack(i) {
   const f = adv.foes[i];
@@ -5891,13 +6065,13 @@ function advFoeAttack(i) {
       advFloat(hero, "🛡️ Blocked!", "heal");
       return;
     }
-    const dmg = Math.max(1, Math.round(f.e.atk * 0.6 * (f.boss ? 1.2 : 1) * (0.85 + Math.random() * 0.3) - adv.stats.def * 0.5));
+    const dmg = Math.max(1, Math.round(f.e.atk * 0.6 * (f.scale || 1) * (f.boss ? 1.2 : 1) * (0.85 + Math.random() * 0.3) - adv.stats.def * 0.5));
     if (hero.classList) { hero.classList.add("hit"); advAfter(380, () => hero.classList && hero.classList.remove("hit")); }
     advFloat(hero, "-" + dmg, "hurt");
     advBurst(hero, "#e25c5c");
     adv.heroHp = Math.max(0, adv.heroHp - dmg);
     advSetBar("advHeroHp", adv.heroHp / adv.heroMax);
-    if (adv.heroHp <= 0) { adv.phase = "between"; advAfter(600, () => advEnd(false)); }
+    if (adv.heroHp <= 0) { adv.phase = "between"; advAfter(600, advEnd); }
   });
 }
 function advHeal(amount, label) {
@@ -5999,23 +6173,15 @@ function advChainFx(indices) {
   } catch (_) {}
 }
 function advStopLoop() { if (adv && adv.loopId) { clearInterval(adv.loopId); adv.loopId = 0; } }
-function advEnd(victory) {
+function advEnd() {
   if (!adv) return;
   advStopLoop();
-  const waveReached = Math.min(ADV_WAVES, adv.wave + 1);
-  const kills = adv.kills;
-  const bonusGold = victory ? Math.round(adv.gold * 0.5) : 0;
-  const bonusXp = victory ? Math.round(adv.xp * 0.5) : 0;
-  const gold = adv.gold + bonusGold;
-  const xp = adv.xp + bonusXp;
-  let loot = null;
-  if (victory) {
-    loot = rpgRollLoot(rpgEnemiesOfTier(adv.tiers[ADV_WAVES - 1])[0]);
-    if (loot) rpgState.inventory[loot.id] = (rpgState.inventory[loot.id] || 0) + 1;
-  }
+  const floor = adv.floor, kills = adv.kills;
+  const floorsCleared = floor - 1;
+  const gold = adv.gold, xp = adv.xp;
   const lvl = (gold || xp) ? rpgApplyRewards(gold, xp) : { levelsGained: 0, newLevel: rpgLevelInfo().level };
   rpgState.stats.advRunsDone = (rpgState.stats.advRunsDone || 0) + 1;
-  if (victory) rpgState.stats.advWins = (rpgState.stats.advWins || 0) + 1;
+  rpgState.stats.bestFloor = Math.max((rpgState.stats.bestFloor || 0), floor);
   rpgSave();
   rpgPublishLeaderboard();
   adv = null;
@@ -6025,26 +6191,27 @@ function advEnd(victory) {
   $("advStage").classList.remove("walking");
   $("advStatus").textContent = "";
   advUpdateRunsChip();
+  const best = rpgState.stats.bestFloor || 0;
   advOverlay(`<div>
-    <h4>${victory ? "🏆 Adventure complete!" : `😵 Overwhelmed on wave ${waveReached}…`}</h4>
-    <p>${victory ? `Every monster defeated — ${kills} in total!` : "You keep everything you earned. Upgrade your gear and pet, then march again!"}</p>
-    <div class="rpg-reward-stats"><span>🪙 +${gold} gold</span><span>✨ +${xp} XP</span>${victory ? `<span>incl. +50% clear bonus</span>` : ""}</div>
+    <h4>🪦 You fell on Floor ${floor}…</h4>
+    <p>${floorsCleared > 0 ? `${floorsCleared} floor${floorsCleared === 1 ? "" : "s"} cleared and ${kills} monsters slain` : `${kills} monsters slain`} — everything you earned is yours to keep. ${best > floor ? `Your record is Floor ${best}.` : "A new personal best!"} Upgrade your gear and dive again!</p>
+    <div class="rpg-reward-stats"><span>🏰 Floor ${floor}</span><span>🪙 +${gold} gold</span><span>✨ +${xp} XP</span></div>
     ${lvl.levelsGained > 0 ? `<div class="rpg-reward-stats"><span>⬆️ LEVEL UP — now Lv ${lvl.newLevel}!</span></div>` : ""}
-    ${loot ? rpgLootCardHtml(loot) : ""}
   </div>`);
 }
 function advAbandon(manual = false) {
   if (!adv) return;
-  if (manual && !confirm("Give up this adventure? You keep the rewards earned so far.")) return;
-  const gold = adv.gold, xp = adv.xp;
+  if (manual && !confirm("Retreat from the dungeon? You keep the rewards earned so far.")) return;
+  const gold = adv.gold, xp = adv.xp, floor = adv.floor;
   advStopLoop();
   adv = null;
   advToken++;
+  if (rpgState) rpgState.stats.bestFloor = Math.max((rpgState.stats.bestFloor || 0), floor || 1);
   if (gold || xp) { rpgApplyRewards(gold, xp); rpgSave(); rpgPublishLeaderboard(); }
   const stage = $("advStage");
   if (stage) stage.classList.remove("walking");
   if (document.querySelector("#page-adventure.active")) rpgRenderAdventure();
-  toast(gold || xp ? `Adventure ended — you kept 🪙 ${gold} and ✨ ${xp} XP` : "Adventure ended", "");
+  toast(gold || xp ? `Retreated from Floor ${floor} — you kept 🪙 ${gold} and ✨ ${xp} XP` : "Retreated from the dungeon", "");
 }
 // FX helpers (spawned inside the actor tiles so positioning is free)
 function advFloat(host, text, cls) {
@@ -6113,6 +6280,7 @@ $("advStartBtn").addEventListener("click", advStart);
 $("advQuitBtn").addEventListener("click", () => advAbandon(true));
 document.querySelectorAll("[data-rpgboard]").forEach(b => b.addEventListener("click", () => { rpgBoardTab = b.dataset.rpgboard; rpgRenderLeaderboard(); }));
 $("rpgTopChip").addEventListener("click", () => navigateTo("character"));
+$("rpgPackAgain").addEventListener("click", rpgOpenPack);
 $("rpgRestBtn").addEventListener("click", () => {
   if (!rpgState) return;
   rpgState.hp = rpgPlayerStats().maxHp;
@@ -6129,6 +6297,8 @@ document.querySelectorAll(".rpg-tab").forEach(b => b.addEventListener("click", (
 $("rpgTabBody").addEventListener("click", e => {
   const filter = e.target.closest("[data-rpg-filter]");
   if (filter) { rpgShopSlot = filter.dataset.rpgFilter; rpgRenderTab(); return; }
+  const pack = e.target.closest("[data-rpg-pack]");
+  if (pack) { rpgOpenPack(); return; }
   const upgrade = e.target.closest("[data-rpg-upgrade]");
   if (upgrade) { rpgUpgradeItem(upgrade.dataset.rpgUpgrade); return; }
   const equip = e.target.closest("[data-rpg-equip]");
