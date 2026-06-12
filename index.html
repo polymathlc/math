@@ -543,6 +543,57 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .prize-3 .rpg-board-prize { color: #8c5a22; }
 .rpg-you-tag { font-family: 'Space Mono', monospace; font-size: 0.56rem; background: var(--primary); color: #fff; border-radius: 999px; padding: 2px 7px; margin-left: 6px; vertical-align: middle; }
 @media (max-width: 560px) { .rpg-board-meta { display: none; } }
+/* adventure mode */
+.adv-card { padding: 16px; }
+.adv-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.adv-stage { position: relative; height: 300px; border-radius: var(--radius-md); border: 1px solid var(--border); overflow: hidden; background: linear-gradient(#8ecdf2 0%, #cfeafb 62%, #dff2ff 100%); }
+.adv-sun { position: absolute; top: 18px; right: 28px; width: 44px; height: 44px; border-radius: 50%; background: #ffe27a; box-shadow: 0 0 36px 12px rgba(255,226,122,0.6); }
+.adv-cloud { position: absolute; font-size: 34px; opacity: 0.9; animation: advDrift 10s ease-in-out infinite alternate; }
+@keyframes advDrift { from { transform: translateX(0); } to { transform: translateX(-46px); } }
+.adv-hill { position: absolute; bottom: 44px; width: 48%; height: 116px; border-radius: 50% 50% 0 0; background: #aed7b6; }
+.adv-hill.h1 { left: -9%; }
+.adv-hill.h2 { right: -7%; width: 62%; height: 86px; background: #bde1c5; }
+.adv-ground { position: absolute; left: 0; right: 0; bottom: 0; height: 54px;
+  background-image: repeating-linear-gradient(90deg, #6db272 0 30px, #61a467 30px 60px), repeating-linear-gradient(90deg, #8a6b46 0 42px, #82643e 42px 84px);
+  background-size: 100% 13px, 100% 100%; background-repeat: repeat-x, repeat; }
+.adv-stage.walking .adv-ground { animation: advGround 0.55s linear infinite; }
+@keyframes advGround { to { background-position: -60px 0, -84px 0; } }
+.adv-actor { position: absolute; bottom: 40px; text-align: center; z-index: 3; }
+.adv-hero { left: 5%; width: 140px; }
+.adv-hero svg { width: 122px; height: auto; display: block; margin: 0 auto; }
+.adv-foe { right: -34%; width: 150px; transition: right 0.9s ease-out; }
+.adv-foe.in { right: 7%; }
+.adv-foe-emoji { display: inline-block; line-height: 1.05; animation: rpgBob 2.2s ease-in-out infinite; filter: drop-shadow(0 5px 7px rgba(0,0,0,0.3)); }
+.adv-foe.dead { animation: advDie 0.8s ease-in forwards; }
+@keyframes advDie { 40% { transform: rotate(16deg); } 100% { transform: translateY(28px) rotate(80deg); opacity: 0; } }
+.adv-stage.walking .adv-hero { animation: advWalkBob 0.5s ease-in-out infinite; }
+@keyframes advWalkBob { 0%, 100% { transform: translateY(0) rotate(-1.5deg); } 50% { transform: translateY(-7px) rotate(1.5deg); } }
+.adv-hero.hit, .adv-foe.hit { animation: rpgShake 0.4s ease; }
+.adv-tag { font-family: 'Space Mono', monospace; font-size: 0.6rem; font-weight: 700; color: #3f3a34; background: rgba(255,255,255,0.8); border-radius: 999px; padding: 2px 9px; display: inline-block; margin-bottom: 3px; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.adv-bar { height: 9px; width: 112px; margin: 5px auto 0; background: rgba(0,0,0,0.28); border-color: rgba(0,0,0,0.2); }
+.adv-actor .rpg-float { font-size: 1.05rem; }
+.adv-overlay { position: absolute; inset: 0; z-index: 7; display: none; align-items: center; justify-content: center; text-align: center; background: rgba(22,20,30,0.52); color: #fff; padding: 18px; }
+.adv-overlay.show { display: flex; }
+.adv-overlay h4 { font-size: 1.25rem; margin-bottom: 6px; }
+.adv-overlay p { font-size: 0.92rem; opacity: 0.92; max-width: 480px; line-height: 1.5; margin: 0 auto; }
+.adv-overlay .rpg-reward-stats { color: #ffd76a; margin-top: 10px; }
+.adv-overlay .rpg-loot-card { background: #fff; color: var(--text); max-width: 360px; margin: 12px auto 0; }
+.adv-proj { position: absolute; z-index: 5; width: 16px; height: 16px; border-radius: 50%; pointer-events: none; }
+.adv-burst { position: absolute; left: 50%; top: 40%; width: 56px; height: 56px; margin: -28px; border: 4px solid; border-radius: 50%; z-index: 5; animation: advBurstA 0.55s ease-out forwards; pointer-events: none; }
+@keyframes advBurstA { from { transform: scale(0.25); opacity: 1; } to { transform: scale(1.7); opacity: 0; } }
+.adv-pop { position: absolute; z-index: 6; font-size: 17px; pointer-events: none; animation: advPop 0.95s ease-out forwards; }
+@keyframes advPop { to { transform: translate(var(--dx, 0), var(--dy, -60px)) scale(0.5); opacity: 0; } }
+.adv-slash { position: absolute; left: 6%; top: 14%; width: 86px; height: 86px; z-index: 5; pointer-events: none; animation: advSlashA 0.45s ease-out forwards; }
+@keyframes advSlashA { from { opacity: 0; transform: rotate(-55deg) scale(0.55); } 30% { opacity: 1; } to { opacity: 0; transform: rotate(30deg) scale(1.2); } }
+.adv-quiz { margin-top: 14px; }
+.adv-timer { height: 8px; border-radius: 999px; background: #eee9e1; border: 1px solid var(--border); overflow: hidden; }
+.adv-timer-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #4a7c59, #67d68a); border-radius: 999px; }
+.adv-question { font-family: 'Space Grotesk', sans-serif; font-size: 1.6rem; font-weight: 700; text-align: center; margin: 12px 0; }
+.adv-answer-row { display: flex; gap: 10px; max-width: 430px; margin: 0 auto; }
+.adv-answer-row input { flex: 1; min-width: 0; padding: 12px 14px; font-size: 1.25rem; text-align: center; font-family: 'Space Grotesk', sans-serif; border: 1.5px solid var(--border); border-radius: var(--radius-md); background: var(--surface-alt); }
+.adv-answer-row input:focus { outline: none; border-color: var(--border-focus); background: #fff; }
+.adv-feedback { text-align: center; min-height: 1.5em; margin-top: 10px; font-size: 0.95rem; font-weight: 600; }
+@media (max-width: 640px) { .adv-stage { height: 238px; } .adv-hero svg { width: 94px; } .adv-hero { width: 108px; } .adv-foe { width: 120px; } .adv-question { font-size: 1.3rem; } .adv-bar { width: 90px; } }
 .rpg-gold-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-family: 'Space Mono', monospace; font-size: 0.8rem; color: var(--text-muted); }
 .rpg-gold-row b { color: var(--text); font-size: 0.95rem; }
 .rpg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(138px, 1fr)); gap: 10px; }
@@ -619,6 +670,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
       <div class="nav-section rpg-el" style="display:none;">Game</div>
       <div class="nav-item rpg-el" data-page="character" style="display:none;"><span class="ico">🛡️</span> Character</div>
       <div class="nav-item rpg-el" data-page="leaderboard" style="display:none;"><span class="ico">🏆</span> Leaderboard</div>
+      <div class="nav-item rpg-el" data-page="adventure" style="display:none;"><span class="ico">🗺️</span> Adventure</div>
       <div class="nav-item" id="rpgHideToggle" style="display:none;"><span class="ico">🙈</span> Hide game</div>
       <div class="nav-section admin-only">Admin</div>
       <div class="nav-item admin-only" data-page="create"><span class="ico">➕</span> Create Question</div>
@@ -855,6 +907,42 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
             <button class="rpg-tab" data-rpgtab="shop" type="button">🏪 Shop</button>
           </div>
           <div id="rpgTabBody"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= ADVENTURE PAGE (RPG side-scroller) ================= -->
+    <div class="page" id="page-adventure">
+      <div class="page-head"><h3>🗺️ Adventure</h3><p>March across the kingdom — answer quick-fire questions to swing your weapon. Bigger rewards than normal battles, 3 runs a day.</p></div>
+      <div class="card adv-card">
+        <div class="adv-top">
+          <span class="chip" id="advRunsChip">— runs left today</span>
+          <span class="chip topic" id="advWaveChip" style="display:none;">Wave 1 / 5</span>
+          <span style="flex:1;"></span>
+          <button class="btn btn-ghost btn-sm" id="advQuitBtn" type="button" style="display:none;">🏳️ Give up</button>
+          <button class="btn btn-primary" id="advStartBtn" type="button">▶️ Start adventure</button>
+        </div>
+        <div class="adv-stage" id="advStage">
+          <div class="adv-sun"></div>
+          <span class="adv-cloud" style="left:12%;top:14px;">☁️</span>
+          <span class="adv-cloud" style="left:55%;top:36px;font-size:24px;animation-delay:-4s;"></span>
+          <span class="adv-cloud" style="left:74%;top:10px;font-size:28px;animation-delay:-2s;">☁️</span>
+          <div class="adv-hill h1"></div>
+          <div class="adv-hill h2"></div>
+          <div class="adv-ground"></div>
+          <div class="adv-actor adv-hero" id="advHero"></div>
+          <div class="adv-actor adv-foe" id="advFoe" style="display:none;"></div>
+          <div class="adv-fx" id="advFx"></div>
+          <div class="adv-overlay" id="advOverlay"></div>
+        </div>
+        <div class="adv-quiz" id="advQuiz" style="display:none;">
+          <div class="adv-timer"><div class="adv-timer-fill" id="advTimerFill"></div></div>
+          <div class="adv-question" id="advQuestion">—</div>
+          <div class="adv-answer-row">
+            <input id="advAnswer" type="text" inputmode="decimal" autocomplete="off" placeholder="Answer">
+            <button class="btn btn-primary" id="advAttackBtn" type="button">⚔️ Attack!</button>
+          </div>
+          <div class="adv-feedback" id="advFeedback"></div>
         </div>
       </div>
     </div>
@@ -2352,12 +2440,14 @@ function navigateTo(page) {
   document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
   const pageEl = $("page-" + page); if (pageEl) pageEl.classList.add("active");
   const nav = document.querySelector(`.nav-item[data-page="${page}"]`); if (nav) nav.classList.add("active");
-  if ((page === "character" || page === "leaderboard") && rpgGameHidden()) page = "practice";
-  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", worksheet: "Worksheet Creator", students: "Student Results", character: "Character", leaderboard: "Leaderboard" };
+  if ((page === "character" || page === "leaderboard" || page === "adventure") && rpgGameHidden()) page = "practice";
+  if (page !== "adventure") advAbandon();
+  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", worksheet: "Worksheet Creator", students: "Student Results", character: "Character", leaderboard: "Leaderboard", adventure: "Adventure" };
   $("topbarTitle").textContent = titles[page] || "";
   $("sidebar").classList.remove("open");
   if (page === "character") rpgRenderCharacterPage();
   if (page === "leaderboard") rpgRenderLeaderboard();
+  if (page === "adventure") rpgRenderAdventure();
   if (page === "bank") renderBank();
   if (page === "students") loadStudentRoster();
   if (page === "practice") { renderQuestion(); setupCanvasSize(); }
@@ -4478,7 +4568,7 @@ function rpgStorageKey() { return "mathQuestRpg:" + (currentUser ? currentUser.u
 function rpgDefaults() {
   return {
     v: 1, gold: 60, xp: 0, hp: null, hidden: false,
-    monthKey: null, monthXp: 0, lastMonthKey: null, lastMonthXp: 0,
+    monthKey: null, monthXp: 0, lastMonthKey: null, lastMonthXp: 0, advRuns: null,
     inventory: { wood_sword: 1, cloth_tunic: 1 },
     equipment: { weapon: "wood_sword", shield: null, armor: "cloth_tunic", helmet: null, accessory: null },
     battle: null,
@@ -4595,7 +4685,7 @@ function rpgAvatarSvg(equipment) {
     ${rpgItemArt("helmet", eq)}
     ${frontAccArt}
     <g transform="translate(58,158)">${rpgItemArt("shield", eq)}</g>
-    <g transform="translate(142,158) rotate(14)">${rpgItemArt("weapon", eq)}<circle r="7" fill="#f5cfa8" stroke="rgba(0,0,0,0.1)"/></g>
+    <g transform="translate(142,158)"><g class="av-swing" transform="rotate(14)"><animateTransform class="av-anim-slash" attributeName="transform" type="rotate" values="14;-44;112;78;14" keyTimes="0;0.26;0.52;0.66;1" dur="0.62s" begin="indefinite"/><animateTransform class="av-anim-chop" attributeName="transform" type="rotate" values="14;-78;122;14" keyTimes="0;0.36;0.6;1" dur="0.74s" begin="indefinite"/><animateTransform class="av-anim-raise" attributeName="transform" type="rotate" values="14;-30;-30;14" keyTimes="0;0.3;0.72;1" dur="0.8s" begin="indefinite"/>${rpgItemArt("weapon", eq)}<circle r="7" fill="#f5cfa8" stroke="rgba(0,0,0,0.1)"/></g></g>
   </svg>`;
 }
 function rpgItemIconSvg(it) {
@@ -4622,6 +4712,7 @@ async function rpgInit() {
   rpgPublishLeaderboard();
 }
 function rpgOnSignOut() {
+  advToken++; adv = null;
   rpgState = null;
   rpgBoardRows = null;
   rpgApplyVisibility();
@@ -5177,10 +5268,369 @@ async function rpgRenderLeaderboard(force = false) {
   }).join("");
 }
 
+// ---- Adventure mode (side-scrolling quest: quick-fire questions drive combat) ----
+const ADV_MAX_RUNS = 3, ADV_WAVES = 5, ADV_TIME_MS = 15000, ADV_REWARD_MULT = 1.5;
+let adv = null;       // active run state
+let advToken = 0;     // invalidates timers from finished/abandoned runs
+
+function advToday() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+function advRunsUsed() {
+  const r = rpgState && rpgState.advRuns;
+  return r && r.day === advToday() ? (r.used || 0) : 0;
+}
+function advRunsLeft() { return Math.max(0, ADV_MAX_RUNS - advRunsUsed()); }
+function advAfter(ms, fn) {
+  const t = advToken;
+  setTimeout(() => { if (adv && advToken === t) fn(); }, ms);
+}
+// weapon → attack style + element effects (magic bolts, fire, ice, sparks…)
+function rpgWeaponFx(itemId) {
+  const id = String(itemId || "");
+  let kind = "slash";
+  if (!id) kind = "punch";
+  else if (/staff|wand|scepter|crook/.test(id)) kind = "magic";
+  else if (/axe|hammer|scythe/.test(id)) kind = "chop";
+  else if (/spear|trident|halberd/.test(id)) kind = "thrust";
+  let color = "#dbe3ea", emoji = "✨";
+  if (/flame|ember|dragon|phoenix/.test(id)) { color = "#ff6b35"; emoji = "🔥"; }
+  else if (/frost|glacier/.test(id)) { color = "#8fd4ee"; emoji = "❄️"; }
+  else if (/oak|sprout|rune|elven|emerald/.test(id)) { color = "#3a9e5f"; emoji = "🍃"; }
+  else if (/void|shadow|obsidian/.test(id)) { color = "#9b7fd4"; emoji = "🌀"; }
+  else if (/star|comet/.test(id)) { color = "#ffd76a"; emoji = "⭐"; }
+  else if (/sun|excalibur|golden|gilded|crown|royal/.test(id)) { color = "#ffd76a"; emoji = "✨"; }
+  else if (/arcane|crystal/.test(id)) { color = "#b79ae0"; emoji = "💫"; }
+  return { kind, color, emoji };
+}
+// quick mental-math generator scaled to the student's rating
+function advQuestion() {
+  const elo = (currentUser && currentUser.role === "student") ? studentEloValue() : 1000;
+  const ri = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+  const gens = {
+    add2() { const a = ri(13, 88), b = ri(7, 89); return { t: `${a} + ${b} = ?`, a: a + b }; },
+    sub2() { const a = ri(25, 99), b = ri(6, a - 4); return { t: `${a} − ${b} = ?`, a: a - b }; },
+    mulT() { const a = ri(3, 12), b = ri(3, 12); return { t: `${a} × ${b} = ?`, a: a * b }; },
+    add3() { const a = ri(140, 870), b = ri(45, 950); return { t: `${a} + ${b} = ?`, a: a + b }; },
+    sub3() { const a = ri(220, 980), b = ri(40, a - 30); return { t: `${a} − ${b} = ?`, a: a - b }; },
+    div() { const b = ri(3, 12), q = ri(3, 12); return { t: `${b * q} ÷ ${b} = ?`, a: q }; },
+    mul2d() { const a = ri(13, 89), b = ri(3, 9); return { t: `${a} × ${b} = ?`, a: a * b }; },
+    percent() { const p = pick([10, 20, 25, 50, 75]); const base = ri(2, 24) * 20; return { t: `${p}% of ${base} = ?`, a: base * p / 100 }; },
+    fracOf() { const f = pick([[1, 2], [1, 3], [1, 4], [3, 4], [2, 5], [3, 5]]); const base = ri(2, 12) * f[1]; return { t: `${f[0]}/${f[1]} of ${base} = ?`, a: base * f[0] / f[1] }; },
+    square() { const n = ri(4, 15); return { t: `${n}² = ?`, a: n * n }; },
+    sqrt() { const n = ri(4, 15); return { t: `√${n * n} = ?`, a: n }; },
+    solveX() { const a = ri(2, 9), x = ri(2, 12), b = ri(1, 30); return { t: `${a}x + ${b} = ${a * x + b},  x = ?`, a: x }; }
+  };
+  const tier = elo < 800 ? ["add2", "sub2", "mulT"]
+    : elo < 1050 ? ["add2", "sub2", "mulT", "div", "add3", "sub3"]
+    : elo < 1300 ? ["mulT", "div", "mul2d", "add3", "sub3", "percent", "square", "fracOf"]
+    : ["mul2d", "div", "percent", "fracOf", "square", "sqrt", "solveX"];
+  return gens[pick(tier)]();
+}
+function advWaveTiers() {
+  const L = rpgLevelInfo().level;
+  const c = t => Math.max(1, Math.min(10, t));
+  return [c(L - 1), c(L), c(L), c(L + 1), c(L + 2)];
+}
+function advBarHtml(id) { return `<div class="rpg-bar adv-bar"><div class="rpg-bar-fill hp" id="${id}" style="width:100%;"></div></div>`; }
+function advSetBar(id, frac) { const el = $(id); if (el) el.style.width = Math.max(0, Math.round(frac * 100)) + "%"; }
+function advOverlay(html) {
+  const o = $("advOverlay");
+  if (!o) return;
+  if (html) { o.innerHTML = html; o.classList.add("show"); }
+  else { o.classList.remove("show"); o.innerHTML = ""; }
+}
+function advUpdateRunsChip() {
+  const chip = $("advRunsChip");
+  if (chip) chip.textContent = canManageQuestions() ? "∞ runs (teacher preview)" : `${advRunsLeft()} / ${ADV_MAX_RUNS} runs left today`;
+}
+function advHeroHtml() {
+  return `<div class="adv-tag">${escapeHtml((currentUser && currentUser.name) || "You")}</div>` + rpgAvatarSvg() + advBarHtml("advHeroHp");
+}
+function rpgRenderAdventure() {
+  if (!rpgState || adv) return;
+  advUpdateRunsChip();
+  $("advHero").innerHTML = advHeroHtml();
+  const foe = $("advFoe");
+  foe.style.display = "none";
+  foe.classList.remove("in", "dead");
+  $("advQuiz").style.display = "none";
+  $("advWaveChip").style.display = "none";
+  $("advQuitBtn").style.display = "none";
+  $("advStartBtn").style.display = "";
+  $("advStage").classList.remove("walking");
+  advOverlay(advRunsLeft() > 0 || canManageQuestions()
+    ? `<div><h4>🗺️ The kingdom needs you!</h4><p>March right and face ${ADV_WAVES} monsters. Answer quick-fire questions to swing your weapon — wrong or slow answers let the monster strike. Rewards are bigger than normal battles!</p></div>`
+    : `<div><h4>🛌 No runs left today</h4><p>You've used all ${ADV_MAX_RUNS} adventures for today. Rest up, hero — come back tomorrow!</p></div>`);
+}
+function advStart() {
+  if (!rpgState || adv) return;
+  if (!canManageQuestions() && advRunsLeft() <= 0) { toast("No adventure runs left today — come back tomorrow!", "error"); return; }
+  if (!canManageQuestions()) {
+    rpgState.advRuns = { day: advToday(), used: advRunsUsed() + 1 };
+    rpgSave();
+  }
+  advToken++;
+  const stats = rpgPlayerStats();
+  adv = { phase: "walk", wave: 0, tiers: advWaveTiers(), stats, heroHp: stats.maxHp, heroMax: stats.maxHp,
+    enemy: null, boss: false, enemyHp: 0, enemyMax: 0, gold: 0, xp: 0, kills: 0, q: null, timerId: 0 };
+  advOverlay("");
+  advUpdateRunsChip();
+  $("advStartBtn").style.display = "none";
+  $("advQuitBtn").style.display = "";
+  $("advHero").innerHTML = advHeroHtml();
+  advWalk();
+}
+function advWalk() {
+  adv.phase = "walk";
+  $("advQuiz").style.display = "none";
+  const foe = $("advFoe");
+  foe.classList.remove("in", "dead");
+  foe.style.display = "none";
+  $("advStage").classList.add("walking");
+  advAfter(1400, advSpawnEnemy);
+}
+function advSpawnEnemy() {
+  $("advStage").classList.remove("walking");
+  const tier = adv.tiers[adv.wave];
+  adv.enemy = RPG_ENEMIES[tier - 1];
+  adv.boss = adv.wave === ADV_WAVES - 1;
+  adv.enemyMax = Math.round(adv.enemy.maxHp * (adv.boss ? 1.4 : 1));
+  adv.enemyHp = adv.enemyMax;
+  const chip = $("advWaveChip");
+  chip.style.display = "";
+  chip.textContent = `Wave ${adv.wave + 1} / ${ADV_WAVES}${adv.boss ? " — BOSS" : ""}`;
+  const foe = $("advFoe");
+  foe.style.display = "";
+  foe.innerHTML = `<div class="adv-tag">${adv.boss ? "👑 " : ""}${escapeHtml(adv.enemy.name)}</div>` +
+    `<span class="adv-foe-emoji" style="font-size:${adv.boss ? 84 : 64}px;">${adv.enemy.emoji}</span>` + advBarHtml("advFoeHp");
+  requestAnimationFrame(() => foe.classList.add("in"));
+  advAfter(1000, advAsk);
+}
+function advAsk() {
+  adv.phase = "quiz";
+  adv.q = advQuestion();
+  $("advQuiz").style.display = "";
+  $("advQuestion").textContent = adv.q.t;
+  $("advFeedback").textContent = "";
+  const input = $("advAnswer");
+  input.value = ""; input.disabled = false;
+  $("advAttackBtn").disabled = false;
+  try { input.focus(); } catch (_) {}
+  const fill = $("advTimerFill");
+  fill.style.transition = "none";
+  fill.style.width = "100%";
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    fill.style.transition = `width ${ADV_TIME_MS}ms linear`;
+    fill.style.width = "0%";
+  }));
+  const t = advToken;
+  clearTimeout(adv.timerId);
+  adv.timerId = setTimeout(() => { if (adv && advToken === t && adv.phase === "quiz") advResolve(false, true); }, ADV_TIME_MS);
+}
+function advSubmit() {
+  if (!adv || adv.phase !== "quiz") return;
+  const raw = String($("advAnswer").value).trim().replace(",", ".");
+  if (!raw) { $("advFeedback").textContent = "Type your answer first!"; return; }
+  const v = Number(raw);
+  advResolve(Number.isFinite(v) && Math.abs(v - adv.q.a) < 1e-9);
+}
+function advResolve(correct, timedOut = false) {
+  if (!adv || adv.phase !== "quiz") return;
+  adv.phase = "anim";
+  clearTimeout(adv.timerId);
+  $("advAnswer").disabled = true;
+  $("advAttackBtn").disabled = true;
+  $("advTimerFill").style.transition = "none";
+  if (correct) {
+    $("advFeedback").innerHTML = `<span style="color:var(--accent-green);">✅ Correct!</span>`;
+    advHeroAttack();
+  } else {
+    $("advFeedback").innerHTML = `<span style="color:var(--accent-red);">${timedOut ? "⏰ Time's up!" : "❌ Not quite —"} answer: <b>${adv.q.a}</b></span>`;
+    advEnemyAttack();
+  }
+}
+function advAnimate(el, frames, opts) { try { if (el && el.animate) el.animate(frames, opts); } catch (_) {} }
+function advSwingAnim(kind) {
+  const hero = $("advHero");
+  if (!hero || !hero.querySelector) return;
+  const cls = kind === "magic" ? ".av-anim-raise" : kind === "chop" ? ".av-anim-chop" : ".av-anim-slash";
+  const el = hero.querySelector(cls);
+  if (el && el.beginElement) { try { el.beginElement(); } catch (_) {} }
+}
+function advHeroAttack() {
+  const fx = rpgWeaponFx(rpgState.equipment.weapon);
+  let dmg = adv.stats.atk * (0.9 + Math.random() * 0.3);
+  const crit = Math.random() * 100 < adv.stats.crit;
+  if (crit) dmg *= 2;
+  dmg = Math.max(1, Math.round(dmg));
+  const hero = $("advHero");
+  advSwingAnim(fx.kind);
+  if (fx.kind === "thrust" || fx.kind === "punch") {
+    advAnimate(hero, [{ transform: "translateX(0)" }, { transform: "translateX(56px)" }, { transform: "translateX(0)" }], { duration: 520, easing: "ease-in-out" });
+  } else if (fx.kind !== "magic") {
+    advAnimate(hero, [{ transform: "translateX(0)" }, { transform: "translateX(26px)" }, { transform: "translateX(0)" }], { duration: 480, easing: "ease-in-out" });
+  } else {
+    advProjectile(fx);
+  }
+  advAfter(fx.kind === "magic" ? 540 : 330, () => {
+    advImpact(fx, crit, dmg);
+    adv.enemyHp = Math.max(0, adv.enemyHp - dmg);
+    advSetBar("advFoeHp", adv.enemyHp / adv.enemyMax);
+    if (adv.enemyHp <= 0) advAfter(620, advKill);
+    else advAfter(1050, advAsk);
+  });
+}
+function advImpact(fx, crit, dmg) {
+  const foe = $("advFoe");
+  foe.classList.add("hit");
+  advAfter(430, () => foe.classList.remove("hit"));
+  advFloat(foe, (crit ? "💥 " : "") + "-" + dmg, "dmg");
+  advBurst(foe, fx.color);
+  advParticles(foe, fx.emoji, crit ? 9 : 5);
+  if (fx.kind === "slash" || fx.kind === "chop") advSlashFx(foe, fx.color);
+}
+function advEnemyAttack() {
+  const foe = $("advFoe"), hero = $("advHero");
+  const dmg = Math.max(1, Math.round(adv.enemy.atk * (adv.boss ? 1.2 : 1) * (0.85 + Math.random() * 0.3) - adv.stats.def * 0.5));
+  advAnimate(foe, [{ transform: "translateX(0)" }, { transform: "translateX(-62px)" }, { transform: "translateX(0)" }], { duration: 560, easing: "ease-in-out" });
+  advAfter(300, () => {
+    hero.classList.add("hit");
+    advAfter(430, () => hero.classList.remove("hit"));
+    advFloat(hero, "-" + dmg, "hurt");
+    advBurst(hero, "#e25c5c");
+    adv.heroHp = Math.max(0, adv.heroHp - dmg);
+    advSetBar("advHeroHp", adv.heroHp / adv.heroMax);
+    if (adv.heroHp <= 0) advAfter(700, () => advEnd(false));
+    else advAfter(950, advAsk);
+  });
+}
+function advKill() {
+  adv.kills++;
+  const mult = ADV_REWARD_MULT * (adv.boss ? 1.5 : 1);
+  const g = Math.round(adv.enemy.gold * mult);
+  const x = Math.round(adv.enemy.xp * mult);
+  adv.gold += g;
+  adv.xp += x;
+  const foe = $("advFoe");
+  advFloat(foe, `+${g}🪙 +${x}✨`, "heal");
+  foe.classList.add("dead");
+  $("advQuiz").style.display = "none";
+  adv.wave++;
+  if (adv.wave >= ADV_WAVES) advAfter(950, () => advEnd(true));
+  else advAfter(1150, advWalk);
+}
+function advEnd(victory) {
+  if (!adv) return;
+  clearTimeout(adv.timerId);
+  const waveReached = Math.min(ADV_WAVES, adv.wave + 1);
+  const bonusGold = victory ? Math.round(adv.gold * 0.5) : 0;
+  const bonusXp = victory ? Math.round(adv.xp * 0.5) : 0;
+  const gold = adv.gold + bonusGold;
+  const xp = adv.xp + bonusXp;
+  let loot = null;
+  if (victory) {
+    loot = rpgRollLoot(RPG_ENEMIES[adv.tiers[ADV_WAVES - 1] - 1]);
+    if (loot) rpgState.inventory[loot.id] = (rpgState.inventory[loot.id] || 0) + 1;
+  }
+  const lvl = (gold || xp) ? rpgApplyRewards(gold, xp) : { levelsGained: 0, newLevel: rpgLevelInfo().level };
+  rpgState.stats.advRunsDone = (rpgState.stats.advRunsDone || 0) + 1;
+  if (victory) rpgState.stats.advWins = (rpgState.stats.advWins || 0) + 1;
+  rpgSave();
+  rpgPublishLeaderboard();
+  adv = null;
+  advToken++;
+  $("advQuiz").style.display = "none";
+  $("advQuitBtn").style.display = "none";
+  $("advStartBtn").style.display = "";
+  $("advStage").classList.remove("walking");
+  advUpdateRunsChip();
+  advOverlay(`<div>
+    <h4>${victory ? "🏆 Adventure complete!" : `😵 Overwhelmed on wave ${waveReached}…`}</h4>
+    <p>${victory ? "You marched across the kingdom and defeated every monster!" : "You keep everything you earned — rest up and try again!"}</p>
+    <div class="rpg-reward-stats"><span>🪙 +${gold} gold</span><span>✨ +${xp} XP</span>${victory ? `<span>incl. +50% clear bonus</span>` : ""}</div>
+    ${lvl.levelsGained > 0 ? `<div class="rpg-reward-stats"><span>⬆️ LEVEL UP — now Lv ${lvl.newLevel}!</span></div>` : ""}
+    ${loot ? rpgLootCardHtml(loot) : ""}
+  </div>`);
+}
+function advAbandon(manual = false) {
+  if (!adv) return;
+  if (manual && !confirm("Give up this adventure? You keep the rewards earned so far.")) return;
+  const gold = adv.gold, xp = adv.xp;
+  clearTimeout(adv.timerId);
+  adv = null;
+  advToken++;
+  if (gold || xp) { rpgApplyRewards(gold, xp); rpgSave(); rpgPublishLeaderboard(); }
+  const stage = $("advStage");
+  if (stage) stage.classList.remove("walking");
+  if (document.querySelector("#page-adventure.active")) rpgRenderAdventure();
+  toast(gold || xp ? `Adventure ended — you kept 🪙 ${gold} and ✨ ${xp} XP` : "Adventure ended", "");
+}
+// FX helpers (spawned inside the actor tiles so positioning is free)
+function advFloat(host, text, cls) {
+  const el = document.createElement("span");
+  el.className = "rpg-float " + cls;
+  el.textContent = text;
+  host.appendChild(el);
+  setTimeout(() => el.remove(), 1200);
+}
+function advBurst(host, color) {
+  const b = document.createElement("span");
+  b.className = "adv-burst";
+  b.style.borderColor = color;
+  host.appendChild(b);
+  setTimeout(() => b.remove(), 700);
+}
+function advParticles(host, emoji, n) {
+  for (let i = 0; i < n; i++) {
+    const s = document.createElement("span");
+    s.className = "adv-pop";
+    s.textContent = emoji;
+    if (s.style && s.style.setProperty) {
+      s.style.setProperty("--dx", (Math.random() * 130 - 65).toFixed(0) + "px");
+      s.style.setProperty("--dy", (-(24 + Math.random() * 90)).toFixed(0) + "px");
+      s.style.left = (30 + Math.random() * 36) + "%";
+      s.style.top = (22 + Math.random() * 34) + "%";
+      s.style.animationDelay = (Math.random() * 0.14).toFixed(2) + "s";
+    }
+    host.appendChild(s);
+    setTimeout(() => s.remove(), 1150);
+  }
+}
+function advSlashFx(host, color) {
+  const a = document.createElement("span");
+  a.className = "adv-slash";
+  a.innerHTML = `<svg viewBox="0 0 80 80"><path d="M12 66 A42 42 0 0 1 66 12" fill="none" stroke="${color}" stroke-width="7" stroke-linecap="round" opacity="0.9"/></svg>`;
+  host.appendChild(a);
+  setTimeout(() => a.remove(), 520);
+}
+function advProjectile(fx) {
+  const layer = $("advFx"), stage = $("advStage");
+  if (!layer || !stage) return;
+  const p = document.createElement("span");
+  p.className = "adv-proj";
+  if (p.style) {
+    p.style.background = fx.color;
+    p.style.boxShadow = `0 0 14px 5px ${fx.color}`;
+    p.style.left = "17%";
+    p.style.top = "47%";
+  }
+  layer.appendChild(p);
+  const dist = Math.round((stage.clientWidth || 600) * 0.56);
+  advAnimate(p, [{ transform: "translateX(0) scale(0.7)", opacity: 1 }, { transform: `translateX(${dist}px) scale(1.15)`, opacity: 1 }], { duration: 500, easing: "ease-in" });
+  setTimeout(() => p.remove(), 540);
+}
+
 // ---- Static event wiring ----
 $("rpgSide").addEventListener("click", () => navigateTo("character"));
 $("rpgHideToggle").addEventListener("click", () => rpgSetHidden(!rpgGameHidden()));
 $("rpgBoardRefresh").addEventListener("click", () => rpgRenderLeaderboard(true));
+$("advStartBtn").addEventListener("click", advStart);
+$("advQuitBtn").addEventListener("click", () => advAbandon(true));
+$("advAttackBtn").addEventListener("click", advSubmit);
+$("advAnswer").addEventListener("keydown", e => { if (e.key === "Enter") advSubmit(); });
 document.querySelectorAll("[data-rpgboard]").forEach(b => b.addEventListener("click", () => { rpgBoardTab = b.dataset.rpgboard; rpgRenderLeaderboard(); }));
 $("rpgTopChip").addEventListener("click", () => navigateTo("character"));
 $("rpgRestBtn").addEventListener("click", () => {
