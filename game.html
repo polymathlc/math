@@ -585,6 +585,8 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .adv-foe.stunned .adv-foe-emoji { animation: none; transform: rotate(12deg); opacity: 0.85; }
 .adv-chain { position: absolute; inset: 0; z-index: 6; pointer-events: none; }
 .adv-stage.shake { animation: rpgShake 0.35s ease; }
+.adv-stage.low-hp { box-shadow: inset 0 0 60px 18px rgba(226,60,60,0.45); animation: lowHpPulse 1.1s ease-in-out infinite; }
+@keyframes lowHpPulse { 0%, 100% { box-shadow: inset 0 0 50px 14px rgba(226,60,60,0.35); } 50% { box-shadow: inset 0 0 70px 24px rgba(226,60,60,0.55); } }
 .adv-foe-emoji { display: inline-block; line-height: 1.05; animation: rpgBob 2.2s ease-in-out infinite; filter: drop-shadow(0 5px 7px rgba(0,0,0,0.3)); }
 .adv-foe.dead { animation: advDie 0.8s ease-in forwards; }
 @keyframes advDie { 40% { transform: rotate(16deg); } 100% { transform: translateY(28px) rotate(80deg); opacity: 0; } }
@@ -683,6 +685,16 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .sk-rank { position: absolute; top: 4px; right: 6px; font-family: 'Space Mono', monospace; font-size: 0.56rem; font-weight: 700; color: var(--text-muted); }
 .sk-name { display: block; font-weight: 700; font-size: 0.68rem; line-height: 1.25; margin-top: 3px; }
 .sk-lvl { display: block; font-family: 'Space Mono', monospace; font-size: 0.52rem; color: var(--text-light); margin-top: 1px; }
+.sk-base { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+@media (max-width: 720px) { .sk-base { grid-template-columns: repeat(3, 1fr); } }
+.sk-path-head { font-family: 'Space Mono', monospace; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; padding: 6px 4px; border-radius: 8px; background: var(--surface-alt); border: 1px dashed var(--border); color: var(--text-muted); }
+.sk-path-head.on { background: var(--primary-light); border: 1.5px solid var(--primary); color: var(--primary); }
+.sk-path-head.off { background: #f3f0ea; color: var(--text-light); }
+.sk-col.sealed-col .sk-node { opacity: 0.35; filter: grayscale(0.9); cursor: default; }
+.sk-node.sealed { opacity: 0.35; filter: grayscale(0.9); cursor: default; }
+.sk-node.sk-ks { border-color: var(--accent-orange); background: #fff8ec; }
+.sk-node.sk-ks.maxed { border-color: var(--accent-orange); background: var(--accent-orange-light); }
+.sk-node.sk-cap { border-width: 2px; border-color: var(--accent-purple); }
 @media (max-width: 640px) { .adv-stage { height: 238px; } .adv-hero svg { width: 94px; } .adv-hero { width: 108px; } .adv-bar { width: 86px; } .adv-skill { width: 56px; } .adv-skill-tile { width: 48px; height: 48px; font-size: 23px; } }
 .rpg-gold-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-family: 'Space Mono', monospace; font-size: 0.8rem; color: var(--text-muted); }
 .rpg-gold-row b { color: var(--text); font-size: 0.95rem; }
@@ -4824,11 +4836,19 @@ const RPG_ENEMIES = [
 ].map(e => Object.assign(e, {
   maxHp: 18 + e.tier * 12,
   atk: 3 + e.tier * 2,
-  gold: 12 + e.tier * 9,
+  gold: 15 + e.tier * 10,
   xp: 22 + e.tier * 12,
   lootMax: e.tier <= 2 ? 1 : e.tier <= 4 ? 2 : e.tier <= 6 ? 3 : e.tier <= 8 ? 4 : 5
 }));
 const RPG_ENEMIES_BY_ID = Object.fromEntries(RPG_ENEMIES.map(e => [e.id, e]));
+const RPG_ELITE_AFFIXES = {
+  shielded: { badge: "🛡️", apply: f => { f.shieldHits = 3; } },
+  vampiric: { badge: "🩸", apply: f => { f.vampiric = true; } },
+  hasted: { badge: "⚡", apply: f => { f.atkMs = Math.round(f.atkMs * 0.55); } },
+  splitting: { badge: "🔀", apply: f => { f.splitting = true; } },
+  enraged: { badge: "🔴", apply: f => { f.enraged = true; } },
+  juggernaut: { badge: "💪", apply: f => { f.juggernaut = true; } }
+};
 const RPG_RANGED_ENEMIES = new Set(["witch", "cursed_genie", "wyvern", "restless_ghost", "storm_talon", "web_spinner", "angry_shroom", "lich_lord", "deep_kraken"]);
 function rpgElColor(el) { return { fire: "#ff6b35", ice: "#8fd4ee", nature: "#3a9e5f", shadow: "#9b7fd4", holy: "#ffd76a", arcane: "#b79ae0" }[el] || "#cfd8e3"; }
 
@@ -4845,7 +4865,7 @@ function rpgDefaults() {
     monthKey: null, monthXp: 0, lastMonthKey: null, lastMonthXp: 0, advRuns: null,
     inventory: { wood_sword: 1, cloth_tunic: 1 },
     equipment: { weapon: "wood_sword", shield: null, armor: "cloth_tunic", helmet: null, accessory: null, pet: null },
-    battle: null, upgrades: {}, clazz: null, skills: {},
+    v: 2, battle: null, upgrades: {}, clazz: null, skills: {}, paths: {},
     stats: { wins: 0, defeats: 0, marked: 0, correct: 0, goldEarned: 0 }
   };
 }
@@ -4872,6 +4892,13 @@ function rpgHydrate(saved) {
   st.stats = Object.assign(rpgDefaults().stats, (saved && saved.stats) || {});
   st.upgrades = Object.assign({}, (saved && saved.upgrades) || {});
   st.skills = Object.assign({}, (saved && saved.skills) || {});
+  st.paths = Object.assign({}, (saved && saved.paths) || {});
+  if ((saved && saved.v || 1) < 2) { st.skills = {}; st.paths = {}; st.v = 2; } // tree rework: full free refund
+  Object.keys(st.skills).forEach(id => {
+    const n = RPG_TREE_BY_ID[id];
+    if (!n) delete st.skills[id];
+    else st.skills[id] = Math.min(st.skills[id], n.max);
+  });
   if (st.clazz && !["warrior", "rogue", "mage"].includes(st.clazz)) st.clazz = null;
   if (st.clazz && st.equipment.weapon) {
     const w = RPG_ITEMS_BY_ID[st.equipment.weapon];
@@ -4936,7 +4963,7 @@ function rpgUpgradeLevel(id) {
   return Math.max(0, Math.min(RPG_UPGRADE_MAX, lvl));
 }
 function rpgUpgradeCost(it) {
-  return Math.max(20, Math.round((it.price || 80) * 0.25 * (rpgUpgradeLevel(it.id) + 1)));
+  return Math.max(20, Math.round((it.price || 80) * 0.2 * (rpgUpgradeLevel(it.id) + 1)));
 }
 function rpgItemStats(it) { // effective stats including +N upgrade and class synergy
   const m = 1 + RPG_UPGRADE_STEP * rpgUpgradeLevel(it.id);
@@ -4973,55 +5000,138 @@ const RPG_CLASSES = {
   mage: { name: "Mage", icon: "🔮", desc: "Wielder of the elements. All skills hit 15% harder, staffs and wands gain 10% ATK — spec into Fire, Frost or Arcane." }
 };
 // node: p = passive per-rank stats; a = auto-cast active (mult grows by "per" each rank)
+// node: br = display column (0 base, 1-3 path columns); path = exclusive path id; ks = keystone
+const RPG_PATH_NAMES = {
+  warrior: ["Guardian", "Berserker", "Warlord"],
+  rogue: ["Assassin", "Shadow", "Trickster"],
+  mage: ["Pyromancer", "Cryomancer", "Stormcaller"]
+};
 const RPG_TREE = {
   warrior: [
-    { id: "w_tough", name: "Toughness", icon: "🛡️", br: 0, lvl: 2, max: 5, p: { hp: 6 } },
-    { id: "w_iron", name: "Iron Skin", icon: "🪨", br: 0, lvl: 6, max: 5, req: "w_tough", p: { def: 2 } },
-    { id: "w_stand", name: "Last Stand", icon: "⛨", br: 0, lvl: 14, max: 5, req: "w_iron", p: { hpPct: 0.03 } },
-    { id: "w_jugg", name: "Juggernaut", icon: "🏔️", br: 0, lvl: 30, max: 5, req: "w_stand", p: { def: 3, hp: 10 } },
-    { id: "w_immortal", name: "Immortal", icon: "💎", br: 0, lvl: 55, max: 5, req: "w_jugg", p: { hpPct: 0.05, defPct: 0.04 } },
-    { id: "w_mastery", name: "Weapon Mastery", icon: "⚔️", br: 1, lvl: 4, max: 5, p: { atkPct: 0.03 } },
-    { id: "w_cry", name: "Battle Cry", icon: "📣", br: 1, lvl: 10, max: 5, req: "w_mastery", p: { atkPct: 0.02, defPct: 0.02 } },
-    { id: "w_slam", name: "Shield Slam", icon: "💥", br: 1, lvl: 8, max: 3, req: "w_mastery", a: { kind: "hit", mult: 1.5, per: 0.35, stun: true, cd: 11 } },
-    { id: "w_whirl", name: "Whirlwind", icon: "🌪️", br: 2, lvl: 16, max: 3, req: "w_slam", a: { kind: "aoe", mult: 1.1, per: 0.25, cd: 12 } },
-    { id: "w_berserk", name: "Berserk", icon: "😤", br: 2, lvl: 28, max: 3, req: "w_whirl", a: { kind: "hit", mult: 2.0, per: 0.4, cd: 13 } },
-    { id: "w_titan", name: "Titan's Wrath", icon: "⚡", br: 2, lvl: 50, max: 3, req: "w_berserk", a: { kind: "aoe", mult: 1.8, per: 0.35, stun: true, cd: 14, vfx: "sky", element: "arcane" } },
-    { id: "w_avatar", name: "Avatar of War", icon: "🔱", br: 2, lvl: 90, max: 1, req: "w_titan", a: { kind: "aoe", mult: 3.0, per: 0, pierce: true, stun: true, cd: 16 } }
+    { id: "w_train", name: "Warrior Training", icon: "⚔️", br: 0, lvl: 2, max: 5, p: { atkPct: 0.02 } },
+    { id: "w_tough", name: "Toughness", icon: "🛡️", br: 0, lvl: 3, max: 5, p: { hp: 6 } },
+    { id: "w_iron", name: "Iron Skin", icon: "🪨", br: 0, lvl: 5, max: 5, req: "w_tough", p: { def: 2 } },
+    { id: "w_grit", name: "Grit", icon: "💪", br: 0, lvl: 7, max: 5, req: "w_train", p: { hpPct: 0.02 } },
+    { id: "w_disc", name: "Discipline", icon: "📘", br: 0, lvl: 9, max: 5, req: "w_iron", p: { defPct: 0.03 } },
+    { id: "w_vet", name: "Veteran", icon: "🎖️", br: 0, lvl: 12, max: 5, req: "w_grit", p: { atk: 2 } },
+    { id: "g_wall", name: "Shield Wall", icon: "🧱", br: 1, path: 1, lvl: 10, max: 5, p: { def: 2, hp: 4 } },
+    { id: "g_thorns", name: "Thorned Armor", icon: "🌹", br: 1, path: 1, lvl: 14, max: 3, req: "g_wall", p: { thorns: 0.1 } },
+    { id: "g_slam", name: "Shield Slam", icon: "💥", br: 1, path: 1, lvl: 16, max: 3, req: "g_wall", a: { kind: "hit", mult: 1.4, per: 0.3, stun: true, cd: 11 } },
+    { id: "g_bulwark", name: "Bulwark", icon: "🔒", br: 1, path: 1, lvl: 22, max: 5, req: "g_thorns", p: { defPct: 0.05 } },
+    { id: "g_vital", name: "Vitality", icon: "❤️", br: 1, path: 1, lvl: 28, max: 5, req: "g_slam", p: { hpPct: 0.04 } },
+    { id: "g_ks", name: "Guardian Stone", icon: "💎", br: 1, path: 1, lvl: 35, max: 1, ks: true, req: "g_bulwark", p: { defPct: 0.3, hpPct: 0.15, atkPct: -0.2 } },
+    { id: "g_ring", name: "Ring of Steel", icon: "⚡", br: 1, path: 1, lvl: 42, max: 3, req: "g_ks", a: { kind: "aoe", mult: 1.1, per: 0.25, stun: true, cd: 13 } },
+    { id: "g_fort", name: "Fortress", icon: "🏰", br: 1, path: 1, lvl: 55, max: 5, req: "g_ring", p: { def: 3, hp: 8 } },
+    { id: "g_anchor", name: "Unmoving Anchor", icon: "⚓", br: 1, path: 1, lvl: 70, max: 5, req: "g_fort", p: { hpPct: 0.05 } },
+    { id: "g_cap", name: "Unbreakable", icon: "✨", br: 1, path: 1, lvl: 90, max: 1, req: "g_anchor", a: { kind: "aoe", mult: 2.2, per: 0, pierce: true, healPct: 0.25, cd: 16 } },
+    { id: "b_fury", name: "Fury", icon: "😤", br: 2, path: 2, lvl: 10, max: 5, p: { atkPct: 0.04 } },
+    { id: "b_crit", name: "Sharpened Edge", icon: "⚡", br: 2, path: 2, lvl: 14, max: 5, req: "b_fury", p: { crit: 2 } },
+    { id: "b_whirl", name: "Whirlwind", icon: "🌪️", br: 2, path: 2, lvl: 16, max: 3, req: "b_fury", a: { kind: "aoe", mult: 1.0, per: 0.25, cd: 11 } },
+    { id: "b_blood", name: "Blood Rage", icon: "🩸", br: 2, path: 2, lvl: 22, max: 5, req: "b_crit", p: { critMult: 0.08 } },
+    { id: "b_leech", name: "Savage Feast", icon: "🧛", br: 2, path: 2, lvl: 28, max: 3, req: "b_whirl", p: { leechPct: 0.02 } },
+    { id: "b_ks", name: "Berserk Fury", icon: "😡", br: 2, path: 2, lvl: 35, max: 1, ks: true, req: "b_blood", p: { atkPct: 0.45, hpPct: -0.25 } },
+    { id: "b_exec", name: "Executioner", icon: "🪓", br: 2, path: 2, lvl: 42, max: 3, req: "b_ks", a: { kind: "hit", mult: 2.0, per: 0.4, exec: true, cd: 12 } },
+    { id: "b_rampage", name: "Rampage", icon: "💥", br: 2, path: 2, lvl: 55, max: 3, req: "b_exec", a: { kind: "aoe", mult: 1.5, per: 0.3, cd: 13 } },
+    { id: "b_edge", name: "Deathbringer", icon: "🗡️", br: 2, path: 2, lvl: 70, max: 5, req: "b_rampage", p: { atkPct: 0.03, critMult: 0.05 } },
+    { id: "b_cap", name: "Warlord's End", icon: "🔥", br: 2, path: 2, lvl: 90, max: 1, req: "b_edge", a: { kind: "hit", mult: 3.5, per: 0, pierce: true, exec: true, cd: 15 } },
+    { id: "t_tactics", name: "Tactics", icon: "📊", br: 3, path: 3, lvl: 10, max: 5, p: { atkPct: 0.02, defPct: 0.02 } },
+    { id: "t_banner", name: "Rally Banner", icon: "🚩", br: 3, path: 3, lvl: 14, max: 3, req: "t_tactics", a: { kind: "heal", pct: 0.1, per: 0.04, cd: 12 } },
+    { id: "t_sweep", name: "Sweeping Blow", icon: "🌊", br: 3, path: 3, lvl: 16, max: 3, req: "t_tactics", a: { kind: "aoe", mult: 1.0, per: 0.2, cd: 10 } },
+    { id: "t_drill", name: "Drillmaster", icon: "🎺", br: 3, path: 3, lvl: 22, max: 5, req: "t_banner", p: { cdr: 0.02 } },
+    { id: "t_loot", name: "Spoils of War", icon: "💰", br: 3, path: 3, lvl: 28, max: 5, req: "t_sweep", p: { goldPct: 0.03 } },
+    { id: "t_ks", name: "Commander's Oath", icon: "👑", br: 3, path: 3, lvl: 35, max: 1, ks: true, req: "t_drill", p: { cdr: 0.1, goldPct: 0.15, hpPct: -0.15 } },
+    { id: "t_volley", name: "War Volley", icon: "🏹", br: 3, path: 3, lvl: 42, max: 3, req: "t_ks", a: { kind: "chain", mult: 1.0, per: 0.25, jumps: 3, cd: 13 } },
+    { id: "t_inspire", name: "Inspire", icon: "📈", br: 3, path: 3, lvl: 55, max: 5, req: "t_volley", p: { atkPct: 0.03, spellPct: 0.03 } },
+    { id: "t_phalanx", name: "Phalanx", icon: "⚔️", br: 3, path: 3, lvl: 70, max: 5, req: "t_inspire", p: { def: 2, cdr: 0.01 } },
+    { id: "t_cap", name: "Field Marshal", icon: "🏆", br: 3, path: 3, lvl: 90, max: 1, req: "t_phalanx", a: { kind: "aoe", mult: 2.4, per: 0, stun: true, cd: 16 } }
   ],
   rogue: [
     { id: "r_eye", name: "Keen Eye", icon: "👁️", br: 0, lvl: 2, max: 5, p: { crit: 2 } },
-    { id: "r_precision", name: "Deadly Precision", icon: "🎯", br: 0, lvl: 8, max: 5, req: "r_eye", p: { critMult: 0.06 } },
-    { id: "r_poison", name: "Poison Blades", icon: "☠️", br: 0, lvl: 12, max: 3, req: "r_precision", p: { poisonOnHit: 1 } },
-    { id: "r_mark", name: "Death Mark", icon: "💀", br: 0, lvl: 55, max: 3, req: "r_poison", a: { kind: "hit", mult: 2.2, per: 0.4, pierce: true, poison: true, cd: 13 } },
-    { id: "r_foot", name: "Light Footed", icon: "🪶", br: 1, lvl: 4, max: 5, req: "r_eye", p: { dodge: 2 } },
-    { id: "r_knives", name: "Fan of Knives", icon: "🔪", br: 1, lvl: 16, max: 3, req: "r_foot", a: { kind: "aoe", mult: 1.0, per: 0.25, cd: 11 } },
-    { id: "r_shadowstep", name: "Shadowstep", icon: "🌫️", br: 1, lvl: 20, max: 3, req: "r_knives", a: { kind: "hit", mult: 1.7, per: 0.4, pierce: true, cd: 10 } },
-    { id: "r_phantom", name: "Phantom", icon: "👻", br: 1, lvl: 70, max: 5, req: "r_shadowstep", p: { dodge: 2, critMult: 0.04 } },
-    { id: "r_lucky", name: "Lucky Strike", icon: "🍀", br: 2, lvl: 10, max: 5, p: { goldPct: 0.02 } },
-    { id: "r_ambush", name: "Ambush", icon: "🗡️", br: 2, lvl: 32, max: 3, req: "r_lucky", a: { kind: "hit", mult: 2.2, per: 0.4, exec: true, cd: 12 } },
-    { id: "r_thief", name: "Master Thief", icon: "💰", br: 2, lvl: 44, max: 5, req: "r_lucky", p: { goldPct: 0.03, crit: 1 } },
-    { id: "r_cuts", name: "Thousand Cuts", icon: "🌀", br: 2, lvl: 90, max: 1, req: "r_ambush", a: { kind: "multi", mult: 1.0, per: 0, hits: 5, cd: 16 } }
+    { id: "r_foot", name: "Light Footed", icon: "🪶", br: 0, lvl: 3, max: 5, p: { dodge: 2 } },
+    { id: "r_precision", name: "Deadly Precision", icon: "🎯", br: 0, lvl: 5, max: 5, req: "r_eye", p: { critMult: 0.05 } },
+    { id: "r_reflex", name: "Combat Reflex", icon: "⚡", br: 0, lvl: 7, max: 5, req: "r_foot", p: { cdr: 0.015 } },
+    { id: "r_tools", name: "Tools of the Trade", icon: "🗡️", br: 0, lvl: 9, max: 5, req: "r_precision", p: { atk: 2 } },
+    { id: "r_insight", name: "Criminal Insight", icon: "💡", br: 0, lvl: 12, max: 5, req: "r_reflex", p: { crit: 1, dodge: 1 } },
+    { id: "a_stalk", name: "Stalker", icon: "🐾", br: 1, path: 1, lvl: 10, max: 5, p: { crit: 1, critMult: 0.04 } },
+    { id: "a_mark", name: "Death Mark", icon: "💀", br: 1, path: 1, lvl: 14, max: 3, req: "a_stalk", a: { kind: "hit", mult: 2.0, per: 0.35, pierce: true, poison: true, cd: 13 } },
+    { id: "a_shadowalk", name: "Shadow Walk", icon: "🌫️", br: 1, path: 1, lvl: 18, max: 5, req: "a_stalk", p: { critMult: 0.06, dodge: 1 } },
+    { id: "a_blade", name: "Swift Blades", icon: "⚔️", br: 1, path: 1, lvl: 24, max: 3, req: "a_mark", a: { kind: "multi", mult: 1.1, per: 0.2, hits: 3, cd: 12 } },
+    { id: "a_predator", name: "Predator", icon: "🦅", br: 1, path: 1, lvl: 30, max: 5, req: "a_shadowalk", p: { crit: 2, critMult: 0.05 } },
+    { id: "a_ks", name: "Bloodlust", icon: "💉", br: 1, path: 1, lvl: 35, max: 1, ks: true, req: "a_predator", p: { critMult: 0.6, crit: 10, dodge: -8 } },
+    { id: "a_deathblow", name: "Deathblow", icon: "🔪", br: 1, path: 1, lvl: 42, max: 3, req: "a_ks", a: { kind: "hit", mult: 2.4, per: 0.4, exec: true, cd: 11 } },
+    { id: "a_crimson", name: "Crimson Edge", icon: "🩸", br: 1, path: 1, lvl: 55, max: 5, req: "a_deathblow", p: { critMult: 0.08 } },
+    { id: "a_momentum", name: "Momentum", icon: "🌀", br: 1, path: 1, lvl: 70, max: 5, req: "a_crimson", p: { atkPct: 0.04 } },
+    { id: "a_cap", name: "Execution", icon: "☠️", br: 1, path: 1, lvl: 90, max: 1, req: "a_momentum", a: { kind: "hit", mult: 4.0, per: 0, exec: true, pierce: true, cd: 18 } },
+    { id: "s_venom", name: "Envenom", icon: "☠️", br: 2, path: 2, lvl: 10, max: 5, p: { poisonOnHit: 1 } },
+    { id: "s_phantasm", name: "Phantasm", icon: "👻", br: 2, path: 2, lvl: 14, max: 5, req: "s_venom", p: { dodge: 2 } },
+    { id: "s_strike", name: "Venom Strike", icon: "🐍", br: 2, path: 2, lvl: 18, max: 3, req: "s_venom", a: { kind: "hit", mult: 1.6, per: 0.3, poison: true, cd: 10 } },
+    { id: "s_toxin", name: "Toxic Mastery", icon: "🧪", br: 2, path: 2, lvl: 24, max: 5, req: "s_strike", p: { poisonOnHit: 1, spellPct: 0.02 } },
+    { id: "s_clone", name: "Shadow Clone", icon: "🌑", br: 2, path: 2, lvl: 30, max: 5, req: "s_phantasm", p: { dodge: 2, defPct: 0.03 } },
+    { id: "s_ks", name: "Death Coil", icon: "💀", br: 2, path: 2, lvl: 35, max: 1, ks: true, req: "s_toxin", p: { poisonOnHit: 3, spellPct: 0.15, atkPct: -0.15 } },
+    { id: "s_nova", name: "Toxin Nova", icon: "🟢", br: 2, path: 2, lvl: 42, max: 3, req: "s_ks", a: { kind: "aoe", mult: 1.3, per: 0.25, poison: true, cd: 12 } },
+    { id: "s_plague", name: "Plague Bearer", icon: "🦠", br: 2, path: 2, lvl: 55, max: 5, req: "s_nova", p: { poisonOnHit: 1, dodge: 1 } },
+    { id: "s_mirage", name: "Mirage", icon: "✨", br: 2, path: 2, lvl: 70, max: 5, req: "s_plague", p: { dodge: 2, critMult: 0.04 } },
+    { id: "s_cap", name: "Nightfall", icon: "🌙", br: 2, path: 2, lvl: 90, max: 1, req: "s_mirage", a: { kind: "aoe", mult: 2.2, per: 0, poison: true, lifesteal: 0.25, cd: 16 } },
+    { id: "k_lucky", name: "Lucky Strike", icon: "🍀", br: 3, path: 3, lvl: 10, max: 5, p: { goldPct: 0.03, crit: 1 } },
+    { id: "k_gambit", name: "Gambit", icon: "🎲", br: 3, path: 3, lvl: 14, max: 5, req: "k_lucky", p: { crit: 2, dodge: 1 } },
+    { id: "k_volley", name: "Rapid Volley", icon: "🏹", br: 3, path: 3, lvl: 18, max: 3, req: "k_lucky", a: { kind: "volley", mult: 0.9, per: 0.2, hits: 5, cd: 11 } },
+    { id: "k_thief", name: "Master Thief", icon: "💰", br: 3, path: 3, lvl: 24, max: 5, req: "k_gambit", p: { goldPct: 0.05 } },
+    { id: "k_trickshot", name: "Trick Shot", icon: "🎪", br: 3, path: 3, lvl: 30, max: 3, req: "k_volley", a: { kind: "chain", mult: 1.1, per: 0.25, jumps: 2, cd: 12 } },
+    { id: "k_ks", name: "Jackpot", icon: "🎰", br: 3, path: 3, lvl: 35, max: 1, ks: true, req: "k_thief", p: { goldPct: 0.35, crit: 6, hpPct: -0.15 } },
+    { id: "k_cut", name: "Cutthroat", icon: "🔪", br: 3, path: 3, lvl: 42, max: 3, req: "k_ks", a: { kind: "hit", mult: 1.9, per: 0.35, cd: 10 } },
+    { id: "k_bonanza", name: "Bonanza", icon: "💎", br: 3, path: 3, lvl: 55, max: 5, req: "k_cut", p: { goldPct: 0.04, atkPct: 0.03 } },
+    { id: "k_fortune", name: "Fortune's Favor", icon: "🌟", br: 3, path: 3, lvl: 70, max: 5, req: "k_bonanza", p: { crit: 3 } },
+    { id: "k_cap", name: "Grand Heist", icon: "💸", br: 3, path: 3, lvl: 90, max: 1, req: "k_fortune", a: { kind: "volley", mult: 1.2, per: 0, hits: 8, cd: 15 } }
   ],
   mage: [
     { id: "m_intellect", name: "Arcane Intellect", icon: "📖", br: 0, lvl: 2, max: 5, p: { spellPct: 0.03 } },
-    { id: "m_firebolt", name: "Firebolt", icon: "🔥", br: 0, lvl: 8, max: 3, req: "m_intellect", a: { kind: "hit", mult: 1.5, per: 0.3, burn: true, element: "fire", cd: 9 } },
-    { id: "m_pyro", name: "Pyromania", icon: "🕯️", br: 0, lvl: 14, max: 3, req: "m_firebolt", p: { spellPct: 0.05 } },
-    { id: "m_meteor", name: "Meteor", icon: "☄️", br: 0, lvl: 30, max: 3, req: "m_pyro", a: { kind: "aoe", mult: 1.7, per: 0.3, burn: true, element: "fire", cd: 14, vfx: "shower" } },
-    { id: "m_shield", name: "Mana Shield", icon: "🔵", br: 1, lvl: 4, max: 5, req: "m_intellect", p: { hp: 5 } },
-    { id: "m_icelance", name: "Ice Lance", icon: "❄️", br: 1, lvl: 8, max: 3, req: "m_shield", a: { kind: "hit", mult: 1.6, per: 0.3, chill: true, element: "ice", cd: 9 } },
-    { id: "m_freeze", name: "Deep Freeze", icon: "🧊", br: 1, lvl: 14, max: 3, req: "m_icelance", p: { def: 2 } },
-    { id: "m_avalanche", name: "Avalanche", icon: "🌨️", br: 1, lvl: 30, max: 3, req: "m_freeze", a: { kind: "aoe", mult: 1.5, per: 0.3, chill: true, element: "ice", cd: 14, vfx: "shower" } },
-    { id: "m_missiles", name: "Arcane Missiles", icon: "💫", br: 2, lvl: 20, max: 3, req: "m_intellect", a: { kind: "multi", mult: 0.8, per: 0.15, hits: 3, element: "arcane", cd: 11 } },
-    { id: "m_warp", name: "Time Warp", icon: "⏳", br: 2, lvl: 40, max: 5, req: "m_missiles", p: { cdr: 0.04 } },
-    { id: "m_archmage", name: "Archmage", icon: "🧙", br: 2, lvl: 60, max: 5, req: "m_warp", p: { spellPct: 0.04 } },
-    { id: "m_singularity", name: "Singularity", icon: "🌌", br: 2, lvl: 90, max: 1, req: "m_archmage", a: { kind: "aoe", mult: 2.6, per: 0, lifesteal: 0.3, element: "arcane", cd: 16 } }
+    { id: "m_shield", name: "Mana Shield", icon: "🔵", br: 0, lvl: 3, max: 5, p: { hp: 5 } },
+    { id: "m_focus", name: "Focus", icon: "⚡", br: 0, lvl: 5, max: 5, req: "m_intellect", p: { crit: 1, cdr: 0.01 } },
+    { id: "m_runes", name: "Runecraft", icon: "🔣", br: 0, lvl: 7, max: 5, req: "m_shield", p: { spellPct: 0.02, crit: 1 } },
+    { id: "m_ward", name: "Warding", icon: "🛡️", br: 0, lvl: 9, max: 5, req: "m_focus", p: { def: 1, hp: 3 } },
+    { id: "m_clarity", name: "Clarity", icon: "💧", br: 0, lvl: 12, max: 5, req: "m_runes", p: { cdr: 0.02 } },
+    { id: "p_spark", name: "Kindling", icon: "🔥", br: 1, path: 1, lvl: 10, max: 5, p: { spellPct: 0.03 } },
+    { id: "p_bolt", name: "Firebolt", icon: "🔥", br: 1, path: 1, lvl: 14, max: 3, req: "p_spark", a: { kind: "hit", mult: 1.5, per: 0.3, burn: true, element: "fire", cd: 9 } },
+    { id: "p_pyro", name: "Pyromania", icon: "🕯️", br: 1, path: 1, lvl: 18, max: 5, req: "p_spark", p: { spellPct: 0.04 } },
+    { id: "p_burnout", name: "Burnout", icon: "♨️", br: 1, path: 1, lvl: 24, max: 5, req: "p_bolt", p: { crit: 2 } },
+    { id: "p_meteor", name: "Meteor", icon: "☄️", br: 1, path: 1, lvl: 30, max: 3, req: "p_pyro", a: { kind: "aoe", mult: 1.6, per: 0.3, burn: true, element: "fire", cd: 14, vfx: "shower" } },
+    { id: "p_ks", name: "Combustion", icon: "💥", br: 1, path: 1, lvl: 35, max: 1, ks: true, req: "p_meteor", p: { spellPct: 0.3, defPct: -0.2 } },
+    { id: "p_inferno", name: "Inferno", icon: "🌋", br: 1, path: 1, lvl: 42, max: 3, req: "p_ks", a: { kind: "aoe", mult: 1.9, per: 0.3, burn: true, element: "fire", cd: 13, vfx: "sky" } },
+    { id: "p_blaze", name: "Blaze Mastery", icon: "🔆", br: 1, path: 1, lvl: 55, max: 5, req: "p_inferno", p: { spellPct: 0.04 } },
+    { id: "p_phoenix", name: "Phoenix Heart", icon: "🐦", br: 1, path: 1, lvl: 70, max: 5, req: "p_blaze", p: { hpPct: 0.04, spellPct: 0.02 } },
+    { id: "p_cap", name: "Cataclysm", icon: "🌠", br: 1, path: 1, lvl: 90, max: 1, req: "p_phoenix", a: { kind: "aoe", mult: 3.0, per: 0, burn: true, element: "fire", cd: 17, vfx: "sky" } },
+    { id: "c_lance", name: "Ice Lance", icon: "❄️", br: 2, path: 2, lvl: 10, max: 3, a: { kind: "hit", mult: 1.5, per: 0.3, chill: true, element: "ice", cd: 9 } },
+    { id: "c_frost", name: "Permafrost", icon: "🧊", br: 2, path: 2, lvl: 14, max: 5, req: "c_lance", p: { def: 2 } },
+    { id: "c_bite", name: "Frostbite", icon: "🥶", br: 2, path: 2, lvl: 18, max: 5, req: "c_lance", p: { spellPct: 0.03 } },
+    { id: "c_dance", name: "Winter's Dance", icon: "💃", br: 2, path: 2, lvl: 24, max: 5, req: "c_frost", p: { dodge: 2 } },
+    { id: "c_avalanche", name: "Avalanche", icon: "🌨️", br: 2, path: 2, lvl: 30, max: 3, req: "c_bite", a: { kind: "aoe", mult: 1.5, per: 0.3, chill: true, element: "ice", cd: 14, vfx: "shower" } },
+    { id: "c_ks", name: "Absolute Zero", icon: "🧿", br: 2, path: 2, lvl: 35, max: 1, ks: true, req: "c_avalanche", p: { crit: 8, critMult: 0.3, hpPct: -0.15 } },
+    { id: "c_glaciate", name: "Glaciate", icon: "💠", br: 2, path: 2, lvl: 42, max: 3, req: "c_ks", a: { kind: "chain", mult: 1.5, per: 0.3, jumps: 3, chill: true, element: "ice", cd: 13 } },
+    { id: "c_mastery", name: "Ice Mastery", icon: "❄️", br: 2, path: 2, lvl: 55, max: 5, req: "c_glaciate", p: { spellPct: 0.04 } },
+    { id: "c_armor", name: "Glacial Armor", icon: "🛡️", br: 2, path: 2, lvl: 70, max: 5, req: "c_mastery", p: { def: 2, hpPct: 0.03 } },
+    { id: "c_cap", name: "Eternal Winter", icon: "🌌", br: 2, path: 2, lvl: 90, max: 1, req: "c_armor", a: { kind: "aoe", mult: 2.6, per: 0, chill: true, element: "ice", cd: 17, vfx: "shower" } },
+    { id: "st_missiles", name: "Arcane Missiles", icon: "💫", br: 3, path: 3, lvl: 10, max: 3, a: { kind: "multi", mult: 0.8, per: 0.15, hits: 3, element: "arcane", cd: 11 } },
+    { id: "st_amp", name: "Amplify", icon: "🔮", br: 3, path: 3, lvl: 14, max: 5, req: "st_missiles", p: { spellPct: 0.04 } },
+    { id: "st_surge", name: "Static Surge", icon: "⚡", br: 3, path: 3, lvl: 18, max: 5, req: "st_missiles", p: { crit: 2 } },
+    { id: "st_torrent", name: "Arcane Torrent", icon: "🌀", br: 3, path: 3, lvl: 24, max: 3, req: "st_amp", a: { kind: "volley", mult: 1.0, per: 0.2, hits: 4, element: "arcane", cd: 13 } },
+    { id: "st_tempo", name: "Tempo", icon: "⏱️", br: 3, path: 3, lvl: 30, max: 5, req: "st_surge", p: { cdr: 0.02 } },
+    { id: "st_ks", name: "Overcharge", icon: "🔋", br: 3, path: 3, lvl: 35, max: 1, ks: true, req: "st_tempo", p: { cdr: 0.15, spellPct: 0.15, hpPct: -0.2 } },
+    { id: "st_lance", name: "Storm Lance", icon: "🌩️", br: 3, path: 3, lvl: 42, max: 3, req: "st_ks", a: { kind: "pierce", mult: 2.0, per: 0.35, element: "arcane", cd: 12 } },
+    { id: "st_mastery", name: "Storm Mastery", icon: "🧙", br: 3, path: 3, lvl: 55, max: 5, req: "st_lance", p: { spellPct: 0.04, cdr: 0.01 } },
+    { id: "st_echo", name: "Echoing Power", icon: "📡", br: 3, path: 3, lvl: 70, max: 5, req: "st_mastery", p: { critMult: 0.06 } },
+    { id: "st_cap", name: "Singularity", icon: "🌌", br: 3, path: 3, lvl: 90, max: 1, req: "st_echo", a: { kind: "aoe", mult: 2.8, per: 0, lifesteal: 0.4, element: "arcane", cd: 17, vfx: "sky" } }
   ]
 };
 const RPG_TREE_BY_ID = {};
 Object.keys(RPG_TREE).forEach(c => RPG_TREE[c].forEach(n => { n.clazz = c; RPG_TREE_BY_ID[n.id] = n; }));
 function rpgSkillRank(id) { return (rpgState && rpgState.skills && rpgState.skills[id]) || 0; }
 function rpgSkillPointsSpent() { return rpgState ? Object.values(rpgState.skills || {}).reduce((a, b) => a + b, 0) : 0; }
-function rpgSkillPoints() { return Math.max(0, rpgLevelInfo().level - 1 - rpgSkillPointsSpent()); }
+function rpgSkillPointsEarned() {
+  const L = rpgLevelInfo().level;
+  return Math.min(L - 1, 30) + Math.max(0, Math.floor((L - 30) / 2));
+}
+function rpgSkillPoints() { return Math.max(0, rpgSkillPointsEarned() - rpgSkillPointsSpent()); }
+function rpgPathOf(clazz) { return (rpgState && rpgState.paths && rpgState.paths[clazz]) || 0; }
 function rpgTreePassives() {
   const out = {};
   if (!rpgState || !rpgState.clazz) return out;
@@ -5089,6 +5199,16 @@ function rpgSkillUp(id) {
   if (rpgLevelInfo().level < n.lvl) { toast(`Requires hero level ${n.lvl}`, "error"); return; }
   if (n.req && rpgSkillRank(n.req) < 1) { toast(`Learn ${RPG_TREE_BY_ID[n.req].name} first`, "error"); return; }
   if (rpgSkillPoints() < 1) { toast("No skill points — level up by earning XP!", "error"); return; }
+  if (n.path) {
+    const cur = rpgPathOf(rpgState.clazz);
+    if (cur && cur !== n.path) { toast(`That path is sealed — you walk the ${RPG_PATH_NAMES[rpgState.clazz][cur - 1]} path!`, "error"); return; }
+    if (!cur) {
+      const pn = RPG_PATH_NAMES[rpgState.clazz][n.path - 1];
+      if (!confirm(`Walk the path of the ${pn}? The other two paths will be LOCKED until you refund your points. This defines your build!`)) return;
+      rpgState.paths[rpgState.clazz] = n.path;
+      toast(`🛤️ You walk the path of the ${pn}!`, "success");
+    }
+  }
   rpgState.skills[id] = r + 1;
   rpgSave();
   rpgRenderCharacterPage();
@@ -5096,32 +5216,41 @@ function rpgSkillUp(id) {
   toast(`${n.icon} ${n.name} → rank ${r + 1}`, "success");
 }
 function rpgResetSkills() {
-  if (!rpgState || !confirm("Refund all skill points?")) return;
+  if (!rpgState || !confirm("Refund all skill points? Your path choice is also unsealed.")) return;
   rpgState.skills = {};
+  if (rpgState.clazz) delete rpgState.paths[rpgState.clazz];
   rpgSave();
   rpgRenderCharacterPage();
   toast("Skill points refunded", "success");
 }
 function rpgPassiveDesc(p) {
+  const sg = v => (v > 0 ? "+" : "") + v;
   const L = [];
-  if (p.atk) L.push(`+${p.atk} ATK`);
-  if (p.def) L.push(`+${p.def} DEF`);
-  if (p.hp) L.push(`+${p.hp} HP`);
-  if (p.crit) L.push(`+${p.crit}% CRIT`);
-  if (p.atkPct) L.push(`+${Math.round(p.atkPct * 100)}% ATK`);
-  if (p.defPct) L.push(`+${Math.round(p.defPct * 100)}% DEF`);
-  if (p.hpPct) L.push(`+${Math.round(p.hpPct * 100)}% max HP`);
-  if (p.critMult) L.push(`+${p.critMult.toFixed(2)}× crit damage`);
-  if (p.dodge) L.push(`+${p.dodge}% dodge`);
-  if (p.goldPct) L.push(`+${Math.round(p.goldPct * 100)}% gold`);
-  if (p.spellPct) L.push(`+${Math.round(p.spellPct * 100)}% skill power`);
+  if (p.atk) L.push(`${sg(p.atk)} ATK`);
+  if (p.def) L.push(`${sg(p.def)} DEF`);
+  if (p.hp) L.push(`${sg(p.hp)} HP`);
+  if (p.crit) L.push(`${sg(p.crit)}% CRIT`);
+  if (p.atkPct) L.push(`${sg(Math.round(p.atkPct * 100))}% ATK`);
+  if (p.defPct) L.push(`${sg(Math.round(p.defPct * 100))}% DEF`);
+  if (p.hpPct) L.push(`${sg(Math.round(p.hpPct * 100))}% max HP`);
+  if (p.critMult) L.push(`${sg(Math.round(p.critMult * 100) / 100)}× crit damage`);
+  if (p.dodge) L.push(`${sg(p.dodge)}% dodge`);
+  if (p.goldPct) L.push(`${sg(Math.round(p.goldPct * 100))}% gold`);
+  if (p.spellPct) L.push(`${sg(Math.round(p.spellPct * 100))}% skill power`);
   if (p.cdr) L.push(`-${Math.round(p.cdr * 100)}% cooldowns`);
+  if (p.thorns) L.push(`reflect ${Math.round(p.thorns * 100)}% of damage taken`);
+  if (p.leechPct) L.push(`heal ${Math.round(p.leechPct * 100)}% of attack damage`);
   if (p.poisonOnHit) L.push("basic attacks poison");
   return L.join(", ") + " per rank";
 }
 
 // ---- Derived stats ----
-function rpgXpToNext(level) { return 60 + (level - 1) * 45; }
+function rpgXpToNext(level) {
+  // fast hook to 30, steady to 70, aspirational to 99 (~a school year)
+  if (level <= 30) return 40 + level * 14;
+  if (level <= 70) return 460 + (level - 30) * 40;
+  return 2060 + (level - 70) * 120;
+}
 function rpgLevelInfo() {
   let level = 1, rem = Math.max(0, rpgState ? rpgState.xp : 0);
   while (level < 99 && rem >= rpgXpToNext(level)) { rem -= rpgXpToNext(level); level++; }
@@ -5162,12 +5291,14 @@ function rpgPlayerStats() {
   if (tp.hpPct) hp = Math.round(hp * (1 + tp.hpPct));
   critMult += tp.critMult || 0;
   dodge += tp.dodge || 0;
+  const thorns = tp.thorns || 0;
+  const leechPct = tp.leechPct || 0;
   goldPct += tp.goldPct || 0;
   spellPct += tp.spellPct || 0;
   cdr += tp.cdr || 0;
   poisonOnHit += tp.poisonOnHit || 0;
-  return { level, atk, def, crit: Math.min(75, crit), maxHp: hp, goldPct,
-    critMult: Math.round(critMult * 100) / 100, dodge: Math.min(35, dodge), spellPct, cdr: Math.min(0.35, cdr), poisonOnHit };
+  return { level, atk: Math.max(1, atk), def: Math.max(0, def), crit: Math.min(75, Math.max(0, crit)), maxHp: Math.max(10, hp), goldPct,
+    critMult: Math.round(critMult * 100) / 100, dodge: Math.min(35, Math.max(0, dodge)), spellPct, cdr: Math.min(0.4, cdr), poisonOnHit, thorns, leechPct };
 }
 function rpgStatLine(it) {
   const s = rpgItemStats(it);
@@ -5387,7 +5518,7 @@ function rpgOnMarked(q, v, opts = {}) {
   const diff = questionDifficultyRating(q || {});
   const boost = aiPracticeActive ? 1.25 : 1; // growth-zone practice pays more
   const repeatAttempt = !opts.simulated && q && studentProgress[q.id] && (studentProgress[q.id].attempts || 0) > 1;
-  let gold = Math.round((5 + diff / 120) * credit * boost);
+  let gold = Math.round((6 + diff / 100) * credit * boost);
   let xp = Math.round((16 + diff / 45) * credit * boost);
   if (credit <= 0) { gold = 0; xp = 3; } // effort XP — progress never stalls completely
   if (repeatAttempt) { gold = Math.round(gold * 0.4); xp = Math.round(xp * 0.5); }
@@ -5720,7 +5851,7 @@ function rpgRenderTab() {
     body.innerHTML = goldRow + rpgShopFilterHtml() + `<div class="rpg-grid">${sorted.map(it => rpgItemCardHtml(it, "shop")).join("")}</div>`;
   }
 }
-const RPG_PACK_COST = 300;
+const RPG_PACK_COST = 275;
 const RPG_PACK_RATES = [["mythic", 1], ["legendary", 5], ["epic", 10], ["rare", 22], ["uncommon", 27], ["common", 35]];
 let rpgPackToken = 0;
 function rpgSkillsTabHtml() {
@@ -5737,31 +5868,47 @@ function rpgSkillsTabHtml() {
   const c = RPG_CLASSES[rpgState.clazz];
   const level = rpgLevelInfo().level;
   const nodes = RPG_TREE[rpgState.clazz];
-  const cols = [[], [], []];
-  nodes.forEach(n => cols[n.br].push(n));
-  const colHtml = cols.map(list => `<div class="sk-col">` + list.sort((a, b) => a.lvl - b.lvl).map(n => {
+  const chosen = rpgPathOf(rpgState.clazz);
+  const nodeHtml = n => {
     const r = rpgSkillRank(n.id);
     const reqOk = !n.req || rpgSkillRank(n.req) > 0;
     const lvlOk = level >= n.lvl;
-    const state = r >= n.max ? "maxed" : (reqOk && lvlOk && rpgSkillPoints() > 0 ? "avail" : "locked");
+    const pathLocked = n.path && chosen && chosen !== n.path;
+    const state = pathLocked ? "sealed" : r >= n.max ? "maxed" : (reqOk && lvlOk && rpgSkillPoints() > 0 ? "avail" : "locked");
     const eff = n.p ? rpgPassiveDesc(n.p) : advSkillDesc(rpgTreeActiveDef(Object.assign({}, n)));
-    const tip = `${n.name} (${r}/${n.max}) — ${eff}. Requires level ${n.lvl}${n.req ? ` and ${RPG_TREE_BY_ID[n.req].name}` : ""}.`;
-    return `<div class="sk-node ${state}" data-rpg-skill="${n.id}" title="${escapeHtml(tip)}">
+    const tip = pathLocked
+      ? `${n.name} — sealed: you walk the ${RPG_PATH_NAMES[rpgState.clazz][chosen - 1]} path.`
+      : `${n.name} (${r}/${n.max}) — ${eff}. Requires level ${n.lvl}${n.req ? ` and ${RPG_TREE_BY_ID[n.req].name}` : ""}.${n.ks ? " KEYSTONE: power at a price!" : ""}`;
+    return `<div class="sk-node ${state}${n.ks ? " sk-ks" : ""}${n.lvl >= 90 ? " sk-cap" : ""}" data-rpg-skill="${n.id}" title="${escapeHtml(tip)}">
       <span class="sk-ico">${n.icon}</span>
       <span class="sk-rank">${r}/${n.max}</span>
       <span class="sk-name">${escapeHtml(n.name)}</span>
-      <span class="sk-lvl">Lv ${n.lvl}${n.a ? " · AUTO" : ""}</span>
+      <span class="sk-lvl">${n.ks ? "KEYSTONE" : n.lvl >= 90 ? "CAPSTONE" : `Lv ${n.lvl}`}${n.a ? " · AUTO" : ""}</span>
     </div>`;
-  }).join("") + `</div>`).join("");
+  };
+  const base = nodes.filter(n => !n.path).sort((a, b) => a.lvl - b.lvl);
+  const pathCols = [1, 2, 3].map(p => {
+    const list = nodes.filter(n => n.path === p).sort((a, b) => a.lvl - b.lvl);
+    const name = RPG_PATH_NAMES[rpgState.clazz][p - 1];
+    const head = chosen === p ? `<div class="sk-path-head on">🛤️ ${name} — YOUR PATH</div>`
+      : chosen ? `<div class="sk-path-head off">🔒 ${name}</div>`
+      : `<div class="sk-path-head">${name}</div>`;
+    return `<div class="sk-col ${chosen && chosen !== p ? "sealed-col" : ""}">${head}${list.map(nodeHtml).join("")}</div>`;
+  }).join("");
+  const earned = rpgSkillPointsEarned();
   return `<div class="sk-head">
       <span class="chip">${c.icon} ${c.name}</span>
-      <span class="chip topic">✦ ${rpgSkillPoints()} skill point${rpgSkillPoints() === 1 ? "" : "s"}</span>
+      <span class="chip topic">✦ ${rpgSkillPoints()} of ${earned} point${earned === 1 ? "" : "s"} free</span>
+      ${chosen ? `<span class="chip" style="background:var(--accent-orange-light);color:#9a5a13;">🛤️ ${RPG_PATH_NAMES[rpgState.clazz][chosen - 1]}</span>` : `<span class="chip" style="background:var(--accent-red-light);color:var(--accent-red);">Choose ONE path — the others lock!</span>`}
       <span style="flex:1;"></span>
       <button class="btn btn-ghost btn-sm" type="button" data-rpg-skillreset>↩️ Refund points</button>
       <button class="btn btn-ghost btn-sm" type="button" data-rpg-classreset>🔄 Change class</button>
     </div>
-    <div class="sk-tree">${colHtml}</div>
-    <p class="hint" style="margin-top:10px;">1 point per level (max 99). Click a glowing skill to learn it — AUTO skills cast themselves in the dungeon.</p>`;
+    <div class="section-label">Core training (always open)</div>
+    <div class="sk-base">${base.map(nodeHtml).join("")}</div>
+    <div class="section-label" style="margin-top:12px;">Specialisation paths — pick one, live with it</div>
+    <div class="sk-tree">${pathCols}</div>
+    <p class="hint" style="margin-top:10px;">Points are scarce: 1 per level to 30, then 1 every 2 levels (~64 by Lv 99 — a full path + core costs more than you will ever have). Keystones trade a weakness for great power. Refunding is free but unseals nothing until you re-choose.</p>`;
 }
 function rpgPacksTabHtml() {
   const mythics = RPG_ITEMS.filter(it => it.rarity === "mythic");
@@ -6264,12 +6411,21 @@ const RPG_DRAFTS = [
   { id: "haste", icon: "⏩", name: "Haste", desc: "Skills cool down 20% faster", cdr: 0.2 },
   { id: "mend", icon: "💚", name: "Mend", desc: "Heal 50% of max HP right now", healNow: 0.5 },
   { id: "stone", icon: "🪨", name: "Stoneskin", desc: "Take 3 less damage from every hit", dr: 3 },
-  { id: "leech", icon: "🩸", name: "Vampirism", desc: "Basic attacks heal 4% of damage", leech: 0.04 }
+  { id: "leech", icon: "🩸", name: "Vampirism", desc: "Basic attacks heal 4% of damage", leech: 0.04 },
+  { id: "dedge", icon: "⚔️", name: "Double Edge", desc: "+40% damage, but you take +15%", atkPct: 0.4, vuln: 0.15, tier: 2 },
+  { id: "cgold", icon: "💰", name: "Cursed Gold", desc: "+60% gold, but you take +20%", goldPct: 0.6, vuln: 0.2, tier: 2 },
+  { id: "fbite", icon: "🥶", name: "Deep Frostbite", desc: "Chilled enemies take +30% damage", chillBonus: 0.3, tier: 2 },
+  { id: "exec", icon: "🎯", name: "Executioner", desc: "Enemies below 35% HP take double damage", exePower: 2, tier: 2 },
+  { id: "rshell", icon: "🔄", name: "Reflect Shell", desc: "Return 30% of damage you take", reflect: 0.3, tier: 2 },
+  { id: "ldrain", icon: "🧛", name: "Greater Vampirism", desc: "8% lifesteal, but you take +10%", leech: 0.08, vuln: 0.1, tier: 3 },
+  { id: "abyss", icon: "🕳️", name: "Abyssal Hunger", desc: "+3% damage per floor reached this run", scalingFloor: true, tier: 3 },
+  { id: "titan", icon: "🗿", name: "Titan Blood", desc: "Take 5 less damage from every hit, -10% damage", dr: 5, atkPct: -0.1, tier: 3 }
 ];
 function advShowDraft() {
   adv.phase = "draft";
   adv.scrollTarget = 0;
-  const picks = RPG_DRAFTS.slice().sort(() => Math.random() - 0.5).slice(0, 3);
+  const pool = RPG_DRAFTS.filter(d => !d.tier || (d.tier === 2 && adv.floor >= 4) || (d.tier === 3 && adv.floor >= 8));
+  const picks = pool.slice().sort(() => Math.random() - 0.5).slice(0, 3);
   adv.draftOffer = picks;
   advOverlay(`<div><h4>🏕️ Floor ${adv.floor} cleared — choose a blessing</h4>
     <div class="adv-draft-row">${picks.map((d, i) =>
@@ -6286,6 +6442,11 @@ function advPickDraft(i) {
   if (d.cdr) m.cdr = Math.min(0.5, m.cdr + d.cdr);
   if (d.dr) m.dr += d.dr;
   if (d.leech) m.leech += d.leech;
+  if (d.vuln) m.vuln = (m.vuln || 0) + d.vuln;
+  if (d.chillBonus) m.chillBonus = (m.chillBonus || 0) + d.chillBonus;
+  if (d.exePower) m.exePower = Math.max(m.exePower || 0, d.exePower);
+  if (d.reflect) m.reflect = (m.reflect || 0) + d.reflect;
+  if (d.scalingFloor) m.scalingFloor = true;
   if (d.healNow) advHeal(adv.heroMax * d.healNow, d.icon);
   adv.draftOffer = null;
   advOverlay("");
@@ -6411,7 +6572,7 @@ function advSpawnWave() {
   adv.foes = comp.map((c, i) => {
     const tier = Math.max(1, Math.min(10, c.tier));
     const over = Math.max(0, c.tier - 10);
-    const scale = 1 + 0.22 * over;
+    const scale = 1 + 0.25 * over;
     const e = rpgRandomEnemy(tier);
     const max = Math.round(e.maxHp * scale * (c.boss ? 1.5 : c.minion ? 0.45 : 1));
     return { e, boss: !!c.boss, minion: !!c.minion, hp: max, max, scale, ranged: RPG_RANGED_ENEMIES.has(e.id),
@@ -6420,7 +6581,19 @@ function advSpawnWave() {
       armor: Math.floor(tier / 2) + (c.boss ? 2 : 0) + Math.ceil(over / 2),
       atkMs: c.boss ? 1500 : c.minion ? 2700 : 1900,
       nextAtk: now + 2400 + i * 600 + Math.random() * 400,
-      dots: [], chillUntil: 0, stunned: 0, dead: false };
+      dots: [], chillUntil: 0, stunned: 0, dead: false, affixes: [] };
+  });
+  // elites and bosses roll affixes on deeper floors — harder, but they pay more
+  adv.foes.forEach(f => {
+    if (f.minion) return;
+    const keys = Object.keys(RPG_ELITE_AFFIXES);
+    const count = (adv.floor >= 3 && Math.random() < 0.55 ? 1 : 0) + (adv.floor >= 8 && Math.random() < 0.4 ? 1 : 0);
+    for (let k = 0; k < count; k++) {
+      const key = keys[Math.floor(Math.random() * keys.length)];
+      if (f.affixes.includes(key)) continue;
+      f.affixes.push(key);
+      RPG_ELITE_AFFIXES[key].apply(f);
+    }
   });
   const chip = $("advWaveChip");
   chip.style.display = "";
@@ -6429,7 +6602,7 @@ function advSpawnWave() {
   $("advFoes").innerHTML = adv.foes.map((f, i) => {
     const size = f.boss ? 84 : f.minion ? 38 : 60;
     return `<div class="adv-actor adv-foe" id="advFoeEl${i}" style="transform:translateX(${Math.round(f.wx)}px);transition:none;">
-      <div class="adv-tag">${f.boss ? "👑 " : ""}${escapeHtml(f.e.name)}${RPG_ELEMENTS[f.e.el] && RPG_ELEMENTS[f.e.el].icon ? " " + RPG_ELEMENTS[f.e.el].icon : ""}</div>
+      <div class="adv-tag">${f.boss ? "👑 " : ""}${(f.affixes || []).map(a => RPG_ELITE_AFFIXES[a].badge).join("")}${escapeHtml(f.e.name)}${RPG_ELEMENTS[f.e.el] && RPG_ELEMENTS[f.e.el].icon ? " " + RPG_ELEMENTS[f.e.el].icon : ""}</div>
       <span class="adv-foe-emoji" style="font-size:${size}px;animation-delay:${beatDelay}ms;">${f.e.emoji}</span>
       ${advBarHtml("advFoeHp" + i)}</div>`;
   }).join("");
@@ -6506,6 +6679,8 @@ function advTick() {
       advCast(s, i);
     }
   });
+  const stageHp = $("advStage");
+  if (stageHp && stageHp.classList) stageHp.classList.toggle("low-hp", adv.heroHp / adv.heroMax < 0.25);
   adv.foes.forEach((f, i) => {
     if (f.dead) return;
     f.dots = f.dots.filter(d => {
@@ -6568,15 +6743,25 @@ function advAutoAttack() {
   if (crit) dmg *= (adv.stats.critMult || 2);
   advAfter(fx.kind === "magic" ? 480 : fx.kind === "ranged" ? 430 : 300, () => {
     const dealtB = advHurtFoe(fi, dmg, { crit, fx, element: rpgWeaponElement(rpgState.equipment.weapon) });
-    if (adv && adv.mods.leech && dealtB) advHeal(dealtB * adv.mods.leech, "🩸");
+    const totalLeech = (adv ? adv.mods.leech : 0) + (adv ? (adv.stats.leechPct || 0) : 0);
+    if (adv && totalLeech && dealtB) advHeal(dealtB * totalLeech, "🩸");
     if (adv && adv.stats.poisonOnHit) advAddDot(fi, "poison", Math.max(1, Math.round(adv.stats.atk * 0.12 * adv.stats.poisonOnHit)), 3, "#3a9e5f");
   });
 }
 function advHurtFoe(i, dmg, opts = {}) {
   const f = adv.foes[i];
   if (!f || f.dead) return 0;
+  if (f.shieldHits > 0 && !opts.dot) {
+    f.shieldHits--;
+    const elS = advFoeEl(i);
+    if (elS) advFloat(elS, "🛡️ BLOCKED", "heal");
+    return 0;
+  }
   let superHit = false;
   if (opts.element && RPG_COUNTERS[opts.element] === f.e.el) { dmg *= 1.25; superHit = true; }
+  if (adv.mods.exePower && f.hp / f.max < 0.35) dmg *= adv.mods.exePower;
+  if (adv.mods.chillBonus && Date.now() < (f.chillUntil || 0)) dmg *= 1 + adv.mods.chillBonus;
+  if (adv.mods.scalingFloor) dmg *= 1 + 0.03 * (adv.floor - 1);
   let final = Math.max(1, Math.round(dmg - (opts.pierce ? 0 : f.armor)));
   if (opts.exec && f.hp / f.max < 0.35) final *= 2;
   f.hp = Math.max(0, f.hp - final);
@@ -6603,13 +6788,25 @@ function advFoeDie(i) {
   if (f.dead) return;
   f.dead = true;
   adv.kills++;
-  const mult = (f.boss ? 2 : f.minion ? 0.35 : 1) * (f.scale || 1) * (1 + adv.mods.goldPct);
+  const mult = (f.boss ? 2 : f.minion ? 0.35 : 1) * (f.scale || 1) * (1 + adv.mods.goldPct) * (1 + 0.2 * ((f.affixes || []).length));
+  if (f.splitting && adv.foes.length < 9 && adv.phase === "fight") {
+    for (let s = 0; s < 2; s++) {
+      const e2 = rpgEnemiesOfTier(1)[0];
+      adv.foes.push({ e: e2, boss: false, minion: true, hp: 18, max: 18, scale: 1, ranged: false, wx: f.wx + 40 + s * 50,
+        reached: false, slot: 5, speed: 0.09, armor: 0, atkMs: 2800, nextAtk: Date.now() + 1500, dots: [], chillUntil: 0, stunned: 0, dead: false, affixes: [], baseLeft: 540 });
+      const host = $("advFoes");
+      if (host && host.insertAdjacentHTML) host.insertAdjacentHTML("beforeend",
+        `<div class="adv-actor adv-foe" id="advFoeEl${adv.foes.length - 1}" style="transform:translateX(${Math.round(f.wx + 40 + s * 50)}px);"><div class="adv-tag">${escapeHtml(e2.name)}</div><span class="adv-foe-emoji" style="font-size:34px;">${e2.emoji}</span>${advBarHtml("advFoeHp" + (adv.foes.length - 1))}</div>`);
+    }
+    adv.slotsDirty = true;
+  }
   const g = Math.round(f.e.gold * mult), x = Math.round(f.e.xp * mult);
   adv.gold += g;
   adv.xp += x;
   const el = advFoeEl(i);
   if (el) {
     advFloat(el, `+${g}🪙 +${x}✨`, "heal");
+    advParticles(el, "🪙", 4);
     if (el.classList) el.classList.remove("marching");
     if (el.style) {
       el.style.transition = "transform 0.7s ease-in, opacity 0.7s ease-in";
@@ -6631,7 +6828,7 @@ function advFoeDie(i) {
 }
 function advFloorClear() {
   // boss down — bonus, heal, then descend to a tougher floor
-  const bonusGold = 15 + adv.floor * 10;
+  const bonusGold = 18 + adv.floor * 12;
   const bonusXp = 20 + adv.floor * 12;
   adv.gold += bonusGold;
   adv.xp += bonusXp;
@@ -6639,7 +6836,13 @@ function advFloorClear() {
   adv.heroHp = Math.min(adv.heroMax, adv.heroHp + heal);
   advSetBar("advHeroHp", adv.heroHp / adv.heroMax);
   advFloat($("advHero"), `+${heal} 💚`, "heal");
-  const loot = rpgRollLoot(rpgEnemiesOfTier(Math.min(10, adv.tiers[ADV_WAVES - 1]))[0]);
+  let loot = rpgRollLoot(rpgEnemiesOfTier(Math.min(10, adv.tiers[ADV_WAVES - 1]))[0]);
+  if (adv.floor % 10 === 0 || adv.floor === 25 || adv.floor === 50) {
+    // milestone chest: guaranteed drop with a rarity floor
+    const minRank = adv.floor >= 50 ? 5 : adv.floor >= 25 ? 4 : 3;
+    const pool = RPG_ITEMS.filter(it => it.price > 0 && !it.packOnly && !rpgState.inventory[it.id] && RPG_RARITY[it.rarity].rank >= minRank);
+    if (pool.length) loot = pool[Math.floor(Math.random() * pool.length)];
+  }
   if (loot) {
     rpgState.inventory[loot.id] = (rpgState.inventory[loot.id] || 0) + 1;
     rpgSave();
@@ -6694,12 +6897,20 @@ function advFoeAttack(i) {
       advFloat(hero, "🛡️ Blocked!", "heal");
       return;
     }
-    const dmg = Math.max(1, Math.round(f.e.atk * 0.6 * (f.scale || 1) * (f.boss ? 1.2 : f.minion ? 0.55 : 1) * (0.85 + Math.random() * 0.3) - adv.stats.def * 0.5 - adv.mods.dr));
+    let dmg = Math.max(1, Math.round(f.e.atk * 0.6 * (f.scale || 1) * (f.boss ? 1.2 : f.minion ? 0.55 : 1) * (0.85 + Math.random() * 0.3) - adv.stats.def * 0.5 - adv.mods.dr));
+    if (f.enraged && f.hp / f.max < 0.3) dmg = Math.round(dmg * 1.5);
+    if (adv.mods.vuln) dmg = Math.round(dmg * (1 + adv.mods.vuln));
+    if (f.vampiric) { f.hp = Math.min(f.max, f.hp + Math.round(dmg * 0.5)); advSetBar("advFoeHp" + i, f.hp / f.max); }
     if (hero.classList) { hero.classList.add("hit"); advAfter(380, () => hero.classList && hero.classList.remove("hit")); }
     advFloat(hero, "-" + dmg, "hurt");
     advBurst(hero, "#e25c5c");
     adv.worldX -= f.boss ? 16 : 6; // shoved back
     adv.heroHp = Math.max(0, adv.heroHp - dmg);
+    const totalReflect = (adv.stats.thorns || 0) + (adv.mods.reflect || 0);
+    if (totalReflect && !f.dead) {
+      const ref = Math.max(1, Math.round(dmg * totalReflect));
+      advAfter(120, () => advHurtFoe(i, ref + (adv.foes[i] ? adv.foes[i].armor : 0), { dot: true }));
+    }
     advSetBar("advHeroHp", adv.heroHp / adv.heroMax);
     if (adv.heroHp <= 0) { adv.phase = "between"; advAfter(600, adv.arena ? () => advArenaEnd(false) : advEnd); }
   });
@@ -6723,8 +6934,8 @@ function advCastRiders(d, i, dealt) {
   const atk = adv.stats.atk;
   if (d.poison) advAddDot(i, "poison", Math.round(atk * 0.35), 4, "#3a9e5f");
   if (d.burn) advAddDot(i, "burn", Math.round(atk * 0.45), 3, "#ff6b35");
-  if (d.chill) { const f = adv.foes[i]; if (f && !f.dead) { f.chillUntil = Date.now() + 4000; advParticles(advFoeEl(i), "❄️", 3); } }
-  if (d.stun) { const f = adv.foes[i]; if (f && !f.dead) { f.stunned = Date.now() + 2200; advFloat(advFoeEl(i), "💫", "dmg"); } }
+  if (d.chill) { const f = adv.foes[i]; if (f && !f.dead && !f.juggernaut) { f.chillUntil = Date.now() + 4000; advParticles(advFoeEl(i), "❄️", 3); } }
+  if (d.stun) { const f = adv.foes[i]; if (f && !f.dead && !f.juggernaut) { f.stunned = Date.now() + 2200; advFloat(advFoeEl(i), "💫", "dmg"); } }
   if (d.lifesteal && dealt) advHeal(dealt * d.lifesteal, "🩸");
   if (d.healPct) advHeal(adv.heroMax * d.healPct);
 }
@@ -6906,11 +7117,13 @@ function advAbandon(manual = false) {
   toast(gold || xp ? `Retreated from Floor ${floor} — you kept 🪙 ${gold} and ✨ ${xp} XP` : "Retreated from the dungeon", "");
 }
 // FX helpers (spawned inside the actor tiles so positioning is free)
+function advAbbrev(n) { return n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "k" : String(n); }
 function advFloat(host, text, cls) {
   if (!host || !host.appendChild) return;
   const el = document.createElement("span");
   el.className = "rpg-float " + cls;
-  el.textContent = text;
+  if (el.style && /^💥/.test(String(text))) el.style.fontSize = "1.5rem";
+  el.textContent = String(text).replace(/-(\d{4,})/, (m, num) => "-" + advAbbrev(Number(num)));
   host.appendChild(el);
   setTimeout(() => el.remove(), 1200);
 }
@@ -7059,7 +7272,7 @@ $("rpgTabBody").addEventListener("click", e => {
   if (skl) { rpgSkillUp(skl.dataset.rpgSkill); return; }
   if (e.target.closest("[data-rpg-skillreset]")) { rpgResetSkills(); return; }
   if (e.target.closest("[data-rpg-classreset]")) {
-    if (rpgState && confirm("Change class? Your skill points will be refunded.")) { rpgState.clazz = null; rpgState.skills = {}; rpgSave(); rpgRenderCharacterPage(); }
+    if (rpgState && confirm("Change class? Your skill points will be refunded.")) { rpgState.clazz = null; rpgState.skills = {}; rpgState.paths = {}; rpgSave(); rpgRenderCharacterPage(); }
     return;
   }
   const upgrade = e.target.closest("[data-rpg-upgrade]");
