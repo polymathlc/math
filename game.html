@@ -518,6 +518,31 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .rpg-filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
 .rpg-filter-chip { font-family: 'Space Mono', monospace; font-size: 0.64rem; letter-spacing: 0.05em; text-transform: uppercase; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--border); background: #fff; color: var(--text-muted); cursor: pointer; transition: all var(--transition); }
 .rpg-filter-chip.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+/* leaderboard */
+.rpg-prize-banner { display: flex; flex-direction: column; gap: 4px; padding: 12px 16px; margin-bottom: 16px; border-radius: var(--radius-md); background: linear-gradient(135deg, #fdf3d8, #fbe7c2); border: 1px solid #ecd29a; font-size: 0.9rem; line-height: 1.5; }
+.rpg-prize-line b { color: #8a5a13; }
+.rpg-board-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: space-between; margin-bottom: 14px; }
+.rpg-board-row { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: 8px; background: #fff; }
+.rpg-board-row.me { outline: 2px solid var(--primary); outline-offset: -1px; }
+.rpg-board-row.prize-month { background: var(--accent-green-light); border-color: #bfe0cb; }
+.rpg-board-row.prize-1 { background: linear-gradient(90deg, #fdf3d8, #fff); border-color: #e8b41f; }
+.rpg-board-row.prize-2 { background: linear-gradient(90deg, #eef1f5, #fff); border-color: #aab4bf; }
+.rpg-board-row.prize-3 { background: linear-gradient(90deg, #f9ece0, #fff); border-color: #c9853a; }
+.rpg-board-rank { font-family: 'Space Mono', monospace; font-weight: 700; width: 34px; text-align: center; font-size: 0.95rem; flex-shrink: 0; }
+.rpg-board-ava { width: 46px; height: 54px; flex-shrink: 0; }
+.rpg-board-ava svg { width: 100%; height: 100%; }
+.rpg-board-main { flex: 1; min-width: 0; }
+.rpg-board-name { font-weight: 700; font-size: 0.92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rpg-board-meta { font-family: 'Space Mono', monospace; font-size: 0.66rem; color: var(--text-muted); }
+.rpg-board-xp { font-family: 'Space Mono', monospace; font-weight: 700; font-size: 0.9rem; white-space: nowrap; }
+.rpg-board-xp span { display: block; font-weight: 400; font-size: 0.6rem; color: var(--text-muted); text-align: right; }
+.rpg-board-prize { font-family: 'Space Mono', monospace; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.04em; padding: 4px 9px; border-radius: 999px; background: #fff; border: 1px solid currentColor; white-space: nowrap; flex-shrink: 0; }
+.prize-month .rpg-board-prize { color: #1c8a4a; }
+.prize-1 .rpg-board-prize { color: #9a6a00; }
+.prize-2 .rpg-board-prize { color: #5d6770; }
+.prize-3 .rpg-board-prize { color: #8c5a22; }
+.rpg-you-tag { font-family: 'Space Mono', monospace; font-size: 0.56rem; background: var(--primary); color: #fff; border-radius: 999px; padding: 2px 7px; margin-left: 6px; vertical-align: middle; }
+@media (max-width: 560px) { .rpg-board-meta { display: none; } }
 .rpg-gold-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-family: 'Space Mono', monospace; font-size: 0.8rem; color: var(--text-muted); }
 .rpg-gold-row b { color: var(--text); font-size: 0.95rem; }
 .rpg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(138px, 1fr)); gap: 10px; }
@@ -591,7 +616,10 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
     </div>
     <nav class="sidebar-nav">
       <div class="nav-item active" data-page="practice"><span class="ico">✍️</span> Practice</div>
-      <div class="nav-item" data-page="character"><span class="ico">🛡️</span> Character</div>
+      <div class="nav-section rpg-el" style="display:none;">Game</div>
+      <div class="nav-item rpg-el" data-page="character" style="display:none;"><span class="ico">🛡️</span> Character</div>
+      <div class="nav-item rpg-el" data-page="leaderboard" style="display:none;"><span class="ico">🏆</span> Leaderboard</div>
+      <div class="nav-item" id="rpgHideToggle" style="display:none;"><span class="ico">🙈</span> Hide game</div>
       <div class="nav-section admin-only">Admin</div>
       <div class="nav-item admin-only" data-page="create"><span class="ico">➕</span> Create Question</div>
       <div class="nav-item admin-only" data-page="bank"><span class="ico">📚</span> Question Bank</div>
@@ -600,7 +628,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
       <div class="nav-item admin-only" id="navMarking"><span class="ico">⚖️</span> AI Marking Guide</div>
       <div class="nav-item admin-only" id="navGen"><span class="ico">✨</span> AI Generation Guide</div>
     </nav>
-    <div class="rpg-side" id="rpgSide" style="display:none;" title="Open your character page">
+    <div class="rpg-side rpg-el" id="rpgSide" style="display:none;" title="Open your character page">
       <div class="rpg-side-top"><span class="rpg-side-level" id="rpgSideLevel">Lv 1</span><span class="rpg-side-gold" id="rpgSideGold">🪙 0</span></div>
       <div class="rpg-bar mini" title="HP"><div class="rpg-bar-fill hp" id="rpgSideHp" style="width:100%;"></div></div>
       <div class="rpg-bar mini" title="XP to next level"><div class="rpg-bar-fill xp" id="rpgSideXp" style="width:0%;"></div></div>
@@ -617,7 +645,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
       <h2 id="topbarTitle">Practice</h2>
       <div class="topbar-spacer"></div>
       <div class="topbar-actions">
-        <button class="icon-btn rpg-chip" id="rpgTopChip" type="button" style="display:none;" title="Your hero">🛡️ <span id="rpgTopChipText">Lv 1</span></button>
+        <button class="icon-btn rpg-chip rpg-el" id="rpgTopChip" type="button" style="display:none;" title="Your hero">🛡️ <span id="rpgTopChipText">Lv 1</span></button>
         <button class="icon-btn student-only" id="emailBellBtn" type="button" title="Email me when new questions are uploaded">🔔</button>
         <button class="icon-btn admin-only" id="flagInboxBtn" type="button" title="Flagged questions">🚩<span class="notify-count" id="flagCount">0</span></button>
       </div>
@@ -828,6 +856,26 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
           </div>
           <div id="rpgTabBody"></div>
         </div>
+      </div>
+    </div>
+
+    <!-- ================= LEADERBOARD PAGE (RPG) ================= -->
+    <div class="page" id="page-leaderboard">
+      <div class="page-head"><h3>🏆 Leaderboard</h3><p>Earn XP by solving questions — climb the board to win Popular vouchers.</p></div>
+      <div class="rpg-prize-banner">
+        <span class="rpg-prize-line">🎁 <b>Monthly prize:</b> the top 10 XP earners each month win a <b>$10 Popular voucher</b> each.</span>
+        <span class="rpg-prize-line">🏆 <b>Grand prizes:</b> the top 3 all-time XP earners win <b>$200, $100 and $50 Popular vouchers</b>.</span>
+      </div>
+      <div class="card card-pad">
+        <div class="rpg-board-head">
+          <div class="rpg-tabs" style="margin-bottom:0;">
+            <button class="rpg-tab active" data-rpgboard="month" type="button">📅 This Month</button>
+            <button class="rpg-tab" data-rpgboard="lastmonth" type="button">🗓️ Last Month</button>
+            <button class="rpg-tab" data-rpgboard="alltime" type="button">⭐ All-Time</button>
+          </div>
+          <button class="btn btn-ghost btn-sm" id="rpgBoardRefresh" type="button">Refresh</button>
+        </div>
+        <div id="rpgBoardBody"><div class="empty-note">Loading leaderboard…</div></div>
       </div>
     </div>
 
@@ -2304,10 +2352,12 @@ function navigateTo(page) {
   document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
   const pageEl = $("page-" + page); if (pageEl) pageEl.classList.add("active");
   const nav = document.querySelector(`.nav-item[data-page="${page}"]`); if (nav) nav.classList.add("active");
-  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", worksheet: "Worksheet Creator", students: "Student Results", character: "Character" };
+  if ((page === "character" || page === "leaderboard") && rpgGameHidden()) page = "practice";
+  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", worksheet: "Worksheet Creator", students: "Student Results", character: "Character", leaderboard: "Leaderboard" };
   $("topbarTitle").textContent = titles[page] || "";
   $("sidebar").classList.remove("open");
   if (page === "character") rpgRenderCharacterPage();
+  if (page === "leaderboard") rpgRenderLeaderboard();
   if (page === "bank") renderBank();
   if (page === "students") loadStudentRoster();
   if (page === "practice") { renderQuestion(); setupCanvasSize(); }
@@ -4427,7 +4477,8 @@ let rpgShopSlot = "all";
 function rpgStorageKey() { return "mathQuestRpg:" + (currentUser ? currentUser.uid : "anon"); }
 function rpgDefaults() {
   return {
-    v: 1, gold: 60, xp: 0, hp: null,
+    v: 1, gold: 60, xp: 0, hp: null, hidden: false,
+    monthKey: null, monthXp: 0, lastMonthKey: null, lastMonthXp: 0,
     inventory: { wood_sword: 1, cloth_tunic: 1 },
     equipment: { weapon: "wood_sword", shield: null, armor: "cloth_tunic", helmet: null, accessory: null },
     battle: null,
@@ -4462,6 +4513,7 @@ function rpgHydrate(saved) {
   if (st.battle && !RPG_ENEMIES_BY_ID[st.battle.enemyId]) st.battle = null;
   if (!Number.isFinite(st.gold)) st.gold = 0;
   if (!Number.isFinite(st.xp)) st.xp = 0;
+  if (!Number.isFinite(st.monthXp)) st.monthXp = 0;
   return st;
 }
 function rpgSave() {
@@ -4507,12 +4559,13 @@ function rpgStatLine(it) {
 }
 
 // ---- Avatar (layered SVG paper doll; equipment renders on the hero) ----
-function rpgItemArt(slot) {
-  const it = RPG_ITEMS_BY_ID[(rpgState.equipment || {})[slot]];
+function rpgItemArt(slot, eq) {
+  const it = RPG_ITEMS_BY_ID[(eq || {})[slot]];
   return it && it.art ? it.art() : "";
 }
-function rpgAvatarSvg() {
-  const acc = RPG_ITEMS_BY_ID[(rpgState.equipment || {}).accessory];
+function rpgAvatarSvg(equipment) {
+  const eq = equipment || (rpgState && rpgState.equipment) || {};
+  const acc = RPG_ITEMS_BY_ID[eq.accessory];
   const capeArt = acc && acc.layer === "back" ? acc.art() : "";
   const frontAccArt = acc && acc.layer === "front" ? acc.art() : "";
   return `<svg viewBox="0 0 200 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Your hero avatar">
@@ -4526,7 +4579,7 @@ function rpgAvatarSvg() {
     <path d="M77 118 Q100 110 123 118 L121 130 Q100 124 79 130 Z" fill="rgba(0,0,0,0.12)"/>
     <rect x="73" y="166" width="54" height="8" rx="4" fill="#5b4632"/>
     <rect x="95" y="166" width="10" height="8" rx="2" fill="#d4b106"/>
-    ${rpgItemArt("armor")}
+    ${rpgItemArt("armor", eq)}
     <path d="M80 124 Q66 134 60 152" stroke="#4a7c59" stroke-width="11" fill="none" stroke-linecap="round"/>
     <path d="M120 124 Q134 134 140 152" stroke="#4a7c59" stroke-width="11" fill="none" stroke-linecap="round"/>
     <circle cx="58" cy="158" r="7" fill="#f5cfa8"/>
@@ -4539,10 +4592,10 @@ function rpgAvatarSvg() {
     <path d="M91 95 Q100 102 109 95" stroke="#2c2a27" stroke-width="2.4" fill="none" stroke-linecap="round"/>
     <circle cx="80" cy="92" r="4" fill="#f3a683" opacity="0.45"/>
     <circle cx="120" cy="92" r="4" fill="#f3a683" opacity="0.45"/>
-    ${rpgItemArt("helmet")}
+    ${rpgItemArt("helmet", eq)}
     ${frontAccArt}
-    <g transform="translate(58,158)">${rpgItemArt("shield")}</g>
-    <g transform="translate(142,158) rotate(14)">${rpgItemArt("weapon")}<circle r="7" fill="#f5cfa8" stroke="rgba(0,0,0,0.1)"/></g>
+    <g transform="translate(58,158)">${rpgItemArt("shield", eq)}</g>
+    <g transform="translate(142,158) rotate(14)">${rpgItemArt("weapon", eq)}<circle r="7" fill="#f5cfa8" stroke="rgba(0,0,0,0.1)"/></g>
   </svg>`;
 }
 function rpgItemIconSvg(it) {
@@ -4560,19 +4613,43 @@ async function rpgInit() {
   const stats = rpgPlayerStats();
   if (!Number.isFinite(rpgState.hp) || rpgState.hp === null) rpgState.hp = stats.maxHp;
   rpgState.hp = Math.max(1, Math.min(rpgState.hp, stats.maxHp));
-  $("rpgSide").style.display = "";
-  $("rpgTopChip").style.display = "";
+  rpgRolloverMonth();
+  rpgApplyVisibility();
   rpgRenderSide();
   rpgRenderBattle();
   if (document.querySelector("#page-character.active")) rpgRenderCharacterPage();
   rpgSave();
+  rpgPublishLeaderboard();
 }
 function rpgOnSignOut() {
   rpgState = null;
-  const side = $("rpgSide"), chip = $("rpgTopChip"), battle = $("rpgBattle");
-  if (side) side.style.display = "none";
-  if (chip) chip.style.display = "none";
+  rpgBoardRows = null;
+  rpgApplyVisibility();
+  const battle = $("rpgBattle");
   if (battle) { battle.style.display = "none"; battle.innerHTML = ""; }
+}
+function rpgGameHidden() { return !!(rpgState && rpgState.hidden); }
+function rpgApplyVisibility() {
+  const active = !!rpgState;
+  const show = active && !rpgState.hidden;
+  document.querySelectorAll(".rpg-el").forEach(el => { el.style.display = show ? "" : "none"; });
+  const toggle = $("rpgHideToggle");
+  if (!toggle) return;
+  toggle.style.display = active ? "" : "none";
+  toggle.innerHTML = show ? `<span class="ico">🙈</span> Hide game` : `<span class="ico">🎮</span> Show game`;
+  toggle.title = show
+    ? "Hide the game to focus on practice — you still earn XP quietly"
+    : "Bring back your hero, battles and the leaderboard";
+}
+function rpgSetHidden(hidden) {
+  if (!rpgState) return;
+  rpgState.hidden = !!hidden;
+  if (hidden && rpgState.battle) rpgState.battle = null; // end any battle quietly — no penalty
+  rpgSave();
+  rpgApplyVisibility();
+  rpgRenderBattle();
+  if (hidden && document.querySelector("#page-character.active, #page-leaderboard.active")) navigateTo("practice");
+  toast(hidden ? "Game hidden — happy focusing! You still earn XP quietly." : "Game on! ⚔️", "success");
 }
 function rpgNoteHintUsed() { rpgHintUsedQ = true; }
 function rpgQuestionChanged() { rpgHintUsedQ = false; }
@@ -4581,16 +4658,30 @@ function rpgResetHero() {
   rpgState = rpgHydrate(null);
   rpgState.hp = rpgPlayerStats().maxHp;
   rpgSave();
+  rpgPublishLeaderboard();
+  rpgApplyVisibility();
   rpgRenderBattle();
   if (document.querySelector("#page-character.active")) rpgRenderCharacterPage();
   toast("Hero reset", "success");
 }
 
 // ---- Rewards & battle resolution (called after every AI-marked attempt) ----
+function rpgRolloverMonth() {
+  const key = rpgMonthKey();
+  if (rpgState.monthKey === key) return;
+  if (rpgState.monthKey && (rpgState.monthXp || 0) > 0) {
+    rpgState.lastMonthKey = rpgState.monthKey;   // keep final standings for prize awarding
+    rpgState.lastMonthXp = rpgState.monthXp;
+  }
+  rpgState.monthKey = key;
+  rpgState.monthXp = 0;
+}
 function rpgApplyRewards(gold, xp) {
   const before = rpgLevelInfo().level;
   rpgState.gold += gold;
   rpgState.xp += xp;
+  rpgRolloverMonth();
+  rpgState.monthXp += xp;
   rpgState.stats.goldEarned += gold;
   const after = rpgLevelInfo().level;
   if (after > before) rpgState.hp = rpgPlayerStats().maxHp; // level up = full heal
@@ -4663,6 +4754,8 @@ function rpgOnMarked(q, v, opts = {}) {
   const lvl = rpgApplyRewards(gold, xp);
   rpgHintUsedQ = false;
   rpgSave();
+  rpgPublishLeaderboard();
+  if (rpgGameHidden()) return; // rewards and the leaderboard still update quietly
   rpgRenderBattle();
   if (document.querySelector("#page-character.active")) rpgRenderCharacterPage();
 
@@ -4752,7 +4845,7 @@ function rpgSimRowHtml() {
 function rpgRenderBattle() {
   const wrap = $("rpgBattle");
   if (!wrap) return;
-  if (!rpgState) { wrap.style.display = "none"; wrap.innerHTML = ""; return; }
+  if (!rpgState || rpgState.hidden) { wrap.style.display = "none"; wrap.innerHTML = ""; return; }
   wrap.style.display = "";
   const stats = rpgPlayerStats();
   const info = rpgLevelInfo();
@@ -4872,7 +4965,7 @@ function rpgRenderCharacterPage() {
   $("rpgAvatarFrame").innerHTML = rpgAvatarSvg();
   $("rpgHeroName").textContent = (currentUser && currentUser.name) || "Hero";
   $("rpgHeroBars").innerHTML =
-    `<div class="rpg-hero-title">Lv ${info.level} math adventurer · ${rpgState.stats.wins} battles won</div>
+    `<div class="rpg-hero-title">Lv ${info.level} math adventurer · ${rpgState.stats.wins} battles won · ${rpgState.monthXp || 0} XP this month</div>
     <div class="rpg-bar-row"><div class="rpg-bar-cap"><span>HP</span><span>${rpgState.hp} / ${stats.maxHp}</span></div>
       <div class="rpg-bar light"><div class="rpg-bar-fill hp" style="width:${Math.round((rpgState.hp / stats.maxHp) * 100)}%;"></div></div></div>
     <div class="rpg-bar-row"><div class="rpg-bar-cap"><span>XP</span><span>${info.into} / ${info.need}</span></div>
@@ -4945,6 +5038,7 @@ function rpgEquip(itemId) {
   rpgState.equipment[it.slot] = itemId;
   rpgState.hp = Math.min(rpgState.hp, rpgPlayerStats().maxHp);
   rpgSave();
+  rpgPublishLeaderboard();
   rpgRenderCharacterPage();
   rpgRenderBattle();
   toast(`${it.name} equipped ⚔️`, "success");
@@ -4954,6 +5048,7 @@ function rpgUnequip(slot) {
   rpgState.equipment[slot] = null;
   rpgState.hp = Math.min(rpgState.hp, rpgPlayerStats().maxHp);
   rpgSave();
+  rpgPublishLeaderboard();
   rpgRenderCharacterPage();
   rpgRenderBattle();
 }
@@ -4969,8 +5064,124 @@ function rpgBuy(itemId) {
   toast(`Bought ${it.name}! Equip it from your inventory`, "success");
 }
 
+// ---- Leaderboard (shared collection: gameLeaderboard/{uid}) ----
+// Students publish a small game-only summary (no learning data) that all
+// signed-in users can read. Firestore rules must allow read for signed-in
+// users and write only to your own doc.
+function rpgMonthKey(d = new Date()) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); }
+function rpgPrevMonthKey() { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1); return rpgMonthKey(d); }
+let rpgPublishTimer = null;
+function rpgPublishLeaderboard() {
+  if (!rpgState || !currentUser || currentUser.role !== "student" || RPG_STORAGE_MODE !== "firestore") return;
+  clearTimeout(rpgPublishTimer);
+  rpgPublishTimer = setTimeout(() => {
+    if (!rpgState || !currentUser) return;
+    setDoc(doc(db, "gameLeaderboard", currentUser.uid), {
+      uid: currentUser.uid,
+      name: currentUser.name || "Student",
+      level: rpgLevelInfo().level,
+      xp: rpgState.xp,
+      monthXp: rpgState.monthXp || 0,
+      monthKey: rpgState.monthKey || rpgMonthKey(),
+      lastMonthXp: rpgState.lastMonthXp || 0,
+      lastMonthKey: rpgState.lastMonthKey || null,
+      wins: (rpgState.stats && rpgState.stats.wins) || 0,
+      equipment: rpgState.equipment,
+      updatedAt: new Date().toISOString()
+    }).catch(e => console.warn("leaderboard publish", e));
+  }, 1200);
+}
+let rpgBoardTab = "month";
+let rpgBoardRows = null;
+async function rpgFetchLeaderboard(force) {
+  if (rpgBoardRows && !force) return rpgBoardRows;
+  const rows = [];
+  try {
+    const snap = await getDocs(collection(db, "gameLeaderboard"));
+    snap.forEach(d => { const r = d.data(); if (r && r.uid && r.name) rows.push(r); });
+  } catch (e) { console.warn("leaderboard load", e); return null; }
+  rpgBoardRows = rows;
+  return rows;
+}
+function rpgBoardXp(r) {
+  if (rpgBoardTab === "month") return r.monthKey === rpgMonthKey() ? (r.monthXp || 0) : 0;
+  if (rpgBoardTab === "lastmonth") {
+    const prev = rpgPrevMonthKey();
+    if (r.monthKey === prev) return r.monthXp || 0;          // not active yet this month
+    if (r.lastMonthKey === prev) return r.lastMonthXp || 0;  // rolled over
+    return 0;
+  }
+  return r.xp || 0;
+}
+function rpgPrizeBadge(rank) {
+  if (rpgBoardTab !== "alltime") return rank <= 10 ? `<span class="rpg-board-prize">🎁 $10 voucher</span>` : "";
+  if (rank === 1) return `<span class="rpg-board-prize">🏆 $200 voucher</span>`;
+  if (rank === 2) return `<span class="rpg-board-prize">🥈 $100 voucher</span>`;
+  if (rank === 3) return `<span class="rpg-board-prize">🥉 $50 voucher</span>`;
+  return "";
+}
+function rpgRowClass(rank) {
+  if (rpgBoardTab !== "alltime") return rank <= 10 ? "prize-month" : "";
+  return rank <= 3 ? `prize-${rank}` : "";
+}
+async function rpgRenderLeaderboard(force = false) {
+  const body = $("rpgBoardBody");
+  if (!body) return;
+  document.querySelectorAll("[data-rpgboard]").forEach(b => b.classList.toggle("active", b.dataset.rpgboard === rpgBoardTab));
+  if (!rpgBoardRows) body.innerHTML = `<div class="empty-note">Loading leaderboard…</div>`;
+  const fetched = await rpgFetchLeaderboard(force);
+  if (fetched === null) {
+    body.innerHTML = `<div class="empty-note">Couldn't load the leaderboard. Ensure your Firestore rules let signed-in users read the <b>gameLeaderboard</b> collection.</div>`;
+    return;
+  }
+  // overlay your own live state so the board never lags behind your last answer
+  const rows = fetched.slice();
+  if (rpgState && currentUser && currentUser.role === "student") {
+    const mine = {
+      uid: currentUser.uid, name: currentUser.name || "You",
+      level: rpgLevelInfo().level, xp: rpgState.xp,
+      monthXp: rpgState.monthXp || 0, monthKey: rpgState.monthKey || rpgMonthKey(),
+      lastMonthXp: rpgState.lastMonthXp || 0, lastMonthKey: rpgState.lastMonthKey || null,
+      wins: (rpgState.stats && rpgState.stats.wins) || 0, equipment: rpgState.equipment,
+      updatedAt: new Date().toISOString()
+    };
+    const i = rows.findIndex(r => r.uid === currentUser.uid);
+    if (i >= 0) rows[i] = mine; else rows.push(mine);
+  }
+  const list = rows.map(r => Object.assign({}, r, { shownXp: rpgBoardXp(r) }))
+    .filter(r => r.shownXp > 0)
+    .sort((a, b) => b.shownXp - a.shownXp || String(a.updatedAt || "").localeCompare(String(b.updatedAt || "")));
+  if (!list.length) {
+    const why = rpgBoardTab === "month" ? "No XP earned this month yet — be the first on the board!"
+      : rpgBoardTab === "lastmonth" ? "No XP was recorded last month."
+      : "No heroes on the board yet — solve questions to earn XP!";
+    body.innerHTML = `<div class="empty-note">${why}</div>`;
+    return;
+  }
+  const myUid = currentUser && currentUser.uid;
+  const label = rpgBoardTab === "month" ? "this month" : rpgBoardTab === "lastmonth" ? "last month" : "all-time";
+  body.innerHTML = list.slice(0, 50).map((r, i) => {
+    const rank = i + 1;
+    const me = r.uid === myUid;
+    const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank;
+    return `<div class="rpg-board-row ${rpgRowClass(rank)} ${me ? "me" : ""}">
+      <div class="rpg-board-rank">${medal}</div>
+      <div class="rpg-board-ava">${rpgAvatarSvg(r.equipment || {})}</div>
+      <div class="rpg-board-main">
+        <div class="rpg-board-name">${escapeHtml(r.name)}${me ? `<span class="rpg-you-tag">You</span>` : ""}</div>
+        <div class="rpg-board-meta">Lv ${r.level || 1} · ${r.wins || 0} battles won</div>
+      </div>
+      ${rpgPrizeBadge(rank)}
+      <div class="rpg-board-xp">${r.shownXp} XP<span>${label}</span></div>
+    </div>`;
+  }).join("");
+}
+
 // ---- Static event wiring ----
 $("rpgSide").addEventListener("click", () => navigateTo("character"));
+$("rpgHideToggle").addEventListener("click", () => rpgSetHidden(!rpgGameHidden()));
+$("rpgBoardRefresh").addEventListener("click", () => rpgRenderLeaderboard(true));
+document.querySelectorAll("[data-rpgboard]").forEach(b => b.addEventListener("click", () => { rpgBoardTab = b.dataset.rpgboard; rpgRenderLeaderboard(); }));
 $("rpgTopChip").addEventListener("click", () => navigateTo("character"));
 $("rpgRestBtn").addEventListener("click", () => {
   if (!rpgState) return;
