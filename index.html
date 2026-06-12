@@ -429,6 +429,122 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .spinner.dark { border-color: rgba(0,0,0,0.15); border-top-color: var(--primary); }
 @keyframes spin { to { transform: rotate(360deg); } }
 .hidden { display: none !important; }
+
+/* ========== RPG (Math Quest preview) ========== */
+:root {
+  --rar-common: #8a8f98;
+  --rar-uncommon: #3a9e5f;
+  --rar-rare: #4a6fa5;
+  --rar-epic: #7b5ea7;
+  --rar-legendary: #d4882a;
+  --rpg-hp: #e25c5c;
+  --rpg-xp: #5ea7f0;
+}
+/* sidebar hero card */
+.rpg-side { margin: 10px 12px 0; padding: 10px 12px; border-radius: var(--radius-md); background: rgba(255,255,255,0.07); cursor: pointer; transition: background var(--transition); }
+.rpg-side:hover { background: rgba(255,255,255,0.13); }
+.rpg-side-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; }
+.rpg-side-level { font-family: 'Space Mono', monospace; font-size: 0.72rem; font-weight: 700; color: #ffd76a; }
+.rpg-side-gold { font-family: 'Space Mono', monospace; font-size: 0.72rem; color: #fff; }
+.rpg-chip { width: auto; padding: 0 10px; gap: 6px; font-family: 'Space Mono', monospace; font-size: 0.72rem; font-weight: 700; }
+/* bars */
+.rpg-bar { position: relative; height: 12px; border-radius: 999px; background: rgba(0,0,0,0.22); overflow: hidden; border: 1px solid rgba(0,0,0,0.12); }
+.rpg-bar.mini { height: 6px; margin-top: 4px; }
+.rpg-bar.light { background: #eee9e1; border-color: var(--border); }
+.rpg-bar-fill { height: 100%; border-radius: 999px; transition: width 0.45s ease; }
+.rpg-bar-fill.hp { background: linear-gradient(90deg, #e25c5c, #f08a5e); }
+.rpg-bar-fill.xp { background: linear-gradient(90deg, #5ea7f0, #7b5ea7); }
+.rpg-bar-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'Space Mono', monospace; font-size: 0.58rem; font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.45); letter-spacing: 0.04em; }
+.rpg-bar-row { margin-bottom: 8px; }
+.rpg-bar-row .rpg-bar-cap { display: flex; justify-content: space-between; font-family: 'Space Mono', monospace; font-size: 0.6rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 3px; }
+/* battle banner */
+.rpg-battle { margin-bottom: 14px; }
+.rpg-battle-card { border-radius: var(--radius-lg); background: linear-gradient(135deg, #2b2640 0%, #1f2937 100%); color: #fff; padding: 14px 16px; box-shadow: var(--shadow-md); border: 1px solid #3a3553; }
+.rpg-battle-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.rpg-battle-title { font-weight: 700; letter-spacing: -0.01em; }
+.rpg-battle-sub { color: rgba(255,255,255,0.65); font-size: 0.84rem; flex: 1; min-width: 160px; }
+.rpg-battle-head .btn { border-color: rgba(255,255,255,0.25); color: #fff; background: rgba(255,255,255,0.08); }
+.rpg-battle-head .btn:hover { background: rgba(255,255,255,0.16); border-color: rgba(255,255,255,0.4); }
+.rpg-battle-head .btn-primary { background: var(--primary); border-color: transparent; }
+.rpg-battle-head .btn-primary:hover { background: var(--primary-hover); }
+.rpg-arena { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: stretch; margin-top: 12px; }
+.rpg-fighter { position: relative; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-md); padding: 10px 12px; display: flex; align-items: center; gap: 12px; overflow: hidden; }
+.rpg-fighter-art { width: 74px; height: 74px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.rpg-fighter-art svg { width: 100%; height: 100%; }
+.rpg-foe-emoji { font-size: 3rem; line-height: 1; animation: rpgBob 2.2s ease-in-out infinite; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.4)); }
+.rpg-fighter.hit .rpg-foe-emoji, .rpg-fighter.hit .rpg-fighter-art { animation: rpgShake 0.4s ease; }
+.rpg-fighter-info { flex: 1; min-width: 0; }
+.rpg-fighter-name { font-weight: 700; font-size: 0.92rem; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rpg-fighter-lv { font-family: 'Space Mono', monospace; font-size: 0.62rem; color: #ffd76a; }
+.rpg-fighter-hp { font-family: 'Space Mono', monospace; font-size: 0.62rem; color: rgba(255,255,255,0.75); margin-top: 3px; }
+.rpg-vs { align-self: center; font-family: 'Space Mono', monospace; font-weight: 700; font-size: 0.85rem; color: rgba(255,255,255,0.5); }
+.rpg-log { margin-top: 10px; font-size: 0.86rem; color: rgba(255,255,255,0.85); line-height: 1.45; min-height: 1.4em; }
+.rpg-log b { color: #ffd76a; }
+.rpg-float { position: absolute; top: 26%; left: 50%; transform: translateX(-50%); font-family: 'Space Mono', monospace; font-weight: 700; font-size: 1.15rem; pointer-events: none; animation: rpgFloatUp 1.1s ease-out forwards; z-index: 5; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+.rpg-float.dmg { color: #ffd76a; }
+.rpg-float.hurt { color: #ff8d8d; }
+.rpg-float.heal { color: #8af0a5; }
+.rpg-sim { margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.18); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-family: 'Space Mono', monospace; font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255,255,255,0.55); }
+.rpg-sim button { font-family: inherit; font-size: 0.66rem; padding: 5px 9px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.08); color: #fff; cursor: pointer; }
+.rpg-sim button:hover { background: rgba(255,255,255,0.18); }
+@keyframes rpgBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes rpgShake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+@keyframes rpgFloatUp { from { opacity: 1; margin-top: 0; } to { opacity: 0; margin-top: -46px; } }
+/* reward line in marking result */
+.rpg-reward-line { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: -4px 0 14px; padding: 10px 14px; border-radius: var(--radius-md); background: linear-gradient(135deg, #2b2640, #1f2937); color: #ffd76a; font-family: 'Space Mono', monospace; font-size: 0.78rem; font-weight: 700; }
+.rpg-reward-line span { white-space: nowrap; }
+/* character page */
+.rpg-char-grid { display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 920px) { .rpg-char-grid { grid-template-columns: 1fr; } }
+.rpg-avatar-frame { display: flex; align-items: center; justify-content: center; padding: 12px 10px 6px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: radial-gradient(circle at 50% 28%, #fdf8ee 0%, #efe9dd 70%); }
+.rpg-avatar-frame svg { width: 215px; height: auto; }
+.rpg-hero-name { text-align: center; font-weight: 700; font-size: 1.05rem; margin: 10px 0 2px; }
+.rpg-hero-title { text-align: center; font-family: 'Space Mono', monospace; font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; }
+.rpg-stat-chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
+.rpg-stat-chip { background: var(--surface-alt); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 4px; text-align: center; }
+.rpg-stat-chip b { display: block; font-size: 1rem; }
+.rpg-stat-chip span { display: block; font-family: 'Space Mono', monospace; font-size: 0.54rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-top: 1px; }
+.rpg-equip-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.rpg-slot { position: relative; aspect-ratio: 1; border: 1.5px dashed var(--border); border-radius: var(--radius-md); background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all var(--transition); overflow: hidden; }
+.rpg-slot:hover { border-color: var(--text-light); }
+.rpg-slot.filled { border-style: solid; }
+.rpg-slot svg { width: 86%; height: 72%; }
+.rpg-slot .rpg-slot-label { position: absolute; bottom: 2px; left: 0; right: 0; text-align: center; font-family: 'Space Mono', monospace; font-size: 0.48rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-light); pointer-events: none; }
+.rpg-slot .rpg-slot-empty { font-size: 1.1rem; opacity: 0.35; }
+/* tabs + item grids */
+.rpg-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+.rpg-tab { font-family: inherit; font-size: 0.86rem; font-weight: 600; padding: 8px 14px; border-radius: 999px; border: 1.5px solid var(--border); background: #fff; color: var(--text-muted); cursor: pointer; transition: all var(--transition); }
+.rpg-tab.active { background: var(--text); border-color: var(--text); color: #fff; }
+.rpg-filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.rpg-filter-chip { font-family: 'Space Mono', monospace; font-size: 0.64rem; letter-spacing: 0.05em; text-transform: uppercase; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--border); background: #fff; color: var(--text-muted); cursor: pointer; transition: all var(--transition); }
+.rpg-filter-chip.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+.rpg-gold-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-family: 'Space Mono', monospace; font-size: 0.8rem; color: var(--text-muted); }
+.rpg-gold-row b { color: var(--text); font-size: 0.95rem; }
+.rpg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(138px, 1fr)); gap: 10px; }
+.rpg-item { position: relative; display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--border); border-top: 3px solid var(--rar, var(--rar-common)); border-radius: var(--radius-md); background: #fff; padding: 10px; }
+.rpg-item.locked { opacity: 0.62; }
+.rpg-item-art { height: 62px; display: flex; align-items: center; justify-content: center; }
+.rpg-item-art svg { height: 100%; width: auto; max-width: 100%; }
+.rpg-item-name { font-weight: 700; font-size: 0.82rem; line-height: 1.25; }
+.rpg-item-rarity { font-family: 'Space Mono', monospace; font-size: 0.54rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--rar, var(--rar-common)); font-weight: 700; }
+.rpg-item-stats { font-size: 0.74rem; color: var(--text-muted); line-height: 1.4; min-height: 2.1em; }
+.rpg-item .btn { padding: 6px 8px; font-size: 0.76rem; margin-top: auto; }
+.rpg-item-badge { position: absolute; top: 6px; right: 6px; font-family: 'Space Mono', monospace; font-size: 0.52rem; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; background: var(--primary-light); color: var(--primary); font-weight: 700; }
+.rpg-item-price { font-family: 'Space Mono', monospace; font-size: 0.74rem; font-weight: 700; }
+.rpg-item-req { font-family: 'Space Mono', monospace; font-size: 0.6rem; color: var(--accent-red); }
+/* reward overlay */
+.rpg-reward-hero { text-align: center; padding: 6px 0 14px; }
+.rpg-reward-hero .big { font-size: 3.2rem; line-height: 1; display: inline-block; animation: rpgBob 1.8s ease-in-out infinite; }
+.rpg-reward-hero h4 { font-size: 1.15rem; margin-top: 8px; }
+.rpg-reward-hero p { color: var(--text-muted); font-size: 0.9rem; margin-top: 4px; }
+.rpg-reward-stats { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; font-family: 'Space Mono', monospace; font-size: 0.86rem; font-weight: 700; margin-top: 10px; }
+.rpg-loot-card { display: flex; align-items: center; gap: 12px; margin-top: 14px; border: 1px solid var(--border); border-left: 4px solid var(--rar, var(--rar-common)); border-radius: var(--radius-md); padding: 10px 12px; background: var(--surface-alt); text-align: left; }
+.rpg-loot-card .rpg-item-art { height: 52px; width: 52px; flex-shrink: 0; }
+@media (max-width: 720px) {
+  .rpg-arena { grid-template-columns: 1fr; }
+  .rpg-vs { display: none; }
+  .rpg-stat-chips { grid-template-columns: repeat(2, 1fr); }
+}
 </style>
 </head>
 <body>
@@ -440,7 +556,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
       <img src="https://dl.dropboxusercontent.com/scl/fi/h40yjlyg8ldefwfaa3dib/polymath-logo-sticker.png?rlkey=o1ra4taqy79gt9t8u096v82zj" alt="Polymath" onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2246%22 height=%2246%22%3E%3Crect width=%2246%22 height=%2246%22 rx=%2210%22 fill=%22%234a7c59%22/%3E%3Ctext x=%2223%22 y=%2232%22 font-family=%22sans-serif%22 font-size=%2226%22 font-weight=%22700%22 fill=%22white%22 text-anchor=%22middle%22%3EP%3C/text%3E%3C/svg%3E';">
       <div><h1>Math Practice</h1><span>Polymath Learning Centre</span></div>
     </div>
-    <p class="auth-sub" id="authSub">Sign in to start practising — write your working and get instant AI marking.</p>
+    <p class="auth-sub" id="authSub">Sign in to start practising — write your working, get instant AI marking, and level up your hero.</p>
 
     <button class="google-btn" id="googleBtn">
       <svg viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.8-6.8C35.6 2.4 30.2 0 24 0 14.6 0 6.4 5.4 2.6 13.2l7.9 6.2C12.3 13.7 17.6 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.5 3-2.2 5.5-4.7 7.2l7.3 5.7c4.3-3.9 6.8-9.7 6.8-17.4z"/><path fill="#FBBC05" d="M10.5 28.4c-.5-1.4-.7-2.9-.7-4.4s.3-3 .7-4.4l-7.9-6.2C1 16.5 0 20.1 0 24s1 7.5 2.6 10.6l7.9-6.2z"/><path fill="#34A853" d="M24 48c6.2 0 11.4-2 15.2-5.5l-7.3-5.7c-2 1.4-4.7 2.3-7.9 2.3-6.4 0-11.7-4.2-13.5-9.9l-7.9 6.2C6.4 42.6 14.6 48 24 48z"/></svg>
@@ -475,6 +591,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
     </div>
     <nav class="sidebar-nav">
       <div class="nav-item active" data-page="practice"><span class="ico">✍️</span> Practice</div>
+      <div class="nav-item" data-page="character"><span class="ico">🛡️</span> Character</div>
       <div class="nav-section admin-only">Admin</div>
       <div class="nav-item admin-only" data-page="create"><span class="ico">➕</span> Create Question</div>
       <div class="nav-item admin-only" data-page="bank"><span class="ico">📚</span> Question Bank</div>
@@ -483,6 +600,11 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
       <div class="nav-item admin-only" id="navMarking"><span class="ico">⚖️</span> AI Marking Guide</div>
       <div class="nav-item admin-only" id="navGen"><span class="ico">✨</span> AI Generation Guide</div>
     </nav>
+    <div class="rpg-side" id="rpgSide" style="display:none;" title="Open your character page">
+      <div class="rpg-side-top"><span class="rpg-side-level" id="rpgSideLevel">Lv 1</span><span class="rpg-side-gold" id="rpgSideGold">🪙 0</span></div>
+      <div class="rpg-bar mini" title="HP"><div class="rpg-bar-fill hp" id="rpgSideHp" style="width:100%;"></div></div>
+      <div class="rpg-bar mini" title="XP to next level"><div class="rpg-bar-fill xp" id="rpgSideXp" style="width:0%;"></div></div>
+    </div>
     <div class="sidebar-foot">
       <div class="sidebar-user"><b id="userName">—</b><span id="userEmail"></span></div>
       <button class="logout-btn" id="logoutBtn">Sign out</button>
@@ -495,6 +617,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
       <h2 id="topbarTitle">Practice</h2>
       <div class="topbar-spacer"></div>
       <div class="topbar-actions">
+        <button class="icon-btn rpg-chip" id="rpgTopChip" type="button" style="display:none;" title="Your hero">🛡️ <span id="rpgTopChipText">Lv 1</span></button>
         <button class="icon-btn student-only" id="emailBellBtn" type="button" title="Email me when new questions are uploaded">🔔</button>
         <button class="icon-btn admin-only" id="flagInboxBtn" type="button" title="Flagged questions">🚩<span class="notify-count" id="flagCount">0</span></button>
       </div>
@@ -504,6 +627,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
     <!-- ================= PRACTICE PAGE ================= -->
     <div class="page active" id="page-practice">
       <div class="worksheet-layout">
+        <div class="rpg-battle" id="rpgBattle" style="display:none;"></div>
         <div class="card card-pad worksheet-card" id="questionCard">
           <div class="worksheet-top">
             <div class="q-meta" id="qMeta">
@@ -602,6 +726,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
               <div class="verdict-icon" id="verdictIcon">✓</div>
               <div class="verdict-text"><h3 id="verdictTitle">Correct</h3><div class="score" id="verdictScore"></div></div>
             </div>
+            <div class="rpg-reward-line" id="rpgRewardLine" style="display:none;"></div>
             <div class="feedback-block"><h4>💬 Feedback</h4><p id="fbFeedback"></p></div>
             <div class="feedback-block" id="mistakesBlock" style="display:none;"><h4>🔍 What to check</h4><ul id="fbMistakes"></ul></div>
             <div class="feedback-block" id="nextStepBlock" style="display:none;"><h4>➡️ Next step</h4><p id="fbNextStep"></p></div>
@@ -678,6 +803,32 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
         <button class="btn btn-ghost" id="refreshRosterBtn" type="button" style="margin-left:auto;">Refresh</button>
       </div>
       <div id="studentRoster"></div>
+    </div>
+
+    <!-- ================= CHARACTER PAGE (RPG) ================= -->
+    <div class="page" id="page-character">
+      <div class="page-head"><h3>🛡️ Your Hero</h3><p>Equip swords, staffs and armour — everything you wear shows on your avatar. Earn gold and XP by solving math questions.</p></div>
+      <div class="rpg-char-grid">
+        <div class="card card-pad rpg-hero-card">
+          <div class="rpg-avatar-frame" id="rpgAvatarFrame"></div>
+          <div class="rpg-hero-name" id="rpgHeroName">—</div>
+          <div id="rpgHeroBars"></div>
+          <div class="rpg-stat-chips" id="rpgHeroStats"></div>
+          <div class="section-label" style="margin-top:14px;">Equipment</div>
+          <div class="rpg-equip-row" id="rpgEquipRow"></div>
+          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+            <button class="btn btn-ghost btn-sm" id="rpgRestBtn" type="button">🛏️ Rest &amp; heal</button>
+            <button class="btn btn-ghost btn-sm" id="rpgToBattleBtn" type="button">⚔️ Go battle</button>
+          </div>
+        </div>
+        <div class="card card-pad rpg-inv-card">
+          <div class="rpg-tabs">
+            <button class="rpg-tab active" data-rpgtab="inventory" type="button">🎒 Inventory</button>
+            <button class="rpg-tab" data-rpgtab="shop" type="button">🏪 Shop</button>
+          </div>
+          <div id="rpgTabBody"></div>
+        </div>
+      </div>
     </div>
 
     <!-- ================= WORKSHEET CREATOR PAGE (admin) ================= -->
@@ -820,6 +971,14 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
       <button class="btn btn-ghost" id="cameraGalleryBtn" type="button">🖼️ Upload from gallery</button>
       <button class="btn btn-primary" id="cameraCaptureBtn" type="button" disabled>📸 Capture</button>
     </div>
+  </div>
+</div>
+
+<div class="overlay" id="rpgRewardOverlay">
+  <div class="overlay-card" style="max-width:440px;">
+    <div class="overlay-head"><h3 id="rpgRewardTitle">Victory!</h3><button class="close" data-close="rpgRewardOverlay">×</button></div>
+    <div class="overlay-body" id="rpgRewardBody"></div>
+    <div class="overlay-foot"><button class="btn btn-primary" data-close="rpgRewardOverlay">Continue</button></div>
   </div>
 </div>
 
@@ -1900,6 +2059,7 @@ onAuthStateChanged(auth, async (user) => {
     adminUid = null;
     flagNotifications = [];
     emailNewQuestionOptIn = false;
+    rpgOnSignOut();
     $("appShell").classList.remove("show");
     $("authScreen").style.display = "flex";
   }
@@ -1941,6 +2101,7 @@ async function enterApp(user) {
     prioritizeReviewQuestions();
     navigateTo("practice");
   }
+  rpgInit().catch(e => console.warn("rpg init", e));
   renderQuestion();
 }
 function canManageQuestions() { return !!currentUser && currentUser.role === "admin"; }
@@ -2143,9 +2304,10 @@ function navigateTo(page) {
   document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
   const pageEl = $("page-" + page); if (pageEl) pageEl.classList.add("active");
   const nav = document.querySelector(`.nav-item[data-page="${page}"]`); if (nav) nav.classList.add("active");
-  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", worksheet: "Worksheet Creator", students: "Student Results" };
+  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", worksheet: "Worksheet Creator", students: "Student Results", character: "Character" };
   $("topbarTitle").textContent = titles[page] || "";
   $("sidebar").classList.remove("open");
+  if (page === "character") rpgRenderCharacterPage();
   if (page === "bank") renderBank();
   if (page === "students") loadStudentRoster();
   if (page === "practice") { renderQuestion(); setupCanvasSize(); }
@@ -3365,6 +3527,7 @@ function renderQuestion() {
   requestAnimationFrame(setupCanvasSize);
   hideResult();
   hideHint();
+  rpgQuestionChanged();
 }
 function changeQuestion(delta) {
   let ni = qIndex + delta;
@@ -3634,6 +3797,7 @@ $("hintBtn").addEventListener("click", async () => {
     const hint = String(data.hint || "").trim();
     if (!hint) throw new Error("empty hint - please try again");
     showHint(hint);
+    rpgNoteHintUsed();
     toast("Hint ready", "success");
   } catch (e) { console.error(e); toast("AI hint error: " + aiErrorMessage(e), "error"); }
   finally { btn.disabled = false; label.textContent = "AI hint"; }
@@ -3684,6 +3848,7 @@ $("submitBtn").addEventListener("click", async () => {
     const raw = await askGeminiVision(prompt, media, { maxOutputTokens: 1500, json: true });
     const v = parseAIJson(raw);
     const reviewPlan = await recordLearningAttempt(q, v);
+    try { rpgOnMarked(q, v); } catch (err) { console.warn("rpg reward", err); }
     showResult(v, png, reviewPlan, !!solutionMedia);
     const verdict = (v.verdict || "").toLowerCase();
     let markMsg = verdict === "correct" ? "Great work! 🎉" : "Marked — see the feedback";
@@ -3702,6 +3867,1154 @@ $("submitBtn").addEventListener("click", async () => {
 let toastTimer = null;
 function toast(msg, type = "") { const el = $("toast"); el.textContent = msg; el.className = "show " + type; clearTimeout(toastTimer); toastTimer = setTimeout(() => el.className = "", 3200); }
 function refreshAiStatus() { const ok = aiReady(); $("aiDot").classList.toggle("ready", ok); $("aiStatus").textContent = ok ? "AI ready" : "AI offline"; }
+
+// =====================================================================
+// RPG — Math Quest layer
+// Storage: "firestore" saves hero progress to users/{uid}/settings/mathRpg
+// (with one-time migration from the game.html preview's localStorage).
+// The game.html preview build flips this to "local" so previewing never
+// writes game data to Firestore.
+// =====================================================================
+const RPG_STORAGE_MODE = "firestore";
+const RPG_SLOTS = ["weapon", "shield", "armor", "helmet", "accessory"];
+const RPG_SLOT_META = {
+  weapon: { label: "Weapon", icon: "⚔️", box: "-32 -92 64 118" },
+  shield: { label: "Shield", icon: "🛡️", box: "-26 -32 52 66" },
+  armor: { label: "Armour", icon: "🥋", box: "58 106 84 96" },
+  helmet: { label: "Helmet", icon: "🪖", box: "54 2 92 88" },
+  accessory: { label: "Accessory", icon: "🧣", box: "60 108 80 100" }
+};
+const RPG_RARITY = {
+  common: { label: "Common", rank: 1, color: "var(--rar-common)" },
+  uncommon: { label: "Uncommon", rank: 2, color: "var(--rar-uncommon)" },
+  rare: { label: "Rare", rank: 3, color: "var(--rar-rare)" },
+  epic: { label: "Epic", rank: 4, color: "var(--rar-epic)" },
+  legendary: { label: "Legendary", rank: 5, color: "var(--rar-legendary)" }
+};
+
+// ---- SVG art helpers (paper-doll layers; local coords documented per slot) ----
+function svgStar(cx, cy, R, r, fill) {
+  const pts = [];
+  for (let i = 0; i < 10; i++) {
+    const a = (Math.PI / 5) * i - Math.PI / 2;
+    const rad = i % 2 === 0 ? R : r;
+    pts.push((cx + rad * Math.cos(a)).toFixed(1) + "," + (cy + rad * Math.sin(a)).toFixed(1));
+  }
+  return `<polygon points="${pts.join(" ")}" fill="${fill}"/>`;
+}
+function svgPulse(min, max) {
+  return `<animate attributeName="opacity" values="${max};${min};${max}" dur="1.8s" repeatCount="indefinite"/>`;
+}
+// Weapons: origin = grip centre in the hero's hand, blade points up (-y).
+function svgSword(blade, guard, grip, glow) {
+  return (glow ? `<polygon points="0,-77 7.5,-60 7.5,-5 -7.5,-5 -7.5,-60" fill="${glow}" opacity="0.4">${svgPulse(0.2, 0.5)}</polygon>` : "") +
+    `<polygon points="0,-72 5,-60 5,-8 -5,-8 -5,-60" fill="${blade}"/>` +
+    `<line x1="0" y1="-64" x2="0" y2="-11" stroke="rgba(0,0,0,0.2)" stroke-width="1.4"/>` +
+    `<rect x="-13" y="-9" width="26" height="6" rx="3" fill="${guard}"/>` +
+    `<rect x="-3" y="-3" width="6" height="16" rx="2.5" fill="${grip}"/>` +
+    `<circle cx="0" cy="16" r="4" fill="${guard}"/>`;
+}
+function svgGreatsword(blade, guard, grip, glow, extra = "") {
+  return (glow ? `<polygon points="0,-86 10,-68 10,-4 -10,-4 -10,-68" fill="${glow}" opacity="0.4">${svgPulse(0.2, 0.5)}</polygon>` : "") +
+    `<polygon points="0,-80 7.5,-66 7.5,-8 -7.5,-8 -7.5,-66" fill="${blade}"/>` +
+    `<line x1="0" y1="-70" x2="0" y2="-11" stroke="rgba(0,0,0,0.16)" stroke-width="2"/>` +
+    extra +
+    `<rect x="-16" y="-10" width="32" height="6.5" rx="3" fill="${guard}"/>` +
+    `<rect x="-3.4" y="-3" width="6.8" height="20" rx="3" fill="${grip}"/>` +
+    `<circle cx="0" cy="20" r="4.5" fill="${guard}"/>`;
+}
+function svgExcalibur() {
+  return svgGreatsword("#fff6db", "#e8b41f", "#27406b", "#ffd76a",
+    `<polygon points="0,-66 3.4,-60 0,-54 -3.4,-60" fill="#9bb8e8"/>` +
+    `<rect x="-16" y="-13" width="6" height="9" rx="2.5" fill="#e8b41f"/>` +
+    `<rect x="10" y="-13" width="6" height="9" rx="2.5" fill="#e8b41f"/>`);
+}
+function svgKatana(blade, guard, grip, petal) {
+  return `<path d="M-2 -8 Q13 -38 3 -70 L8 -67 Q17 -36 4 -8 Z" fill="${blade}"/>` +
+    `<ellipse cx="0" cy="-7" rx="9" ry="3.4" fill="${guard}"/>` +
+    `<rect x="-2.8" y="-4" width="5.6" height="18" rx="2.5" fill="${grip}"/>` +
+    `<line x1="-2.8" y1="2" x2="2.8" y2="5" stroke="rgba(255,255,255,0.5)" stroke-width="1.2"/>` +
+    `<line x1="-2.8" y1="8" x2="2.8" y2="11" stroke="rgba(255,255,255,0.5)" stroke-width="1.2"/>` +
+    (petal ? `<circle cx="9" cy="-14" r="2.6" fill="${petal}"/><circle cx="13" cy="-22" r="1.8" fill="${petal}" opacity="0.7"/>` : "");
+}
+function svgRapier(blade, guard, grip) {
+  return `<polygon points="0,-68 2,-60 2,-8 -2,-8 -2,-60" fill="${blade}"/>` +
+    `<path d="M-9 -8 Q0 6 9 -8" fill="none" stroke="${guard}" stroke-width="2.6"/>` +
+    `<rect x="-8" y="-9" width="16" height="4" rx="2" fill="${guard}"/>` +
+    `<rect x="-2.4" y="-5" width="4.8" height="14" rx="2" fill="${grip}"/>` +
+    `<circle cx="0" cy="12" r="3" fill="${guard}"/>`;
+}
+function svgDagger(blade, guard, grip, glow) {
+  return (glow ? `<polygon points="0,-44 6,-32 6,-4 -6,-4 -6,-32" fill="${glow}" opacity="0.4">${svgPulse(0.2, 0.5)}</polygon>` : "") +
+    `<polygon points="0,-40 4.5,-30 4.5,-7 -4.5,-7 -4.5,-30" fill="${blade}"/>` +
+    `<rect x="-9" y="-8" width="18" height="5" rx="2.5" fill="${guard}"/>` +
+    `<rect x="-2.6" y="-3" width="5.2" height="13" rx="2.2" fill="${grip}"/>`;
+}
+function svgCutlass(blade, guard, grip) {
+  return `<path d="M-3 -8 Q16 -28 7 -60 L-1 -55 Q4 -32 -9 -10 Z" fill="${blade}"/>` +
+    `<path d="M-10 -9 Q-2 6 8 -7" fill="none" stroke="${guard}" stroke-width="3"/>` +
+    `<rect x="-3" y="-4" width="6" height="14" rx="2.5" fill="${grip}"/>` +
+    `<circle cx="0" cy="12" r="3" fill="${guard}"/>`;
+}
+function svgStaffBase(shaft) {
+  return `<rect x="-2.8" y="-56" width="5.6" height="78" rx="2.8" fill="${shaft}"/>`;
+}
+function svgStaff(shaft, orb, glow) {
+  return svgStaffBase(shaft) +
+    `<circle cx="0" cy="-63" r="13" fill="${glow}" opacity="0.35">${svgPulse(0.2, 0.45)}</circle>` +
+    `<circle cx="0" cy="-63" r="9" fill="${orb}"/>` +
+    `<circle cx="-3" cy="-66" r="2.6" fill="rgba(255,255,255,0.75)"/>`;
+}
+function svgFlameStaff(shaft) {
+  return svgStaffBase(shaft) +
+    `<path d="M0 -78 Q8 -68 6 -59 Q4 -53 0 -52 Q-4 -53 -6 -59 Q-8 -68 0 -78 Z" fill="#ff8c42"/>` +
+    `<path d="M0 -70 Q3.5 -64 2.5 -59 Q0 -55 -2.5 -59 Q-3.5 -64 0 -70 Z" fill="#ffd166">${svgPulse(0.6, 1)}</path>`;
+}
+function svgIceStaff(shaft) {
+  return svgStaffBase(shaft) +
+    `<polygon points="0,-80 6,-62 0,-56 -6,-62" fill="#bfe9f7"/>` +
+    `<polygon points="-9,-70 -4,-58 -9,-55" fill="#8fd4ee"/>` +
+    `<polygon points="9,-70 4,-58 9,-55" fill="#8fd4ee"/>`;
+}
+function svgLeafStaff(shaft) {
+  return svgStaffBase(shaft) +
+    `<path d="M0 -76 Q13 -66 0 -50 Q-13 -66 0 -76 Z" fill="#3a9e5f"/>` +
+    `<line x1="0" y1="-72" x2="0" y2="-54" stroke="#1c8a4a" stroke-width="1.6"/>` +
+    `<circle cx="7" cy="-50" r="2.6" fill="#d94f4f"/>`;
+}
+function svgVoidStaff(shaft) {
+  return svgStaffBase(shaft) +
+    `<circle cx="0" cy="-63" r="8" fill="#1a1430"/>` +
+    `<circle cx="0" cy="-63" r="12.5" fill="none" stroke="#7b5ea7" stroke-width="2.2" opacity="0.8">${svgPulse(0.35, 0.9)}</circle>` +
+    `<circle cx="3" cy="-66" r="1.6" fill="#b79ae0"/>`;
+}
+function svgRuneStaff(shaft) {
+  return svgStaffBase(shaft) +
+    `<circle cx="0" cy="-64" r="15" fill="#7be0a2" opacity="0.3">${svgPulse(0.15, 0.4)}</circle>` +
+    `<circle cx="0" cy="-64" r="10" fill="none" stroke="#1c8a4a" stroke-width="2.6"/>` +
+    `<polyline points="-4,-70 -4,-58 4,-70 4,-58" fill="none" stroke="#1c8a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`;
+}
+function svgSpiralStaff(shaft) {
+  return svgStaffBase(shaft) +
+    `<circle cx="0" cy="-63" r="16" fill="#ffe9a3" opacity="0.35">${svgPulse(0.2, 0.45)}</circle>` +
+    `<path d="M0 -52 a11 11 0 1 1 11 -11 a8 8 0 1 1 -8 8 a5 5 0 1 1 5 -5 a2.5 2.5 0 1 1 -2.5 2.5" fill="none" stroke="#e8b41f" stroke-width="3" stroke-linecap="round"/>`;
+}
+function svgWand(shaft, star) {
+  return `<rect x="-2" y="-34" width="4" height="46" rx="2" fill="${shaft}"/>` +
+    svgStar(0, -42, 10, 4.2, star) +
+    `<circle cx="9" cy="-52" r="1.7" fill="${star}" opacity="0.8"/><circle cx="-10" cy="-36" r="1.4" fill="${star}" opacity="0.7"/>`;
+}
+function svgCometWand(shaft, star) {
+  return `<rect x="-2" y="-34" width="4" height="46" rx="2" fill="${shaft}"/>` +
+    svgStar(0, -44, 10, 4.2, star) +
+    `<path d="M5 -38 L17 -20" stroke="${star}" stroke-width="2.4" stroke-linecap="round" opacity="0.7"/>` +
+    `<path d="M-2 -34 L6 -16" stroke="${star}" stroke-width="1.8" stroke-linecap="round" opacity="0.45"/>`;
+}
+function svgSunScepter(shaft) {
+  let rays = "";
+  for (let i = 0; i < 8; i++) {
+    const a = (Math.PI / 4) * i;
+    rays += `<line x1="${(Math.cos(a) * 11).toFixed(1)}" y1="${(-52 + Math.sin(a) * 11).toFixed(1)}" x2="${(Math.cos(a) * 16).toFixed(1)}" y2="${(-52 + Math.sin(a) * 16).toFixed(1)}" stroke="#e8b41f" stroke-width="2.4" stroke-linecap="round"/>`;
+  }
+  return `<rect x="-2.4" y="-40" width="4.8" height="52" rx="2.4" fill="${shaft}"/>` +
+    `<circle cx="0" cy="-52" r="16" fill="#fff3b0" opacity="0.4">${svgPulse(0.2, 0.55)}</circle>` + rays +
+    `<circle cx="0" cy="-52" r="8.5" fill="#ffe27a" stroke="#e8b41f" stroke-width="2"/>`;
+}
+function svgAxe(shaft, head) {
+  return `<rect x="-2.8" y="-52" width="5.6" height="72" rx="2.8" fill="${shaft}"/>` +
+    `<path d="M2 -52 Q27 -47 25 -21 Q12 -33 2 -33 Z" fill="${head}"/>` +
+    `<path d="M-2 -52 Q-27 -47 -25 -21 Q-12 -33 -2 -33 Z" fill="${head}"/>` +
+    `<rect x="-4" y="-55" width="8" height="6" rx="2" fill="${head}"/>`;
+}
+function svgHammer(shaft, head, band) {
+  return `<rect x="-2.8" y="-52" width="5.6" height="72" rx="2.8" fill="${shaft}"/>` +
+    `<rect x="-15" y="-70" width="30" height="19" rx="3.5" fill="${head}"/>` +
+    `<line x1="-9" y1="-70" x2="-9" y2="-51" stroke="${band}" stroke-width="2"/>` +
+    `<line x1="9" y1="-70" x2="9" y2="-51" stroke="${band}" stroke-width="2"/>`;
+}
+function svgSpear(shaft, head) {
+  return `<rect x="-2.4" y="-62" width="4.8" height="82" rx="2.4" fill="${shaft}"/>` +
+    `<polygon points="0,-82 6.5,-62 0,-66 -6.5,-62" fill="${head}"/>`;
+}
+function svgScythe(shaft, blade) {
+  return `<rect x="-2.8" y="-56" width="5.6" height="78" rx="2.8" fill="${shaft}"/>` +
+    `<path d="M2 -56 Q-22 -56 -32 -40 Q-15 -49 -1 -45 Z" fill="${blade}"/>` +
+    `<circle cx="0" cy="-56" r="3.4" fill="#3f3a34"/>`;
+}
+function svgTrident(metal, bright, glow) {
+  return (glow ? `<polygon points="0,-88 6,-56 -6,-56" fill="${glow}" opacity="0.4">${svgPulse(0.2, 0.5)}</polygon>` : "") +
+    `<rect x="-2.6" y="-58" width="5.2" height="80" rx="2.6" fill="${metal}"/>` +
+    `<rect x="-14" y="-60" width="28" height="5" rx="2.5" fill="${bright}"/>` +
+    `<polygon points="0,-84 3.4,-58 -3.4,-58" fill="${bright}"/>` +
+    `<polygon points="-11,-78 -8,-58 -14,-58" fill="${bright}"/>` +
+    `<polygon points="11,-78 14,-58 8,-58" fill="${bright}"/>`;
+}
+function svgHalberd() {
+  return `<circle cx="0" cy="-58" r="15" fill="#ffe9a3" opacity="0.3">${svgPulse(0.18, 0.42)}</circle>` +
+    `<rect x="-2.4" y="-66" width="4.8" height="88" rx="2.4" fill="#6f4f28"/>` +
+    `<polygon points="0,-86 5,-66 -5,-66" fill="#e8b41f"/>` +
+    `<path d="M3 -64 Q24 -60 22 -38 Q11 -48 3 -48 Z" fill="#dbe3ea"/>` +
+    `<path d="M-3 -60 L-14 -56 L-3 -52 Z" fill="#aab4bf"/>` +
+    `<rect x="-7" y="-66" width="14" height="4" rx="2" fill="#caa53d"/>`;
+}
+// Shields: origin = centre of the hero's off-hand.
+function svgShieldArt(base, trim, emblem) {
+  return `<path d="M0 -24 L19 -16 L19 2 Q19 17 0 27 Q-19 17 -19 2 L-19 -16 Z" fill="${base}" stroke="${trim}" stroke-width="2.5"/>` +
+    `<path d="M0 -16 L12 -11 L12 2 Q12 11 0 18 Q-12 11 -12 2 L-12 -11 Z" fill="rgba(255,255,255,0.14)"/>` +
+    (emblem || svgStar(0, 1, 7, 3, trim));
+}
+function svgBuckler(base, trim) {
+  return `<circle r="16" cy="0" fill="${base}" stroke="${trim}" stroke-width="2.6"/>` +
+    `<circle r="5.5" cy="0" fill="${trim}"/>` +
+    `<circle cx="0" cy="-10" r="1.6" fill="${trim}"/><circle cx="10" cy="0" r="1.6" fill="${trim}"/><circle cx="0" cy="10" r="1.6" fill="${trim}"/><circle cx="-10" cy="0" r="1.6" fill="${trim}"/>`;
+}
+function svgKiteShield(base, trim) {
+  return `<path d="M0 -24 L17 -7 L0 28 L-17 -7 Z" fill="${base}" stroke="${trim}" stroke-width="2.5"/>` +
+    `<line x1="0" y1="-18" x2="0" y2="22" stroke="${trim}" stroke-width="2" opacity="0.7"/>`;
+}
+function svgTowerShield(base, trim) {
+  return `<rect x="-15" y="-27" width="30" height="53" rx="6" fill="${base}" stroke="${trim}" stroke-width="2.5"/>` +
+    `<line x1="0" y1="-20" x2="0" y2="19" stroke="${trim}" stroke-width="2.4"/>` +
+    `<line x1="-9" y1="-1" x2="9" y2="-1" stroke="${trim}" stroke-width="2.4"/>`;
+}
+function svgMirrorShield() {
+  return svgShieldArt("#dbe3ea", "#8d99a6", `<circle r="6" fill="#f4f8fb"/>`) +
+    `<path d="M-11 -17 L-2 -19 L-15 6 Z" fill="rgba(255,255,255,0.7)"/>`;
+}
+function svgTomeShield(cover, page, emblem) {
+  return `<rect x="-16" y="-20" width="32" height="40" rx="3.5" fill="${cover}"/>` +
+    `<rect x="-11" y="-16" width="24" height="32" rx="2" fill="${page}"/>` +
+    `<rect x="-16" y="-20" width="6" height="40" rx="3" fill="rgba(0,0,0,0.22)"/>` +
+    emblem +
+    `<line x1="-7" y1="11" x2="11" y2="11" stroke="${cover}" stroke-width="1.4" opacity="0.5"/>`;
+}
+function svgRoyalBulwark() {
+  return svgShieldArt("#27406b", "#e8b41f",
+    `<polygon points="-7,4 -7,-5 -3.5,-1 0,-6 3.5,-1 7,-5 7,4" fill="#ffd76a"/>` +
+    `<rect x="-7" y="2.5" width="14" height="3.4" rx="1.5" fill="#ffd76a"/>`);
+}
+function svgDragonScaleShield() {
+  let scales = "";
+  for (let row = 0; row < 3; row++) {
+    for (let i = -1; i <= 1; i++) {
+      scales += `<path d="M${i * 11 - 5} ${-12 + row * 10} q5 7 10 0" fill="none" stroke="#e8b41f" stroke-width="1.6" opacity="0.8"/>`;
+    }
+  }
+  return svgShieldArt("#7e1f1f", "#e8b41f", "") + scales;
+}
+function svgFallenStarShield() {
+  return `<circle r="22" cy="1" fill="#b79ae0" opacity="0.3">${svgPulse(0.15, 0.4)}</circle>` +
+    svgShieldArt("#2c1f4a", "#ffd76a", svgStar(0, 1, 9, 3.8, "#ffd76a") +
+      `<circle cx="-8" cy="-9" r="1.3" fill="#b79ae0"/><circle cx="8" cy="10" r="1.1" fill="#b79ae0"/>`);
+}
+// Armour / helmets / accessories use the avatar's absolute coordinates.
+function svgArmorPlate(base, trim) {
+  return `<path d="M76 119 Q100 111 124 119 L128 172 Q100 181 72 172 Z" fill="${base}"/>` +
+    `<line x1="100" y1="115" x2="100" y2="178" stroke="${trim}" stroke-width="2" opacity="0.7"/>` +
+    `<path d="M76 119 Q100 111 124 119 L123 128 Q100 121 77 128 Z" fill="${trim}"/>` +
+    `<rect x="62" y="116" width="22" height="13" rx="6" fill="${base}" stroke="${trim}" stroke-width="1.5"/>` +
+    `<rect x="116" y="116" width="22" height="13" rx="6" fill="${base}" stroke="${trim}" stroke-width="1.5"/>` +
+    `<rect x="72" y="163" width="56" height="8" rx="4" fill="${trim}"/>`;
+}
+function svgArmorLeather(base, strap) {
+  return `<path d="M77 119 Q100 112 123 119 L127 172 Q100 181 73 172 Z" fill="${base}"/>` +
+    `<line x1="80" y1="122" x2="118" y2="168" stroke="${strap}" stroke-width="5"/>` +
+    `<line x1="120" y1="122" x2="82" y2="168" stroke="${strap}" stroke-width="5"/>` +
+    `<rect x="73" y="163" width="54" height="8" rx="4" fill="${strap}"/>`;
+}
+function svgArmorChain(base, ring) {
+  let rings = "";
+  for (let row = 0; row < 4; row++) {
+    for (let i = 0; i < 6; i++) {
+      rings += `<circle cx="${81 + i * 7.6}" cy="${128 + row * 11}" r="3.1" fill="none" stroke="${ring}" stroke-width="1.3" opacity="0.65"/>`;
+    }
+  }
+  return `<path d="M77 119 Q100 112 123 119 L127 172 Q100 181 73 172 Z" fill="${base}"/>` + rings +
+    `<rect x="73" y="163" width="54" height="8" rx="4" fill="#5b4632"/>`;
+}
+function svgArmorSpiked(base, trim, spike) {
+  return `<path d="M76 119 Q100 111 124 119 L128 172 Q100 181 72 172 Z" fill="${base}"/>` +
+    `<path d="M82 124 L92 134 L82 144 Z" fill="${spike}"/><path d="M118 124 L108 134 L118 144 Z" fill="${spike}"/>` +
+    `<path d="M86 146 L96 156 L86 166 Z" fill="${spike}"/><path d="M114 146 L104 156 L114 166 Z" fill="${spike}"/>` +
+    `<path d="M76 119 Q100 111 124 119 L123 128 Q100 121 77 128 Z" fill="${trim}"/>` +
+    `<polygon points="64,118 74,112 76,124" fill="${base}" stroke="${trim}" stroke-width="1.4"/>` +
+    `<polygon points="136,118 126,112 124,124" fill="${base}" stroke="${trim}" stroke-width="1.4"/>` +
+    `<rect x="72" y="163" width="56" height="8" rx="4" fill="${trim}"/>`;
+}
+function svgRobe(base, sash, extra = "") {
+  return `<path d="M77 118 Q100 110 123 118 L132 196 Q116 203 100 200 Q84 203 68 196 Z" fill="${base}"/>` +
+    `<path d="M77 148 Q100 156 123 148 L123 157 Q100 165 77 157 Z" fill="${sash}"/>` +
+    `<line x1="100" y1="116" x2="100" y2="148" stroke="${sash}" stroke-width="2.4" opacity="0.7"/>` + extra;
+}
+function svgScaleMail(base, scale, trim) {
+  let scales = "";
+  for (let row = 0; row < 4; row++) {
+    for (let i = 0; i < 4; i++) {
+      scales += `<path d="M${79 + i * 11 + (row % 2 ? 5.5 : 0)} ${127 + row * 10} q5.5 7 11 0" fill="none" stroke="${scale}" stroke-width="1.8" opacity="0.85"/>`;
+    }
+  }
+  return `<path d="M76 119 Q100 111 124 119 L128 172 Q100 181 72 172 Z" fill="${base}"/>` + scales +
+    `<path d="M76 119 Q100 111 124 119 L123 128 Q100 121 77 128 Z" fill="${trim}"/>` +
+    `<rect x="72" y="163" width="56" height="8" rx="4" fill="${trim}"/>`;
+}
+function svgHelmCap(base, stitch) {
+  return `<path d="M68 70 Q70 42 100 42 Q130 42 132 70 Q116 60 100 61 Q84 60 68 70 Z" fill="${base}"/>` +
+    `<path d="M72 64 Q100 50 128 64" stroke="${stitch}" stroke-width="1.6" fill="none" stroke-dasharray="3 3"/>`;
+}
+function svgHeadband(base, knot) {
+  return `<path d="M66 70 Q100 58 134 70 L134 79 Q100 67 66 79 Z" fill="${base}"/>` +
+    `<path d="M133 72 Q146 76 144 90" stroke="${knot}" stroke-width="4" fill="none" stroke-linecap="round"/>` +
+    `<path d="M134 74 Q150 72 152 84" stroke="${knot}" stroke-width="4" fill="none" stroke-linecap="round"/>`;
+}
+function svgHood(base, shade) {
+  return `<path d="M100 34 Q62 36 60 78 Q60 94 70 100 Q64 76 100 72 Q136 76 130 100 Q140 94 140 78 Q138 36 100 34 Z" fill="${base}"/>` +
+    `<path d="M100 34 Q75 36 66 60 Q84 48 100 48 Q116 48 134 60 Q125 36 100 34 Z" fill="${shade}"/>`;
+}
+function svgHelmDome(base, edge) {
+  return `<path d="M66 74 Q66 38 100 38 Q134 38 134 74 Q117 64 100 64 Q83 64 66 74 Z" fill="${base}" stroke="${edge}" stroke-width="1.5"/>` +
+    `<rect x="96.5" y="60" width="7" height="20" rx="3" fill="${base}" stroke="${edge}" stroke-width="1"/>` +
+    `<circle cx="76" cy="62" r="1.6" fill="${edge}"/><circle cx="124" cy="62" r="1.6" fill="${edge}"/>`;
+}
+function svgHelmKnight(base, edge, plume) {
+  return `<path d="M100 10 Q86 20 87 42 L113 42 Q114 20 100 10 Z" fill="${plume}"/>` +
+    `<path d="M66 74 Q66 38 100 38 Q134 38 134 74 Q117 64 100 64 Q83 64 66 74 Z" fill="${base}" stroke="${edge}" stroke-width="1.5"/>` +
+    `<rect x="68" y="68" width="11" height="20" rx="5" fill="${base}" stroke="${edge}" stroke-width="1"/>` +
+    `<rect x="121" y="68" width="11" height="20" rx="5" fill="${base}" stroke="${edge}" stroke-width="1"/>` +
+    `<rect x="96.5" y="60" width="7" height="22" rx="3" fill="${base}" stroke="${edge}" stroke-width="1"/>`;
+}
+function svgHornedHelm(base, edge, horn) {
+  return `<path d="M70 60 Q52 50 50 28 Q68 42 76 54 Z" fill="${horn}"/>` +
+    `<path d="M130 60 Q148 50 150 28 Q132 42 124 54 Z" fill="${horn}"/>` +
+    `<path d="M66 74 Q66 38 100 38 Q134 38 134 74 Q117 64 100 64 Q83 64 66 74 Z" fill="${base}" stroke="${edge}" stroke-width="1.5"/>`;
+}
+function svgWizardHat(base, band, starC) {
+  return `<ellipse cx="100" cy="52" rx="41" ry="10" fill="${base}"/>` +
+    `<path d="M75 50 Q94 8 107 12 Q112 32 125 50 Q100 60 75 50 Z" fill="${base}"/>` +
+    `<path d="M78 47 Q100 41 122 47 L124 53 Q100 61 76 53 Z" fill="${band}"/>` +
+    svgStar(106, 15, 6, 2.5, starC);
+}
+function svgCirclet(metal, gem) {
+  return `<path d="M67 66 Q100 54 133 66 L133 73 Q100 61 67 73 Z" fill="${metal}"/>` +
+    `<circle cx="100" cy="62" r="4.4" fill="${gem}" stroke="${metal}" stroke-width="1.6"/>` +
+    `<circle cx="98.5" cy="60.5" r="1.3" fill="rgba(255,255,255,0.8)"/>`;
+}
+function svgCrown() {
+  return `<polygon points="78,58 78,38 88,49 100,34 112,49 122,38 122,58" fill="#e8b41f" stroke="#b8860b" stroke-width="1.5"/>` +
+    `<rect x="77" y="54" width="46" height="9" rx="3" fill="#e8b41f" stroke="#b8860b" stroke-width="1.5"/>` +
+    `<circle cx="88" cy="58" r="2.2" fill="#d94f4f"/><circle cx="100" cy="58" r="2.2" fill="#4a6fa5"/><circle cx="112" cy="58" r="2.2" fill="#3a9e5f"/>`;
+}
+function svgHalo() {
+  return `<ellipse cx="100" cy="28" rx="26" ry="8" fill="none" stroke="#ffe9a3" stroke-width="8" opacity="0.45">${svgPulse(0.25, 0.6)}</ellipse>` +
+    `<ellipse cx="100" cy="28" rx="22" ry="6" fill="none" stroke="#ffd76a" stroke-width="4"/>`;
+}
+function svgCape(c1, c2, flame) {
+  const bottom = flame
+    ? "L134 188 L126 196 L120 186 L112 198 L104 188 L96 200 L88 188 L80 196 L72 186 L66 192"
+    : "L133 194 Q116 203 100 198 Q84 203 67 194";
+  return `<path d="M78 121 Q100 112 122 121 ${bottom} Z" fill="${c1}"/>` +
+    `<path d="M78 121 Q100 112 122 121 L131 134 Q100 126 69 134 Z" fill="${c2}"/>`;
+}
+function svgElvenCloak() {
+  return svgCape("#4a7c59", "#aab4bf") +
+    `<path d="M96 124 Q100 116 104 124 Q100 130 96 124 Z" fill="#dbe3ea" stroke="#8d99a6" stroke-width="1.2"/>` +
+    `<path d="M86 150 Q94 142 92 132" fill="none" stroke="#2f5a3e" stroke-width="1.6" opacity="0.7"/>` +
+    `<path d="M112 168 Q120 160 118 150" fill="none" stroke="#2f5a3e" stroke-width="1.6" opacity="0.7"/>`;
+}
+function svgGalaxyCape() {
+  return svgCape("#241d3e", "#1a1430") +
+    svgStar(84, 150, 3.4, 1.4, "#ffd76a") + svgStar(112, 168, 2.8, 1.2, "#9bb8e8") +
+    `<circle cx="98" cy="140" r="1.6" fill="#fff"><animate attributeName="opacity" values="1;0.2;1" dur="2.2s" repeatCount="indefinite"/></circle>` +
+    `<circle cx="120" cy="146" r="1.3" fill="#b79ae0"><animate attributeName="opacity" values="0.3;1;0.3" dur="1.7s" repeatCount="indefinite"/></circle>` +
+    `<circle cx="78" cy="170" r="1.3" fill="#fff" opacity="0.8"/>`;
+}
+function svgWings(c1, c2) {
+  const wing = `<path d="M80 126 Q34 112 26 66 Q50 84 58 82 Q42 64 44 42 Q64 66 72 78 Q80 98 80 126 Z" fill="${c1}" stroke="${c2}" stroke-width="2"/>` +
+    `<path d="M62 96 Q48 90 40 78" fill="none" stroke="${c2}" stroke-width="1.6" opacity="0.7"/>`;
+  return wing + `<g transform="translate(200,0) scale(-1,1)">${wing}</g>`;
+}
+function svgAmulet(chain, gem) {
+  return `<path d="M86 114 Q100 128 114 114" stroke="${chain}" stroke-width="2.4" fill="none"/>` +
+    `<circle cx="100" cy="130" r="6.2" fill="${gem}" stroke="${chain}" stroke-width="2"/>` +
+    `<circle cx="98" cy="128" r="1.8" fill="rgba(255,255,255,0.8)"/>`;
+}
+function svgRubyPendant() {
+  return `<path d="M86 114 Q100 128 114 114" stroke="#caa53d" stroke-width="2.4" fill="none"/>` +
+    `<polygon points="100,124 106,130 100,139 94,130" fill="#d94f4f" stroke="#caa53d" stroke-width="1.6"/>`;
+}
+function svgFangCharm() {
+  return `<path d="M86 114 Q100 128 114 114" stroke="#5b4632" stroke-width="2.4" fill="none"/>` +
+    `<path d="M96 122 Q97 134 100 137 Q101 128 100 122 Z" fill="#f6efe2" stroke="#d8c39a" stroke-width="1"/>` +
+    `<path d="M104 122 Q105 132 107 135 Q108 127 107 122 Z" fill="#f6efe2" stroke="#d8c39a" stroke-width="1"/>`;
+}
+function svgPhoenixAmulet() {
+  return `<path d="M86 114 Q100 128 114 114" stroke="#caa53d" stroke-width="2.4" fill="none"/>` +
+    `<circle cx="100" cy="131" r="10" fill="#ff8c42" opacity="0.35">${svgPulse(0.2, 0.5)}</circle>` +
+    `<path d="M100 122 Q106 128 104 134 Q102 138 100 139 Q98 138 96 134 Q94 128 100 122 Z" fill="#ff8c42" stroke="#caa53d" stroke-width="1.4"/>` +
+    `<path d="M100 127 Q102.5 131 101 135 Q100 136.5 99 135 Q97.5 131 100 127 Z" fill="#ffd166"/>`;
+}
+function svgFeatherCharm() {
+  return `<path d="M86 114 Q100 128 114 114" stroke="#8a6b46" stroke-width="2.4" fill="none"/>` +
+    `<path d="M100 121 Q108 128 102 140 Q98 139 97 132 Q96 125 100 121 Z" fill="#b07b3f" stroke="#8a6b46" stroke-width="1.2"/>` +
+    `<line x1="100" y1="123" x2="100" y2="139" stroke="#8a6b46" stroke-width="1.2"/>`;
+}
+function svgMedallion() {
+  return `<path d="M86 114 Q100 128 114 114" stroke="#b8860b" stroke-width="2.4" fill="none"/>` +
+    `<circle cx="100" cy="131" r="9" fill="#e8b41f" stroke="#b8860b" stroke-width="2"/>` +
+    svgStar(100, 131, 5, 2.2, "#b8860b");
+}
+function svgOwlFamiliar() {
+  return `<g transform="translate(34,108)"><animateTransform attributeName="transform" type="translate" values="34,108;34,103;34,108" dur="2.6s" repeatCount="indefinite" additive="replace"/>` +
+    `<path d="M-8 -12 L-12 -19 L-4 -15 Z" fill="#6f4f28"/><path d="M8 -12 L12 -19 L4 -15 Z" fill="#6f4f28"/>` +
+    `<ellipse rx="11" ry="13" fill="#8a6b46"/>` +
+    `<ellipse cy="4" rx="7" ry="8" fill="#d8c39a"/>` +
+    `<circle cx="-4.5" cy="-4" r="4.4" fill="#fff"/><circle cx="4.5" cy="-4" r="4.4" fill="#fff"/>` +
+    `<circle cx="-4.5" cy="-4" r="2" fill="#2c2a27"/><circle cx="4.5" cy="-4" r="2" fill="#2c2a27"/>` +
+    `<polygon points="0,-1 -2.4,2.5 2.4,2.5" fill="#e8943a"/>` +
+    `<path d="M-11 0 Q-15 6 -10 10" fill="none" stroke="#6f4f28" stroke-width="2.4"/></g>`;
+}
+function svgPocketDragon() {
+  return `<g transform="translate(166,106)"><animateTransform attributeName="transform" type="translate" values="166,106;166,101;166,106" dur="2.2s" repeatCount="indefinite" additive="replace"/>` +
+    `<path d="M2 -4 Q14 -16 10 -2 Z" fill="#7e1f1f"/>` +
+    `<ellipse rx="10" ry="8.5" fill="#9c2c2c"/>` +
+    `<path d="M-9 3 Q-18 8 -14 12 Q-10 8 -7 8 Z" fill="#9c2c2c"/>` +
+    `<circle cx="4" cy="-9" r="6" fill="#9c2c2c"/>` +
+    `<polygon points="1,-14 3,-19 5,-14" fill="#e8b41f"/><polygon points="5,-14 7,-19 9,-14" fill="#e8b41f"/>` +
+    `<circle cx="6" cy="-10" r="1.5" fill="#ffd76a"/>` +
+    `<circle cx="13" cy="-8" r="2.4" fill="#ff8c42"><animate attributeName="opacity" values="0.9;0.2;0.9" dur="1.4s" repeatCount="indefinite"/></circle>` +
+    `<ellipse cy="3" rx="5.5" ry="4" fill="#e8b46a"/></g>`;
+}
+function svgWisp() {
+  return `<g transform="translate(34,104)"><animateTransform attributeName="transform" type="translate" values="34,104;34,98;34,104" dur="2.4s" repeatCount="indefinite" additive="replace"/>` +
+    `<circle r="13" fill="#9bb8e8" opacity="0.3">${svgPulse(0.18, 0.45)}</circle>` +
+    `<circle r="7" fill="#cfe3ff"/>` +
+    `<path d="M4 6 Q10 12 6 18 Q2 13 0 8 Z" fill="#9bb8e8" opacity="0.7"/>` +
+    `<circle cx="-2.4" cy="-1" r="1.3" fill="#27406b"/><circle cx="2.4" cy="-1" r="1.3" fill="#27406b"/>` +
+    `<path d="M-2.2 2.6 Q0 4.6 2.2 2.6" stroke="#27406b" stroke-width="1.2" fill="none" stroke-linecap="round"/></g>`;
+}
+
+// ---- Item catalog ----
+const RPG_ITEMS = [
+  // Weapons — swords & blades
+  { id: "wood_sword", name: "Wooden Sword", slot: "weapon", rarity: "common", atk: 3, price: 0, levelReq: 1, art: () => svgSword("#b07b3f", "#7a4f23", "#5b4632") },
+  { id: "iron_sword", name: "Iron Sword", slot: "weapon", rarity: "common", atk: 5, price: 60, levelReq: 1, art: () => svgSword("#b9c2cc", "#7a8694", "#5b4632") },
+  { id: "steel_sword", name: "Steel Sword", slot: "weapon", rarity: "uncommon", atk: 8, price: 150, levelReq: 2, art: () => svgSword("#dbe3ea", "#8d99a6", "#3f4a56") },
+  { id: "silver_rapier", name: "Silver Rapier", slot: "weapon", rarity: "uncommon", atk: 7, crit: 6, price: 170, levelReq: 2, art: () => svgRapier("#e8eef4", "#aab4bf", "#27406b") },
+  { id: "shadow_dagger", name: "Shadow Dagger", slot: "weapon", rarity: "rare", atk: 9, crit: 14, price: 330, levelReq: 3, art: () => svgDagger("#4b4a5e", "#2c2a3a", "#1d1c28", "#7b5ea7") },
+  { id: "knight_sword", name: "Knight's Blade", slot: "weapon", rarity: "rare", atk: 12, crit: 3, price: 340, levelReq: 4, art: () => svgSword("#e8eef4", "#caa53d", "#27406b") },
+  { id: "corsair_cutlass", name: "Corsair's Cutlass", slot: "weapon", rarity: "rare", atk: 11, crit: 7, price: 350, levelReq: 4, art: () => svgCutlass("#dbe3ea", "#caa53d", "#5b4632") },
+  { id: "frost_brand", name: "Frostbrand", slot: "weapon", rarity: "epic", atk: 15, crit: 8, price: 700, levelReq: 5, art: () => svgSword("#bfe9f7", "#6fb3d9", "#27406b", "#8fd4ee") },
+  { id: "elven_blade", name: "Elven Blade", slot: "weapon", rarity: "epic", atk: 16, crit: 9, price: 730, levelReq: 6, art: () => svgKatana("#eef6ee", "#3a9e5f", "#2f5a3e", "#7be0a2") },
+  { id: "flame_sword", name: "Flameblade", slot: "weapon", rarity: "epic", atk: 17, crit: 6, price: 720, levelReq: 6, art: () => svgSword("#ffb35c", "#9c2c2c", "#5b1f1f", "#ff6b35") },
+  { id: "dragon_blade", name: "Dragonfang", slot: "weapon", rarity: "legendary", atk: 24, crit: 10, price: 1500, levelReq: 9, art: () => svgSword("#ff7b7b", "#e8b41f", "#7e1f1f", "#d94f4f") },
+  { id: "obsidian_greatsword", name: "Obsidian Greatsword", slot: "weapon", rarity: "legendary", atk: 23, crit: 12, price: 1600, levelReq: 9, art: () => svgGreatsword("#3a3548", "#7b5ea7", "#2c1f4a", "#b79ae0") },
+  { id: "excalibur", name: "Excalibur", slot: "weapon", rarity: "legendary", atk: 26, crit: 8, price: 1700, levelReq: 10, art: () => svgExcalibur() },
+  // Weapons — staffs
+  { id: "apprentice_staff", name: "Apprentice Staff", slot: "weapon", rarity: "common", atk: 4, crit: 2, price: 50, levelReq: 1, art: () => svgStaff("#8a6b46", "#9bb8e8", "#9bb8e8") },
+  { id: "oak_staff", name: "Oak Staff", slot: "weapon", rarity: "uncommon", atk: 6, crit: 5, price: 140, levelReq: 2, art: () => svgStaff("#6f4f28", "#3a9e5f", "#7be0a2") },
+  { id: "ember_staff", name: "Ember Staff", slot: "weapon", rarity: "uncommon", atk: 7, crit: 4, price: 160, levelReq: 2, art: () => svgFlameStaff("#5b4632") },
+  { id: "sprout_staff", name: "Sprout Staff", slot: "weapon", rarity: "uncommon", atk: 6, crit: 5, hp: 5, price: 170, levelReq: 2, art: () => svgLeafStaff("#6f4f28") },
+  { id: "arcane_staff", name: "Arcane Staff", slot: "weapon", rarity: "rare", atk: 10, crit: 8, price: 330, levelReq: 4, art: () => svgStaff("#4b3a63", "#7b5ea7", "#b79ae0") },
+  { id: "glacier_staff", name: "Glacier Staff", slot: "weapon", rarity: "rare", atk: 10, crit: 9, price: 340, levelReq: 4, art: () => svgIceStaff("#7a8694") },
+  { id: "rune_staff", name: "Runewood Staff", slot: "weapon", rarity: "epic", atk: 13, crit: 15, price: 760, levelReq: 6, art: () => svgRuneStaff("#6f4f28") },
+  { id: "crystal_staff", name: "Crystal Staff", slot: "weapon", rarity: "epic", atk: 14, crit: 12, price: 700, levelReq: 6, art: () => svgStaff("#7a8694", "#6fd3e8", "#aef0fc") },
+  { id: "void_staff", name: "Void Staff", slot: "weapon", rarity: "epic", atk: 15, crit: 10, price: 740, levelReq: 7, art: () => svgVoidStaff("#2c2a3a") },
+  { id: "royal_crook", name: "Crook of Kings", slot: "weapon", rarity: "legendary", atk: 20, crit: 16, price: 1550, levelReq: 9, art: () => svgSpiralStaff("#8a6b46") },
+  // Weapons — wands
+  { id: "star_wand", name: "Star Wand", slot: "weapon", rarity: "rare", atk: 8, crit: 15, price: 310, levelReq: 3, art: () => svgWand("#8a6b46", "#ffd76a") },
+  { id: "comet_wand", name: "Comet Wand", slot: "weapon", rarity: "epic", atk: 12, crit: 18, price: 720, levelReq: 6, art: () => svgCometWand("#4b3a63", "#9bb8e8") },
+  { id: "sun_scepter", name: "Scepter of Dawn", slot: "weapon", rarity: "legendary", atk: 18, crit: 22, price: 1650, levelReq: 10, art: () => svgSunScepter("#caa53d") },
+  // Weapons — heavy & polearms
+  { id: "soldier_spear", name: "Soldier's Spear", slot: "weapon", rarity: "common", atk: 5, price: 65, levelReq: 1, art: () => svgSpear("#8a6b46", "#aab4bf") },
+  { id: "battle_axe", name: "Battle Axe", slot: "weapon", rarity: "uncommon", atk: 9, price: 160, levelReq: 2, art: () => svgAxe("#6f4f28", "#aab4bf") },
+  { id: "war_hammer", name: "Doom Hammer", slot: "weapon", rarity: "rare", atk: 13, price: 360, levelReq: 4, art: () => svgHammer("#6f4f28", "#8d99a6", "#5d6770") },
+  { id: "executioner_axe", name: "Executioner's Axe", slot: "weapon", rarity: "epic", atk: 18, crit: 5, price: 750, levelReq: 7, art: () => svgAxe("#2c2a3a", "#b9c2cc") },
+  { id: "reaper_scythe", name: "Grim Scythe", slot: "weapon", rarity: "epic", atk: 19, crit: 7, price: 780, levelReq: 7, art: () => svgScythe("#2c2a3a", "#b9c2cc") },
+  { id: "golden_trident", name: "Golden Trident", slot: "weapon", rarity: "legendary", atk: 22, crit: 12, price: 1450, levelReq: 9, art: () => svgTrident("#caa53d", "#ffd76a", "#ffe9a3") },
+  { id: "crown_halberd", name: "Halberd of the Crown", slot: "weapon", rarity: "legendary", atk: 22, crit: 14, price: 1700, levelReq: 10, art: () => svgHalberd() },
+  // Shields & off-hands
+  { id: "wooden_shield", name: "Wooden Shield", slot: "shield", rarity: "common", def: 2, price: 45, levelReq: 1, art: () => svgShieldArt("#b07b3f", "#7a4f23") },
+  { id: "swift_buckler", name: "Swift Buckler", slot: "shield", rarity: "common", def: 2, crit: 3, price: 60, levelReq: 1, art: () => svgBuckler("#aab4bf", "#69737e") },
+  { id: "iron_shield", name: "Iron Shield", slot: "shield", rarity: "uncommon", def: 4, price: 130, levelReq: 2, art: () => svgShieldArt("#aab4bf", "#69737e") },
+  { id: "kite_shield", name: "Kite Shield", slot: "shield", rarity: "uncommon", def: 5, price: 150, levelReq: 3, art: () => svgKiteShield("#4a7c59", "#2f5a3e") },
+  { id: "knight_shield", name: "Knight's Shield", slot: "shield", rarity: "rare", def: 7, price: 300, levelReq: 4, art: () => svgShieldArt("#27406b", "#caa53d") },
+  { id: "grimoire", name: "Grimoire of Shadows", slot: "shield", rarity: "rare", def: 4, crit: 10, price: 350, levelReq: 4, art: () => svgTomeShield("#2c1f4a", "#e8e2f4", svgStar(2, 0, 8, 3.4, "#7b5ea7")) },
+  { id: "tower_shield", name: "Tower Shield", slot: "shield", rarity: "rare", def: 9, hp: 5, price: 380, levelReq: 5, art: () => svgTowerShield("#69737e", "#3f4a56") },
+  { id: "mirror_shield", name: "Mirror Shield", slot: "shield", rarity: "epic", def: 9, crit: 6, price: 690, levelReq: 6, art: () => svgMirrorShield() },
+  { id: "aegis_shield", name: "Aegis of Wisdom", slot: "shield", rarity: "epic", def: 10, hp: 10, price: 680, levelReq: 6, art: () => svgShieldArt("#7b5ea7", "#ffd76a", svgStar(0, 1, 8, 3.4, "#ffd76a")) },
+  { id: "royal_bulwark", name: "Royal Bulwark", slot: "shield", rarity: "epic", def: 8, crit: 8, hp: 5, price: 740, levelReq: 7, art: () => svgRoyalBulwark() },
+  { id: "dragonscale_ward", name: "Dragonscale Ward", slot: "shield", rarity: "legendary", def: 12, hp: 15, price: 1450, levelReq: 9, art: () => svgDragonScaleShield() },
+  { id: "fallen_star_aegis", name: "Aegis of the Fallen Star", slot: "shield", rarity: "legendary", def: 11, crit: 10, hp: 10, price: 1600, levelReq: 10, art: () => svgFallenStarShield() },
+  // Armour
+  { id: "cloth_tunic", name: "Cloth Tunic", slot: "armor", rarity: "common", def: 1, price: 0, levelReq: 1, art: () => svgArmorLeather("#5e8c6e", "#466953") },
+  { id: "leather_armor", name: "Leather Armour", slot: "armor", rarity: "common", def: 3, price: 70, levelReq: 1, art: () => svgArmorLeather("#8a6b46", "#5b4632") },
+  { id: "travelers_garb", name: "Traveller's Garb", slot: "armor", rarity: "common", def: 2, hp: 5, price: 75, levelReq: 1, art: () => svgArmorLeather("#6e8a55", "#4f6539") },
+  { id: "chainmail", name: "Chainmail", slot: "armor", rarity: "uncommon", def: 5, hp: 5, price: 170, levelReq: 2, art: () => svgArmorChain("#8d99a6", "#dbe3ea") },
+  { id: "mage_robe", name: "Apprentice Robe", slot: "armor", rarity: "uncommon", def: 3, crit: 6, price: 180, levelReq: 2, art: () => svgRobe("#4a6fa5", "#27406b") },
+  { id: "bronze_plate", name: "Bronze Plate", slot: "armor", rarity: "uncommon", def: 6, price: 190, levelReq: 3, art: () => svgArmorPlate("#c9853a", "#8c5a22") },
+  { id: "ninja_garb", name: "Ninja Garb", slot: "armor", rarity: "rare", def: 5, crit: 10, price: 360, levelReq: 4, art: () => svgArmorLeather("#3a3f4a", "#d94f4f") },
+  { id: "knight_plate", name: "Knight's Plate", slot: "armor", rarity: "rare", def: 8, hp: 10, price: 380, levelReq: 4, art: () => svgArmorPlate("#aab4bf", "#69737e") },
+  { id: "emerald_scale", name: "Emerald Scale Mail", slot: "armor", rarity: "rare", def: 7, crit: 6, price: 390, levelReq: 5, art: () => svgScaleMail("#2f5a3e", "#7be0a2", "#1c8a4a") },
+  { id: "frost_plate", name: "Glacier Plate", slot: "armor", rarity: "epic", def: 10, hp: 12, price: 720, levelReq: 6, art: () => svgArmorSpiked("#bfe9f7", "#6fb3d9", "#e8f6fc") },
+  { id: "archmage_robe", name: "Archmage Robe", slot: "armor", rarity: "epic", def: 7, crit: 12, hp: 8, price: 730, levelReq: 6, art: () => svgRobe("#4b3a63", "#e8b41f", svgStar(88, 138, 3.4, 1.5, "#ffd76a") + svgStar(112, 158, 3, 1.3, "#ffd76a") + svgStar(96, 180, 2.6, 1.1, "#ffd76a")) },
+  { id: "gilded_plate", name: "Gilded Plate", slot: "armor", rarity: "epic", def: 11, hp: 10, price: 760, levelReq: 7, art: () => svgArmorPlate("#e8b41f", "#b8860b") },
+  { id: "dragon_plate", name: "Dragonscale Plate", slot: "armor", rarity: "legendary", def: 12, hp: 25, price: 1400, levelReq: 8, art: () => svgArmorSpiked("#7e1f1f", "#e8b41f", "#9c2c2c") },
+  { id: "starweaver_robe", name: "Starweaver Robe", slot: "armor", rarity: "legendary", def: 9, crit: 15, hp: 15, price: 1550, levelReq: 9, art: () => svgRobe("#2c1f4a", "#ffd76a", `<path d="M104 136 a8 8 0 1 0 6 13 a6.5 6.5 0 1 1 -6 -13 Z" fill="#ffd76a"/>` + svgStar(88, 158, 3, 1.3, "#ffd76a") + svgStar(112, 176, 2.6, 1.1, "#ffd76a")) },
+  // Helmets
+  { id: "leather_cap", name: "Leather Cap", slot: "helmet", rarity: "common", def: 1, price: 35, levelReq: 1, art: () => svgHelmCap("#8a6b46", "#5b4632") },
+  { id: "adventurers_hood", name: "Adventurer's Hood", slot: "helmet", rarity: "common", def: 1, crit: 2, price: 45, levelReq: 1, art: () => svgHood("#6e8a55", "#4f6539") },
+  { id: "warrior_headband", name: "Warrior's Headband", slot: "helmet", rarity: "common", crit: 4, price: 50, levelReq: 1, art: () => svgHeadband("#d94f4f", "#b3473f") },
+  { id: "iron_helm", name: "Iron Helm", slot: "helmet", rarity: "uncommon", def: 3, price: 120, levelReq: 2, art: () => svgHelmDome("#aab4bf", "#69737e") },
+  { id: "shadow_hood", name: "Shadow Hood", slot: "helmet", rarity: "uncommon", def: 2, crit: 6, price: 160, levelReq: 2, art: () => svgHood("#3a3f4a", "#23252e") },
+  { id: "wizard_hat", name: "Wizard's Hat", slot: "helmet", rarity: "rare", def: 2, crit: 8, price: 290, levelReq: 3, art: () => svgWizardHat("#4b3a63", "#7b5ea7", "#ffd76a") },
+  { id: "knight_helm", name: "Knight's Helm", slot: "helmet", rarity: "rare", def: 5, hp: 5, price: 290, levelReq: 4, art: () => svgHelmKnight("#aab4bf", "#69737e", "#d94f4f") },
+  { id: "berserker_horns", name: "Berserker Horns", slot: "helmet", rarity: "rare", def: 4, crit: 5, price: 310, levelReq: 4, box: "42 18 116 74", art: () => svgHornedHelm("#8a6b46", "#5b4632", "#e8e0d0") },
+  { id: "glacier_helm", name: "Glacier Helm", slot: "helmet", rarity: "epic", def: 6, hp: 8, price: 690, levelReq: 6, art: () => svgHelmDome("#bfe9f7", "#6fb3d9") + `<polygon points="100,22 105,40 95,40" fill="#e8f6fc"/>` },
+  { id: "gilded_helm", name: "Gilded Helm", slot: "helmet", rarity: "epic", def: 7, hp: 5, price: 710, levelReq: 6, art: () => svgHelmDome("#e8b41f", "#b8860b") },
+  { id: "seer_circlet", name: "Circlet of the Seer", slot: "helmet", rarity: "epic", def: 3, crit: 14, price: 740, levelReq: 7, box: "60 48 80 32", art: () => svgCirclet("#dbe3ea", "#7b5ea7") },
+  { id: "crown_wisdom", name: "Crown of Wisdom", slot: "helmet", rarity: "legendary", def: 4, crit: 10, hp: 15, price: 1200, levelReq: 8, art: () => svgCrown() },
+  { id: "dragonfang_helm", name: "Dragonfang Helm", slot: "helmet", rarity: "legendary", def: 8, hp: 15, price: 1450, levelReq: 9, box: "42 18 116 74", art: () => svgHornedHelm("#7e1f1f", "#5b1f1f", "#e8b41f") },
+  { id: "seraph_halo", name: "Seraph's Halo", slot: "helmet", rarity: "legendary", def: 5, crit: 15, hp: 10, price: 1500, levelReq: 10, box: "64 12 72 36", art: () => svgHalo() },
+  // Accessories — capes & wings (behind the hero)
+  { id: "scholar_cape", name: "Squire's Cape", slot: "accessory", layer: "back", rarity: "common", hp: 5, price: 55, levelReq: 1, art: () => svgCape("#b3473f", "#8e352f") },
+  { id: "forest_cloak", name: "Forest Cloak", slot: "accessory", layer: "back", rarity: "uncommon", hp: 8, def: 1, price: 160, levelReq: 2, art: () => svgCape("#4a7c59", "#2f5a3e") },
+  { id: "hero_cape", name: "Hero's Cape", slot: "accessory", layer: "back", rarity: "rare", hp: 15, def: 2, price: 320, levelReq: 3, art: () => svgCape("#27406b", "#1c2f50") },
+  { id: "elven_cloak", name: "Elven Cloak", slot: "accessory", layer: "back", rarity: "rare", hp: 12, crit: 6, price: 340, levelReq: 4, art: () => svgElvenCloak() },
+  { id: "phoenix_cape", name: "Phoenix Cape", slot: "accessory", layer: "back", rarity: "epic", hp: 25, crit: 5, price: 700, levelReq: 6, art: () => svgCape("#e06a2b", "#9c2c2c", true) },
+  { id: "dragon_wings", name: "Dragon Wings", slot: "accessory", layer: "back", rarity: "epic", hp: 18, def: 3, crit: 4, price: 760, levelReq: 7, box: "20 34 160 100", art: () => svgWings("#9c2c2c", "#5b1f1f") },
+  { id: "starfall_cape", name: "Starfall Cape", slot: "accessory", layer: "back", rarity: "legendary", hp: 25, crit: 10, def: 3, price: 1550, levelReq: 9, art: () => svgGalaxyCape() },
+  { id: "angel_wings", name: "Wings of Light", slot: "accessory", layer: "back", rarity: "legendary", hp: 30, def: 4, price: 1600, levelReq: 10, box: "20 34 160 100", art: () => svgWings("#f6f3ec", "#d9d2c4") },
+  // Accessories — amulets, specs & familiars (in front)
+  { id: "lucky_amulet", name: "Lucky Amulet", slot: "accessory", layer: "front", rarity: "uncommon", crit: 6, price: 150, levelReq: 1, box: "78 104 44 38", art: () => svgAmulet("#caa53d", "#3a9e5f") },
+  { id: "ruby_pendant", name: "Ruby Pendant", slot: "accessory", layer: "front", rarity: "uncommon", hp: 10, price: 155, levelReq: 2, box: "78 104 44 38", art: () => svgRubyPendant() },
+  { id: "hawk_feather", name: "Hawk Feather Charm", slot: "accessory", layer: "front", rarity: "uncommon", crit: 7, price: 170, levelReq: 2, box: "78 104 44 42", art: () => svgFeatherCharm() },
+  { id: "wolf_fang", name: "Wolf Fang Charm", slot: "accessory", layer: "front", rarity: "rare", crit: 9, price: 330, levelReq: 3, box: "78 104 44 38", art: () => svgFangCharm() },
+  { id: "wisp_familiar", name: "Will-o'-Wisp", slot: "accessory", layer: "front", rarity: "rare", crit: 5, hp: 8, price: 350, levelReq: 4, box: "14 84 40 44", art: () => svgWisp() },
+  { id: "sage_amulet", name: "Sage's Amulet", slot: "accessory", layer: "front", rarity: "epic", crit: 10, hp: 10, price: 660, levelReq: 5, box: "78 104 44 38", art: () => svgAmulet("#caa53d", "#7b5ea7") },
+  { id: "royal_medallion", name: "Royal Medallion", slot: "accessory", layer: "front", rarity: "epic", crit: 13, price: 720, levelReq: 6, box: "78 104 44 42", art: () => svgMedallion() },
+  { id: "owl_familiar", name: "Owl Familiar", slot: "accessory", layer: "front", rarity: "epic", crit: 8, hp: 10, price: 750, levelReq: 7, box: "16 86 40 44", art: () => svgOwlFamiliar() },
+  { id: "phoenix_amulet", name: "Amulet of the Phoenix", slot: "accessory", layer: "front", rarity: "legendary", crit: 12, hp: 20, price: 1500, levelReq: 9, box: "78 104 44 42", art: () => svgPhoenixAmulet() },
+  { id: "pocket_dragon", name: "Dragon Whelp", slot: "accessory", layer: "front", rarity: "legendary", atk: 5, crit: 8, hp: 10, price: 1650, levelReq: 10, box: "142 80 44 44", art: () => svgPocketDragon() }
+];
+const RPG_ITEMS_BY_ID = Object.fromEntries(RPG_ITEMS.map(i => [i.id, i]));
+
+// ---- Enemy catalog (tier ≈ hero level) ----
+const RPG_ENEMIES = [
+  { id: "dummy", tier: 1, name: "Training Dummy", emoji: "🎯", flavor: "It wobbles menacingly." },
+  { id: "slime", tier: 2, name: "Bouncy Slime", emoji: "👾", flavor: "It jiggles with bad intentions." },
+  { id: "goblin", tier: 3, name: "Forest Goblin", emoji: "👺", flavor: "It hates long division." },
+  { id: "bat", tier: 4, name: "Cave Bat", emoji: "🦇", flavor: "It screeches at careless mistakes." },
+  { id: "skeleton", tier: 5, name: "Skeleton Scout", emoji: "💀", flavor: "It has a bone to pick with you." },
+  { id: "wolf", tier: 6, name: "Shadow Wolf", emoji: "🐺", flavor: "It can smell a wrong answer." },
+  { id: "golem", tier: 7, name: "Stone Golem", emoji: "🗿", flavor: "As stubborn as a tough ratio problem." },
+  { id: "witch", tier: 8, name: "Swamp Witch", emoji: "🧙", flavor: "She curses sloppy working." },
+  { id: "wyvern", tier: 9, name: "Thunder Wyvern", emoji: "🐉", flavor: "It breathes lightning and pop quizzes." },
+  { id: "demon", tier: 10, name: "Demon King", emoji: "👹", flavor: "The final boss of Math Quest." }
+].map(e => Object.assign(e, {
+  maxHp: 18 + e.tier * 12,
+  atk: 3 + e.tier * 2,
+  gold: 12 + e.tier * 9,
+  xp: 22 + e.tier * 12,
+  lootMax: e.tier <= 2 ? 1 : e.tier <= 4 ? 2 : e.tier <= 6 ? 3 : e.tier <= 8 ? 4 : 5
+}));
+const RPG_ENEMIES_BY_ID = Object.fromEntries(RPG_ENEMIES.map(e => [e.id, e]));
+
+// ---- State & storage ----
+let rpgState = null;
+let rpgHintUsedQ = false;   // hint used on the current question → reduced battle damage
+let rpgCharTab = "inventory";
+let rpgShopSlot = "all";
+
+function rpgStorageKey() { return "mathQuestRpg:" + (currentUser ? currentUser.uid : "anon"); }
+function rpgDefaults() {
+  return {
+    v: 1, gold: 60, xp: 0, hp: null,
+    inventory: { wood_sword: 1, cloth_tunic: 1 },
+    equipment: { weapon: "wood_sword", shield: null, armor: "cloth_tunic", helmet: null, accessory: null },
+    battle: null,
+    stats: { wins: 0, defeats: 0, marked: 0, correct: 0, goldEarned: 0 }
+  };
+}
+function rpgReadLocal() {
+  try { return JSON.parse(localStorage.getItem(rpgStorageKey()) || "null"); } catch (e) { return null; }
+}
+function rpgWriteLocal() {
+  try { localStorage.setItem(rpgStorageKey(), JSON.stringify(rpgState)); } catch (_) {}
+}
+async function rpgLoadState() {
+  if (RPG_STORAGE_MODE === "firestore") {
+    try {
+      const snap = await getDoc(doc(db, "users", currentUser.uid, "settings", "mathRpg"));
+      if (snap.exists()) return snap.data();
+      return rpgReadLocal(); // one-time migration from the game.html preview
+    } catch (e) { console.warn("rpg load", e); return rpgReadLocal(); }
+  }
+  return rpgReadLocal();
+}
+function rpgHydrate(saved) {
+  const st = Object.assign(rpgDefaults(), saved || {});
+  st.inventory = Object.assign({}, (saved && saved.inventory) || rpgDefaults().inventory);
+  st.equipment = Object.assign(rpgDefaults().equipment, (saved && saved.equipment) || {});
+  st.stats = Object.assign(rpgDefaults().stats, (saved && saved.stats) || {});
+  RPG_SLOTS.forEach(slot => {
+    const it = RPG_ITEMS_BY_ID[st.equipment[slot]];
+    if (!it || it.slot !== slot || !st.inventory[it.id]) st.equipment[slot] = null;
+  });
+  if (st.battle && !RPG_ENEMIES_BY_ID[st.battle.enemyId]) st.battle = null;
+  if (!Number.isFinite(st.gold)) st.gold = 0;
+  if (!Number.isFinite(st.xp)) st.xp = 0;
+  return st;
+}
+function rpgSave() {
+  if (!rpgState || !currentUser) return;
+  rpgState.updatedAt = new Date().toISOString();
+  if (RPG_STORAGE_MODE === "firestore") {
+    setDoc(doc(db, "users", currentUser.uid, "settings", "mathRpg"), rpgState)
+      .catch(e => { console.warn("rpg save", e); rpgWriteLocal(); });
+  } else {
+    rpgWriteLocal();
+  }
+  rpgRenderSide();
+}
+
+// ---- Derived stats ----
+function rpgXpToNext(level) { return 60 + (level - 1) * 45; }
+function rpgLevelInfo() {
+  let level = 1, rem = Math.max(0, rpgState ? rpgState.xp : 0);
+  while (level < 50 && rem >= rpgXpToNext(level)) { rem -= rpgXpToNext(level); level++; }
+  return { level, into: rem, need: rpgXpToNext(level) };
+}
+function rpgEquippedItems() {
+  return RPG_SLOTS.map(s => RPG_ITEMS_BY_ID[(rpgState.equipment || {})[s]]).filter(Boolean);
+}
+function rpgPlayerStats() {
+  const level = rpgLevelInfo().level;
+  const sum = key => rpgEquippedItems().reduce((acc, it) => acc + (Number(it[key]) || 0), 0);
+  return {
+    level,
+    atk: 4 + level + sum("atk"),
+    def: sum("def"),
+    crit: Math.min(60, 5 + sum("crit")),
+    maxHp: 40 + level * 10 + sum("hp")
+  };
+}
+function rpgStatLine(it) {
+  const parts = [];
+  if (it.atk) parts.push(`+${it.atk} ATK`);
+  if (it.def) parts.push(`+${it.def} DEF`);
+  if (it.crit) parts.push(`+${it.crit}% CRIT`);
+  if (it.hp) parts.push(`+${it.hp} HP`);
+  return parts.join(" · ") || "Cosmetic";
+}
+
+// ---- Avatar (layered SVG paper doll; equipment renders on the hero) ----
+function rpgItemArt(slot) {
+  const it = RPG_ITEMS_BY_ID[(rpgState.equipment || {})[slot]];
+  return it && it.art ? it.art() : "";
+}
+function rpgAvatarSvg() {
+  const acc = RPG_ITEMS_BY_ID[(rpgState.equipment || {}).accessory];
+  const capeArt = acc && acc.layer === "back" ? acc.art() : "";
+  const frontAccArt = acc && acc.layer === "front" ? acc.art() : "";
+  return `<svg viewBox="0 0 200 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Your hero avatar">
+    <ellipse cx="100" cy="222" rx="46" ry="9" fill="rgba(0,0,0,0.10)"/>
+    ${capeArt}
+    <rect x="84" y="180" width="11" height="30" rx="5" fill="#4b4339"/>
+    <rect x="105" y="180" width="11" height="30" rx="5" fill="#4b4339"/>
+    <ellipse cx="88" cy="212" rx="11" ry="6" fill="#2c2a27"/>
+    <ellipse cx="112" cy="212" rx="11" ry="6" fill="#2c2a27"/>
+    <path d="M77 118 Q100 110 123 118 L129 178 Q100 188 71 178 Z" fill="#4a7c59"/>
+    <path d="M77 118 Q100 110 123 118 L121 130 Q100 124 79 130 Z" fill="rgba(0,0,0,0.12)"/>
+    <rect x="73" y="166" width="54" height="8" rx="4" fill="#5b4632"/>
+    <rect x="95" y="166" width="10" height="8" rx="2" fill="#d4b106"/>
+    ${rpgItemArt("armor")}
+    <path d="M80 124 Q66 134 60 152" stroke="#4a7c59" stroke-width="11" fill="none" stroke-linecap="round"/>
+    <path d="M120 124 Q134 134 140 152" stroke="#4a7c59" stroke-width="11" fill="none" stroke-linecap="round"/>
+    <circle cx="58" cy="158" r="7" fill="#f5cfa8"/>
+    <circle cx="142" cy="158" r="7" fill="#f5cfa8"/>
+    <rect x="93" y="104" width="14" height="12" rx="5" fill="#f5cfa8"/>
+    <circle cx="100" cy="78" r="34" fill="#f5cfa8"/>
+    <path d="M64 76 Q66 40 100 40 Q134 40 136 76 Q120 58 100 60 Q80 58 64 76 Z" fill="#5b4632"/>
+    <circle cx="88" cy="84" r="3.4" fill="#2c2a27"/>
+    <circle cx="112" cy="84" r="3.4" fill="#2c2a27"/>
+    <path d="M91 95 Q100 102 109 95" stroke="#2c2a27" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+    <circle cx="80" cy="92" r="4" fill="#f3a683" opacity="0.45"/>
+    <circle cx="120" cy="92" r="4" fill="#f3a683" opacity="0.45"/>
+    ${rpgItemArt("helmet")}
+    ${frontAccArt}
+    <g transform="translate(58,158)">${rpgItemArt("shield")}</g>
+    <g transform="translate(142,158) rotate(14)">${rpgItemArt("weapon")}<circle r="7" fill="#f5cfa8" stroke="rgba(0,0,0,0.1)"/></g>
+  </svg>`;
+}
+function rpgItemIconSvg(it) {
+  const box = it.box || RPG_SLOT_META[it.slot].box;
+  return `<svg viewBox="${box}" xmlns="http://www.w3.org/2000/svg">${it.art()}</svg>`;
+}
+
+// ---- Lifecycle ----
+async function rpgInit() {
+  if (!currentUser) return;
+  const uid = currentUser.uid;
+  const saved = await rpgLoadState();
+  if (!currentUser || currentUser.uid !== uid) return; // signed out while loading
+  rpgState = rpgHydrate(saved);
+  const stats = rpgPlayerStats();
+  if (!Number.isFinite(rpgState.hp) || rpgState.hp === null) rpgState.hp = stats.maxHp;
+  rpgState.hp = Math.max(1, Math.min(rpgState.hp, stats.maxHp));
+  $("rpgSide").style.display = "";
+  $("rpgTopChip").style.display = "";
+  rpgRenderSide();
+  rpgRenderBattle();
+  if (document.querySelector("#page-character.active")) rpgRenderCharacterPage();
+  rpgSave();
+}
+function rpgOnSignOut() {
+  rpgState = null;
+  const side = $("rpgSide"), chip = $("rpgTopChip"), battle = $("rpgBattle");
+  if (side) side.style.display = "none";
+  if (chip) chip.style.display = "none";
+  if (battle) { battle.style.display = "none"; battle.innerHTML = ""; }
+}
+function rpgNoteHintUsed() { rpgHintUsedQ = true; }
+function rpgQuestionChanged() { rpgHintUsedQ = false; }
+function rpgResetHero() {
+  try { localStorage.removeItem(rpgStorageKey()); } catch (_) {}
+  rpgState = rpgHydrate(null);
+  rpgState.hp = rpgPlayerStats().maxHp;
+  rpgSave();
+  rpgRenderBattle();
+  if (document.querySelector("#page-character.active")) rpgRenderCharacterPage();
+  toast("Hero reset", "success");
+}
+
+// ---- Rewards & battle resolution (called after every AI-marked attempt) ----
+function rpgApplyRewards(gold, xp) {
+  const before = rpgLevelInfo().level;
+  rpgState.gold += gold;
+  rpgState.xp += xp;
+  rpgState.stats.goldEarned += gold;
+  const after = rpgLevelInfo().level;
+  if (after > before) rpgState.hp = rpgPlayerStats().maxHp; // level up = full heal
+  return { levelsGained: after - before, newLevel: after };
+}
+function rpgRollLoot(enemy) {
+  if (Math.random() > 0.45) return null;
+  const level = rpgLevelInfo().level;
+  const pool = RPG_ITEMS.filter(it => it.price > 0 && !rpgState.inventory[it.id] &&
+    RPG_RARITY[it.rarity].rank <= enemy.lootMax && it.levelReq <= level + 1);
+  if (!pool.length) return null;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+function rpgBattleRound(credit) {
+  const battle = rpgState.battle;
+  const enemy = battle && RPG_ENEMIES_BY_ID[battle.enemyId];
+  if (!enemy) { rpgState.battle = null; return null; }
+  const out = { lines: [], victory: null, defeat: false, foeDmg: 0, heroDmg: 0 };
+  const stats = rpgPlayerStats();
+  battle.rounds = (battle.rounds || 0) + 1;
+  if (credit > 0) {
+    let dmg = stats.atk * (0.9 + Math.random() * 0.35);
+    let note = "";
+    if (credit < 0.95) { dmg *= Math.max(0.3, credit); note = " (glancing hit)"; }
+    else if (Math.random() * 100 < stats.crit) { dmg *= 2; note = " — <b>CRITICAL HIT!</b>"; }
+    if (rpgHintUsedQ) { dmg *= 0.6; note += " (hint used)"; }
+    dmg = Math.max(1, Math.round(dmg));
+    battle.enemyHp = Math.max(0, battle.enemyHp - dmg);
+    out.foeDmg = dmg;
+    out.lines.push(`You strike <b>${escapeHtml(enemy.name)}</b> for <b>${dmg}</b> damage${note}.`);
+    if (battle.enemyHp <= 0) {
+      rpgState.stats.wins++;
+      const loot = rpgRollLoot(enemy);
+      if (loot) rpgState.inventory[loot.id] = (rpgState.inventory[loot.id] || 0) + 1;
+      out.victory = { gold: enemy.gold, xp: enemy.xp, loot, enemy };
+      rpgState.battle = null;
+      rpgState.hp = Math.min(stats.maxHp, rpgState.hp + Math.round(stats.maxHp * 0.3));
+      out.lines.push(`<b>${escapeHtml(enemy.name)}</b> is defeated! 🎉`);
+    }
+  } else {
+    const edmg = Math.max(1, Math.round(enemy.atk * (0.85 + Math.random() * 0.3) - stats.def * 0.5));
+    rpgState.hp = Math.max(0, rpgState.hp - edmg);
+    out.heroDmg = edmg;
+    out.lines.push(`Wrong answer — <b>${escapeHtml(enemy.name)}</b> strikes you for <b>${edmg}</b>!`);
+    if (rpgState.hp <= 0) {
+      out.defeat = true;
+      rpgState.stats.defeats++;
+      rpgState.battle = null;
+      rpgState.hp = rpgPlayerStats().maxHp; // gentle: full revive, no gold lost
+    }
+  }
+  return out;
+}
+function rpgOnMarked(q, v, opts = {}) {
+  if (!rpgState) return;
+  const verdict = String((v && v.verdict) || "incorrect").toLowerCase();
+  const credit = attemptCredit(verdict, v || {});
+  const diff = questionDifficultyRating(q || {});
+  const boost = aiPracticeActive ? 1.25 : 1; // growth-zone practice pays more
+  const repeatAttempt = !opts.simulated && q && studentProgress[q.id] && (studentProgress[q.id].attempts || 0) > 1;
+  let gold = Math.round((5 + diff / 120) * credit * boost);
+  let xp = Math.round((16 + diff / 45) * credit * boost);
+  if (credit <= 0) { gold = 0; xp = 3; } // effort XP — progress never stalls completely
+  if (repeatAttempt) { gold = Math.round(gold * 0.4); xp = Math.round(xp * 0.5); }
+  rpgState.stats.marked++;
+  if (credit >= 0.95) rpgState.stats.correct++;
+
+  const round = rpgState.battle ? rpgBattleRound(credit) : null;
+  if (round && round.victory) { gold += round.victory.gold; xp += round.victory.xp; }
+  const lvl = rpgApplyRewards(gold, xp);
+  rpgHintUsedQ = false;
+  rpgSave();
+  rpgRenderBattle();
+  if (document.querySelector("#page-character.active")) rpgRenderCharacterPage();
+
+  if (round) {
+    if (round.foeDmg) { rpgFloat("rpgFoeTile", `-${round.foeDmg}`, "dmg"); rpgHitFlash("rpgFoeTile"); }
+    if (round.heroDmg) { rpgFloat("rpgHeroTile", `-${round.heroDmg}`, "hurt"); rpgHitFlash("rpgHeroTile"); }
+    if (round.lines.length) rpgSetLog(round.lines.join(" "));
+  }
+
+  const lineParts = [];
+  if (round && round.foeDmg) lineParts.push(`⚔️ ${round.foeDmg} damage dealt`);
+  if (round && round.heroDmg) lineParts.push(`💢 took ${round.heroDmg} damage`);
+  if (gold > 0) lineParts.push(`🪙 +${gold} gold`);
+  lineParts.push(`✨ +${xp} XP`);
+  if (repeatAttempt) lineParts.push(`(repeat question — reduced reward)`);
+  if (lvl.levelsGained > 0) lineParts.push(`⬆️ LEVEL UP! Now Lv ${lvl.newLevel}`);
+  const lineEl = $("rpgRewardLine");
+  if (lineEl) {
+    lineEl.innerHTML = lineParts.map(p => `<span>${escapeHtml(p)}</span>`).join("");
+    lineEl.style.display = "flex";
+  }
+
+  if (round && round.victory) rpgShowVictory(round.victory, lvl);
+  else if (round && round.defeat) rpgShowDefeat(round);
+  else if (lvl.levelsGained > 0) rpgShowLevelUp(lvl.newLevel);
+}
+
+// ---- Battle control ----
+function rpgPickEnemy() {
+  const level = rpgLevelInfo().level;
+  const tier = Math.max(1, Math.min(10, level + (Math.random() < 0.3 ? 1 : 0)));
+  return RPG_ENEMIES[tier - 1];
+}
+function rpgStartBattle() {
+  if (!rpgState) return;
+  const enemy = rpgPickEnemy();
+  rpgState.battle = { enemyId: enemy.id, enemyHp: enemy.maxHp, rounds: 0, startedAt: new Date().toISOString() };
+  rpgSave();
+  rpgRenderBattle();
+  rpgSetLog(`A wild <b>${escapeHtml(enemy.name)}</b> appears! ${escapeHtml(enemy.flavor)} Answer the question below to attack.`);
+}
+function rpgFlee() {
+  if (!rpgState || !rpgState.battle) return;
+  const enemy = RPG_ENEMIES_BY_ID[rpgState.battle.enemyId];
+  rpgState.battle = null;
+  rpgSave();
+  rpgRenderBattle();
+  toast(`You fled from ${enemy ? enemy.name : "the battle"} — no harm done`, "");
+}
+function rpgSimulate(verdict) {
+  if (!rpgState) return;
+  const q = questionBank[qIndex] || { level: "P5", id: "sim" };
+  const v = verdict === "correct" ? { verdict: "correct", marks: 2, outOf: 2 }
+    : verdict === "partial" ? { verdict: "partial", marks: 1, outOf: 2 }
+    : { verdict: "incorrect", marks: 0, outOf: 2 };
+  rpgOnMarked(q, v, { simulated: true });
+}
+
+// ---- UI: sidebar + topbar ----
+function rpgRenderSide() {
+  if (!rpgState) return;
+  const info = rpgLevelInfo();
+  const stats = rpgPlayerStats();
+  const lv = $("rpgSideLevel"), gd = $("rpgSideGold"), hp = $("rpgSideHp"), xpEl = $("rpgSideXp"), chip = $("rpgTopChipText");
+  if (lv) lv.textContent = "Lv " + info.level;
+  if (gd) gd.textContent = "🪙 " + rpgState.gold;
+  if (hp) hp.style.width = Math.round((rpgState.hp / stats.maxHp) * 100) + "%";
+  if (xpEl) xpEl.style.width = Math.round((info.into / info.need) * 100) + "%";
+  if (chip) chip.textContent = `Lv ${info.level} · 🪙 ${rpgState.gold}`;
+}
+
+// ---- UI: battle banner on the practice page ----
+function rpgHpBar(current, max, extraClass = "") {
+  const pct = Math.max(0, Math.min(100, Math.round((current / max) * 100)));
+  return `<div class="rpg-bar ${extraClass}"><div class="rpg-bar-fill hp" style="width:${pct}%;"></div><div class="rpg-bar-label">${current} / ${max}</div></div>`;
+}
+function rpgSimRowHtml() {
+  if (!canManageQuestions()) return "";
+  return `<div class="rpg-sim">Preview controls:
+    <button type="button" data-rpg-act="sim-correct">✓ correct</button>
+    <button type="button" data-rpg-act="sim-partial">≈ partial</button>
+    <button type="button" data-rpg-act="sim-wrong">✗ wrong</button>
+    <button type="button" data-rpg-act="sim-gold">+500 🪙</button>
+    <button type="button" data-rpg-act="sim-reset">reset hero</button>
+  </div>`;
+}
+function rpgRenderBattle() {
+  const wrap = $("rpgBattle");
+  if (!wrap) return;
+  if (!rpgState) { wrap.style.display = "none"; wrap.innerHTML = ""; return; }
+  wrap.style.display = "";
+  const stats = rpgPlayerStats();
+  const info = rpgLevelInfo();
+  const battle = rpgState.battle;
+  const enemy = battle && RPG_ENEMIES_BY_ID[battle.enemyId];
+  if (!battle || !enemy) {
+    wrap.innerHTML = `<div class="rpg-battle-card">
+      <div class="rpg-battle-head">
+        <span class="rpg-battle-title">⚔️ Battle mode</span>
+        <span class="rpg-battle-sub">Fight monsters by solving questions — correct answers attack, wrong answers let the enemy strike.</span>
+        <button class="btn btn-sm" type="button" data-rpg-act="character">🛡️ Lv ${info.level}</button>
+        <button class="btn btn-primary btn-sm" type="button" data-rpg-act="start">Start battle</button>
+      </div>
+      ${rpgSimRowHtml()}
+    </div>`;
+    return;
+  }
+  wrap.innerHTML = `<div class="rpg-battle-card">
+    <div class="rpg-battle-head">
+      <span class="rpg-battle-title">⚔️ Battle!</span>
+      <span class="rpg-battle-sub">Submit your working — a correct answer is an attack.</span>
+      <button class="btn btn-sm" type="button" data-rpg-act="flee">🏃 Flee</button>
+    </div>
+    <div class="rpg-arena">
+      <div class="rpg-fighter" id="rpgHeroTile">
+        <div class="rpg-fighter-art">${rpgAvatarSvg()}</div>
+        <div class="rpg-fighter-info">
+          <div class="rpg-fighter-name">${escapeHtml(currentUser && currentUser.name || "You")}</div>
+          <div class="rpg-fighter-lv">Lv ${info.level} · ⚔️${stats.atk} 🛡️${stats.def}</div>
+          ${rpgHpBar(rpgState.hp, stats.maxHp)}
+        </div>
+      </div>
+      <div class="rpg-vs">VS</div>
+      <div class="rpg-fighter" id="rpgFoeTile">
+        <div class="rpg-fighter-art"><span class="rpg-foe-emoji">${enemy.emoji}</span></div>
+        <div class="rpg-fighter-info">
+          <div class="rpg-fighter-name">${escapeHtml(enemy.name)}</div>
+          <div class="rpg-fighter-lv">Lv ${enemy.tier} · ${escapeHtml(enemy.flavor)}</div>
+          ${rpgHpBar(battle.enemyHp, enemy.maxHp)}
+        </div>
+      </div>
+    </div>
+    <div class="rpg-log" id="rpgLog"></div>
+    ${rpgSimRowHtml()}
+  </div>`;
+}
+function rpgSetLog(html) {
+  const log = $("rpgLog");
+  if (log) log.innerHTML = html;
+}
+function rpgFloat(tileId, text, cls) {
+  const tile = $(tileId);
+  if (!tile) return;
+  const el = document.createElement("span");
+  el.className = "rpg-float " + cls;
+  el.textContent = text;
+  tile.appendChild(el);
+  setTimeout(() => el.remove(), 1200);
+}
+function rpgHitFlash(tileId) {
+  const tile = $(tileId);
+  if (!tile) return;
+  tile.classList.add("hit");
+  setTimeout(() => tile.classList.remove("hit"), 450);
+}
+
+// ---- UI: reward overlays ----
+function rpgShowReward(title, bodyHtml) {
+  $("rpgRewardTitle").textContent = title;
+  $("rpgRewardBody").innerHTML = bodyHtml;
+  $("rpgRewardOverlay").classList.add("show");
+}
+function rpgLootCardHtml(loot) {
+  if (!loot) return "";
+  const rar = RPG_RARITY[loot.rarity];
+  return `<div class="rpg-loot-card" style="--rar:${rar.color};">
+    <div class="rpg-item-art">${rpgItemIconSvg(loot)}</div>
+    <div><div class="rpg-item-rarity" style="--rar:${rar.color};">${rar.label} drop!</div>
+    <div class="rpg-item-name">${escapeHtml(loot.name)}</div>
+    <div class="rpg-item-stats">${escapeHtml(rpgStatLine(loot))} — added to your inventory</div></div>
+  </div>`;
+}
+function rpgShowVictory(victory, lvl) {
+  rpgShowReward("Victory! 🎉",
+    `<div class="rpg-reward-hero">
+      <span class="big">${victory.enemy.emoji}</span>
+      <h4>${escapeHtml(victory.enemy.name)} defeated!</h4>
+      <p>Your math was too powerful.</p>
+      <div class="rpg-reward-stats"><span>🪙 +${victory.gold} gold</span><span>✨ +${victory.xp} XP</span></div>
+      ${lvl.levelsGained > 0 ? `<div class="rpg-reward-stats" style="color:var(--accent-orange);"><span>⬆️ LEVEL UP — now Lv ${lvl.newLevel}!</span></div>` : ""}
+      ${rpgLootCardHtml(victory.loot)}
+    </div>`);
+}
+function rpgShowDefeat() {
+  rpgShowReward("Retreat! 🛏️",
+    `<div class="rpg-reward-hero">
+      <span class="big">😵</span>
+      <h4>You were knocked out…</h4>
+      <p>You retreat to the academy and recover to full health. No gold lost — heroes learn from every battle. Review the feedback and try again!</p>
+    </div>`);
+}
+function rpgShowLevelUp(newLevel) {
+  rpgShowReward("Level up! ⬆️",
+    `<div class="rpg-reward-hero">
+      <span class="big">🌟</span>
+      <h4>You reached Lv ${newLevel}!</h4>
+      <p>+10 max HP, +1 ATK — and you're fully healed. New gear may have unlocked in the shop.</p>
+    </div>`);
+}
+
+// ---- UI: character page ----
+function rpgRenderCharacterPage() {
+  if (!rpgState) return;
+  const stats = rpgPlayerStats();
+  const info = rpgLevelInfo();
+  rpgState.hp = Math.min(rpgState.hp, stats.maxHp);
+  $("rpgAvatarFrame").innerHTML = rpgAvatarSvg();
+  $("rpgHeroName").textContent = (currentUser && currentUser.name) || "Hero";
+  $("rpgHeroBars").innerHTML =
+    `<div class="rpg-hero-title">Lv ${info.level} math adventurer · ${rpgState.stats.wins} battles won</div>
+    <div class="rpg-bar-row"><div class="rpg-bar-cap"><span>HP</span><span>${rpgState.hp} / ${stats.maxHp}</span></div>
+      <div class="rpg-bar light"><div class="rpg-bar-fill hp" style="width:${Math.round((rpgState.hp / stats.maxHp) * 100)}%;"></div></div></div>
+    <div class="rpg-bar-row"><div class="rpg-bar-cap"><span>XP</span><span>${info.into} / ${info.need}</span></div>
+      <div class="rpg-bar light"><div class="rpg-bar-fill xp" style="width:${Math.round((info.into / info.need) * 100)}%;"></div></div></div>`;
+  $("rpgHeroStats").innerHTML =
+    `<div class="rpg-stat-chip"><b>${stats.atk}</b><span>⚔️ Attack</span></div>
+    <div class="rpg-stat-chip"><b>${stats.def}</b><span>🛡️ Defence</span></div>
+    <div class="rpg-stat-chip"><b>${stats.crit}%</b><span>✨ Crit</span></div>
+    <div class="rpg-stat-chip"><b>${rpgState.gold}</b><span>🪙 Gold</span></div>`;
+  $("rpgEquipRow").innerHTML = RPG_SLOTS.map(slot => {
+    const it = RPG_ITEMS_BY_ID[rpgState.equipment[slot]];
+    const meta = RPG_SLOT_META[slot];
+    if (!it) return `<div class="rpg-slot" data-rpg-slot="${slot}" title="Empty ${meta.label} slot"><span class="rpg-slot-empty">${meta.icon}</span><span class="rpg-slot-label">${meta.label}</span></div>`;
+    return `<div class="rpg-slot filled" data-rpg-slot="${slot}" title="${escapeHtml(it.name)} — click to unequip" style="border-color:${RPG_RARITY[it.rarity].color};">${rpgItemIconSvg(it)}<span class="rpg-slot-label">${meta.label}</span></div>`;
+  }).join("");
+  rpgRenderTab();
+}
+function rpgItemCardHtml(it, mode) {
+  const rar = RPG_RARITY[it.rarity];
+  const level = rpgLevelInfo().level;
+  const owned = !!rpgState.inventory[it.id];
+  const equipped = rpgState.equipment[it.slot] === it.id;
+  const locked = it.levelReq > level;
+  let action = "";
+  if (mode === "inventory") {
+    action = equipped
+      ? `<button class="btn btn-ghost" type="button" data-rpg-unequip="${it.slot}">Unequip</button>`
+      : locked
+        ? `<button class="btn btn-ghost" type="button" disabled>Needs Lv ${it.levelReq}</button>`
+        : `<button class="btn btn-primary" type="button" data-rpg-equip="${it.id}">Equip</button>`;
+  } else {
+    action = owned
+      ? `<button class="btn btn-ghost" type="button" disabled>Owned</button>`
+      : `<button class="btn btn-primary" type="button" data-rpg-buy="${it.id}" ${rpgState.gold < it.price || locked ? "disabled" : ""}>Buy · 🪙 ${it.price}</button>`;
+  }
+  return `<div class="rpg-item ${locked ? "locked" : ""}" style="--rar:${rar.color};">
+    ${equipped ? `<span class="rpg-item-badge">Equipped</span>` : (mode === "shop" && owned ? `<span class="rpg-item-badge">Owned</span>` : "")}
+    <div class="rpg-item-art">${rpgItemIconSvg(it)}</div>
+    <div class="rpg-item-rarity">${rar.label} · ${RPG_SLOT_META[it.slot].label}</div>
+    <div class="rpg-item-name">${escapeHtml(it.name)}</div>
+    <div class="rpg-item-stats">${escapeHtml(rpgStatLine(it))}${locked ? `<div class="rpg-item-req">Requires Lv ${it.levelReq}</div>` : ""}</div>
+    ${action}
+  </div>`;
+}
+function rpgShopFilterHtml() {
+  const chips = [["all", "All"]].concat(RPG_SLOTS.map(s => [s, RPG_SLOT_META[s].label]));
+  return `<div class="rpg-filter-row">${chips.map(([key, label]) =>
+    `<button class="rpg-filter-chip ${rpgShopSlot === key ? "active" : ""}" type="button" data-rpg-filter="${key}">${label}</button>`).join("")}</div>`;
+}
+function rpgRenderTab() {
+  const body = $("rpgTabBody");
+  if (!body) return;
+  document.querySelectorAll(".rpg-tab").forEach(b => b.classList.toggle("active", b.dataset.rpgtab === rpgCharTab));
+  const goldRow = `<div class="rpg-gold-row">Your gold: <b>🪙 ${rpgState.gold}</b><span style="margin-left:auto;">Earn more by solving questions ✍️</span></div>`;
+  if (rpgCharTab === "inventory") {
+    const owned = RPG_ITEMS.filter(it => rpgState.inventory[it.id]);
+    body.innerHTML = goldRow + (owned.length
+      ? `<div class="rpg-grid">${owned.map(it => rpgItemCardHtml(it, "inventory")).join("")}</div>`
+      : `<div class="empty-note">No items yet — defeat monsters or visit the shop!</div>`);
+  } else {
+    const sorted = RPG_ITEMS.filter(it => it.price > 0 && (rpgShopSlot === "all" || it.slot === rpgShopSlot)).slice().sort((a, b) =>
+      RPG_SLOTS.indexOf(a.slot) - RPG_SLOTS.indexOf(b.slot) || a.price - b.price);
+    body.innerHTML = goldRow + rpgShopFilterHtml() + `<div class="rpg-grid">${sorted.map(it => rpgItemCardHtml(it, "shop")).join("")}</div>`;
+  }
+}
+function rpgEquip(itemId) {
+  const it = RPG_ITEMS_BY_ID[itemId];
+  if (!it || !rpgState.inventory[itemId]) return;
+  if (it.levelReq > rpgLevelInfo().level) { toast(`Reach Lv ${it.levelReq} to equip ${it.name}`, "error"); return; }
+  rpgState.equipment[it.slot] = itemId;
+  rpgState.hp = Math.min(rpgState.hp, rpgPlayerStats().maxHp);
+  rpgSave();
+  rpgRenderCharacterPage();
+  rpgRenderBattle();
+  toast(`${it.name} equipped ⚔️`, "success");
+}
+function rpgUnequip(slot) {
+  if (!rpgState.equipment[slot]) return;
+  rpgState.equipment[slot] = null;
+  rpgState.hp = Math.min(rpgState.hp, rpgPlayerStats().maxHp);
+  rpgSave();
+  rpgRenderCharacterPage();
+  rpgRenderBattle();
+}
+function rpgBuy(itemId) {
+  const it = RPG_ITEMS_BY_ID[itemId];
+  if (!it || rpgState.inventory[itemId]) return;
+  if (it.levelReq > rpgLevelInfo().level) { toast(`Reach Lv ${it.levelReq} first`, "error"); return; }
+  if (rpgState.gold < it.price) { toast("Not enough gold — solve more questions!", "error"); return; }
+  rpgState.gold -= it.price;
+  rpgState.inventory[itemId] = 1;
+  rpgSave();
+  rpgRenderCharacterPage();
+  toast(`Bought ${it.name}! Equip it from your inventory`, "success");
+}
+
+// ---- Static event wiring ----
+$("rpgSide").addEventListener("click", () => navigateTo("character"));
+$("rpgTopChip").addEventListener("click", () => navigateTo("character"));
+$("rpgRestBtn").addEventListener("click", () => {
+  if (!rpgState) return;
+  rpgState.hp = rpgPlayerStats().maxHp;
+  rpgSave();
+  rpgRenderCharacterPage();
+  rpgRenderBattle();
+  toast("Fully rested — HP restored 🛏️", "success");
+});
+$("rpgToBattleBtn").addEventListener("click", () => {
+  navigateTo("practice");
+  if (rpgState && !rpgState.battle) rpgStartBattle();
+});
+document.querySelectorAll(".rpg-tab").forEach(b => b.addEventListener("click", () => { rpgCharTab = b.dataset.rpgtab; rpgRenderTab(); }));
+$("rpgTabBody").addEventListener("click", e => {
+  const filter = e.target.closest("[data-rpg-filter]");
+  if (filter) { rpgShopSlot = filter.dataset.rpgFilter; rpgRenderTab(); return; }
+  const equip = e.target.closest("[data-rpg-equip]");
+  if (equip) { rpgEquip(equip.dataset.rpgEquip); return; }
+  const unequip = e.target.closest("[data-rpg-unequip]");
+  if (unequip) { rpgUnequip(unequip.dataset.rpgUnequip); return; }
+  const buy = e.target.closest("[data-rpg-buy]");
+  if (buy) rpgBuy(buy.dataset.rpgBuy);
+});
+$("rpgEquipRow").addEventListener("click", e => {
+  const slot = e.target.closest("[data-rpg-slot]");
+  if (slot && rpgState && rpgState.equipment[slot.dataset.rpgSlot]) rpgUnequip(slot.dataset.rpgSlot);
+});
+$("rpgBattle").addEventListener("click", e => {
+  const btn = e.target.closest("[data-rpg-act]");
+  if (!btn || !rpgState) return;
+  const act = btn.dataset.rpgAct;
+  if (act === "start") rpgStartBattle();
+  else if (act === "flee") rpgFlee();
+  else if (act === "character") navigateTo("character");
+  else if (act === "sim-correct") rpgSimulate("correct");
+  else if (act === "sim-partial") rpgSimulate("partial");
+  else if (act === "sim-wrong") rpgSimulate("wrong");
+  else if (act === "sim-gold") { rpgState.gold += 500; rpgSave(); rpgRenderBattle(); toast("+500 gold (preview)", "success"); }
+  else if (act === "sim-reset") {
+    if (!confirm("Reset your hero? This clears gold, items and battle progress.")) return;
+    rpgResetHero();
+  }
+});
 
 // ===== boot =====
 setAuthMode("login");
