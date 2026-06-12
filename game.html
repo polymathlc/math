@@ -603,14 +603,28 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .adv-skill-owner { position: absolute; top: -5px; right: 1px; font-size: 13px; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.3)); }
 .adv-status { text-align: center; margin-top: 10px; font-size: 0.9rem; color: var(--text-muted); min-height: 1.4em; font-weight: 600; }
 .rpg-item-skill { font-size: 0.68rem; color: var(--accent-purple); font-weight: 700; line-height: 1.35; }
+.rpg-item-up { font-family: 'Space Mono', monospace; font-size: 0.66rem; color: #b8860b; background: #fdf3d8; border: 1px solid #ecd29a; border-radius: 999px; padding: 0 6px; vertical-align: middle; }
+.rpg-item-setline { font-size: 0.64rem; color: var(--accent-blue); font-weight: 700; line-height: 1.4; }
+.rpg-item-diff { font-family: 'Space Mono', monospace; font-size: 0.62rem; line-height: 1.5; }
+.rpg-item-diff .up { color: #1c8a4a; margin-right: 5px; }
+.rpg-item-diff .down { color: #c0392b; margin-right: 5px; }
+.rpg-set-row { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.rpg-set-chip { font-family: 'Space Mono', monospace; font-size: 0.6rem; font-weight: 700; padding: 4px 9px; border-radius: 999px; border: 1px dashed var(--border); color: var(--text-muted); background: #fff; }
+.rpg-set-chip.on { border-style: solid; border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
 @media (max-width: 640px) { .adv-stage { height: 238px; } .adv-hero svg { width: 94px; } .adv-hero { width: 108px; } .adv-bar { width: 86px; } .adv-skill { width: 56px; } .adv-skill-tile { width: 48px; height: 48px; font-size: 23px; } }
 .rpg-gold-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-family: 'Space Mono', monospace; font-size: 0.8rem; color: var(--text-muted); }
 .rpg-gold-row b { color: var(--text); font-size: 0.95rem; }
 .rpg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(138px, 1fr)); gap: 10px; }
 .rpg-item { position: relative; display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--border); border-top: 3px solid var(--rar, var(--rar-common)); border-radius: var(--radius-md); background: #fff; padding: 10px; }
 .rpg-item.locked { opacity: 0.62; }
-.rpg-item-art { height: 62px; display: flex; align-items: center; justify-content: center; }
+.rpg-item-art { height: 70px; display: flex; align-items: center; justify-content: center; border-radius: 9px; border: 1.5px solid transparent; padding: 4px; }
 .rpg-item-art svg { height: 100%; width: auto; max-width: 100%; }
+.t-common { background: linear-gradient(#3b4150, #262a33); border-color: #5d6675 !important; }
+.t-uncommon { background: linear-gradient(#2f4a39, #1d2e24); border-color: #3a9e5f !important; }
+.t-rare { background: linear-gradient(#2f4263, #1c2940); border-color: #4a6fa5 !important; }
+.t-epic { background: linear-gradient(#46336a, #251b38); border-color: #7b5ea7 !important; box-shadow: inset 0 0 14px rgba(160,106,232,0.35); }
+.t-legendary { background: linear-gradient(#5d4413, #2a1d07); border-color: #e8b41f !important; box-shadow: inset 0 0 16px rgba(240,180,41,0.4), 0 0 8px rgba(240,180,41,0.25); }
+.rpg-slot.filled .rpg-slot-label { color: rgba(255,255,255,0.78); }
 .rpg-item-name { font-weight: 700; font-size: 0.82rem; line-height: 1.25; }
 .rpg-item-rarity { font-family: 'Space Mono', monospace; font-size: 0.54rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--rar, var(--rar-common)); font-weight: 700; }
 .rpg-item-stats { font-size: 0.74rem; color: var(--text-muted); line-height: 1.4; min-height: 2.1em; }
@@ -4036,6 +4050,48 @@ const RPG_RARITY = {
   legendary: { label: "Legendary", rank: 5, color: "var(--rar-legendary)" }
 };
 
+// ---- Style kit: auto gradients + outlines (registered once, shared via one <defs> svg) ----
+const RPG_OUT = "#2a2d3a";
+const rpgGradRegistry = new Map();
+function rpgShade(hex, amt) {
+  const h = String(hex || "#888888").replace("#", "");
+  if (h.length !== 6) return hex;
+  const f = i => {
+    const v = parseInt(h.substr(i, 2), 16);
+    const t = amt >= 0 ? 255 : 0;
+    return Math.round(v + (t - v) * Math.abs(amt)).toString(16).padStart(2, "0");
+  };
+  return "#" + f(0) + f(2) + f(4);
+}
+function rpgGrad(color, kind = "v") {
+  if (String(color).indexOf("url(") === 0 || String(color).indexOf("#") !== 0) return color;
+  const id = "rg" + kind + color.slice(1);
+  if (!rpgGradRegistry.has(id)) {
+    const lite = rpgShade(color, 0.42), dark = rpgShade(color, -0.3);
+    let def;
+    if (kind === "r") def = `<radialGradient id="${id}" cx="0.35" cy="0.3" r="0.95"><stop offset="0" stop-color="${rpgShade(color, 0.55)}"/><stop offset="0.55" stop-color="${color}"/><stop offset="1" stop-color="${rpgShade(color, -0.38)}"/></radialGradient>`;
+    else if (kind === "h") def = `<linearGradient id="${id}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${lite}"/><stop offset="0.5" stop-color="${color}"/><stop offset="1" stop-color="${dark}"/></linearGradient>`;
+    else def = `<linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${lite}"/><stop offset="0.5" stop-color="${color}"/><stop offset="1" stop-color="${dark}"/></linearGradient>`;
+    rpgGradRegistry.set(id, def);
+  }
+  return `url(#${id})`;
+}
+function rpgSvgDefsHtml() { return `<defs>${[...rpgGradRegistry.values()].join("")}</defs>`; }
+let rpgDefsInstalled = false;
+function rpgEnsureSvgDefs() {
+  if (rpgDefsInstalled || !document.body || !document.body.appendChild) return;
+  try {
+    RPG_ITEMS.forEach(it => { try { it.art(); } catch (_) {} });
+    rpgAvatarSvg({});
+    const host = document.createElement("div");
+    host.innerHTML = `<svg width="0" height="0" style="position:absolute;pointer-events:none;" aria-hidden="true">${rpgSvgDefsHtml()}</svg>`;
+    if (host.firstChild) document.body.appendChild(host.firstChild);
+    rpgDefsInstalled = true;
+  } catch (e) { console.warn("svg defs", e); }
+}
+const RPG_O = `stroke="${RPG_OUT}" stroke-width="2.2" stroke-linejoin="round"`;
+const RPG_O_THIN = `stroke="${RPG_OUT}" stroke-width="1.6" stroke-linejoin="round"`;
+
 // ---- SVG art helpers (paper-doll layers; local coords documented per slot) ----
 function svgStar(cx, cy, R, r, fill) {
   const pts = [];
@@ -4049,222 +4105,263 @@ function svgStar(cx, cy, R, r, fill) {
 function svgPulse(min, max) {
   return `<animate attributeName="opacity" values="${max};${min};${max}" dur="1.8s" repeatCount="indefinite"/>`;
 }
+function svgTwinkle(dur) {
+  return `<animate attributeName="opacity" values="1;0.25;1" dur="${dur || 1.9}s" repeatCount="indefinite"/>`;
+}
 // Weapons: origin = grip centre in the hero's hand, blade points up (-y).
 function svgSword(blade, guard, grip, glow) {
-  return (glow ? `<polygon points="0,-77 7.5,-60 7.5,-5 -7.5,-5 -7.5,-60" fill="${glow}" opacity="0.4">${svgPulse(0.2, 0.5)}</polygon>` : "") +
-    `<polygon points="0,-72 5,-60 5,-8 -5,-8 -5,-60" fill="${blade}"/>` +
-    `<line x1="0" y1="-64" x2="0" y2="-11" stroke="rgba(0,0,0,0.2)" stroke-width="1.4"/>` +
-    `<rect x="-13" y="-9" width="26" height="6" rx="3" fill="${guard}"/>` +
-    `<rect x="-3" y="-3" width="6" height="16" rx="2.5" fill="${grip}"/>` +
-    `<circle cx="0" cy="16" r="4" fill="${guard}"/>`;
+  return (glow ? `<polygon points="0,-77 8.5,-60 8.5,-5 -8.5,-5 -8.5,-60" fill="${glow}" opacity="0.4">${svgPulse(0.2, 0.5)}</polygon>` : "") +
+    `<polygon points="0,-72 5.5,-60 5.5,-8 -5.5,-8 -5.5,-60" fill="${rpgGrad(blade, "h")}" ${RPG_O}/>` +
+    `<polygon points="0,-72 5.5,-60 5.5,-8 0.5,-8 0.5,-62" fill="rgba(0,0,0,0.16)"/>` +
+    `<line x1="-2.6" y1="-62" x2="-2.6" y2="-12" stroke="rgba(255,255,255,0.75)" stroke-width="1.5" stroke-linecap="round"/>` +
+    `<path d="M-14 -9 Q-7 -13.5 0 -13 Q7 -13.5 14 -9 Q7 -6.5 0 -7 Q-7 -6.5 -14 -9 Z" fill="${rpgGrad(guard)}" ${RPG_O}/>` +
+    `<rect x="-3.2" y="-6" width="6.4" height="18" rx="2.8" fill="${rpgGrad(grip, "h")}" ${RPG_O_THIN}/>` +
+    `<line x1="-1" y1="-3" x2="-1" y2="9" stroke="rgba(255,255,255,0.3)" stroke-width="1.2"/>` +
+    `<circle cx="0" cy="15.5" r="4.2" fill="${rpgGrad(guard, "r")}" ${RPG_O_THIN}/>`;
 }
 function svgGreatsword(blade, guard, grip, glow, extra = "") {
-  return (glow ? `<polygon points="0,-86 10,-68 10,-4 -10,-4 -10,-68" fill="${glow}" opacity="0.4">${svgPulse(0.2, 0.5)}</polygon>` : "") +
-    `<polygon points="0,-80 7.5,-66 7.5,-8 -7.5,-8 -7.5,-66" fill="${blade}"/>` +
-    `<line x1="0" y1="-70" x2="0" y2="-11" stroke="rgba(0,0,0,0.16)" stroke-width="2"/>` +
+  return (glow ? `<polygon points="0,-86 11,-68 11,-4 -11,-4 -11,-68" fill="${glow}" opacity="0.4">${svgPulse(0.2, 0.5)}</polygon>` : "") +
+    `<polygon points="0,-80 8,-66 8,-8 -8,-8 -8,-66" fill="${rpgGrad(blade, "h")}" ${RPG_O}/>` +
+    `<polygon points="0,-80 8,-66 8,-8 0.6,-8 0.6,-68" fill="rgba(0,0,0,0.16)"/>` +
+    `<line x1="-4" y1="-68" x2="-4" y2="-12" stroke="rgba(255,255,255,0.7)" stroke-width="1.7" stroke-linecap="round"/>` +
     extra +
-    `<rect x="-16" y="-10" width="32" height="6.5" rx="3" fill="${guard}"/>` +
-    `<rect x="-3.4" y="-3" width="6.8" height="20" rx="3" fill="${grip}"/>` +
-    `<circle cx="0" cy="20" r="4.5" fill="${guard}"/>`;
+    `<path d="M-17 -10 Q-8.5 -15 0 -14.5 Q8.5 -15 17 -10 Q8.5 -7 0 -7.5 Q-8.5 -7 -17 -10 Z" fill="${rpgGrad(guard)}" ${RPG_O}/>` +
+    `<rect x="-3.6" y="-6" width="7.2" height="23" rx="3.2" fill="${rpgGrad(grip, "h")}" ${RPG_O_THIN}/>` +
+    `<circle cx="0" cy="20" r="4.8" fill="${rpgGrad(guard, "r")}" ${RPG_O_THIN}/>`;
 }
 function svgExcalibur() {
-  return svgGreatsword("#fff6db", "#e8b41f", "#27406b", "#ffd76a",
-    `<polygon points="0,-66 3.4,-60 0,-54 -3.4,-60" fill="#9bb8e8"/>` +
-    `<rect x="-16" y="-13" width="6" height="9" rx="2.5" fill="#e8b41f"/>` +
-    `<rect x="10" y="-13" width="6" height="9" rx="2.5" fill="#e8b41f"/>`);
+  return `<ellipse cx="0" cy="-40" rx="28" ry="52" fill="#ffd76a" opacity="0.35">${svgPulse(0.22, 0.45)}</ellipse>` +
+    `<ellipse cx="0" cy="-40" rx="18" ry="42" fill="#fff3b0" opacity="0.4"/>` +
+    svgGreatsword("#eef3f9", "#e8b41f", "#27406b", null,
+      `<polygon points="0,-66 3.6,-59 0,-52 -3.6,-59" fill="${rpgGrad("#4aa3ff", "r")}" ${RPG_O_THIN}/>` +
+      `<line x1="0" y1="-48" x2="0" y2="-20" stroke="#e8b41f" stroke-width="1.6" stroke-dasharray="5 4" opacity="0.9"/>`) +
+    `<path d="M-17 -10 Q-23 -17 -20 -25 Q-13 -19 -11 -13 Z" fill="${rpgGrad("#e8b41f")}" ${RPG_O_THIN}/>` +
+    `<path d="M17 -10 Q23 -17 20 -25 Q13 -19 11 -13 Z" fill="${rpgGrad("#e8b41f")}" ${RPG_O_THIN}/>` +
+    `<g>${svgStar(-14, -58, 3.4, 1.5, "#fff")}${svgTwinkle(2.1)}</g><g>${svgStar(15, -38, 2.7, 1.2, "#ffe9a3")}${svgTwinkle(1.6)}</g>`;
 }
 function svgKatana(blade, guard, grip, petal) {
-  return `<path d="M-2 -8 Q13 -38 3 -70 L8 -67 Q17 -36 4 -8 Z" fill="${blade}"/>` +
-    `<ellipse cx="0" cy="-7" rx="9" ry="3.4" fill="${guard}"/>` +
-    `<rect x="-2.8" y="-4" width="5.6" height="18" rx="2.5" fill="${grip}"/>` +
-    `<line x1="-2.8" y1="2" x2="2.8" y2="5" stroke="rgba(255,255,255,0.5)" stroke-width="1.2"/>` +
-    `<line x1="-2.8" y1="8" x2="2.8" y2="11" stroke="rgba(255,255,255,0.5)" stroke-width="1.2"/>` +
+  return `<path d="M-2 -8 Q13 -38 3 -70 L8 -67 Q17 -36 4 -8 Z" fill="${rpgGrad(blade, "h")}" ${RPG_O}/>` +
+    `<path d="M0 -14 Q11 -38 4.5 -64" fill="none" stroke="rgba(255,255,255,0.65)" stroke-width="1.4" stroke-linecap="round"/>` +
+    `<ellipse cx="0" cy="-7" rx="9" ry="3.6" fill="${rpgGrad(guard)}" ${RPG_O_THIN}/>` +
+    `<rect x="-2.9" y="-4" width="5.8" height="18" rx="2.6" fill="${rpgGrad(grip, "h")}" ${RPG_O_THIN}/>` +
+    `<line x1="-2.9" y1="2" x2="2.9" y2="5" stroke="rgba(255,255,255,0.5)" stroke-width="1.2"/>` +
+    `<line x1="-2.9" y1="8" x2="2.9" y2="11" stroke="rgba(255,255,255,0.5)" stroke-width="1.2"/>` +
     (petal ? `<circle cx="9" cy="-14" r="2.6" fill="${petal}"/><circle cx="13" cy="-22" r="1.8" fill="${petal}" opacity="0.7"/>` : "");
 }
 function svgRapier(blade, guard, grip) {
-  return `<polygon points="0,-68 2,-60 2,-8 -2,-8 -2,-60" fill="${blade}"/>` +
-    `<path d="M-9 -8 Q0 6 9 -8" fill="none" stroke="${guard}" stroke-width="2.6"/>` +
-    `<rect x="-8" y="-9" width="16" height="4" rx="2" fill="${guard}"/>` +
-    `<rect x="-2.4" y="-5" width="4.8" height="14" rx="2" fill="${grip}"/>` +
-    `<circle cx="0" cy="12" r="3" fill="${guard}"/>`;
+  return `<polygon points="0,-68 2.4,-60 2.4,-8 -2.4,-8 -2.4,-60" fill="${rpgGrad(blade, "h")}" ${RPG_O_THIN}/>` +
+    `<path d="M-9 -8 Q0 6.5 9 -8" fill="none" stroke="${rpgGrad(guard)}" stroke-width="3" stroke-linecap="round"/>` +
+    `<path d="M-9 -8 Q0 6.5 9 -8" fill="none" stroke="${RPG_OUT}" stroke-width="4.6" stroke-linecap="round" opacity="0.35"/>` +
+    `<rect x="-8" y="-9.5" width="16" height="4.4" rx="2.2" fill="${rpgGrad(guard)}" ${RPG_O_THIN}/>` +
+    `<rect x="-2.4" y="-5" width="4.8" height="14" rx="2" fill="${rpgGrad(grip, "h")}" ${RPG_O_THIN}/>` +
+    `<circle cx="0" cy="11.5" r="3.2" fill="${rpgGrad(guard, "r")}" ${RPG_O_THIN}/>`;
 }
 function svgDagger(blade, guard, grip, glow) {
-  return (glow ? `<polygon points="0,-44 6,-32 6,-4 -6,-4 -6,-32" fill="${glow}" opacity="0.4">${svgPulse(0.2, 0.5)}</polygon>` : "") +
-    `<polygon points="0,-40 4.5,-30 4.5,-7 -4.5,-7 -4.5,-30" fill="${blade}"/>` +
-    `<rect x="-9" y="-8" width="18" height="5" rx="2.5" fill="${guard}"/>` +
-    `<rect x="-2.6" y="-3" width="5.2" height="13" rx="2.2" fill="${grip}"/>`;
+  return (glow ? `<polygon points="0,-44 7,-32 7,-4 -7,-4 -7,-32" fill="${glow}" opacity="0.4">${svgPulse(0.2, 0.5)}</polygon>` : "") +
+    `<polygon points="0,-40 5,-30 5,-7 -5,-7 -5,-30" fill="${rpgGrad(blade, "h")}" ${RPG_O}/>` +
+    `<line x1="-2.2" y1="-31" x2="-2.2" y2="-10" stroke="rgba(255,255,255,0.6)" stroke-width="1.3" stroke-linecap="round"/>` +
+    `<rect x="-9" y="-8.5" width="18" height="5" rx="2.5" fill="${rpgGrad(guard)}" ${RPG_O_THIN}/>` +
+    `<rect x="-2.6" y="-3" width="5.2" height="13" rx="2.2" fill="${rpgGrad(grip, "h")}" ${RPG_O_THIN}/>`;
 }
 function svgCutlass(blade, guard, grip) {
-  return `<path d="M-3 -8 Q16 -28 7 -60 L-1 -55 Q4 -32 -9 -10 Z" fill="${blade}"/>` +
-    `<path d="M-10 -9 Q-2 6 8 -7" fill="none" stroke="${guard}" stroke-width="3"/>` +
-    `<rect x="-3" y="-4" width="6" height="14" rx="2.5" fill="${grip}"/>` +
-    `<circle cx="0" cy="12" r="3" fill="${guard}"/>`;
+  return `<path d="M-3 -8 Q16 -28 7 -60 L-1 -55 Q4 -32 -9 -10 Z" fill="${rpgGrad(blade, "h")}" ${RPG_O}/>` +
+    `<path d="M-5 -14 Q6 -32 2 -52" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="1.4" stroke-linecap="round"/>` +
+    `<path d="M-10 -9 Q-2 6 8 -7" fill="none" stroke="${RPG_OUT}" stroke-width="4.6" stroke-linecap="round" opacity="0.35"/>` +
+    `<path d="M-10 -9 Q-2 6 8 -7" fill="none" stroke="${rpgGrad(guard)}" stroke-width="3" stroke-linecap="round"/>` +
+    `<rect x="-3" y="-4" width="6" height="14" rx="2.6" fill="${rpgGrad(grip, "h")}" ${RPG_O_THIN}/>` +
+    `<circle cx="0" cy="12" r="3" fill="${rpgGrad(guard, "r")}" ${RPG_O_THIN}/>`;
 }
 function svgStaffBase(shaft) {
-  return `<rect x="-2.8" y="-56" width="5.6" height="78" rx="2.8" fill="${shaft}"/>`;
+  return `<rect x="-2.8" y="-56" width="5.6" height="78" rx="2.8" fill="${rpgGrad(shaft, "h")}" ${RPG_O_THIN}/>` +
+    `<line x1="-0.8" y1="-50" x2="-0.8" y2="16" stroke="rgba(255,255,255,0.28)" stroke-width="1.2"/>`;
 }
 function svgStaff(shaft, orb, glow) {
   return svgStaffBase(shaft) +
-    `<circle cx="0" cy="-63" r="13" fill="${glow}" opacity="0.35">${svgPulse(0.2, 0.45)}</circle>` +
-    `<circle cx="0" cy="-63" r="9" fill="${orb}"/>` +
-    `<circle cx="-3" cy="-66" r="2.6" fill="rgba(255,255,255,0.75)"/>`;
+    `<circle cx="0" cy="-63" r="13.5" fill="${glow}" opacity="0.35">${svgPulse(0.2, 0.45)}</circle>` +
+    `<path d="M-8 -52 Q-12 -62 -4 -67 M8 -52 Q12 -62 4 -67" stroke="${rpgGrad(shaft)}" stroke-width="3.6" fill="none" stroke-linecap="round"/>` +
+    `<circle cx="0" cy="-63" r="9" fill="${rpgGrad(orb, "r")}" ${RPG_O}/>` +
+    `<circle cx="-3" cy="-66" r="2.6" fill="rgba(255,255,255,0.85)"/>`;
 }
 function svgFlameStaff(shaft) {
   return svgStaffBase(shaft) +
-    `<path d="M0 -78 Q8 -68 6 -59 Q4 -53 0 -52 Q-4 -53 -6 -59 Q-8 -68 0 -78 Z" fill="#ff8c42"/>` +
+    `<circle cx="0" cy="-64" r="13" fill="#ff8c42" opacity="0.3">${svgPulse(0.2, 0.42)}</circle>` +
+    `<path d="M0 -78 Q8 -68 6 -59 Q4 -53 0 -52 Q-4 -53 -6 -59 Q-8 -68 0 -78 Z" fill="${rpgGrad("#ff8c42", "r")}" ${RPG_O_THIN}/>` +
     `<path d="M0 -70 Q3.5 -64 2.5 -59 Q0 -55 -2.5 -59 Q-3.5 -64 0 -70 Z" fill="#ffd166">${svgPulse(0.6, 1)}</path>`;
 }
 function svgIceStaff(shaft) {
   return svgStaffBase(shaft) +
-    `<polygon points="0,-80 6,-62 0,-56 -6,-62" fill="#bfe9f7"/>` +
-    `<polygon points="-9,-70 -4,-58 -9,-55" fill="#8fd4ee"/>` +
-    `<polygon points="9,-70 4,-58 9,-55" fill="#8fd4ee"/>`;
+    `<circle cx="0" cy="-66" r="14" fill="#bfe9f7" opacity="0.35">${svgPulse(0.2, 0.45)}</circle>` +
+    `<polygon points="0,-80 6,-62 0,-56 -6,-62" fill="${rpgGrad("#bfe9f7")}" ${RPG_O_THIN}/>` +
+    `<polygon points="-9,-70 -4,-58 -9,-55" fill="${rpgGrad("#8fd4ee")}" ${RPG_O_THIN}/>` +
+    `<polygon points="9,-70 4,-58 9,-55" fill="${rpgGrad("#8fd4ee")}" ${RPG_O_THIN}/>` +
+    `<line x1="-1.5" y1="-74" x2="-1.5" y2="-62" stroke="rgba(255,255,255,0.8)" stroke-width="1.2"/>`;
 }
 function svgLeafStaff(shaft) {
   return svgStaffBase(shaft) +
-    `<path d="M0 -76 Q13 -66 0 -50 Q-13 -66 0 -76 Z" fill="#3a9e5f"/>` +
+    `<path d="M0 -76 Q13 -66 0 -50 Q-13 -66 0 -76 Z" fill="${rpgGrad("#3a9e5f")}" ${RPG_O_THIN}/>` +
     `<line x1="0" y1="-72" x2="0" y2="-54" stroke="#1c8a4a" stroke-width="1.6"/>` +
-    `<circle cx="7" cy="-50" r="2.6" fill="#d94f4f"/>`;
+    `<path d="M0 -68 L-4 -64 M0 -62 L4 -58" stroke="#1c8a4a" stroke-width="1.1"/>` +
+    `<circle cx="7" cy="-50" r="2.6" fill="${rpgGrad("#d94f4f", "r")}" ${RPG_O_THIN}/>`;
 }
 function svgVoidStaff(shaft) {
   return svgStaffBase(shaft) +
-    `<circle cx="0" cy="-63" r="8" fill="#1a1430"/>` +
+    `<circle cx="0" cy="-63" r="8" fill="${rpgGrad("#1a1430", "r")}" ${RPG_O_THIN}/>` +
     `<circle cx="0" cy="-63" r="12.5" fill="none" stroke="#7b5ea7" stroke-width="2.2" opacity="0.8">${svgPulse(0.35, 0.9)}</circle>` +
-    `<circle cx="3" cy="-66" r="1.6" fill="#b79ae0"/>`;
+    `<circle cx="3" cy="-66" r="1.6" fill="#b79ae0"/>` +
+    `<g>${svgStar(-10, -72, 2, 0.9, "#b79ae0")}${svgTwinkle(2.3)}</g>`;
 }
 function svgRuneStaff(shaft) {
   return svgStaffBase(shaft) +
     `<circle cx="0" cy="-64" r="15" fill="#7be0a2" opacity="0.3">${svgPulse(0.15, 0.4)}</circle>` +
-    `<circle cx="0" cy="-64" r="10" fill="none" stroke="#1c8a4a" stroke-width="2.6"/>` +
+    `<circle cx="0" cy="-64" r="10" fill="none" stroke="${rpgGrad("#1c8a4a")}" stroke-width="2.8"/>` +
     `<polyline points="-4,-70 -4,-58 4,-70 4,-58" fill="none" stroke="#1c8a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`;
 }
 function svgSpiralStaff(shaft) {
   return svgStaffBase(shaft) +
     `<circle cx="0" cy="-63" r="16" fill="#ffe9a3" opacity="0.35">${svgPulse(0.2, 0.45)}</circle>` +
-    `<path d="M0 -52 a11 11 0 1 1 11 -11 a8 8 0 1 1 -8 8 a5 5 0 1 1 5 -5 a2.5 2.5 0 1 1 -2.5 2.5" fill="none" stroke="#e8b41f" stroke-width="3" stroke-linecap="round"/>`;
+    `<path d="M0 -52 a11 11 0 1 1 11 -11 a8 8 0 1 1 -8 8 a5 5 0 1 1 5 -5 a2.5 2.5 0 1 1 -2.5 2.5" fill="none" stroke="${RPG_OUT}" stroke-width="4.6" stroke-linecap="round" opacity="0.4"/>` +
+    `<path d="M0 -52 a11 11 0 1 1 11 -11 a8 8 0 1 1 -8 8 a5 5 0 1 1 5 -5 a2.5 2.5 0 1 1 -2.5 2.5" fill="none" stroke="${rpgGrad("#e8b41f")}" stroke-width="3" stroke-linecap="round"/>` +
+    `<g>${svgStar(13, -70, 2.6, 1.2, "#ffe9a3")}${svgTwinkle(2)}</g>`;
 }
 function svgWand(shaft, star) {
-  return `<rect x="-2" y="-34" width="4" height="46" rx="2" fill="${shaft}"/>` +
-    svgStar(0, -42, 10, 4.2, star) +
-    `<circle cx="9" cy="-52" r="1.7" fill="${star}" opacity="0.8"/><circle cx="-10" cy="-36" r="1.4" fill="${star}" opacity="0.7"/>`;
+  return `<rect x="-2" y="-34" width="4" height="46" rx="2" fill="${rpgGrad(shaft, "h")}" ${RPG_O_THIN}/>` +
+    `<g>${svgStar(0, -42, 10.5, 4.4, rpgGrad(star, "r"))}</g>` +
+    svgStar(0, -42, 10.5, 4.4, "none").replace('fill="none"', `fill="none" ${RPG_O_THIN}`) +
+    `<circle cx="9" cy="-52" r="1.7" fill="${star}" opacity="0.85"/><circle cx="-10" cy="-36" r="1.4" fill="${star}" opacity="0.7"/>`;
 }
 function svgCometWand(shaft, star) {
-  return `<rect x="-2" y="-34" width="4" height="46" rx="2" fill="${shaft}"/>` +
-    svgStar(0, -44, 10, 4.2, star) +
-    `<path d="M5 -38 L17 -20" stroke="${star}" stroke-width="2.4" stroke-linecap="round" opacity="0.7"/>` +
-    `<path d="M-2 -34 L6 -16" stroke="${star}" stroke-width="1.8" stroke-linecap="round" opacity="0.45"/>`;
+  return `<rect x="-2" y="-34" width="4" height="46" rx="2" fill="${rpgGrad(shaft, "h")}" ${RPG_O_THIN}/>` +
+    `<path d="M5 -38 L17 -20" stroke="${star}" stroke-width="2.6" stroke-linecap="round" opacity="0.75"/>` +
+    `<path d="M-2 -34 L6 -16" stroke="${star}" stroke-width="1.9" stroke-linecap="round" opacity="0.5"/>` +
+    `<g>${svgStar(0, -44, 10.5, 4.4, rpgGrad(star, "r"))}</g>` +
+    `<circle cx="-3" cy="-47" r="1.6" fill="#fff" opacity="0.9"/>`;
 }
 function svgSunScepter(shaft) {
   let rays = "";
   for (let i = 0; i < 8; i++) {
     const a = (Math.PI / 4) * i;
-    rays += `<line x1="${(Math.cos(a) * 11).toFixed(1)}" y1="${(-52 + Math.sin(a) * 11).toFixed(1)}" x2="${(Math.cos(a) * 16).toFixed(1)}" y2="${(-52 + Math.sin(a) * 16).toFixed(1)}" stroke="#e8b41f" stroke-width="2.4" stroke-linecap="round"/>`;
+    rays += `<line x1="${(Math.cos(a) * 11).toFixed(1)}" y1="${(-52 + Math.sin(a) * 11).toFixed(1)}" x2="${(Math.cos(a) * 16.5).toFixed(1)}" y2="${(-52 + Math.sin(a) * 16.5).toFixed(1)}" stroke="#e8b41f" stroke-width="2.6" stroke-linecap="round"/>`;
   }
-  return `<rect x="-2.4" y="-40" width="4.8" height="52" rx="2.4" fill="${shaft}"/>` +
-    `<circle cx="0" cy="-52" r="16" fill="#fff3b0" opacity="0.4">${svgPulse(0.2, 0.55)}</circle>` + rays +
-    `<circle cx="0" cy="-52" r="8.5" fill="#ffe27a" stroke="#e8b41f" stroke-width="2"/>`;
+  return `<rect x="-2.4" y="-40" width="4.8" height="52" rx="2.4" fill="${rpgGrad(shaft, "h")}" ${RPG_O_THIN}/>` +
+    `<circle cx="0" cy="-52" r="17" fill="#fff3b0" opacity="0.4">${svgPulse(0.2, 0.55)}</circle>` + rays +
+    `<circle cx="0" cy="-52" r="8.5" fill="${rpgGrad("#ffe27a", "r")}" ${RPG_O}/>` +
+    `<circle cx="-2.6" cy="-54.6" r="2" fill="rgba(255,255,255,0.9)"/>`;
 }
 function svgAxe(shaft, head) {
-  return `<rect x="-2.8" y="-52" width="5.6" height="72" rx="2.8" fill="${shaft}"/>` +
-    `<path d="M2 -52 Q27 -47 25 -21 Q12 -33 2 -33 Z" fill="${head}"/>` +
-    `<path d="M-2 -52 Q-27 -47 -25 -21 Q-12 -33 -2 -33 Z" fill="${head}"/>` +
-    `<rect x="-4" y="-55" width="8" height="6" rx="2" fill="${head}"/>`;
+  return `<rect x="-2.8" y="-52" width="5.6" height="72" rx="2.8" fill="${rpgGrad(shaft, "h")}" ${RPG_O_THIN}/>` +
+    `<path d="M2 -52 Q27 -47 25 -21 Q12 -33 2 -33 Z" fill="${rpgGrad(head, "h")}" ${RPG_O}/>` +
+    `<path d="M-2 -52 Q-27 -47 -25 -21 Q-12 -33 -2 -33 Z" fill="${rpgGrad(head, "h")}" ${RPG_O}/>` +
+    `<path d="M6 -49 Q20 -45 20 -32" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="1.5" stroke-linecap="round"/>` +
+    `<rect x="-4" y="-55" width="8" height="6" rx="2" fill="${rpgGrad(head)}" ${RPG_O_THIN}/>`;
 }
 function svgHammer(shaft, head, band) {
-  return `<rect x="-2.8" y="-52" width="5.6" height="72" rx="2.8" fill="${shaft}"/>` +
-    `<rect x="-15" y="-70" width="30" height="19" rx="3.5" fill="${head}"/>` +
+  return `<rect x="-2.8" y="-52" width="5.6" height="72" rx="2.8" fill="${rpgGrad(shaft, "h")}" ${RPG_O_THIN}/>` +
+    `<rect x="-15" y="-70" width="30" height="19" rx="3.5" fill="${rpgGrad(head)}" ${RPG_O}/>` +
+    `<line x1="-12" y1="-66" x2="12" y2="-66" stroke="rgba(255,255,255,0.5)" stroke-width="1.6"/>` +
     `<line x1="-9" y1="-70" x2="-9" y2="-51" stroke="${band}" stroke-width="2"/>` +
     `<line x1="9" y1="-70" x2="9" y2="-51" stroke="${band}" stroke-width="2"/>`;
 }
 function svgSpear(shaft, head) {
-  return `<rect x="-2.4" y="-62" width="4.8" height="82" rx="2.4" fill="${shaft}"/>` +
-    `<polygon points="0,-82 6.5,-62 0,-66 -6.5,-62" fill="${head}"/>`;
+  return `<rect x="-2.4" y="-62" width="4.8" height="82" rx="2.4" fill="${rpgGrad(shaft, "h")}" ${RPG_O_THIN}/>` +
+    `<polygon points="0,-82 6.5,-62 0,-66 -6.5,-62" fill="${rpgGrad(head, "h")}" ${RPG_O}/>` +
+    `<line x1="-1.6" y1="-76" x2="-1.6" y2="-66" stroke="rgba(255,255,255,0.7)" stroke-width="1.1"/>`;
 }
 function svgScythe(shaft, blade) {
-  return `<rect x="-2.8" y="-56" width="5.6" height="78" rx="2.8" fill="${shaft}"/>` +
-    `<path d="M2 -56 Q-22 -56 -32 -40 Q-15 -49 -1 -45 Z" fill="${blade}"/>` +
-    `<circle cx="0" cy="-56" r="3.4" fill="#3f3a34"/>`;
+  return `<rect x="-2.8" y="-56" width="5.6" height="78" rx="2.8" fill="${rpgGrad(shaft, "h")}" ${RPG_O_THIN}/>` +
+    `<path d="M2 -56 Q-22 -56 -32 -40 Q-15 -49 -1 -45 Z" fill="${rpgGrad(blade, "h")}" ${RPG_O}/>` +
+    `<path d="M-4 -53 Q-20 -52 -27 -43" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="1.4" stroke-linecap="round"/>` +
+    `<circle cx="0" cy="-56" r="3.6" fill="${rpgGrad("#3f3a34", "r")}" ${RPG_O_THIN}/>`;
 }
 function svgTrident(metal, bright, glow) {
-  return (glow ? `<polygon points="0,-88 6,-56 -6,-56" fill="${glow}" opacity="0.4">${svgPulse(0.2, 0.5)}</polygon>` : "") +
-    `<rect x="-2.6" y="-58" width="5.2" height="80" rx="2.6" fill="${metal}"/>` +
-    `<rect x="-14" y="-60" width="28" height="5" rx="2.5" fill="${bright}"/>` +
-    `<polygon points="0,-84 3.4,-58 -3.4,-58" fill="${bright}"/>` +
-    `<polygon points="-11,-78 -8,-58 -14,-58" fill="${bright}"/>` +
-    `<polygon points="11,-78 14,-58 8,-58" fill="${bright}"/>`;
+  return (glow ? `<polygon points="0,-88 7,-56 -7,-56" fill="${glow}" opacity="0.4">${svgPulse(0.2, 0.5)}</polygon>` : "") +
+    `<rect x="-2.6" y="-58" width="5.2" height="80" rx="2.6" fill="${rpgGrad(metal, "h")}" ${RPG_O_THIN}/>` +
+    `<rect x="-14" y="-60" width="28" height="5.4" rx="2.7" fill="${rpgGrad(bright)}" ${RPG_O_THIN}/>` +
+    `<polygon points="0,-84 3.6,-58 -3.6,-58" fill="${rpgGrad(bright, "h")}" ${RPG_O_THIN}/>` +
+    `<polygon points="-11,-78 -8,-58 -14,-58" fill="${rpgGrad(bright, "h")}" ${RPG_O_THIN}/>` +
+    `<polygon points="11,-78 14,-58 8,-58" fill="${rpgGrad(bright, "h")}" ${RPG_O_THIN}/>`;
 }
 function svgHalberd() {
   return `<circle cx="0" cy="-58" r="15" fill="#ffe9a3" opacity="0.3">${svgPulse(0.18, 0.42)}</circle>` +
-    `<rect x="-2.4" y="-66" width="4.8" height="88" rx="2.4" fill="#6f4f28"/>` +
-    `<polygon points="0,-86 5,-66 -5,-66" fill="#e8b41f"/>` +
-    `<path d="M3 -64 Q24 -60 22 -38 Q11 -48 3 -48 Z" fill="#dbe3ea"/>` +
-    `<path d="M-3 -60 L-14 -56 L-3 -52 Z" fill="#aab4bf"/>` +
-    `<rect x="-7" y="-66" width="14" height="4" rx="2" fill="#caa53d"/>`;
+    `<rect x="-2.4" y="-66" width="4.8" height="88" rx="2.4" fill="${rpgGrad("#6f4f28", "h")}" ${RPG_O_THIN}/>` +
+    `<polygon points="0,-86 5,-66 -5,-66" fill="${rpgGrad("#e8b41f", "h")}" ${RPG_O_THIN}/>` +
+    `<path d="M3 -64 Q24 -60 22 -38 Q11 -48 3 -48 Z" fill="${rpgGrad("#dbe3ea", "h")}" ${RPG_O}/>` +
+    `<path d="M7 -61 Q18 -57 18 -45" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="1.3" stroke-linecap="round"/>` +
+    `<path d="M-3 -60 L-14 -56 L-3 -52 Z" fill="${rpgGrad("#aab4bf")}" ${RPG_O_THIN}/>` +
+    `<rect x="-7" y="-66" width="14" height="4" rx="2" fill="${rpgGrad("#caa53d")}" ${RPG_O_THIN}/>`;
 }
 // Shields: origin = centre of the hero's off-hand.
 function svgShieldArt(base, trim, emblem) {
-  return `<path d="M0 -24 L19 -16 L19 2 Q19 17 0 27 Q-19 17 -19 2 L-19 -16 Z" fill="${base}" stroke="${trim}" stroke-width="2.5"/>` +
-    `<path d="M0 -16 L12 -11 L12 2 Q12 11 0 18 Q-12 11 -12 2 L-12 -11 Z" fill="rgba(255,255,255,0.14)"/>` +
-    (emblem || svgStar(0, 1, 7, 3, trim));
+  return `<path d="M0 -24 L19 -16 L19 2 Q19 17 0 27 Q-19 17 -19 2 L-19 -16 Z" fill="${rpgGrad(base)}" stroke="${rpgGrad(trim)}" stroke-width="2.6"/>` +
+    `<path d="M0 -24 L19 -16 L19 2 Q19 17 0 27 Q-19 17 -19 2 L-19 -16 Z" fill="none" ${RPG_O_THIN} opacity="0.8"/>` +
+    `<path d="M-15 -15 L0 -21 L0 24 Q-9 19 -13 11 Z" fill="rgba(255,255,255,0.16)"/>` +
+    (emblem || svgStar(0, 1, 7, 3, rpgGrad(trim, "r")));
 }
 function svgBuckler(base, trim) {
-  return `<circle r="16" cy="0" fill="${base}" stroke="${trim}" stroke-width="2.6"/>` +
-    `<circle r="5.5" cy="0" fill="${trim}"/>` +
+  return `<circle r="16" cy="0" fill="${rpgGrad(base, "r")}" stroke="${rpgGrad(trim)}" stroke-width="2.8"/>` +
+    `<circle r="16" cy="0" fill="none" ${RPG_O_THIN}/>` +
+    `<circle r="5.5" cy="0" fill="${rpgGrad(trim, "r")}" ${RPG_O_THIN}/>` +
+    `<path d="M-10 -8 A13 13 0 0 1 6 -13" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="2" stroke-linecap="round"/>` +
     `<circle cx="0" cy="-10" r="1.6" fill="${trim}"/><circle cx="10" cy="0" r="1.6" fill="${trim}"/><circle cx="0" cy="10" r="1.6" fill="${trim}"/><circle cx="-10" cy="0" r="1.6" fill="${trim}"/>`;
 }
 function svgKiteShield(base, trim) {
-  return `<path d="M0 -24 L17 -7 L0 28 L-17 -7 Z" fill="${base}" stroke="${trim}" stroke-width="2.5"/>` +
-    `<line x1="0" y1="-18" x2="0" y2="22" stroke="${trim}" stroke-width="2" opacity="0.7"/>`;
+  return `<path d="M0 -22 L17 -7 L0 28 L-17 -7 Z" fill="${rpgGrad(base)}" stroke="${rpgGrad(trim)}" stroke-width="2.6"/>` +
+    `<path d="M0 -22 L17 -7 L0 28 L-17 -7 Z" fill="none" ${RPG_O_THIN}/>` +
+    `<path d="M-12 -7 L0 -18 L0 22 Z" fill="rgba(255,255,255,0.15)"/>` +
+    `<line x1="0" y1="-16" x2="0" y2="22" stroke="${trim}" stroke-width="2" opacity="0.8"/>`;
 }
 function svgTowerShield(base, trim) {
-  return `<rect x="-15" y="-27" width="30" height="53" rx="6" fill="${base}" stroke="${trim}" stroke-width="2.5"/>` +
+  return `<rect x="-15" y="-27" width="30" height="53" rx="6" fill="${rpgGrad(base)}" stroke="${rpgGrad(trim)}" stroke-width="2.6"/>` +
+    `<rect x="-15" y="-27" width="30" height="53" rx="6" fill="none" ${RPG_O_THIN}/>` +
+    `<rect x="-11" y="-23" width="9" height="45" rx="4" fill="rgba(255,255,255,0.14)"/>` +
     `<line x1="0" y1="-20" x2="0" y2="19" stroke="${trim}" stroke-width="2.4"/>` +
     `<line x1="-9" y1="-1" x2="9" y2="-1" stroke="${trim}" stroke-width="2.4"/>`;
 }
 function svgMirrorShield() {
-  return svgShieldArt("#dbe3ea", "#8d99a6", `<circle r="6" fill="#f4f8fb"/>`) +
-    `<path d="M-11 -17 L-2 -19 L-15 6 Z" fill="rgba(255,255,255,0.7)"/>`;
+  return svgShieldArt("#dbe3ea", "#8d99a6", `<circle r="6" fill="${rpgGrad("#f4f8fb", "r")}" ${RPG_O_THIN}/>`) +
+    `<path d="M-11 -17 L-2 -19 L-15 6 Z" fill="rgba(255,255,255,0.75)"/>`;
 }
 function svgTomeShield(cover, page, emblem) {
-  return `<rect x="-16" y="-20" width="32" height="40" rx="3.5" fill="${cover}"/>` +
-    `<rect x="-11" y="-16" width="24" height="32" rx="2" fill="${page}"/>` +
-    `<rect x="-16" y="-20" width="6" height="40" rx="3" fill="rgba(0,0,0,0.22)"/>` +
+  return `<rect x="-16" y="-20" width="32" height="40" rx="3.5" fill="${rpgGrad(cover)}" ${RPG_O}/>` +
+    `<rect x="-11" y="-16" width="24" height="32" rx="2" fill="${rpgGrad(page)}" ${RPG_O_THIN}/>` +
+    `<rect x="-16" y="-20" width="6" height="40" rx="3" fill="rgba(0,0,0,0.3)"/>` +
     emblem +
-    `<line x1="-7" y1="11" x2="11" y2="11" stroke="${cover}" stroke-width="1.4" opacity="0.5"/>`;
+    `<line x1="-7" y1="11" x2="11" y2="11" stroke="${cover}" stroke-width="1.4" opacity="0.55"/>`;
 }
 function svgRoyalBulwark() {
   return svgShieldArt("#27406b", "#e8b41f",
-    `<polygon points="-7,4 -7,-5 -3.5,-1 0,-6 3.5,-1 7,-5 7,4" fill="#ffd76a"/>` +
-    `<rect x="-7" y="2.5" width="14" height="3.4" rx="1.5" fill="#ffd76a"/>`);
+    `<polygon points="-7,4 -7,-5 -3.5,-1 0,-6 3.5,-1 7,-5 7,4" fill="${rpgGrad("#ffd76a")}" ${RPG_O_THIN}/>` +
+    `<rect x="-7" y="2.5" width="14" height="3.4" rx="1.5" fill="${rpgGrad("#ffd76a")}" ${RPG_O_THIN}/>`);
+}
+function svgFallenStarShield() {
+  return `<circle r="22" cy="1" fill="#b79ae0" opacity="0.3">${svgPulse(0.15, 0.4)}</circle>` +
+    svgShieldArt("#2c1f4a", "#ffd76a", `<g>${svgStar(0, 1, 9, 3.8, rpgGrad("#ffd76a", "r"))}</g>` +
+      `<g><circle cx="-8" cy="-9" r="1.3" fill="#b79ae0"/>${svgTwinkle(2.2)}</g><circle cx="8" cy="10" r="1.1" fill="#b79ae0"/>`);
 }
 function svgDragonScaleShield() {
   let scales = "";
   for (let row = 0; row < 3; row++) {
     for (let i = -1; i <= 1; i++) {
-      scales += `<path d="M${i * 11 - 5} ${-12 + row * 10} q5 7 10 0" fill="none" stroke="#e8b41f" stroke-width="1.6" opacity="0.8"/>`;
+      scales += `<path d="M${i * 11 - 5} ${-12 + row * 10} q5 7 10 0" fill="none" stroke="#e8b41f" stroke-width="1.6" opacity="0.85"/>`;
     }
   }
   return svgShieldArt("#7e1f1f", "#e8b41f", "") + scales;
 }
-function svgFallenStarShield() {
-  return `<circle r="22" cy="1" fill="#b79ae0" opacity="0.3">${svgPulse(0.15, 0.4)}</circle>` +
-    svgShieldArt("#2c1f4a", "#ffd76a", svgStar(0, 1, 9, 3.8, "#ffd76a") +
-      `<circle cx="-8" cy="-9" r="1.3" fill="#b79ae0"/><circle cx="8" cy="10" r="1.1" fill="#b79ae0"/>`);
-}
 // Armour / helmets / accessories use the avatar's absolute coordinates.
 function svgArmorPlate(base, trim) {
-  return `<path d="M76 119 Q100 111 124 119 L128 172 Q100 181 72 172 Z" fill="${base}"/>` +
-    `<line x1="100" y1="115" x2="100" y2="178" stroke="${trim}" stroke-width="2" opacity="0.7"/>` +
-    `<path d="M76 119 Q100 111 124 119 L123 128 Q100 121 77 128 Z" fill="${trim}"/>` +
-    `<rect x="62" y="116" width="22" height="13" rx="6" fill="${base}" stroke="${trim}" stroke-width="1.5"/>` +
-    `<rect x="116" y="116" width="22" height="13" rx="6" fill="${base}" stroke="${trim}" stroke-width="1.5"/>` +
-    `<rect x="72" y="163" width="56" height="8" rx="4" fill="${trim}"/>`;
+  return `<path d="M76 119 Q100 111 124 119 L128 172 Q100 181 72 172 Z" fill="${rpgGrad(base)}" ${RPG_O}/>` +
+    `<path d="M78 121 Q88 117 98 116 L97 175 Q84 173 75 169 Z" fill="rgba(255,255,255,0.14)"/>` +
+    `<line x1="100" y1="115" x2="100" y2="178" stroke="${trim}" stroke-width="2" opacity="0.8"/>` +
+    `<path d="M76 119 Q100 111 124 119 L123 128 Q100 121 77 128 Z" fill="${rpgGrad(trim)}" ${RPG_O_THIN}/>` +
+    `<rect x="62" y="116" width="22" height="13" rx="6" fill="${rpgGrad(base)}" stroke="${trim}" stroke-width="1.5"/>` +
+    `<rect x="116" y="116" width="22" height="13" rx="6" fill="${rpgGrad(base)}" stroke="${trim}" stroke-width="1.5"/>` +
+    `<rect x="72" y="163" width="56" height="8" rx="4" fill="${rpgGrad(trim)}" ${RPG_O_THIN}/>`;
 }
 function svgArmorLeather(base, strap) {
-  return `<path d="M77 119 Q100 112 123 119 L127 172 Q100 181 73 172 Z" fill="${base}"/>` +
+  return `<path d="M77 119 Q100 112 123 119 L127 172 Q100 181 73 172 Z" fill="${rpgGrad(base)}" ${RPG_O}/>` +
+    `<path d="M79 121 Q88 117 96 116 L95 175 Q84 172 76 168 Z" fill="rgba(255,255,255,0.12)"/>` +
     `<line x1="80" y1="122" x2="118" y2="168" stroke="${strap}" stroke-width="5"/>` +
     `<line x1="120" y1="122" x2="82" y2="168" stroke="${strap}" stroke-width="5"/>` +
-    `<rect x="73" y="163" width="54" height="8" rx="4" fill="${strap}"/>`;
+    `<rect x="73" y="163" width="54" height="8" rx="4" fill="${rpgGrad(strap)}" ${RPG_O_THIN}/>`;
 }
 function svgArmorChain(base, ring) {
   let rings = "";
@@ -4273,22 +4370,23 @@ function svgArmorChain(base, ring) {
       rings += `<circle cx="${81 + i * 7.6}" cy="${128 + row * 11}" r="3.1" fill="none" stroke="${ring}" stroke-width="1.3" opacity="0.65"/>`;
     }
   }
-  return `<path d="M77 119 Q100 112 123 119 L127 172 Q100 181 73 172 Z" fill="${base}"/>` + rings +
-    `<rect x="73" y="163" width="54" height="8" rx="4" fill="#5b4632"/>`;
+  return `<path d="M77 119 Q100 112 123 119 L127 172 Q100 181 73 172 Z" fill="${rpgGrad(base)}" ${RPG_O}/>` + rings +
+    `<rect x="73" y="163" width="54" height="8" rx="4" fill="${rpgGrad("#5b4632")}" ${RPG_O_THIN}/>`;
 }
 function svgArmorSpiked(base, trim, spike) {
-  return `<path d="M76 119 Q100 111 124 119 L128 172 Q100 181 72 172 Z" fill="${base}"/>` +
+  return `<path d="M76 119 Q100 111 124 119 L128 172 Q100 181 72 172 Z" fill="${rpgGrad(base)}" ${RPG_O}/>` +
     `<path d="M82 124 L92 134 L82 144 Z" fill="${spike}"/><path d="M118 124 L108 134 L118 144 Z" fill="${spike}"/>` +
     `<path d="M86 146 L96 156 L86 166 Z" fill="${spike}"/><path d="M114 146 L104 156 L114 166 Z" fill="${spike}"/>` +
-    `<path d="M76 119 Q100 111 124 119 L123 128 Q100 121 77 128 Z" fill="${trim}"/>` +
-    `<polygon points="64,118 74,112 76,124" fill="${base}" stroke="${trim}" stroke-width="1.4"/>` +
-    `<polygon points="136,118 126,112 124,124" fill="${base}" stroke="${trim}" stroke-width="1.4"/>` +
-    `<rect x="72" y="163" width="56" height="8" rx="4" fill="${trim}"/>`;
+    `<path d="M76 119 Q100 111 124 119 L123 128 Q100 121 77 128 Z" fill="${rpgGrad(trim)}" ${RPG_O_THIN}/>` +
+    `<polygon points="64,118 74,112 76,124" fill="${rpgGrad(base)}" stroke="${trim}" stroke-width="1.4"/>` +
+    `<polygon points="136,118 126,112 124,124" fill="${rpgGrad(base)}" stroke="${trim}" stroke-width="1.4"/>` +
+    `<rect x="72" y="163" width="56" height="8" rx="4" fill="${rpgGrad(trim)}" ${RPG_O_THIN}/>`;
 }
 function svgRobe(base, sash, extra = "") {
-  return `<path d="M77 118 Q100 110 123 118 L132 196 Q116 203 100 200 Q84 203 68 196 Z" fill="${base}"/>` +
-    `<path d="M77 148 Q100 156 123 148 L123 157 Q100 165 77 157 Z" fill="${sash}"/>` +
-    `<line x1="100" y1="116" x2="100" y2="148" stroke="${sash}" stroke-width="2.4" opacity="0.7"/>` + extra;
+  return `<path d="M77 118 Q100 110 123 118 L132 196 Q116 203 100 200 Q84 203 68 196 Z" fill="${rpgGrad(base)}" ${RPG_O}/>` +
+    `<path d="M80 121 Q88 117 96 116 L93 199 Q84 198 72 194 Z" fill="rgba(255,255,255,0.1)"/>` +
+    `<path d="M77 148 Q100 156 123 148 L123 157 Q100 165 77 157 Z" fill="${rpgGrad(sash)}" ${RPG_O_THIN}/>` +
+    `<line x1="100" y1="116" x2="100" y2="148" stroke="${sash}" stroke-width="2.4" opacity="0.8"/>` + extra;
 }
 function svgScaleMail(base, scale, trim) {
   let scales = "";
@@ -4297,120 +4395,150 @@ function svgScaleMail(base, scale, trim) {
       scales += `<path d="M${79 + i * 11 + (row % 2 ? 5.5 : 0)} ${127 + row * 10} q5.5 7 11 0" fill="none" stroke="${scale}" stroke-width="1.8" opacity="0.85"/>`;
     }
   }
-  return `<path d="M76 119 Q100 111 124 119 L128 172 Q100 181 72 172 Z" fill="${base}"/>` + scales +
-    `<path d="M76 119 Q100 111 124 119 L123 128 Q100 121 77 128 Z" fill="${trim}"/>` +
-    `<rect x="72" y="163" width="56" height="8" rx="4" fill="${trim}"/>`;
+  return `<path d="M76 119 Q100 111 124 119 L128 172 Q100 181 72 172 Z" fill="${rpgGrad(base)}" ${RPG_O}/>` + scales +
+    `<path d="M76 119 Q100 111 124 119 L123 128 Q100 121 77 128 Z" fill="${rpgGrad(trim)}" ${RPG_O_THIN}/>` +
+    `<rect x="72" y="163" width="56" height="8" rx="4" fill="${rpgGrad(trim)}" ${RPG_O_THIN}/>`;
 }
 function svgHelmCap(base, stitch) {
-  return `<path d="M68 70 Q70 42 100 42 Q130 42 132 70 Q116 60 100 61 Q84 60 68 70 Z" fill="${base}"/>` +
+  return `<path d="M68 70 Q70 42 100 42 Q130 42 132 70 Q116 60 100 61 Q84 60 68 70 Z" fill="${rpgGrad(base)}" ${RPG_O}/>` +
+    `<path d="M74 62 Q82 50 96 46" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="2" stroke-linecap="round"/>` +
     `<path d="M72 64 Q100 50 128 64" stroke="${stitch}" stroke-width="1.6" fill="none" stroke-dasharray="3 3"/>`;
 }
 function svgHeadband(base, knot) {
-  return `<path d="M66 70 Q100 58 134 70 L134 79 Q100 67 66 79 Z" fill="${base}"/>` +
+  return `<path d="M66 70 Q100 58 134 70 L134 79 Q100 67 66 79 Z" fill="${rpgGrad(base)}" ${RPG_O_THIN}/>` +
     `<path d="M133 72 Q146 76 144 90" stroke="${knot}" stroke-width="4" fill="none" stroke-linecap="round"/>` +
     `<path d="M134 74 Q150 72 152 84" stroke="${knot}" stroke-width="4" fill="none" stroke-linecap="round"/>`;
 }
 function svgHood(base, shade) {
-  return `<path d="M100 34 Q62 36 60 78 Q60 94 70 100 Q64 76 100 72 Q136 76 130 100 Q140 94 140 78 Q138 36 100 34 Z" fill="${base}"/>` +
-    `<path d="M100 34 Q75 36 66 60 Q84 48 100 48 Q116 48 134 60 Q125 36 100 34 Z" fill="${shade}"/>`;
+  return `<path d="M100 34 Q62 36 60 78 Q60 94 70 100 Q64 76 100 72 Q136 76 130 100 Q140 94 140 78 Q138 36 100 34 Z" fill="${rpgGrad(base)}" ${RPG_O}/>` +
+    `<path d="M100 34 Q75 36 66 60 Q84 48 100 48 Q116 48 134 60 Q125 36 100 34 Z" fill="${shade}"/>` +
+    `<path d="M68 70 Q70 48 88 40" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="2" stroke-linecap="round"/>`;
 }
 function svgHelmDome(base, edge) {
-  return `<path d="M66 74 Q66 38 100 38 Q134 38 134 74 Q117 64 100 64 Q83 64 66 74 Z" fill="${base}" stroke="${edge}" stroke-width="1.5"/>` +
-    `<rect x="96.5" y="60" width="7" height="20" rx="3" fill="${base}" stroke="${edge}" stroke-width="1"/>` +
+  return `<path d="M66 74 Q66 38 100 38 Q134 38 134 74 Q117 64 100 64 Q83 64 66 74 Z" fill="${rpgGrad(base)}" stroke="${edge}" stroke-width="1.6"/>` +
+    `<path d="M66 74 Q66 38 100 38 Q134 38 134 74 Q117 64 100 64 Q83 64 66 74 Z" fill="none" ${RPG_O_THIN}/>` +
+    `<path d="M72 64 Q76 46 92 41" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="2.2" stroke-linecap="round"/>` +
+    `<rect x="96.5" y="60" width="7" height="20" rx="3" fill="${rpgGrad(base)}" stroke="${edge}" stroke-width="1"/>` +
     `<circle cx="76" cy="62" r="1.6" fill="${edge}"/><circle cx="124" cy="62" r="1.6" fill="${edge}"/>`;
 }
 function svgHelmKnight(base, edge, plume) {
-  return `<path d="M100 10 Q86 20 87 42 L113 42 Q114 20 100 10 Z" fill="${plume}"/>` +
-    `<path d="M66 74 Q66 38 100 38 Q134 38 134 74 Q117 64 100 64 Q83 64 66 74 Z" fill="${base}" stroke="${edge}" stroke-width="1.5"/>` +
-    `<rect x="68" y="68" width="11" height="20" rx="5" fill="${base}" stroke="${edge}" stroke-width="1"/>` +
-    `<rect x="121" y="68" width="11" height="20" rx="5" fill="${base}" stroke="${edge}" stroke-width="1"/>` +
-    `<rect x="96.5" y="60" width="7" height="22" rx="3" fill="${base}" stroke="${edge}" stroke-width="1"/>`;
+  return `<path d="M100 10 Q86 20 87 42 L113 42 Q114 20 100 10 Z" fill="${rpgGrad(plume)}" ${RPG_O_THIN}/>` +
+    `<path d="M66 74 Q66 38 100 38 Q134 38 134 74 Q117 64 100 64 Q83 64 66 74 Z" fill="${rpgGrad(base)}" stroke="${edge}" stroke-width="1.6"/>` +
+    `<path d="M66 74 Q66 38 100 38 Q134 38 134 74 Q117 64 100 64 Q83 64 66 74 Z" fill="none" ${RPG_O_THIN}/>` +
+    `<path d="M72 64 Q76 46 92 41" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="2.2" stroke-linecap="round"/>` +
+    `<rect x="68" y="68" width="11" height="20" rx="5" fill="${rpgGrad(base)}" stroke="${edge}" stroke-width="1"/>` +
+    `<rect x="121" y="68" width="11" height="20" rx="5" fill="${rpgGrad(base)}" stroke="${edge}" stroke-width="1"/>` +
+    `<rect x="96.5" y="60" width="7" height="22" rx="3" fill="${rpgGrad(base)}" stroke="${edge}" stroke-width="1"/>`;
 }
 function svgHornedHelm(base, edge, horn) {
-  return `<path d="M70 60 Q52 50 50 28 Q68 42 76 54 Z" fill="${horn}"/>` +
-    `<path d="M130 60 Q148 50 150 28 Q132 42 124 54 Z" fill="${horn}"/>` +
-    `<path d="M66 74 Q66 38 100 38 Q134 38 134 74 Q117 64 100 64 Q83 64 66 74 Z" fill="${base}" stroke="${edge}" stroke-width="1.5"/>`;
+  return `<path d="M70 60 Q52 50 50 28 Q68 42 76 54 Z" fill="${rpgGrad(horn)}" ${RPG_O_THIN}/>` +
+    `<path d="M130 60 Q148 50 150 28 Q132 42 124 54 Z" fill="${rpgGrad(horn)}" ${RPG_O_THIN}/>` +
+    `<path d="M66 74 Q66 38 100 38 Q134 38 134 74 Q117 64 100 64 Q83 64 66 74 Z" fill="${rpgGrad(base)}" stroke="${edge}" stroke-width="1.6"/>` +
+    `<path d="M66 74 Q66 38 100 38 Q134 38 134 74 Q117 64 100 64 Q83 64 66 74 Z" fill="none" ${RPG_O_THIN}/>` +
+    `<path d="M72 64 Q76 46 92 41" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2.2" stroke-linecap="round"/>`;
 }
 function svgWizardHat(base, band, starC) {
-  return `<ellipse cx="100" cy="52" rx="41" ry="10" fill="${base}"/>` +
-    `<path d="M75 50 Q94 8 107 12 Q112 32 125 50 Q100 60 75 50 Z" fill="${base}"/>` +
-    `<path d="M78 47 Q100 41 122 47 L124 53 Q100 61 76 53 Z" fill="${band}"/>` +
-    svgStar(106, 15, 6, 2.5, starC);
+  return `<ellipse cx="100" cy="52" rx="41" ry="10" fill="${rpgGrad(base)}" ${RPG_O}/>` +
+    `<path d="M75 50 Q94 8 107 12 Q112 32 125 50 Q100 60 75 50 Z" fill="${rpgGrad(base)}" ${RPG_O}/>` +
+    `<path d="M82 46 Q92 20 103 14" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2.2" stroke-linecap="round"/>` +
+    `<path d="M78 47 Q100 41 122 47 L124 53 Q100 61 76 53 Z" fill="${rpgGrad(band)}" ${RPG_O_THIN}/>` +
+    `<g>${svgStar(106, 15, 6, 2.5, starC)}${svgTwinkle(2.4)}</g>`;
 }
 function svgCirclet(metal, gem) {
-  return `<path d="M67 66 Q100 54 133 66 L133 73 Q100 61 67 73 Z" fill="${metal}"/>` +
-    `<circle cx="100" cy="62" r="4.4" fill="${gem}" stroke="${metal}" stroke-width="1.6"/>` +
-    `<circle cx="98.5" cy="60.5" r="1.3" fill="rgba(255,255,255,0.8)"/>`;
+  return `<path d="M67 66 Q100 54 133 66 L133 73 Q100 61 67 73 Z" fill="${rpgGrad(metal)}" ${RPG_O_THIN}/>` +
+    `<circle cx="100" cy="62" r="4.6" fill="${rpgGrad(gem, "r")}" stroke="${metal}" stroke-width="1.6"/>` +
+    `<circle cx="98.5" cy="60.5" r="1.3" fill="rgba(255,255,255,0.9)"/>`;
 }
 function svgCrown() {
-  return `<polygon points="78,58 78,38 88,49 100,34 112,49 122,38 122,58" fill="#e8b41f" stroke="#b8860b" stroke-width="1.5"/>` +
-    `<rect x="77" y="54" width="46" height="9" rx="3" fill="#e8b41f" stroke="#b8860b" stroke-width="1.5"/>` +
-    `<circle cx="88" cy="58" r="2.2" fill="#d94f4f"/><circle cx="100" cy="58" r="2.2" fill="#4a6fa5"/><circle cx="112" cy="58" r="2.2" fill="#3a9e5f"/>`;
+  return `<polygon points="78,58 78,38 88,49 100,34 112,49 122,38 122,58" fill="${rpgGrad("#e8b41f")}" stroke="#b8860b" stroke-width="1.6"/>` +
+    `<polygon points="78,58 78,38 88,49 100,34 112,49 122,38 122,58" fill="none" ${RPG_O_THIN}/>` +
+    `<rect x="77" y="54" width="46" height="9" rx="3" fill="${rpgGrad("#e8b41f")}" stroke="#b8860b" stroke-width="1.6"/>` +
+    `<circle cx="88" cy="58" r="2.2" fill="${rpgGrad("#d94f4f", "r")}"/><circle cx="100" cy="58" r="2.2" fill="${rpgGrad("#4a6fa5", "r")}"/><circle cx="112" cy="58" r="2.2" fill="${rpgGrad("#3a9e5f", "r")}"/>` +
+    `<g><circle cx="100" cy="34" r="1.6" fill="#fff"/>${svgTwinkle(2)}</g>`;
 }
 function svgHalo() {
   return `<ellipse cx="100" cy="28" rx="26" ry="8" fill="none" stroke="#ffe9a3" stroke-width="8" opacity="0.45">${svgPulse(0.25, 0.6)}</ellipse>` +
-    `<ellipse cx="100" cy="28" rx="22" ry="6" fill="none" stroke="#ffd76a" stroke-width="4"/>`;
+    `<ellipse cx="100" cy="28" rx="22" ry="6" fill="none" stroke="${rpgGrad("#ffd76a")}" stroke-width="4"/>` +
+    `<g>${svgStar(76, 24, 2.6, 1.2, "#fff")}${svgTwinkle(1.7)}</g>`;
 }
 function svgCape(c1, c2, flame) {
   const bottom = flame
     ? "L134 188 L126 196 L120 186 L112 198 L104 188 L96 200 L88 188 L80 196 L72 186 L66 192"
     : "L133 194 Q116 203 100 198 Q84 203 67 194";
-  return `<path d="M78 121 Q100 112 122 121 ${bottom} Z" fill="${c1}"/>` +
-    `<path d="M78 121 Q100 112 122 121 L131 134 Q100 126 69 134 Z" fill="${c2}"/>`;
+  return `<path d="M78 121 Q100 112 122 121 ${bottom} Z" fill="${rpgGrad(c1)}" ${RPG_O}/>` +
+    `<path d="M80 124 Q88 119 96 118 L92 193 Q82 192 72 188 Z" fill="rgba(255,255,255,0.09)"/>` +
+    `<path d="M78 121 Q100 112 122 121 L131 134 Q100 126 69 134 Z" fill="${rpgGrad(c2)}" ${RPG_O_THIN}/>`;
 }
 function svgElvenCloak() {
   return svgCape("#4a7c59", "#aab4bf") +
-    `<path d="M96 124 Q100 116 104 124 Q100 130 96 124 Z" fill="#dbe3ea" stroke="#8d99a6" stroke-width="1.2"/>` +
-    `<path d="M86 150 Q94 142 92 132" fill="none" stroke="#2f5a3e" stroke-width="1.6" opacity="0.7"/>` +
-    `<path d="M112 168 Q120 160 118 150" fill="none" stroke="#2f5a3e" stroke-width="1.6" opacity="0.7"/>`;
+    `<path d="M96 124 Q100 116 104 124 Q100 130 96 124 Z" fill="${rpgGrad("#dbe3ea")}" stroke="#8d99a6" stroke-width="1.2"/>` +
+    `<path d="M86 150 Q94 142 92 132" fill="none" stroke="#2f5a3e" stroke-width="1.6" opacity="0.75"/>` +
+    `<path d="M112 168 Q120 160 118 150" fill="none" stroke="#2f5a3e" stroke-width="1.6" opacity="0.75"/>`;
 }
 function svgGalaxyCape() {
   return svgCape("#241d3e", "#1a1430") +
     svgStar(84, 150, 3.4, 1.4, "#ffd76a") + svgStar(112, 168, 2.8, 1.2, "#9bb8e8") +
     `<circle cx="98" cy="140" r="1.6" fill="#fff"><animate attributeName="opacity" values="1;0.2;1" dur="2.2s" repeatCount="indefinite"/></circle>` +
     `<circle cx="120" cy="146" r="1.3" fill="#b79ae0"><animate attributeName="opacity" values="0.3;1;0.3" dur="1.7s" repeatCount="indefinite"/></circle>` +
-    `<circle cx="78" cy="170" r="1.3" fill="#fff" opacity="0.8"/>`;
+    `<circle cx="78" cy="170" r="1.3" fill="#fff" opacity="0.85"/>`;
 }
 function svgWings(c1, c2) {
-  const wing = `<path d="M80 126 Q34 112 26 66 Q50 84 58 82 Q42 64 44 42 Q64 66 72 78 Q80 98 80 126 Z" fill="${c1}" stroke="${c2}" stroke-width="2"/>` +
-    `<path d="M62 96 Q48 90 40 78" fill="none" stroke="${c2}" stroke-width="1.6" opacity="0.7"/>`;
+  const wing = `<path d="M80 126 Q34 112 26 66 Q50 84 58 82 Q42 64 44 42 Q64 66 72 78 Q80 98 80 126 Z" fill="${rpgGrad(c1)}" stroke="${c2}" stroke-width="2"/>` +
+    `<path d="M80 126 Q34 112 26 66 Q50 84 58 82 Q42 64 44 42 Q64 66 72 78 Q80 98 80 126 Z" fill="none" ${RPG_O_THIN} opacity="0.55"/>` +
+    `<path d="M62 96 Q48 90 40 78" fill="none" stroke="${c2}" stroke-width="1.6" opacity="0.75"/>`;
   return wing + `<g transform="translate(200,0) scale(-1,1)">${wing}</g>`;
 }
 function svgAmulet(chain, gem) {
   return `<path d="M86 114 Q100 128 114 114" stroke="${chain}" stroke-width="2.4" fill="none"/>` +
-    `<circle cx="100" cy="130" r="6.2" fill="${gem}" stroke="${chain}" stroke-width="2"/>` +
-    `<circle cx="98" cy="128" r="1.8" fill="rgba(255,255,255,0.8)"/>`;
+    `<circle cx="100" cy="130" r="6.4" fill="${rpgGrad(gem, "r")}" stroke="${chain}" stroke-width="2"/>` +
+    `<circle cx="100" cy="130" r="6.4" fill="none" ${RPG_O_THIN} opacity="0.5"/>` +
+    `<circle cx="98" cy="128" r="1.8" fill="rgba(255,255,255,0.9)"/>`;
 }
 function svgRubyPendant() {
   return `<path d="M86 114 Q100 128 114 114" stroke="#caa53d" stroke-width="2.4" fill="none"/>` +
-    `<polygon points="100,124 106,130 100,139 94,130" fill="#d94f4f" stroke="#caa53d" stroke-width="1.6"/>`;
+    `<polygon points="100,124 106,130 100,139 94,130" fill="${rpgGrad("#d94f4f", "r")}" stroke="#caa53d" stroke-width="1.6"/>` +
+    `<polygon points="100,126 103,130 100,135 97,130" fill="rgba(255,255,255,0.35)"/>`;
 }
 function svgFangCharm() {
   return `<path d="M86 114 Q100 128 114 114" stroke="#5b4632" stroke-width="2.4" fill="none"/>` +
-    `<path d="M96 122 Q97 134 100 137 Q101 128 100 122 Z" fill="#f6efe2" stroke="#d8c39a" stroke-width="1"/>` +
-    `<path d="M104 122 Q105 132 107 135 Q108 127 107 122 Z" fill="#f6efe2" stroke="#d8c39a" stroke-width="1"/>`;
+    `<path d="M96 122 Q97 134 100 137 Q101 128 100 122 Z" fill="${rpgGrad("#f6efe2")}" stroke="#bda47e" stroke-width="1.2"/>` +
+    `<path d="M104 122 Q105 132 107 135 Q108 127 107 122 Z" fill="${rpgGrad("#f6efe2")}" stroke="#bda47e" stroke-width="1.2"/>`;
 }
 function svgPhoenixAmulet() {
   return `<path d="M86 114 Q100 128 114 114" stroke="#caa53d" stroke-width="2.4" fill="none"/>` +
     `<circle cx="100" cy="131" r="10" fill="#ff8c42" opacity="0.35">${svgPulse(0.2, 0.5)}</circle>` +
-    `<path d="M100 122 Q106 128 104 134 Q102 138 100 139 Q98 138 96 134 Q94 128 100 122 Z" fill="#ff8c42" stroke="#caa53d" stroke-width="1.4"/>` +
+    `<path d="M100 122 Q106 128 104 134 Q102 138 100 139 Q98 138 96 134 Q94 128 100 122 Z" fill="${rpgGrad("#ff8c42", "r")}" stroke="#caa53d" stroke-width="1.4"/>` +
     `<path d="M100 127 Q102.5 131 101 135 Q100 136.5 99 135 Q97.5 131 100 127 Z" fill="#ffd166"/>`;
 }
 function svgFeatherCharm() {
   return `<path d="M86 114 Q100 128 114 114" stroke="#8a6b46" stroke-width="2.4" fill="none"/>` +
-    `<path d="M100 121 Q108 128 102 140 Q98 139 97 132 Q96 125 100 121 Z" fill="#b07b3f" stroke="#8a6b46" stroke-width="1.2"/>` +
+    `<path d="M100 121 Q108 128 102 140 Q98 139 97 132 Q96 125 100 121 Z" fill="${rpgGrad("#b07b3f")}" stroke="#8a6b46" stroke-width="1.2"/>` +
     `<line x1="100" y1="123" x2="100" y2="139" stroke="#8a6b46" stroke-width="1.2"/>`;
 }
 function svgMedallion() {
   return `<path d="M86 114 Q100 128 114 114" stroke="#b8860b" stroke-width="2.4" fill="none"/>` +
-    `<circle cx="100" cy="131" r="9" fill="#e8b41f" stroke="#b8860b" stroke-width="2"/>` +
-    svgStar(100, 131, 5, 2.2, "#b8860b");
+    `<circle cx="100" cy="131" r="9" fill="${rpgGrad("#e8b41f", "r")}" stroke="#b8860b" stroke-width="2"/>` +
+    `<circle cx="100" cy="131" r="9" fill="none" ${RPG_O_THIN} opacity="0.4"/>` +
+    svgStar(100, 131, 5, 2.2, "#b8860b") +
+    `<circle cx="96" cy="127" r="1.6" fill="rgba(255,255,255,0.75)"/>`;
+}
+function svgPetEmoji(emoji) {
+  return `<g transform="translate(33,107)"><animateTransform attributeName="transform" type="translate" values="33,107;33,101;33,107" dur="2.3s" repeatCount="indefinite" additive="replace"/><ellipse cy="20" rx="13" ry="3.5" fill="rgba(0,0,0,0.14)"/><text font-size="30" text-anchor="middle" dominant-baseline="central">${emoji}</text></g>`;
+}
+function svgWisp() {
+  return `<g transform="translate(34,104)"><animateTransform attributeName="transform" type="translate" values="34,104;34,98;34,104" dur="2.4s" repeatCount="indefinite" additive="replace"/>` +
+    `<circle r="13" fill="#9bb8e8" opacity="0.3">${svgPulse(0.18, 0.45)}</circle>` +
+    `<circle r="7" fill="${rpgGrad("#cfe3ff", "r")}" ${RPG_O_THIN}/>` +
+    `<path d="M4 6 Q10 12 6 18 Q2 13 0 8 Z" fill="#9bb8e8" opacity="0.75"/>` +
+    `<circle cx="-2.4" cy="-1" r="1.3" fill="#27406b"/><circle cx="2.4" cy="-1" r="1.3" fill="#27406b"/>` +
+    `<path d="M-2.2 2.6 Q0 4.6 2.2 2.6" stroke="#27406b" stroke-width="1.2" fill="none" stroke-linecap="round"/></g>`;
 }
 function svgOwlFamiliar() {
   return `<g transform="translate(34,108)"><animateTransform attributeName="transform" type="translate" values="34,108;34,103;34,108" dur="2.6s" repeatCount="indefinite" additive="replace"/>` +
-    `<path d="M-8 -12 L-12 -19 L-4 -15 Z" fill="#6f4f28"/><path d="M8 -12 L12 -19 L4 -15 Z" fill="#6f4f28"/>` +
-    `<ellipse rx="11" ry="13" fill="#8a6b46"/>` +
-    `<ellipse cy="4" rx="7" ry="8" fill="#d8c39a"/>` +
+    `<ellipse cy="16" rx="12" ry="3.5" fill="rgba(0,0,0,0.14)"/>` +
+    `<path d="M-8 -12 L-12 -19 L-4 -15 Z" fill="${rpgGrad("#6f4f28")}" ${RPG_O_THIN}/><path d="M8 -12 L12 -19 L4 -15 Z" fill="${rpgGrad("#6f4f28")}" ${RPG_O_THIN}/>` +
+    `<ellipse rx="11" ry="13" fill="${rpgGrad("#8a6b46")}" ${RPG_O_THIN}/>` +
+    `<ellipse cy="4" rx="7" ry="8" fill="${rpgGrad("#d8c39a")}"/>` +
     `<circle cx="-4.5" cy="-4" r="4.4" fill="#fff"/><circle cx="4.5" cy="-4" r="4.4" fill="#fff"/>` +
     `<circle cx="-4.5" cy="-4" r="2" fill="#2c2a27"/><circle cx="4.5" cy="-4" r="2" fill="#2c2a27"/>` +
     `<polygon points="0,-1 -2.4,2.5 2.4,2.5" fill="#e8943a"/>` +
@@ -4418,25 +4546,15 @@ function svgOwlFamiliar() {
 }
 function svgPocketDragon() {
   return `<g transform="translate(166,106)"><animateTransform attributeName="transform" type="translate" values="166,106;166,101;166,106" dur="2.2s" repeatCount="indefinite" additive="replace"/>` +
-    `<path d="M2 -4 Q14 -16 10 -2 Z" fill="#7e1f1f"/>` +
-    `<ellipse rx="10" ry="8.5" fill="#9c2c2c"/>` +
-    `<path d="M-9 3 Q-18 8 -14 12 Q-10 8 -7 8 Z" fill="#9c2c2c"/>` +
-    `<circle cx="4" cy="-9" r="6" fill="#9c2c2c"/>` +
+    `<ellipse cy="14" rx="12" ry="3.5" fill="rgba(0,0,0,0.14)"/>` +
+    `<path d="M2 -4 Q14 -16 10 -2 Z" fill="${rpgGrad("#7e1f1f")}" ${RPG_O_THIN}/>` +
+    `<ellipse rx="10" ry="8.5" fill="${rpgGrad("#9c2c2c", "r")}" ${RPG_O_THIN}/>` +
+    `<path d="M-9 3 Q-18 8 -14 12 Q-10 8 -7 8 Z" fill="${rpgGrad("#9c2c2c")}"/>` +
+    `<circle cx="4" cy="-9" r="6" fill="${rpgGrad("#9c2c2c", "r")}" ${RPG_O_THIN}/>` +
     `<polygon points="1,-14 3,-19 5,-14" fill="#e8b41f"/><polygon points="5,-14 7,-19 9,-14" fill="#e8b41f"/>` +
     `<circle cx="6" cy="-10" r="1.5" fill="#ffd76a"/>` +
     `<circle cx="13" cy="-8" r="2.4" fill="#ff8c42"><animate attributeName="opacity" values="0.9;0.2;0.9" dur="1.4s" repeatCount="indefinite"/></circle>` +
     `<ellipse cy="3" rx="5.5" ry="4" fill="#e8b46a"/></g>`;
-}
-function svgPetEmoji(emoji) {
-  return `<g transform="translate(33,107)"><animateTransform attributeName="transform" type="translate" values="33,107;33,101;33,107" dur="2.3s" repeatCount="indefinite" additive="replace"/><text font-size="30" text-anchor="middle" dominant-baseline="central">${emoji}</text></g>`;
-}
-function svgWisp() {
-  return `<g transform="translate(34,104)"><animateTransform attributeName="transform" type="translate" values="34,104;34,98;34,104" dur="2.4s" repeatCount="indefinite" additive="replace"/>` +
-    `<circle r="13" fill="#9bb8e8" opacity="0.3">${svgPulse(0.18, 0.45)}</circle>` +
-    `<circle r="7" fill="#cfe3ff"/>` +
-    `<path d="M4 6 Q10 12 6 18 Q2 13 0 8 Z" fill="#9bb8e8" opacity="0.7"/>` +
-    `<circle cx="-2.4" cy="-1" r="1.3" fill="#27406b"/><circle cx="2.4" cy="-1" r="1.3" fill="#27406b"/>` +
-    `<path d="M-2.2 2.6 Q0 4.6 2.2 2.6" stroke="#27406b" stroke-width="1.2" fill="none" stroke-linecap="round"/></g>`;
 }
 
 // ---- Item catalog ----
@@ -4554,36 +4672,36 @@ const RPG_ITEMS_BY_ID = Object.fromEntries(RPG_ITEMS.map(i => [i.id, i]));
 
 // ---- Enemy catalog (tier ≈ hero level) ----
 const RPG_ENEMIES = [
-  { id: "dummy", tier: 1, name: "Training Dummy", emoji: "🎯", flavor: "It wobbles menacingly." },
-  { id: "sewer_rat", tier: 1, name: "Sewer Rat", emoji: "🐀", flavor: "It nibbles on careless answers." },
-  { id: "snippy_crab", tier: 1, name: "Snippy Crab", emoji: "🦀", flavor: "Snip snip!" },
-  { id: "slime", tier: 2, name: "Bouncy Slime", emoji: "👾", flavor: "It jiggles with bad intentions." },
-  { id: "angry_shroom", tier: 2, name: "Angry Shroom", emoji: "🍄", flavor: "Do NOT step on it." },
-  { id: "spiky_snail", tier: 2, name: "Spiky Snail", emoji: "🐌", flavor: "Slow, but pointy." },
-  { id: "goblin", tier: 3, name: "Forest Goblin", emoji: "👺", flavor: "It hates long division." },
-  { id: "web_spinner", tier: 3, name: "Web Spinner", emoji: "🕷️", flavor: "It weaves tricky traps." },
-  { id: "bog_croaker", tier: 3, name: "Bog Croaker", emoji: "🐸", flavor: "Ribbit of doom." },
-  { id: "bat", tier: 4, name: "Cave Bat", emoji: "🦇", flavor: "It screeches at careless mistakes." },
-  { id: "pit_viper", tier: 4, name: "Pit Viper", emoji: "🐍", flavor: "Venomously tricky." },
-  { id: "dune_scorpion", tier: 4, name: "Dune Scorpion", emoji: "🦂", flavor: "Its sting really stings." },
-  { id: "skeleton", tier: 5, name: "Skeleton Scout", emoji: "💀", flavor: "It has a bone to pick with you." },
-  { id: "restless_ghost", tier: 5, name: "Restless Ghost", emoji: "👻", flavor: "It haunts unfinished homework." },
-  { id: "iron_tusk", tier: 5, name: "Iron Tusk", emoji: "🐗", flavor: "It charges headfirst." },
-  { id: "wolf", tier: 6, name: "Shadow Wolf", emoji: "🐺", flavor: "It can smell a wrong answer." },
-  { id: "angry_imp", tier: 6, name: "Angry Imp", emoji: "👿", flavor: "Small horns, big attitude." },
-  { id: "cave_bear", tier: 6, name: "Cave Bear", emoji: "🐻", flavor: "Grumpy from hibernation." },
-  { id: "golem", tier: 7, name: "Stone Golem", emoji: "🗿", flavor: "As stubborn as a tough ratio problem." },
-  { id: "maze_minotaur", tier: 7, name: "Maze Minotaur", emoji: "🐂", flavor: "It never gets lost." },
-  { id: "storm_talon", tier: 7, name: "Storm Talon", emoji: "🦅", flavor: "It dives from thunderclouds." },
-  { id: "witch", tier: 8, name: "Swamp Witch", emoji: "🧙", flavor: "She curses sloppy working." },
-  { id: "count_fang", tier: 8, name: "Count Fang", emoji: "🧛", flavor: "He loves counting… victims." },
-  { id: "deep_kraken", tier: 8, name: "Deep Kraken", emoji: "🦑", flavor: "Eight arms, zero mercy." },
-  { id: "wyvern", tier: 9, name: "Thunder Wyvern", emoji: "🐉", flavor: "It breathes lightning and pop quizzes." },
-  { id: "royal_ravager", tier: 9, name: "Royal Ravager", emoji: "🦖", flavor: "The kingdom's worst nightmare." },
-  { id: "cursed_genie", tier: 9, name: "Cursed Genie", emoji: "🧞", flavor: "Wishes granted, terms unfair." },
-  { id: "demon", tier: 10, name: "Demon King", emoji: "👹", flavor: "The final boss of Math Quest." },
-  { id: "lich_lord", tier: 10, name: "Lich Lord", emoji: "🧟", flavor: "Death is just a variable." },
-  { id: "elder_dragon", tier: 10, name: "Elder Dragon", emoji: "🐲", flavor: "Older than arithmetic itself." }
+  { id: "dummy", el: "neutral", tier: 1, name: "Training Dummy", emoji: "🎯", flavor: "It wobbles menacingly." },
+  { id: "sewer_rat", el: "shadow", tier: 1, name: "Sewer Rat", emoji: "🐀", flavor: "It nibbles on careless answers." },
+  { id: "snippy_crab", el: "ice", tier: 1, name: "Snippy Crab", emoji: "🦀", flavor: "Snip snip!" },
+  { id: "slime", el: "nature", tier: 2, name: "Bouncy Slime", emoji: "👾", flavor: "It jiggles with bad intentions." },
+  { id: "angry_shroom", el: "nature", tier: 2, name: "Angry Shroom", emoji: "🍄", flavor: "Do NOT step on it." },
+  { id: "spiky_snail", el: "nature", tier: 2, name: "Spiky Snail", emoji: "🐌", flavor: "Slow, but pointy." },
+  { id: "goblin", el: "nature", tier: 3, name: "Forest Goblin", emoji: "👺", flavor: "It hates long division." },
+  { id: "web_spinner", el: "shadow", tier: 3, name: "Web Spinner", emoji: "🕷️", flavor: "It weaves tricky traps." },
+  { id: "bog_croaker", el: "nature", tier: 3, name: "Bog Croaker", emoji: "🐸", flavor: "Ribbit of doom." },
+  { id: "bat", el: "shadow", tier: 4, name: "Cave Bat", emoji: "🦇", flavor: "It screeches at careless mistakes." },
+  { id: "pit_viper", el: "nature", tier: 4, name: "Pit Viper", emoji: "🐍", flavor: "Venomously tricky." },
+  { id: "dune_scorpion", el: "fire", tier: 4, name: "Dune Scorpion", emoji: "🦂", flavor: "Its sting really stings." },
+  { id: "skeleton", el: "shadow", tier: 5, name: "Skeleton Scout", emoji: "💀", flavor: "It has a bone to pick with you." },
+  { id: "restless_ghost", el: "shadow", tier: 5, name: "Restless Ghost", emoji: "👻", flavor: "It haunts unfinished homework." },
+  { id: "iron_tusk", el: "nature", tier: 5, name: "Iron Tusk", emoji: "🐗", flavor: "It charges headfirst." },
+  { id: "wolf", el: "shadow", tier: 6, name: "Shadow Wolf", emoji: "🐺", flavor: "It can smell a wrong answer." },
+  { id: "angry_imp", el: "fire", tier: 6, name: "Angry Imp", emoji: "👿", flavor: "Small horns, big attitude." },
+  { id: "cave_bear", el: "nature", tier: 6, name: "Cave Bear", emoji: "🐻", flavor: "Grumpy from hibernation." },
+  { id: "golem", el: "neutral", tier: 7, name: "Stone Golem", emoji: "🗿", flavor: "As stubborn as a tough ratio problem." },
+  { id: "maze_minotaur", el: "fire", tier: 7, name: "Maze Minotaur", emoji: "🐂", flavor: "It never gets lost." },
+  { id: "storm_talon", el: "arcane", tier: 7, name: "Storm Talon", emoji: "🦅", flavor: "It dives from thunderclouds." },
+  { id: "witch", el: "arcane", tier: 8, name: "Swamp Witch", emoji: "🧙", flavor: "She curses sloppy working." },
+  { id: "count_fang", el: "shadow", tier: 8, name: "Count Fang", emoji: "🧛", flavor: "He loves counting… victims." },
+  { id: "deep_kraken", el: "ice", tier: 8, name: "Deep Kraken", emoji: "🦑", flavor: "Eight arms, zero mercy." },
+  { id: "wyvern", el: "arcane", tier: 9, name: "Thunder Wyvern", emoji: "🐉", flavor: "It breathes lightning and pop quizzes." },
+  { id: "royal_ravager", el: "fire", tier: 9, name: "Royal Ravager", emoji: "🦖", flavor: "The kingdom's worst nightmare." },
+  { id: "cursed_genie", el: "arcane", tier: 9, name: "Cursed Genie", emoji: "🧞", flavor: "Wishes granted, terms unfair." },
+  { id: "demon", el: "fire", tier: 10, name: "Demon King", emoji: "👹", flavor: "The final boss of Math Quest." },
+  { id: "lich_lord", el: "shadow", tier: 10, name: "Lich Lord", emoji: "🧟", flavor: "Death is just a variable." },
+  { id: "elder_dragon", el: "fire", tier: 10, name: "Elder Dragon", emoji: "🐲", flavor: "Older than arithmetic itself." }
 ].map(e => Object.assign(e, {
   maxHp: 18 + e.tier * 12,
   atk: 3 + e.tier * 2,
@@ -4606,7 +4724,7 @@ function rpgDefaults() {
     monthKey: null, monthXp: 0, lastMonthKey: null, lastMonthXp: 0, advRuns: null,
     inventory: { wood_sword: 1, cloth_tunic: 1 },
     equipment: { weapon: "wood_sword", shield: null, armor: "cloth_tunic", helmet: null, accessory: null, pet: null },
-    battle: null,
+    battle: null, upgrades: {},
     stats: { wins: 0, defeats: 0, marked: 0, correct: 0, goldEarned: 0 }
   };
 }
@@ -4631,6 +4749,7 @@ function rpgHydrate(saved) {
   st.inventory = Object.assign({}, (saved && saved.inventory) || rpgDefaults().inventory);
   st.equipment = Object.assign(rpgDefaults().equipment, (saved && saved.equipment) || {});
   st.stats = Object.assign(rpgDefaults().stats, (saved && saved.stats) || {});
+  st.upgrades = Object.assign({}, (saved && saved.upgrades) || {});
   RPG_SLOTS.forEach(slot => {
     const it = RPG_ITEMS_BY_ID[st.equipment[slot]];
     if (!it || it.slot !== slot || !st.inventory[it.id]) st.equipment[slot] = null;
@@ -4653,6 +4772,65 @@ function rpgSave() {
   rpgRenderSide();
 }
 
+// ---- Elements, sets & upgrades ----
+const RPG_ELEMENTS = {
+  fire: { icon: "🔥", name: "Fire" }, ice: { icon: "❄️", name: "Ice" }, nature: { icon: "🍃", name: "Nature" },
+  holy: { icon: "✨", name: "Holy" }, shadow: { icon: "🌑", name: "Shadow" }, arcane: { icon: "💫", name: "Arcane" },
+  neutral: { icon: "", name: "" }
+};
+const RPG_COUNTERS = { fire: "nature", nature: "ice", ice: "fire", holy: "shadow", shadow: "arcane", arcane: "holy" };
+function rpgWeaponElement(id) {
+  const s = String(id || "");
+  if (/flame|ember|dragon|phoenix/.test(s)) return "fire";
+  if (/frost|glacier|penguin/.test(s)) return "ice";
+  if (/oak|sprout|rune|elven|emerald/.test(s)) return "nature";
+  if (/void|shadow|obsidian/.test(s)) return "shadow";
+  if (/sun|excalibur|golden|gilded|crown|royal/.test(s)) return "holy";
+  if (/star|comet|storm|arcane|crystal|wisp/.test(s)) return "arcane";
+  return "neutral";
+}
+const RPG_SETS = [
+  { id: "dragon", name: "Dragonfire Set", icon: "🐉", need: 3, items: ["dragon_blade", "dragonscale_ward", "dragon_plate", "dragonfang_helm", "dragon_wings", "pocket_dragon"], bonus: { atkPct: 0.12, hp: 10 }, text: "+12% ATK, +10 HP" },
+  { id: "knight", name: "Knight's Oath", icon: "🛡️", need: 3, items: ["knight_sword", "knight_shield", "knight_plate", "knight_helm", "hero_cape"], bonus: { defPct: 0.25, hp: 15 }, text: "+25% DEF, +15 HP" },
+  { id: "royal", name: "Royal Regalia", icon: "👑", need: 3, items: ["royal_bulwark", "royal_medallion", "royal_crook", "crown_halberd", "gilded_plate", "gilded_helm", "crown_wisdom"], bonus: { goldPct: 0.15, crit: 4 }, text: "+15% gold, +4% CRIT" },
+  { id: "frost", name: "Glacier Pact", icon: "❄️", need: 3, items: ["frost_brand", "glacier_staff", "frost_plate", "glacier_helm", "frost_penguin"], bonus: { crit: 6, hp: 10 }, text: "+6% CRIT, +10 HP" },
+  { id: "shadow", name: "Night Covenant", icon: "🌑", need: 3, items: ["shadow_dagger", "ninja_garb", "shadow_hood", "shadow_cat", "void_staff", "obsidian_greatsword"], bonus: { crit: 10 }, text: "+10% CRIT" },
+  { id: "forest", name: "Forest Warden", icon: "🍃", need: 3, items: ["elven_blade", "elven_cloak", "emerald_scale", "adventurers_hood", "sprout_staff", "forest_cloak"], bonus: { hp: 18, crit: 4 }, text: "+18 HP, +4% CRIT" }
+];
+function rpgSetOf(itemId) { return RPG_SETS.find(s => s.items.includes(itemId)) || null; }
+function rpgSetCounts() {
+  const eq = rpgState ? Object.values(rpgState.equipment || {}).filter(Boolean) : [];
+  return RPG_SETS.map(s => ({ set: s, count: s.items.filter(i => eq.includes(i)).length }));
+}
+const RPG_UPGRADE_MAX = 9, RPG_UPGRADE_STEP = 0.08;
+function rpgUpgradeLevel(id) {
+  const lvl = (rpgState && rpgState.upgrades && rpgState.upgrades[id]) || 0;
+  return Math.max(0, Math.min(RPG_UPGRADE_MAX, lvl));
+}
+function rpgUpgradeCost(it) {
+  return Math.max(20, Math.round((it.price || 80) * 0.25 * (rpgUpgradeLevel(it.id) + 1)));
+}
+function rpgItemStats(it) { // effective stats including +N upgrade
+  const m = 1 + RPG_UPGRADE_STEP * rpgUpgradeLevel(it.id);
+  const v = k => it[k] ? Math.round(it[k] * m) : 0;
+  return { atk: v("atk"), def: v("def"), crit: v("crit"), hp: v("hp") };
+}
+function rpgUpgradeItem(id) {
+  const it = RPG_ITEMS_BY_ID[id];
+  if (!it || !rpgState || !rpgState.inventory[id]) return;
+  const lvl = rpgUpgradeLevel(id);
+  if (lvl >= RPG_UPGRADE_MAX) { toast("Already at max upgrade (+9)!", "error"); return; }
+  const cost = rpgUpgradeCost(it);
+  if (rpgState.gold < cost) { toast(`Need 🪙 ${cost} to upgrade — solve more questions!`, "error"); return; }
+  rpgState.gold -= cost;
+  rpgState.upgrades[id] = lvl + 1;
+  rpgSave();
+  rpgPublishLeaderboard();
+  rpgRenderCharacterPage();
+  rpgRenderBattle();
+  toast(`${it.name} upgraded to +${lvl + 1} ⚒️`, "success");
+}
+
 // ---- Derived stats ----
 function rpgXpToNext(level) { return 60 + (level - 1) * 45; }
 function rpgLevelInfo() {
@@ -4665,21 +4843,31 @@ function rpgEquippedItems() {
 }
 function rpgPlayerStats() {
   const level = rpgLevelInfo().level;
-  const sum = key => rpgEquippedItems().reduce((acc, it) => acc + (Number(it[key]) || 0), 0);
-  return {
-    level,
-    atk: 4 + level + sum("atk"),
-    def: sum("def"),
-    crit: Math.min(60, 5 + sum("crit")),
-    maxHp: 40 + level * 10 + sum("hp")
-  };
+  const eff = rpgEquippedItems().map(rpgItemStats);
+  const sum = key => eff.reduce((acc, s) => acc + s[key], 0);
+  let atk = 4 + level + sum("atk");
+  let def = sum("def");
+  let crit = 5 + sum("crit");
+  let hp = 40 + level * 10 + sum("hp");
+  let goldPct = 0;
+  rpgSetCounts().forEach(({ set, count }) => {
+    if (count < set.need) return;
+    const b = set.bonus;
+    if (b.atkPct) atk = Math.round(atk * (1 + b.atkPct));
+    if (b.defPct) def = Math.round(def * (1 + b.defPct));
+    if (b.crit) crit += b.crit;
+    if (b.hp) hp += b.hp;
+    if (b.goldPct) goldPct += b.goldPct;
+  });
+  return { level, atk, def, crit: Math.min(60, crit), maxHp: hp, goldPct };
 }
 function rpgStatLine(it) {
+  const s = rpgItemStats(it);
   const parts = [];
-  if (it.atk) parts.push(`+${it.atk} ATK`);
-  if (it.def) parts.push(`+${it.def} DEF`);
-  if (it.crit) parts.push(`+${it.crit}% CRIT`);
-  if (it.hp) parts.push(`+${it.hp} HP`);
+  if (s.atk) parts.push(`+${s.atk} ATK`);
+  if (s.def) parts.push(`+${s.def} DEF`);
+  if (s.crit) parts.push(`+${s.crit}% CRIT`);
+  if (s.hp) parts.push(`+${s.hp} HP`);
   return parts.join(" · ") || "Cosmetic";
 }
 
@@ -4696,22 +4884,24 @@ function rpgAvatarSvg(equipment) {
   return `<svg viewBox="0 0 200 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Your hero avatar">
     <ellipse cx="100" cy="222" rx="46" ry="9" fill="rgba(0,0,0,0.10)"/>
     ${capeArt}
-    <rect x="84" y="180" width="11" height="30" rx="5" fill="#4b4339"/>
-    <rect x="105" y="180" width="11" height="30" rx="5" fill="#4b4339"/>
-    <ellipse cx="88" cy="212" rx="11" ry="6" fill="#2c2a27"/>
-    <ellipse cx="112" cy="212" rx="11" ry="6" fill="#2c2a27"/>
-    <path d="M77 118 Q100 110 123 118 L129 178 Q100 188 71 178 Z" fill="#4a7c59"/>
+    <rect x="84" y="180" width="11" height="30" rx="5" fill="${rpgGrad("#4b4339", "h")}" ${RPG_O_THIN}/>
+    <rect x="105" y="180" width="11" height="30" rx="5" fill="${rpgGrad("#4b4339", "h")}" ${RPG_O_THIN}/>
+    <ellipse cx="88" cy="212" rx="11" ry="6" fill="${rpgGrad("#2c2a27")}" ${RPG_O_THIN}/>
+    <ellipse cx="112" cy="212" rx="11" ry="6" fill="${rpgGrad("#2c2a27")}" ${RPG_O_THIN}/>
+    <path d="M77 118 Q100 110 123 118 L129 178 Q100 188 71 178 Z" fill="${rpgGrad("#4a7c59")}" ${RPG_O}/>
     <path d="M77 118 Q100 110 123 118 L121 130 Q100 124 79 130 Z" fill="rgba(0,0,0,0.12)"/>
-    <rect x="73" y="166" width="54" height="8" rx="4" fill="#5b4632"/>
-    <rect x="95" y="166" width="10" height="8" rx="2" fill="#d4b106"/>
+    <rect x="73" y="166" width="54" height="8" rx="4" fill="${rpgGrad("#5b4632")}" ${RPG_O_THIN}/>
+    <rect x="95" y="166" width="10" height="8" rx="2" fill="${rpgGrad("#d4b106")}" ${RPG_O_THIN}/>
     ${rpgItemArt("armor", eq)}
-    <path d="M80 124 Q66 134 60 152" stroke="#4a7c59" stroke-width="11" fill="none" stroke-linecap="round"/>
-    <path d="M120 124 Q134 134 140 152" stroke="#4a7c59" stroke-width="11" fill="none" stroke-linecap="round"/>
-    <circle cx="58" cy="158" r="7" fill="#f5cfa8"/>
-    <circle cx="142" cy="158" r="7" fill="#f5cfa8"/>
+    <path d="M80 124 Q66 134 60 152" stroke="${RPG_OUT}" stroke-width="14" fill="none" stroke-linecap="round" opacity="0.85"/>
+    <path d="M120 124 Q134 134 140 152" stroke="${RPG_OUT}" stroke-width="14" fill="none" stroke-linecap="round" opacity="0.85"/>
+    <path d="M80 124 Q66 134 60 152" stroke="#4a7c59" stroke-width="10.5" fill="none" stroke-linecap="round"/>
+    <path d="M120 124 Q134 134 140 152" stroke="#4a7c59" stroke-width="10.5" fill="none" stroke-linecap="round"/>
+    <circle cx="58" cy="158" r="7" fill="${rpgGrad("#f5cfa8", "r")}" ${RPG_O_THIN}/>
+    <circle cx="142" cy="158" r="7" fill="${rpgGrad("#f5cfa8", "r")}" ${RPG_O_THIN}/>
     <rect x="93" y="104" width="14" height="12" rx="5" fill="#f5cfa8"/>
-    <circle cx="100" cy="78" r="34" fill="#f5cfa8"/>
-    <path d="M64 76 Q66 40 100 40 Q134 40 136 76 Q120 58 100 60 Q80 58 64 76 Z" fill="#5b4632"/>
+    <circle cx="100" cy="78" r="34" fill="${rpgGrad("#f5cfa8", "r")}" ${RPG_O}/>
+    <path d="M64 76 Q66 40 100 40 Q134 40 136 76 Q120 58 100 60 Q80 58 64 76 Z" fill="${rpgGrad("#5b4632")}" ${RPG_O_THIN}/>
     <circle cx="88" cy="84" r="3.4" fill="#2c2a27"/>
     <circle cx="112" cy="84" r="3.4" fill="#2c2a27"/>
     <path d="M91 95 Q100 102 109 95" stroke="#2c2a27" stroke-width="2.4" fill="none" stroke-linecap="round"/>
@@ -4721,12 +4911,21 @@ function rpgAvatarSvg(equipment) {
     ${frontAccArt}
     ${rpgItemArt("pet", eq)}
     <g transform="translate(58,158)">${rpgItemArt("shield", eq)}</g>
-    <g transform="translate(142,158)"><g class="av-swing" transform="rotate(14)"><animateTransform class="av-anim-slash" attributeName="transform" type="rotate" values="14;-44;112;78;14" keyTimes="0;0.26;0.52;0.66;1" dur="0.62s" begin="indefinite"/><animateTransform class="av-anim-chop" attributeName="transform" type="rotate" values="14;-78;122;14" keyTimes="0;0.36;0.6;1" dur="0.74s" begin="indefinite"/><animateTransform class="av-anim-raise" attributeName="transform" type="rotate" values="14;-30;-30;14" keyTimes="0;0.3;0.72;1" dur="0.8s" begin="indefinite"/>${rpgItemArt("weapon", eq)}<circle r="7" fill="#f5cfa8" stroke="rgba(0,0,0,0.1)"/></g></g>
+    <g transform="translate(142,158)"><g class="av-swing" transform="rotate(14)"><animateTransform class="av-anim-slash" attributeName="transform" type="rotate" values="14;-44;112;78;14" keyTimes="0;0.26;0.52;0.66;1" dur="0.62s" begin="indefinite"/><animateTransform class="av-anim-chop" attributeName="transform" type="rotate" values="14;-78;122;14" keyTimes="0;0.36;0.6;1" dur="0.74s" begin="indefinite"/><animateTransform class="av-anim-raise" attributeName="transform" type="rotate" values="14;-30;-30;14" keyTimes="0;0.3;0.72;1" dur="0.8s" begin="indefinite"/>${rpgItemArt("weapon", eq)}<circle r="7" fill="#f5cfa8" stroke="#2a2d3a" stroke-width="1.6"/></g></g>
   </svg>`;
 }
 function rpgItemIconSvg(it) {
   const box = it.box || RPG_SLOT_META[it.slot].box;
-  return `<svg viewBox="${box}" xmlns="http://www.w3.org/2000/svg">${it.art()}</svg>`;
+  const rank = RPG_RARITY[it.rarity].rank;
+  const [bx, by, bw, bh] = box.split(" ").map(Number);
+  const cx = bx + bw / 2, cy = by + bh / 2;
+  const aura = rank >= 4
+    ? `<ellipse cx="${cx}" cy="${cy}" rx="${(bw * 0.3).toFixed(1)}" ry="${(bh * 0.38).toFixed(1)}" fill="${rank === 5 ? "#ffd76a" : "#b88ae8"}" opacity="${rank === 5 ? "0.28" : "0.22"}">${rank === 5 ? svgPulse(0.18, 0.34) : ""}</ellipse>`
+    : "";
+  const spark = rank === 5
+    ? `<g>${svgStar(bx + bw * 0.18, by + bh * 0.22, bw * 0.05, bw * 0.022, "#fff")}${svgTwinkle(2)}</g><g>${svgStar(bx + bw * 0.84, by + bh * 0.58, bw * 0.04, bw * 0.018, "#ffe9a3")}${svgTwinkle(1.5)}</g>`
+    : "";
+  return `<svg viewBox="${box}" xmlns="http://www.w3.org/2000/svg">${aura}${it.art()}${spark}</svg>`;
 }
 
 // ---- Lifecycle ----
@@ -4739,6 +4938,7 @@ async function rpgInit() {
   const stats = rpgPlayerStats();
   if (!Number.isFinite(rpgState.hp) || rpgState.hp === null) rpgState.hp = stats.maxHp;
   rpgState.hp = Math.max(1, Math.min(rpgState.hp, stats.maxHp));
+  rpgEnsureSvgDefs();
   rpgRolloverMonth();
   rpgApplyVisibility();
   rpgRenderSide();
@@ -4805,6 +5005,8 @@ function rpgRolloverMonth() {
 }
 function rpgApplyRewards(gold, xp) {
   const before = rpgLevelInfo().level;
+  const goldPct = rpgPlayerStats().goldPct || 0;
+  if (goldPct && gold > 0) gold = Math.round(gold * (1 + goldPct));
   rpgState.gold += gold;
   rpgState.xp += xp;
   rpgRolloverMonth();
@@ -4832,8 +5034,10 @@ function rpgBattleRound(credit) {
   if (credit > 0) {
     let dmg = stats.atk * (0.9 + Math.random() * 0.35);
     let note = "";
-    if (credit < 0.95) { dmg *= Math.max(0.3, credit); note = " (glancing hit)"; }
-    else if (Math.random() * 100 < stats.crit) { dmg *= 2; note = " — <b>CRITICAL HIT!</b>"; }
+    const wel = rpgWeaponElement(rpgState.equipment.weapon);
+    if (RPG_COUNTERS[wel] === enemy.el) { dmg *= 1.25; note += ` — ${RPG_ELEMENTS[wel].icon} super effective!`; }
+    if (credit < 0.95) { dmg *= Math.max(0.3, credit); note += " (glancing hit)"; }
+    else if (Math.random() * 100 < stats.crit) { dmg *= 2; note += " — <b>CRITICAL HIT!</b>"; }
     if (rpgHintUsedQ) { dmg *= 0.6; note += " (hint used)"; }
     dmg = Math.max(1, Math.round(dmg));
     battle.enemyHp = Math.max(0, battle.enemyHp - dmg);
@@ -5018,7 +5222,7 @@ function rpgRenderBattle() {
       <div class="rpg-fighter" id="rpgFoeTile">
         <div class="rpg-fighter-art"><span class="rpg-foe-emoji">${enemy.emoji}</span></div>
         <div class="rpg-fighter-info">
-          <div class="rpg-fighter-name">${escapeHtml(enemy.name)}</div>
+          <div class="rpg-fighter-name">${escapeHtml(enemy.name)} ${RPG_ELEMENTS[enemy.el] ? RPG_ELEMENTS[enemy.el].icon : ""}</div>
           <div class="rpg-fighter-lv">Lv ${enemy.tier} · ${escapeHtml(enemy.flavor)}</div>
           ${rpgHpBar(battle.enemyHp, enemy.maxHp)}
         </div>
@@ -5058,7 +5262,7 @@ function rpgLootCardHtml(loot) {
   if (!loot) return "";
   const rar = RPG_RARITY[loot.rarity];
   return `<div class="rpg-loot-card" style="--rar:${rar.color};">
-    <div class="rpg-item-art">${rpgItemIconSvg(loot)}</div>
+    <div class="rpg-item-art t-${loot.rarity}">${rpgItemIconSvg(loot)}</div>
     <div><div class="rpg-item-rarity" style="--rar:${rar.color};">${rar.label} drop!</div>
     <div class="rpg-item-name">${escapeHtml(loot.name)}</div>
     <div class="rpg-item-stats">${escapeHtml(rpgStatLine(loot))} — added to your inventory</div></div>
@@ -5106,18 +5310,32 @@ function rpgRenderCharacterPage() {
       <div class="rpg-bar light"><div class="rpg-bar-fill hp" style="width:${Math.round((rpgState.hp / stats.maxHp) * 100)}%;"></div></div></div>
     <div class="rpg-bar-row"><div class="rpg-bar-cap"><span>XP</span><span>${info.into} / ${info.need}</span></div>
       <div class="rpg-bar light"><div class="rpg-bar-fill xp" style="width:${Math.round((info.into / info.need) * 100)}%;"></div></div></div>`;
+  const setsHtml = rpgSetCounts().filter(x => x.count > 0).map(({ set, count }) =>
+    `<span class="rpg-set-chip ${count >= set.need ? "on" : ""}" title="${escapeHtml(set.name)} (${set.need} pieces): ${escapeHtml(set.text)}">${set.icon} ${escapeHtml(set.name)} ${count}/${set.need}${count >= set.need ? " ✓" : ""}</span>`).join("");
   $("rpgHeroStats").innerHTML =
     `<div class="rpg-stat-chip"><b>${stats.atk}</b><span>⚔️ Attack</span></div>
     <div class="rpg-stat-chip"><b>${stats.def}</b><span>🛡️ Defence</span></div>
     <div class="rpg-stat-chip"><b>${stats.crit}%</b><span>✨ Crit</span></div>
-    <div class="rpg-stat-chip"><b>${rpgState.gold}</b><span>🪙 Gold</span></div>`;
+    <div class="rpg-stat-chip"><b>${rpgState.gold}</b><span>🪙 Gold</span></div>` +
+    (setsHtml ? `<div class="rpg-set-row">${setsHtml}</div>` : "");
   $("rpgEquipRow").innerHTML = RPG_SLOTS.map(slot => {
     const it = RPG_ITEMS_BY_ID[rpgState.equipment[slot]];
     const meta = RPG_SLOT_META[slot];
     if (!it) return `<div class="rpg-slot" data-rpg-slot="${slot}" title="Empty ${meta.label} slot"><span class="rpg-slot-empty">${meta.icon}</span><span class="rpg-slot-label">${meta.label}</span></div>`;
-    return `<div class="rpg-slot filled" data-rpg-slot="${slot}" title="${escapeHtml(it.name)} — click to unequip" style="border-color:${RPG_RARITY[it.rarity].color};">${rpgItemIconSvg(it)}<span class="rpg-slot-label">${meta.label}</span></div>`;
+    return `<div class="rpg-slot filled t-${it.rarity}" data-rpg-slot="${slot}" title="${escapeHtml(it.name)} — click to unequip" style="border-color:${RPG_RARITY[it.rarity].color};">${rpgItemIconSvg(it)}<span class="rpg-slot-label">${meta.label}</span></div>`;
   }).join("");
   rpgRenderTab();
+}
+function rpgCompareHtml(it) {
+  const cur = RPG_ITEMS_BY_ID[rpgState.equipment[it.slot]];
+  if (!cur || cur.id === it.id) return "";
+  const a = rpgItemStats(it), b = rpgItemStats(cur);
+  const parts = [];
+  [["atk", "ATK"], ["def", "DEF"], ["crit", "CRIT"], ["hp", "HP"]].forEach(([k, label]) => {
+    const d = a[k] - b[k];
+    if (d) parts.push(`<span class="${d > 0 ? "up" : "down"}">${d > 0 ? "▲+" : "▼"}${d} ${label}</span>`);
+  });
+  return parts.length ? `<div class="rpg-item-diff" title="Compared with your equipped ${escapeHtml(cur.name)}">${parts.join(" ")}</div>` : "";
 }
 function rpgItemCardHtml(it, mode) {
   const rar = RPG_RARITY[it.rarity];
@@ -5125,6 +5343,10 @@ function rpgItemCardHtml(it, mode) {
   const owned = !!rpgState.inventory[it.id];
   const equipped = rpgState.equipment[it.slot] === it.id;
   const locked = it.levelReq > level;
+  const up = rpgUpgradeLevel(it.id);
+  const el = it.slot === "weapon" ? rpgWeaponElement(it.id) : "neutral";
+  const setOf = rpgSetOf(it.id);
+  const setCount = setOf ? rpgSetCounts().find(x => x.set.id === setOf.id).count : 0;
   let action = "";
   if (mode === "inventory") {
     action = equipped
@@ -5132,6 +5354,9 @@ function rpgItemCardHtml(it, mode) {
       : locked
         ? `<button class="btn btn-ghost" type="button" disabled>Needs Lv ${it.levelReq}</button>`
         : `<button class="btn btn-primary" type="button" data-rpg-equip="${it.id}">Equip</button>`;
+    action += up >= RPG_UPGRADE_MAX
+      ? `<button class="btn btn-ghost" type="button" disabled>⚒️ MAX</button>`
+      : `<button class="btn btn-ghost" type="button" data-rpg-upgrade="${it.id}" ${rpgState.gold < rpgUpgradeCost(it) ? "disabled" : ""} title="+8% to all stats per upgrade level">⚒️ +${up + 1} · 🪙 ${rpgUpgradeCost(it)}</button>`;
   } else {
     action = owned
       ? `<button class="btn btn-ghost" type="button" disabled>Owned</button>`
@@ -5139,10 +5364,10 @@ function rpgItemCardHtml(it, mode) {
   }
   return `<div class="rpg-item ${locked ? "locked" : ""}" style="--rar:${rar.color};">
     ${equipped ? `<span class="rpg-item-badge">Equipped</span>` : (mode === "shop" && owned ? `<span class="rpg-item-badge">Owned</span>` : "")}
-    <div class="rpg-item-art">${rpgItemIconSvg(it)}</div>
-    <div class="rpg-item-rarity">${rar.label} · ${RPG_SLOT_META[it.slot].label}</div>
-    <div class="rpg-item-name">${escapeHtml(it.name)}</div>
-    <div class="rpg-item-stats">${escapeHtml(rpgStatLine(it))}${RPG_SKILLS[it.id] ? `<div class="rpg-item-skill">${RPG_SKILLS[it.id].icon} ${escapeHtml(RPG_SKILLS[it.id].name)} · ${RPG_SKILLS[it.id].cd}s</div>` : ""}${locked ? `<div class="rpg-item-req">Requires Lv ${it.levelReq}</div>` : ""}</div>
+    <div class="rpg-item-art t-${it.rarity}">${rpgItemIconSvg(it)}</div>
+    <div class="rpg-item-rarity">${rar.label} · ${RPG_SLOT_META[it.slot].label}${el !== "neutral" ? ` · ${RPG_ELEMENTS[el].icon}` : ""}</div>
+    <div class="rpg-item-name">${escapeHtml(it.name)}${up ? ` <span class="rpg-item-up">+${up}</span>` : ""}</div>
+    <div class="rpg-item-stats">${escapeHtml(rpgStatLine(it))}${RPG_SKILLS[it.id] ? `<div class="rpg-item-skill">${RPG_SKILLS[it.id].icon} ${escapeHtml(RPG_SKILLS[it.id].name)} · ${RPG_SKILLS[it.id].cd}s</div>` : ""}${setOf ? `<div class="rpg-item-setline" title="${escapeHtml(setOf.name)} (${setOf.need} pieces): ${escapeHtml(setOf.text)}">${setOf.icon} ${escapeHtml(setOf.name)} ${setCount}/${setOf.need}</div>` : ""}${rpgCompareHtml(it)}${locked ? `<div class="rpg-item-req">Requires Lv ${it.levelReq}</div>` : ""}</div>
     ${action}
   </div>`;
 }
@@ -5524,7 +5749,7 @@ function advSpawnWave() {
   $("advFoes").innerHTML = adv.foes.map((f, i) => {
     const size = f.boss ? 84 : f.minion ? 46 : 62;
     return `<div class="adv-actor adv-foe" id="advFoeEl${i}" style="right:-28%;">
-      <div class="adv-tag">${f.boss ? "👑 " : ""}${escapeHtml(f.e.name)}</div>
+      <div class="adv-tag">${f.boss ? "👑 " : ""}${escapeHtml(f.e.name)}${RPG_ELEMENTS[f.e.el] && RPG_ELEMENTS[f.e.el].icon ? " " + RPG_ELEMENTS[f.e.el].icon : ""}</div>
       <span class="adv-foe-emoji" style="font-size:${size}px;">${f.e.emoji}</span>
       ${advBarHtml("advFoeHp" + i)}</div>`;
   }).join("");
@@ -5606,11 +5831,13 @@ function advAutoAttack() {
   let dmg = adv.stats.atk * (0.9 + Math.random() * 0.3);
   const crit = Math.random() * 100 < adv.stats.crit;
   if (crit) dmg *= 2;
-  advAfter(fx.kind === "magic" ? 480 : 300, () => advHurtFoe(fi, dmg, { crit, fx }));
+  advAfter(fx.kind === "magic" ? 480 : 300, () => advHurtFoe(fi, dmg, { crit, fx, element: rpgWeaponElement(rpgState.equipment.weapon) }));
 }
 function advHurtFoe(i, dmg, opts = {}) {
   const f = adv.foes[i];
   if (!f || f.dead) return 0;
+  let superHit = false;
+  if (opts.element && RPG_COUNTERS[opts.element] === f.e.el) { dmg *= 1.25; superHit = true; }
   let final = Math.max(1, Math.round(dmg - (opts.pierce ? 0 : f.armor)));
   if (opts.exec && f.hp / f.max < 0.35) final *= 2;
   f.hp = Math.max(0, f.hp - final);
@@ -5621,7 +5848,7 @@ function advHurtFoe(i, dmg, opts = {}) {
       advFloat(el, "-" + final, "dmg");
     } else {
       if (el.classList) { el.classList.add("hit"); advAfter(380, () => { const e2 = advFoeEl(i); if (e2 && e2.classList) e2.classList.remove("hit"); }); }
-      advFloat(el, (opts.crit ? "💥 " : "") + (opts.pierce ? "🎯 " : "") + "-" + final, "dmg");
+      advFloat(el, (opts.crit ? "💥 " : "") + (opts.pierce ? "🎯 " : "") + (superHit ? "⭐ " : "") + "-" + final, "dmg");
       if (opts.fx) {
         advBurst(el, opts.fx.color);
         advParticles(el, opts.fx.emoji, opts.crit ? 8 : 4);
@@ -5705,17 +5932,18 @@ function advCast(s, idx) {
   const front = advFrontFoe();
   const stage = $("advStage");
   const wfx = rpgWeaponFx(s.id);
+  const wel = rpgWeaponElement(s.id);
   switch (d.kind) {
     case "hit":
       advSwingAnim(s.owner === "pet" ? "magic" : wfx.kind);
-      advAfter(280, () => { const t = advFrontFoe(); if (t >= 0) { const dealt = advHurtFoe(t, atk * d.mult, { fx: wfx, exec: d.exec, pierce: d.pierce }); advCastRiders(d, t, dealt); } });
+      advAfter(280, () => { const t = advFrontFoe(); if (t >= 0) { const dealt = advHurtFoe(t, atk * d.mult, { fx: wfx, exec: d.exec, pierce: d.pierce, element: wel }); advCastRiders(d, t, dealt); } });
       break;
     case "multi":
       for (let h = 0; h < d.hits; h++) {
         advAfter(200 + h * 250, () => {
           advSwingAnim(s.owner === "pet" ? "magic" : wfx.kind);
           const t = advFrontFoe();
-          if (t >= 0) { const dealt = advHurtFoe(t, atk * d.mult, { fx: wfx }); advCastRiders(d, t, dealt); }
+          if (t >= 0) { const dealt = advHurtFoe(t, atk * d.mult, { fx: wfx, element: wel }); advCastRiders(d, t, dealt); }
         });
       }
       break;
@@ -5723,13 +5951,13 @@ function advCast(s, idx) {
       advSwingAnim(s.owner === "pet" ? "magic" : "chop");
       if (stage && stage.classList) { stage.classList.add("shake"); advAfter(380, () => stage.classList.remove("shake")); }
       advAfter(300, () => advLivingFoes().forEach((i, k) =>
-        advAfter(k * 100, () => { const dealt = advHurtFoe(i, atk * d.mult, { fx: wfx, pierce: d.pierce }); advCastRiders(d, i, dealt); })));
+        advAfter(k * 100, () => { const dealt = advHurtFoe(i, atk * d.mult, { fx: wfx, pierce: d.pierce, element: wel }); advCastRiders(d, i, dealt); })));
       break;
     case "chain": {
       const targets = advLivingFoes().slice(0, d.jumps + 1);
       advChainFx(targets);
       targets.forEach((i, k) => advAfter(140 + k * 170, () => {
-        const dealt = advHurtFoe(i, atk * d.mult * Math.pow(0.75, k), { fx: { color: "#ffd76a", emoji: "⚡", kind: "magic" } });
+        const dealt = advHurtFoe(i, atk * d.mult * Math.pow(0.75, k), { fx: { color: "#ffd76a", emoji: "⚡", kind: "magic" }, element: wel });
         advCastRiders(d, i, dealt);
       }));
       break;
@@ -5737,7 +5965,7 @@ function advCast(s, idx) {
     case "pierce":
       advSwingAnim(s.owner === "pet" ? "magic" : "thrust");
       advAnimate($("advHero"), [{ transform: "translateX(0)" }, { transform: "translateX(62px)" }, { transform: "translateX(0)" }], { duration: 520, easing: "ease-in-out" });
-      advAfter(280, () => { const t = advFrontFoe(); if (t >= 0) { const dealt = advHurtFoe(t, atk * d.mult, { pierce: true, fx: wfx }); advCastRiders(d, t, dealt); } });
+      advAfter(280, () => { const t = advFrontFoe(); if (t >= 0) { const dealt = advHurtFoe(t, atk * d.mult, { pierce: true, fx: wfx, element: wel }); advCastRiders(d, t, dealt); } });
       break;
     case "heal":
       advHeal(adv.heroMax * d.pct, d.icon);
@@ -5901,6 +6129,8 @@ document.querySelectorAll(".rpg-tab").forEach(b => b.addEventListener("click", (
 $("rpgTabBody").addEventListener("click", e => {
   const filter = e.target.closest("[data-rpg-filter]");
   if (filter) { rpgShopSlot = filter.dataset.rpgFilter; rpgRenderTab(); return; }
+  const upgrade = e.target.closest("[data-rpg-upgrade]");
+  if (upgrade) { rpgUpgradeItem(upgrade.dataset.rpgUpgrade); return; }
   const equip = e.target.closest("[data-rpg-equip]");
   if (equip) { rpgEquip(equip.dataset.rpgEquip); return; }
   const unequip = e.target.closest("[data-rpg-unequip]");
