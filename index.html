@@ -4856,6 +4856,11 @@ function rpgHydrate(saved) {
   st.upgrades = Object.assign({}, (saved && saved.upgrades) || {});
   st.skills = Object.assign({}, (saved && saved.skills) || {});
   if (st.clazz && !["warrior", "rogue", "mage"].includes(st.clazz)) st.clazz = null;
+  if (st.clazz && st.equipment.weapon) {
+    const w = RPG_ITEMS_BY_ID[st.equipment.weapon];
+    const kind = w ? rpgWeaponFx(w.id).kind : "";
+    if (w && ((st.clazz === "warrior" && (kind === "ranged" || kind === "magic")) || (st.clazz === "mage" && kind !== "magic" && kind !== "ranged"))) st.equipment.weapon = null;
+  }
   RPG_SLOTS.forEach(slot => {
     const it = RPG_ITEMS_BY_ID[st.equipment[slot]];
     if (!it || it.slot !== slot || !st.inventory[it.id]) st.equipment[slot] = null;
@@ -5021,6 +5026,25 @@ function rpgClassActives() {
   if (!rpgState || !rpgState.clazz) return [];
   return (RPG_TREE[rpgState.clazz] || []).filter(n => n.a && rpgSkillRank(n.id) > 0);
 }
+function rpgClassCanEquip(it) {
+  if (!it || it.slot !== "weapon" || !rpgState || !rpgState.clazz) return true;
+  const kind = rpgWeaponFx(it.id).kind;
+  if (rpgState.clazz === "warrior") return kind !== "ranged" && kind !== "magic"; // face-to-face only
+  if (rpgState.clazz === "mage") return kind === "magic" || kind === "ranged";   // never melee
+  return true; // rogues use everything
+}
+function rpgClassEquipNote(it) {
+  if (rpgClassCanEquip(it)) return "";
+  return rpgState.clazz === "warrior" ? "Warriors fight face to face — no ranged or magic weapons" : "Mages can't wield melee weapons";
+}
+function rpgEnforceClassWeapon() {
+  if (!rpgState) return;
+  const w = RPG_ITEMS_BY_ID[rpgState.equipment.weapon];
+  if (w && !rpgClassCanEquip(w)) {
+    rpgState.equipment.weapon = null;
+    toast(`${w.name} unequipped — ${rpgClassEquipNote(w)}`, "error");
+  }
+}
 function rpgClassWeaponAffinity() {
   if (!rpgState || !rpgState.clazz || !rpgState.equipment.weapon) return false;
   const id = rpgState.equipment.weapon;
@@ -5034,6 +5058,7 @@ function rpgChooseClass(c) {
   if (rpgState.clazz && !confirm(`Switch to ${RPG_CLASSES[c].name}? Your skill points will be refunded.`)) return;
   rpgState.clazz = c;
   rpgState.skills = {};
+  rpgEnforceClassWeapon();
   rpgSave();
   rpgPublishLeaderboard();
   rpgRenderCharacterPage();
@@ -5624,7 +5649,9 @@ function rpgItemCardHtml(it, mode) {
       ? `<button class="btn btn-ghost" type="button" data-rpg-unequip="${it.slot}">Unequip</button>`
       : locked
         ? `<button class="btn btn-ghost" type="button" disabled>Needs Lv ${it.levelReq}</button>`
-        : `<button class="btn btn-primary" type="button" data-rpg-equip="${it.id}">Equip</button>`;
+        : !rpgClassCanEquip(it)
+          ? `<button class="btn btn-ghost" type="button" disabled>🚫 ${RPG_CLASSES[rpgState.clazz].name}</button>`
+          : `<button class="btn btn-primary" type="button" data-rpg-equip="${it.id}">Equip</button>`;
     action += up >= RPG_UPGRADE_MAX
       ? `<button class="btn btn-ghost" type="button" disabled>⚒️ MAX</button>`
       : `<button class="btn btn-ghost" type="button" data-rpg-upgrade="${it.id}" ${rpgState.gold < rpgUpgradeCost(it) ? "disabled" : ""} title="+8% to all stats per upgrade level">⚒️ +${up + 1} · 🪙 ${rpgUpgradeCost(it)}</button>`;
@@ -5642,7 +5669,7 @@ function rpgItemCardHtml(it, mode) {
     <div class="rpg-item-art t-${it.rarity}">${rpgItemIconSvg(it)}</div>
     <div class="rpg-item-rarity">${rar.label} · ${RPG_SLOT_META[it.slot].label}${el !== "neutral" ? ` · ${RPG_ELEMENTS[el].icon}` : ""}</div>
     <div class="rpg-item-name">${escapeHtml(it.name)}${up ? ` <span class="rpg-item-up">+${up}</span>` : ""}</div>
-    <div class="rpg-item-stats">${escapeHtml(rpgStatLine(it))}${RPG_SKILLS[it.id] ? `<div class="rpg-item-skill">${RPG_SKILLS[it.id].icon} ${escapeHtml(RPG_SKILLS[it.id].name)} · ${RPG_SKILLS[it.id].cd}s</div>` : ""}${setOf ? `<div class="rpg-item-setline" title="${escapeHtml(setOf.name)} (${setOf.need} pieces): ${escapeHtml(setOf.text)}">${setOf.icon} ${escapeHtml(setOf.name)} ${setCount}/${setOf.need}</div>` : ""}${it.classBonus ? `<div class="rpg-item-setline">${RPG_CLASSES[it.classBonus.clazz].icon} ${RPG_CLASSES[it.classBonus.clazz].name} synergy${rpgState.clazz === it.classBonus.clazz ? " ✓" : ""}</div>` : ""}${rpgCompareHtml(it)}${locked ? `<div class="rpg-item-req">Requires Lv ${it.levelReq}</div>` : ""}</div>
+    <div class="rpg-item-stats">${escapeHtml(rpgStatLine(it))}${RPG_SKILLS[it.id] ? `<div class="rpg-item-skill">${RPG_SKILLS[it.id].icon} ${escapeHtml(RPG_SKILLS[it.id].name)} · ${RPG_SKILLS[it.id].cd}s</div>` : ""}${setOf ? `<div class="rpg-item-setline" title="${escapeHtml(setOf.name)} (${setOf.need} pieces): ${escapeHtml(setOf.text)}">${setOf.icon} ${escapeHtml(setOf.name)} ${setCount}/${setOf.need}</div>` : ""}${it.classBonus ? `<div class="rpg-item-setline">${RPG_CLASSES[it.classBonus.clazz].icon} ${RPG_CLASSES[it.classBonus.clazz].name} synergy${rpgState.clazz === it.classBonus.clazz ? " ✓" : ""}</div>` : ""}${rpgCompareHtml(it)}${!rpgClassCanEquip(it) ? `<div class="rpg-item-req">${rpgClassEquipNote(it)}</div>` : ""}${locked ? `<div class="rpg-item-req">Requires Lv ${it.levelReq}</div>` : ""}</div>
     ${action}
   </div>`;
 }
@@ -5806,6 +5833,7 @@ function rpgEquip(itemId) {
   const it = RPG_ITEMS_BY_ID[itemId];
   if (!it || !rpgState.inventory[itemId]) return;
   if (it.levelReq > rpgLevelInfo().level) { toast(`Reach Lv ${it.levelReq} to equip ${it.name}`, "error"); return; }
+  if (!rpgClassCanEquip(it)) { toast(rpgClassEquipNote(it), "error"); return; }
   rpgState.equipment[it.slot] = itemId;
   rpgState.hp = Math.min(rpgState.hp, rpgPlayerStats().maxHp);
   rpgSave();
