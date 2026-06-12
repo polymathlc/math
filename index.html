@@ -597,6 +597,11 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 @keyframes advPop { to { transform: translate(var(--dx, 0), var(--dy, -60px)) scale(0.5); opacity: 0; } }
 .adv-slash { position: absolute; left: 6%; top: 14%; width: 86px; height: 86px; z-index: 5; pointer-events: none; animation: advSlashA 0.45s ease-out forwards; }
 .adv-arrow { position: absolute; z-index: 5; font-size: 15px; line-height: 1; pointer-events: none; }
+.adv-bolt { position: absolute; z-index: 5; width: 4px; height: 150px; border-radius: 2px; pointer-events: none; animation: advBoltA 0.42s ease-out forwards; transform-origin: top; }
+@keyframes advBoltA { 0% { opacity: 0; transform: scaleY(0.2); } 25% { opacity: 1; transform: scaleY(1); } 70% { opacity: 0.9; } 100% { opacity: 0; } }
+.adv-cloud2 { position: absolute; z-index: 5; font-size: 26px; pointer-events: none; }
+.adv-fall { position: absolute; z-index: 5; font-size: 17px; pointer-events: none; animation: advFallA 0.95s linear forwards; }
+@keyframes advFallA { to { transform: translateY(225px); opacity: 0.15; } }
 @keyframes advSlashA { from { opacity: 0; transform: rotate(-55deg) scale(0.55); } 30% { opacity: 1; } to { opacity: 0; transform: rotate(30deg) scale(1.2); } }
 .adv-skillbar { display: flex; gap: 12px; justify-content: center; align-items: flex-start; margin-top: 14px; flex-wrap: wrap; min-height: 84px; }
 .adv-skill { position: relative; width: 66px; text-align: center; }
@@ -4807,6 +4812,8 @@ const RPG_ENEMIES = [
   lootMax: e.tier <= 2 ? 1 : e.tier <= 4 ? 2 : e.tier <= 6 ? 3 : e.tier <= 8 ? 4 : 5
 }));
 const RPG_ENEMIES_BY_ID = Object.fromEntries(RPG_ENEMIES.map(e => [e.id, e]));
+const RPG_RANGED_ENEMIES = new Set(["witch", "cursed_genie", "wyvern", "restless_ghost", "storm_talon", "web_spinner", "angry_shroom", "lich_lord", "deep_kraken"]);
+function rpgElColor(el) { return { fire: "#ff6b35", ice: "#8fd4ee", nature: "#3a9e5f", shadow: "#9b7fd4", holy: "#ffd76a", arcane: "#b79ae0" }[el] || "#cfd8e3"; }
 
 // ---- State & storage ----
 let rpgState = null;
@@ -4956,7 +4963,7 @@ const RPG_TREE = {
     { id: "w_slam", name: "Shield Slam", icon: "💥", br: 1, lvl: 8, max: 3, req: "w_mastery", a: { kind: "hit", mult: 1.5, per: 0.35, stun: true, cd: 11 } },
     { id: "w_whirl", name: "Whirlwind", icon: "🌪️", br: 2, lvl: 16, max: 3, req: "w_slam", a: { kind: "aoe", mult: 1.1, per: 0.25, cd: 12 } },
     { id: "w_berserk", name: "Berserk", icon: "😤", br: 2, lvl: 28, max: 3, req: "w_whirl", a: { kind: "hit", mult: 2.0, per: 0.4, cd: 13 } },
-    { id: "w_titan", name: "Titan's Wrath", icon: "⚡", br: 2, lvl: 50, max: 3, req: "w_berserk", a: { kind: "aoe", mult: 1.8, per: 0.35, stun: true, cd: 14 } },
+    { id: "w_titan", name: "Titan's Wrath", icon: "⚡", br: 2, lvl: 50, max: 3, req: "w_berserk", a: { kind: "aoe", mult: 1.8, per: 0.35, stun: true, cd: 14, vfx: "sky", element: "arcane" } },
     { id: "w_avatar", name: "Avatar of War", icon: "🔱", br: 2, lvl: 90, max: 1, req: "w_titan", a: { kind: "aoe", mult: 3.0, per: 0, pierce: true, stun: true, cd: 16 } }
   ],
   rogue: [
@@ -4977,11 +4984,11 @@ const RPG_TREE = {
     { id: "m_intellect", name: "Arcane Intellect", icon: "📖", br: 0, lvl: 2, max: 5, p: { spellPct: 0.03 } },
     { id: "m_firebolt", name: "Firebolt", icon: "🔥", br: 0, lvl: 8, max: 3, req: "m_intellect", a: { kind: "hit", mult: 1.5, per: 0.3, burn: true, element: "fire", cd: 9 } },
     { id: "m_pyro", name: "Pyromania", icon: "🕯️", br: 0, lvl: 14, max: 3, req: "m_firebolt", p: { spellPct: 0.05 } },
-    { id: "m_meteor", name: "Meteor", icon: "☄️", br: 0, lvl: 30, max: 3, req: "m_pyro", a: { kind: "aoe", mult: 1.7, per: 0.3, burn: true, element: "fire", cd: 14 } },
+    { id: "m_meteor", name: "Meteor", icon: "☄️", br: 0, lvl: 30, max: 3, req: "m_pyro", a: { kind: "aoe", mult: 1.7, per: 0.3, burn: true, element: "fire", cd: 14, vfx: "shower" } },
     { id: "m_shield", name: "Mana Shield", icon: "🔵", br: 1, lvl: 4, max: 5, req: "m_intellect", p: { hp: 5 } },
     { id: "m_icelance", name: "Ice Lance", icon: "❄️", br: 1, lvl: 8, max: 3, req: "m_shield", a: { kind: "hit", mult: 1.6, per: 0.3, chill: true, element: "ice", cd: 9 } },
     { id: "m_freeze", name: "Deep Freeze", icon: "🧊", br: 1, lvl: 14, max: 3, req: "m_icelance", p: { def: 2 } },
-    { id: "m_avalanche", name: "Avalanche", icon: "🌨️", br: 1, lvl: 30, max: 3, req: "m_freeze", a: { kind: "aoe", mult: 1.5, per: 0.3, chill: true, element: "ice", cd: 14 } },
+    { id: "m_avalanche", name: "Avalanche", icon: "🌨️", br: 1, lvl: 30, max: 3, req: "m_freeze", a: { kind: "aoe", mult: 1.5, per: 0.3, chill: true, element: "ice", cd: 14, vfx: "shower" } },
     { id: "m_missiles", name: "Arcane Missiles", icon: "💫", br: 2, lvl: 20, max: 3, req: "m_intellect", a: { kind: "multi", mult: 0.8, per: 0.15, hits: 3, element: "arcane", cd: 11 } },
     { id: "m_warp", name: "Time Warp", icon: "⏳", br: 2, lvl: 40, max: 5, req: "m_missiles", p: { cdr: 0.04 } },
     { id: "m_archmage", name: "Archmage", icon: "🧙", br: 2, lvl: 60, max: 5, req: "m_warp", p: { spellPct: 0.04 } },
@@ -5008,7 +5015,7 @@ function rpgTreeActiveDef(n) {
   const a = n.a;
   return { name: n.name, icon: n.icon, cd: a.cd, kind: a.kind, mult: a.mult != null ? Math.round((a.mult + a.per * (r - 1)) * 100) / 100 : undefined,
     hits: a.hits, jumps: a.jumps, pct: a.pct, stun: a.stun, burn: a.burn, chill: a.chill, poison: a.poison, pierce: a.pierce,
-    lifesteal: a.lifesteal, healPct: a.healPct, exec: a.exec, element: a.element };
+    lifesteal: a.lifesteal, healPct: a.healPct, exec: a.exec, element: a.element, vfx: a.vfx };
 }
 function rpgClassActives() {
   if (!rpgState || !rpgState.clazz) return [];
@@ -6004,12 +6011,12 @@ const RPG_SKILLS = {
   ember_staff:         { name: "Fireball", icon: "🔥", cd: 8, kind: "hit", mult: 1.7, burn: true },
   sprout_staff:        { name: "Regrowth", icon: "💚", cd: 10, kind: "heal", pct: 0.18 },
   arcane_staff:        { name: "Arcane Barrage", icon: "💫", cd: 9, kind: "multi", mult: 0.9, hits: 3 },
-  glacier_staff:       { name: "Blizzard", icon: "❄️", cd: 11, kind: "aoe", mult: 1.2, chill: true },
+  glacier_staff:       { name: "Blizzard", icon: "❄️", cd: 11, kind: "aoe", mult: 1.2, chill: true, vfx: "shower" },
   rune_staff:          { name: "Rune Detonation", icon: "🟩", cd: 10, kind: "aoe", mult: 1.5 },
   crystal_staff:       { name: "Prism Beam", icon: "🔷", cd: 9, kind: "pierce", mult: 2.4 },
   void_staff:          { name: "Void Drain", icon: "🌀", cd: 10, kind: "hit", mult: 2.0, lifesteal: 0.5 },
   royal_crook:         { name: "King's Blessing", icon: "👑", cd: 12, kind: "heal", pct: 0.22 },
-  sun_scepter:         { name: "Solar Flare", icon: "☀️", cd: 11, kind: "aoe", mult: 1.6, burn: true },
+  sun_scepter:         { name: "Solar Flare", icon: "☀️", cd: 11, kind: "aoe", mult: 1.6, burn: true, vfx: "sky" },
   star_wand:           { name: "Star Bolt", icon: "⭐", cd: 7, kind: "chain", mult: 1.3, jumps: 1 },
   comet_wand:          { name: "Comet Crash", icon: "☄️", cd: 10, kind: "chain", mult: 1.6, jumps: 2 },
   soldier_spear:       { name: "Skewer", icon: "🎯", cd: 7, kind: "pierce", mult: 2.0 },
@@ -6028,11 +6035,11 @@ const RPG_SKILLS = {
   storm_chick:         { name: "Mini Bolt", icon: "⚡", cd: 9, kind: "chain", mult: 1.1, jumps: 2 },
   owl_familiar:        { name: "Night Swoop", icon: "🦉", cd: 8, kind: "pierce", mult: 1.3 },
   star_unicorn:        { name: "Starlight Heal", icon: "🌟", cd: 10, kind: "heal", pct: 0.15 },
-  pocket_dragon:       { name: "Dragonfire", icon: "🔥", cd: 10, kind: "aoe", mult: 1.0, burn: true },
+  pocket_dragon:       { name: "Dragonfire", icon: "🔥", cd: 10, kind: "aoe", mult: 1.0, burn: true, vfx: "shower" },
   worldender:          { name: "Apocalypse", icon: "🌋", cd: 12, kind: "aoe", mult: 2.2, burn: true, stun: true },
   staff_of_creation:   { name: "Big Bang", icon: "💥", cd: 12, kind: "chain", mult: 2.0, jumps: 3, healPct: 0.1 },
   eclipse_reaper:      { name: "Eclipse", icon: "🌒", cd: 12, kind: "aoe", mult: 1.9, lifesteal: 0.4 },
-  eternal_phoenix:     { name: "Rebirth", icon: "🔥", cd: 14, kind: "aoe", mult: 1.2, burn: true, healPct: 0.2 },
+  eternal_phoenix:     { name: "Rebirth", icon: "🔥", cd: 14, kind: "aoe", mult: 1.2, burn: true, healPct: 0.2, vfx: "shower" },
   shortbow:            { name: "Double Shot", icon: "🏹", cd: 7, kind: "volley", mult: 1.0, hits: 2 },
   longbow:             { name: "Power Shot", icon: "🎯", cd: 8, kind: "pierce", mult: 2.0 },
   elven_bow:           { name: "Arrow Rain", icon: "🏹", cd: 10, kind: "volley", mult: 0.8, hits: 5, poison: true },
@@ -6169,7 +6176,7 @@ function advSpawnWave() {
     const scale = 1 + 0.22 * over;
     const e = rpgRandomEnemy(tier);
     const max = Math.round(e.maxHp * scale * (c.boss ? 1.5 : c.minion ? 0.45 : 1));
-    return { e, boss: !!c.boss, minion: !!c.minion, hp: max, max, scale,
+    return { e, boss: !!c.boss, minion: !!c.minion, hp: max, max, scale, ranged: RPG_RANGED_ENEMIES.has(e.id),
       armor: Math.floor(tier / 2) + (c.boss ? 2 : 0) + Math.ceil(over / 2),
       atkMs: c.boss ? 1500 : c.minion ? 2700 : 1900,
       nextAtk: now + 1900 + i * 650 + Math.random() * 400,
@@ -6253,19 +6260,27 @@ function advAutoAttack() {
   const fx = rpgWeaponFx(rpgState.equipment.weapon);
   advSwingAnim(fx.kind);
   const hero = $("advHero");
-  if (fx.kind === "thrust" || fx.kind === "punch") {
-    advAnimate(hero, [{ transform: "translateX(0)" }, { transform: "translateX(48px)" }, { transform: "translateX(0)" }], { duration: 460, easing: "ease-in-out" });
-  } else if (fx.kind === "magic") {
-    advProjectile(fx);
+  if (fx.kind === "magic") {
+    advProjectile(fx); // casters bombard from the back line
   } else if (fx.kind === "ranged") {
-    advArrow(fi, fx, false);
+    advArrow(fi, fx, false); // archers shoot from afar
   } else {
-    advAnimate(hero, [{ transform: "translateX(0)" }, { transform: "translateX(24px)" }, { transform: "translateX(0)" }], { duration: 430, easing: "ease-in-out" });
+    // melee: dash up to the front enemy, strike, and fall back
+    const fel = advFoeEl(fi), stg = $("advStage");
+    const dash = (fel && fel.offsetLeft != null && hero && hero.offsetLeft != null)
+      ? Math.max(20, fel.offsetLeft - hero.offsetLeft - 100)
+      : Math.round(((stg && stg.clientWidth) || 600) * 0.4);
+    advAnimate(hero, [
+      { transform: "translateX(0)" },
+      { transform: `translateX(${Math.round(dash)}px)`, offset: 0.4 },
+      { transform: `translateX(${Math.round(dash)}px)`, offset: 0.58 },
+      { transform: "translateX(0)" }
+    ], { duration: 740, easing: "ease-in-out" });
   }
   let dmg = adv.stats.atk * (0.9 + Math.random() * 0.3);
   const crit = Math.random() * 100 < adv.stats.crit;
   if (crit) dmg *= (adv.stats.critMult || 2);
-  advAfter(fx.kind === "magic" ? 480 : fx.kind === "ranged" ? 430 : 300, () => {
+  advAfter(fx.kind === "magic" ? 480 : fx.kind === "ranged" ? 430 : 400, () => {
     advHurtFoe(fi, dmg, { crit, fx, element: rpgWeaponElement(rpgState.equipment.weapon) });
     if (adv && adv.stats.poisonOnHit) advAddDot(fi, "poison", Math.max(1, Math.round(adv.stats.atk * 0.12 * adv.stats.poisonOnHit)), 3, "#3a9e5f");
   });
@@ -6340,10 +6355,44 @@ function advFloorClear() {
   adv.tiers = advWaveTiers(adv.floor - 1);
   advAfter(1500, advWalk);
 }
+function advFoeBolt(i) {
+  const layer = $("advFx"), stage = $("advStage");
+  if (!layer || !layer.appendChild) return;
+  const f = adv.foes[i], el = advFoeEl(i);
+  const w = (stage && stage.clientWidth) || 600;
+  const x = el && el.offsetLeft != null ? el.offsetLeft + 20 : w * 0.6;
+  const dx = -(x - w * 0.18);
+  const col = rpgElColor(f.e.el);
+  const p = document.createElement("span");
+  p.className = "adv-proj";
+  if (p.style) { p.style.left = x + "px"; p.style.top = "46%"; p.style.background = col; p.style.boxShadow = `0 0 12px 4px ${col}`; }
+  layer.appendChild(p);
+  advAnimate(p, [
+    { transform: "translate(0,0) scale(0.7)" },
+    { transform: `translate(${Math.round(dx * 0.5)}px, -20px)`, offset: 0.5 },
+    { transform: `translate(${Math.round(dx)}px, 6px) scale(1.1)` }
+  ], { duration: 420, easing: "linear" });
+  setTimeout(() => p.remove(), 460);
+}
 function advFoeAttack(i) {
   const f = adv.foes[i];
-  advAnimate(advFoeEl(i), [{ transform: "translateX(0)" }, { transform: "translateX(-56px)" }, { transform: "translateX(0)" }], { duration: 520, easing: "ease-in-out" });
-  advAfter(260, () => {
+  const el = advFoeEl(i);
+  if (f.ranged) {
+    advFoeBolt(i); // ranged monsters cast from where they stand
+  } else {
+    // melee monsters must run all the way to the hero to land a hit
+    const stage = $("advStage"), hero = $("advHero");
+    const dx = (el && el.offsetLeft != null && hero && hero.offsetLeft != null)
+      ? -(el.offsetLeft - hero.offsetLeft - 95)
+      : -Math.round(((stage && stage.clientWidth) || 600) * 0.42);
+    advAnimate(el, [
+      { transform: "translateX(0)" },
+      { transform: `translateX(${Math.round(dx)}px)`, offset: 0.4 },
+      { transform: `translateX(${Math.round(dx)}px)`, offset: 0.55 },
+      { transform: "translateX(0)" }
+    ], { duration: 700, easing: "ease-in-out" });
+  }
+  advAfter(f.ranged ? 440 : 330, () => {
     if (!adv || adv.phase !== "fight") return;
     const hero = $("advHero");
     if (Math.random() * 100 < (adv.stats.dodge || 0)) {
@@ -6400,7 +6449,8 @@ function advCast(s, idx) {
   switch (d.kind) {
     case "hit":
       advSwingAnim(s.owner === "pet" ? "magic" : wfx.kind);
-      advAfter(280, () => { const t = advFrontFoe(); if (t >= 0) { const dealt = advHurtFoe(t, atk * d.mult, { fx: wfx, exec: d.exec, pierce: d.pierce, element: wel }); advCastRiders(d, t, dealt); } });
+      if (wfx.kind === "magic" || d.element) advProjectile({ color: rpgElColor(wel), emoji: wfx.emoji, kind: "magic" });
+      advAfter(wfx.kind === "magic" || d.element ? 460 : 280, () => { const t = advFrontFoe(); if (t >= 0) { const dealt = advHurtFoe(t, atk * d.mult, { fx: wfx, exec: d.exec, pierce: d.pierce, element: wel }); advCastRiders(d, t, dealt); } });
       break;
     case "multi":
       for (let h = 0; h < d.hits; h++) {
@@ -6413,9 +6463,14 @@ function advCast(s, idx) {
       break;
     case "aoe":
       advSwingAnim(s.owner === "pet" ? "magic" : "chop");
+      if (d.vfx === "shower") advShower(wfx.emoji, 12);
       if (stage && stage.classList) { stage.classList.add("shake"); advAfter(380, () => stage.classList.remove("shake")); }
-      advAfter(300, () => advLivingFoes().forEach((i, k) =>
-        advAfter(k * 100, () => { const dealt = advHurtFoe(i, atk * d.mult, { fx: wfx, pierce: d.pierce, element: wel }); advCastRiders(d, i, dealt); })));
+      advAfter(d.vfx ? 480 : 300, () => advLivingFoes().forEach((i, k) =>
+        advAfter(k * 100, () => {
+          if (d.vfx === "sky") advSkyBolt(i, rpgElColor(wel));
+          const dealt = advHurtFoe(i, atk * d.mult, { fx: wfx, pierce: d.pierce, element: wel });
+          advCastRiders(d, i, dealt);
+        })));
       break;
     case "chain": {
       const targets = advLivingFoes().slice(0, d.jumps + 1);
@@ -6454,6 +6509,7 @@ function advCast(s, idx) {
       advHeal(adv.heroMax * d.pct, d.icon);
       break;
     case "slow": {
+      advShower("❄️", 9);
       const until = Date.now() + 4500;
       advLivingFoes().forEach(i => { adv.foes[i].chillUntil = until; advParticles(advFoeEl(i), "❄️", 3); });
       break;
@@ -6462,6 +6518,40 @@ function advCast(s, idx) {
       adv.shield = Math.max(adv.shield, 1);
       advFloat($("advHero"), "🛡️", "heal");
       break;
+  }
+}
+function advSkyBolt(i, color) {
+  const layer = $("advFx"), stage = $("advStage");
+  if (!layer || !layer.appendChild) return;
+  const el = advFoeEl(i);
+  const x = el && el.offsetLeft != null ? el.offsetLeft + 32 : (((stage && stage.clientWidth) || 600) * 0.6);
+  const c = document.createElement("span");
+  c.className = "adv-cloud2";
+  c.textContent = "☁️";
+  if (c.style) { c.style.left = (x - 16) + "px"; c.style.top = "4px"; }
+  layer.appendChild(c);
+  setTimeout(() => c.remove(), 750);
+  const b = document.createElement("span");
+  b.className = "adv-bolt";
+  if (b.style) { b.style.left = x + "px"; b.style.top = "24px"; b.style.background = `linear-gradient(${color}, transparent)`; b.style.boxShadow = `0 0 10px 2px ${color}`; }
+  layer.appendChild(b);
+  setTimeout(() => b.remove(), 460);
+}
+function advShower(emoji, n) {
+  const layer = $("advFx"), stage = $("advStage");
+  if (!layer || !layer.appendChild) return;
+  const w = (stage && stage.clientWidth) || 600;
+  for (let i = 0; i < n; i++) {
+    const s = document.createElement("span");
+    s.className = "adv-fall";
+    s.textContent = emoji;
+    if (s.style) {
+      s.style.left = Math.round(w * 0.42 + Math.random() * w * 0.52) + "px";
+      s.style.top = "-22px";
+      s.style.animationDelay = (Math.random() * 0.45).toFixed(2) + "s";
+    }
+    layer.appendChild(s);
+    setTimeout(() => s.remove(), 1500);
   }
 }
 function advChainFx(indices) {
