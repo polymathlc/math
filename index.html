@@ -6148,7 +6148,7 @@ function advStart() {
   advToken++;
   const stats = rpgPlayerStats();
   adv = { phase: "walk", wave: 0, floor: 1, tiers: advWaveTiers(0), stats, heroHp: stats.maxHp, heroMax: stats.maxHp,
-    foes: [], skills: advEquippedSkills(), shield: 0, heroNextAtk: 0, gold: 0, xp: 0, kills: 0, loopId: 0 };
+    foes: [], skills: advEquippedSkills(), shield: 0, heroNextAtk: 0, heroX: 0, heroInRange: false, gold: 0, xp: 0, kills: 0, loopId: 0 };
   adv.loopId = setInterval(advTick, ADV_TICK_MS);
   advOverlay("");
   advUpdateRunsChip();
@@ -6160,6 +6160,9 @@ function advStart() {
 }
 function advWalk() {
   adv.phase = "walk";
+  adv.heroX = 0;
+  const he = $("advHero");
+  if (he && he.style) he.style.transform = "";
   adv.foes = [];
   $("advFoes").innerHTML = "";
   $("advStage").classList.add("walking");
@@ -6176,7 +6179,7 @@ function advSpawnWave() {
     const scale = 1 + 0.22 * over;
     const e = rpgRandomEnemy(tier);
     const max = Math.round(e.maxHp * scale * (c.boss ? 1.5 : c.minion ? 0.45 : 1));
-    return { e, boss: !!c.boss, minion: !!c.minion, hp: max, max, scale, ranged: RPG_RANGED_ENEMIES.has(e.id),
+    return { e, boss: !!c.boss, minion: !!c.minion, hp: max, max, scale, ranged: RPG_RANGED_ENEMIES.has(e.id), x: 0, reached: false, baseLeft: 540 - i * 70,
       armor: Math.floor(tier / 2) + (c.boss ? 2 : 0) + Math.ceil(over / 2),
       atkMs: c.boss ? 1500 : c.minion ? 2700 : 1900,
       nextAtk: now + 1900 + i * 650 + Math.random() * 400,
@@ -6215,7 +6218,24 @@ function advTick() {
     if (tile && tile.classList) tile.classList.toggle("ready", remain <= 0);
   });
   if (adv.phase !== "fight") return;
-  if (now >= adv.heroNextAtk && advFrontFoe() >= 0) {
+  // positional movement: melee hero advances to the front enemy and holds there
+  const heroEl = $("advHero");
+  const heroBase = (heroEl && heroEl.offsetLeft != null) ? heroEl.offsetLeft : 30;
+  const heroKind = rpgWeaponFx(rpgState.equipment.weapon).kind;
+  const heroMelee = heroKind !== "magic" && heroKind !== "ranged";
+  const fi0 = advFrontFoe();
+  let frontGap = Infinity;
+  if (fi0 >= 0) {
+    const f0 = adv.foes[fi0], el0 = advFoeEl(fi0);
+    const fb = (el0 && el0.offsetLeft != null) ? el0.offsetLeft : f0.baseLeft;
+    frontGap = (fb + f0.x) - (heroBase + adv.heroX) - 100;
+  }
+  if (heroMelee && fi0 >= 0 && frontGap > 12) {
+    adv.heroX += Math.min(9, frontGap - 10);
+    if (heroEl && heroEl.style) heroEl.style.transform = `translateX(${Math.round(adv.heroX)}px)`;
+  }
+  adv.heroInRange = !heroMelee || frontGap <= 16;
+  if (now >= adv.heroNextAtk && fi0 >= 0 && adv.heroInRange) {
     adv.heroNextAtk = now + ADV_HERO_ATK_MS;
     advAutoAttack();
   }
@@ -6239,7 +6259,21 @@ function advTick() {
       el.classList.toggle("chilled", now < f.chillUntil);
       el.classList.toggle("stunned", now < f.stunned);
     }
+    // melee monsters march toward the hero; they can be shot down on the way
+    if (!f.ranged) {
+      const fel = advFoeEl(i);
+      const fb = (fel && fel.offsetLeft != null) ? fel.offsetLeft : f.baseLeft;
+      const gap = (fb + f.x) - (heroBase + adv.heroX) - 95;
+      if (gap > 10 && now >= (f.stunned || 0) && now >= (f.chillUntil || 0) - 4000 + (now < f.chillUntil ? 0 : 0)) {
+        f.x -= Math.min((f.minion ? 6.5 : 5) * (now < f.chillUntil ? 0.5 : 1), gap - 8);
+        if (fel && fel.style) fel.style.transform = `translateX(${Math.round(f.x)}px)`;
+        f.reached = false;
+      } else if (gap <= 10) {
+        f.reached = true;
+      }
+    }
     if (now >= f.nextAtk) {
+      if (!f.ranged && !f.reached) { f.nextAtk = now + 350; return; }
       f.nextAtk = now + f.atkMs * (now < f.chillUntil ? 1.7 : 1) * (0.9 + Math.random() * 0.3);
       if (now < f.stunned) return;
       advFoeAttack(i);
@@ -6265,22 +6299,18 @@ function advAutoAttack() {
   } else if (fx.kind === "ranged") {
     advArrow(fi, fx, false); // archers shoot from afar
   } else {
-    // melee: dash up to the front enemy, strike, and fall back
-    const fel = advFoeEl(fi), stg = $("advStage");
-    const dash = (fel && fel.offsetLeft != null && hero && hero.offsetLeft != null)
-      ? Math.max(20, fel.offsetLeft - hero.offsetLeft - 100)
-      : Math.round(((stg && stg.clientWidth) || 600) * 0.4);
+    // melee: already standing at the front line — strike in place
+    const hx = Math.round(adv.heroX);
     advAnimate(hero, [
-      { transform: "translateX(0)" },
-      { transform: `translateX(${Math.round(dash)}px)`, offset: 0.4 },
-      { transform: `translateX(${Math.round(dash)}px)`, offset: 0.58 },
-      { transform: "translateX(0)" }
-    ], { duration: 740, easing: "ease-in-out" });
+      { transform: `translateX(${hx}px)` },
+      { transform: `translateX(${hx + 18}px)`, offset: 0.45 },
+      { transform: `translateX(${hx}px)` }
+    ], { duration: 360, easing: "ease-in-out" });
   }
   let dmg = adv.stats.atk * (0.9 + Math.random() * 0.3);
   const crit = Math.random() * 100 < adv.stats.crit;
   if (crit) dmg *= (adv.stats.critMult || 2);
-  advAfter(fx.kind === "magic" ? 480 : fx.kind === "ranged" ? 430 : 400, () => {
+  advAfter(fx.kind === "magic" ? 480 : fx.kind === "ranged" ? 430 : 300, () => {
     advHurtFoe(fi, dmg, { crit, fx, element: rpgWeaponElement(rpgState.equipment.weapon) });
     if (adv && adv.stats.poisonOnHit) advAddDot(fi, "poison", Math.max(1, Math.round(adv.stats.atk * 0.12 * adv.stats.poisonOnHit)), 3, "#3a9e5f");
   });
@@ -6380,19 +6410,15 @@ function advFoeAttack(i) {
   if (f.ranged) {
     advFoeBolt(i); // ranged monsters cast from where they stand
   } else {
-    // melee monsters must run all the way to the hero to land a hit
-    const stage = $("advStage"), hero = $("advHero");
-    const dx = (el && el.offsetLeft != null && hero && hero.offsetLeft != null)
-      ? -(el.offsetLeft - hero.offsetLeft - 95)
-      : -Math.round(((stage && stage.clientWidth) || 600) * 0.42);
+    // melee monster strikes from where it stands (it marched here)
+    const fx0 = Math.round(f.x);
     advAnimate(el, [
-      { transform: "translateX(0)" },
-      { transform: `translateX(${Math.round(dx)}px)`, offset: 0.4 },
-      { transform: `translateX(${Math.round(dx)}px)`, offset: 0.55 },
-      { transform: "translateX(0)" }
-    ], { duration: 700, easing: "ease-in-out" });
+      { transform: `translateX(${fx0}px)` },
+      { transform: `translateX(${fx0 - 20}px)`, offset: 0.45 },
+      { transform: `translateX(${fx0}px)` }
+    ], { duration: 360, easing: "ease-in-out" });
   }
-  advAfter(f.ranged ? 440 : 330, () => {
+  advAfter(f.ranged ? 440 : 240, () => {
     if (!adv || adv.phase !== "fight") return;
     const hero = $("advHero");
     if (Math.random() * 100 < (adv.stats.dodge || 0)) {
@@ -6588,6 +6614,8 @@ function advEnd() {
   $("advQuitBtn").style.display = "none";
   $("advStartBtn").style.display = "";
   $("advStage").classList.remove("walking");
+  const heEnd = $("advHero");
+  if (heEnd && heEnd.style) heEnd.style.transform = "";
   $("advStatus").textContent = "";
   advUpdateRunsChip();
   const best = rpgState.stats.bestFloor || 0;
