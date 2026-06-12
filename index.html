@@ -6242,7 +6242,8 @@ function advStart() {
     foes: [], skills: advEquippedSkills(), shield: 0, heroNextAtk: 0, heroX: 0, heroInRange: false, worldX: 0, scroll: 0, lurch: 0, gold: 0, xp: 0, kills: 0, loopId: 0, rafOn: false, mods: { atkPct: 0, goldPct: 0, cdr: 0, dr: 0, leech: 0, el: {} } };
   adv.loopId = setInterval(advTick, ADV_TICK_MS);
   adv.rafOn = true;
-  advRaf(Date.now());
+  advRafLast = 0;
+  if (typeof requestAnimationFrame === "function") requestAnimationFrame(advRaf);
   advOverlay("");
   advUpdateRunsChip();
   $("advStartBtn").style.display = "none";
@@ -6323,7 +6324,8 @@ function advStartArena(row) {
     arena: { row, stats: g, skill: g.weapon && RPG_SKILLS[g.weapon] ? { def: RPG_SKILLS[g.weapon], readyAt: Date.now() + 4000 } : null } };
   adv.loopId = setInterval(advTick, ADV_TICK_MS);
   adv.rafOn = true;
-  advRaf(Date.now());
+  advRafLast = 0;
+  if (typeof requestAnimationFrame === "function") requestAnimationFrame(advRaf);
   advOverlay("");
   $("advStartBtn").style.display = "none";
   $("advQuitBtn").style.display = "";
@@ -6369,14 +6371,16 @@ const ADV_BEAT_EPOCH = Date.now();
 let advRafLast = 0;
 function advRaf(ts) {
   if (!adv || !adv.rafOn) return;
-  const dt = Math.min(60, advRafLast ? ts - advRafLast : 16);
+  const dt = Math.max(0, Math.min(60, advRafLast ? ts - advRafLast : 16));
   advRafLast = ts;
   // ease scroll speed toward its target; consume kill-lurch boosts
   const target = adv.phase === "fight" || adv.phase === "between" ? adv.scrollTarget || 0 : 0;
   adv.scroll += (target - adv.scroll) * Math.min(1, dt / 220);
+  adv.scroll = Math.max(0, Math.min(160, adv.scroll));
   let dx = adv.scroll * dt / 1000;
   if (adv.lurch > 0) { const l = Math.min(adv.lurch, dt * 0.12); dx += l; adv.lurch -= l; }
   if (dx) adv.worldX += dx;
+  if (!Number.isFinite(adv.worldX)) adv.worldX = 0;
   const wEl = $("advFoes");
   if (wEl && wEl.style) wEl.style.transform = `translate3d(${-Math.round(adv.worldX)}px,0,0)`;
   const stage = $("advStage");
