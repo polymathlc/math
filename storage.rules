@@ -1,0 +1,30 @@
+rules_version = '2';
+
+// Storage rules for mathgen--app.
+//
+// !! DEPLOY WARNING !! — shared project: merge the Science app's storage
+// rules into this file before deploying, or its uploads will break.
+//
+// The app stores question / answer-key images under mathImages/{uid}/...
+// Reads require sign-in; the app itself shares images via download URLs,
+// whose unguessable token continues to work for <img> tags. Writes are
+// limited to the uploader's own folder, images only, max 7 MB.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /mathImages/{uid}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.size < 7 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // ===============================================================
+    // !! SCIENCE APP STORAGE RULES GO HERE !! (copy from the console)
+    // ===============================================================
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
