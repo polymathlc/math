@@ -459,7 +459,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .rpg-bar-row { margin-bottom: 8px; }
 .rpg-bar-row .rpg-bar-cap { display: flex; justify-content: space-between; font-family: 'Space Mono', monospace; font-size: 0.6rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 3px; }
 /* battle banner */
-.rpg-battle { margin-bottom: 14px; }
+.rpg-battle { position: sticky; top: var(--topbar-h, 62px); z-index: 30; margin-bottom: 14px; }
 .rpg-battle-card { border-radius: var(--radius-lg); background: linear-gradient(135deg, #2b2640 0%, #1f2937 100%); color: #fff; padding: 14px 16px; box-shadow: var(--shadow-md); border: 1px solid #3a3553; }
 .rpg-battle-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .rpg-battle-title { font-weight: 700; letter-spacing: -0.01em; }
@@ -2613,7 +2613,17 @@ function sizeWorksheetFrame() {
   const tb = document.querySelector(".topbar");
   f.style.height = (window.innerHeight - (tb ? tb.offsetHeight : 50)) + "px";
 }
+// Keep the sticky battle strip pinned right under the (also-sticky) topbar,
+// whatever the topbar's real height ends up being on this viewport.
+function syncTopbarHeight() {
+  const tb = document.querySelector(".topbar");
+  if (tb) document.documentElement.style.setProperty("--topbar-h", tb.offsetHeight + "px");
+}
+syncTopbarHeight();
+window.addEventListener("load", syncTopbarHeight);
+window.addEventListener("orientationchange", () => setTimeout(syncTopbarHeight, 250));
 window.addEventListener("resize", () => {
+  syncTopbarHeight();
   const p = $("page-worksheet");
   if (p && p.classList.contains("active")) sizeWorksheetFrame();
 });
