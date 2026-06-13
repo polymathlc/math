@@ -1269,6 +1269,7 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWith
 import { getFirestore, doc, getDoc, setDoc, collection, getDocs, deleteDoc, increment }
   from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app-check.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-functions.js";
 import { getAI, getGenerativeModel, GoogleAIBackend, ResponseModality } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-ai.js";
 import { getStorage, ref as storageRef, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-storage.js";
 
@@ -1291,6 +1292,17 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
+// Trusted backend: marking, hints, XP and admin claims all happen in Cloud
+// Functions so browser dev tools can't award XP or read answer keys.
+const cloudFunctions = getFunctions(app);
+const markAttemptCall = httpsCallable(cloudFunctions, "markAttempt", { timeout: 240000 });
+const getHintCall = httpsCallable(cloudFunctions, "getHint", { timeout: 240000 });
+const starfallCall = httpsCallable(cloudFunctions, "starfall");
+const importLegacyProgressionCall = httpsCallable(cloudFunctions, "importLegacyProgression");
+const grantAdminRoleCall = httpsCallable(cloudFunctions, "grantAdminRole");
+function serverErrorMessage(e) {
+  return String((e && e.message) || e || "server error").replace(/^(Firebase|functions):\s*/i, "");
+}
 const googleProvider = new GoogleAuthProvider();
 if (RECAPTCHA_SITE_KEY && !RECAPTCHA_SITE_KEY.startsWith("PASTE_")) {
   try { initializeAppCheck(app, { provider: new ReCaptchaV3Provider(RECAPTCHA_SITE_KEY), isTokenAutoRefreshEnabled: true }); }
@@ -2065,7 +2077,7 @@ function reviewPlanText(verdict, nextReviewAt) {
   const when = mins < 60 ? `about ${mins} minute${mins === 1 ? "" : "s"}` : `about ${Math.round(mins / 60)} hour${Math.round(mins / 60) === 1 ? "" : "s"}`;
   return `This question is queued for review again in ${when}. Once you get it right, the next review will be spaced further out.`;
 }
-async function recordLearningAttempt(q, v) {
+async function recordLearningAttempt(q, v, serverProgress) {
   if (!currentUser || currentUser.role !== "student" || !q) return "";
   const verdict = (v.verdict || "incorrect").toLowerCase();
   const isCorrect = verdict === "correct";
@@ -2100,6 +2112,9 @@ async function recordLearningAttempt(q, v) {
   const strengthLabels = strengthLabelsFromResult(v, q);
   if (labels.length) next.lastWeaknesses = labels;
   if (strengthLabels.length) next.lastStrengths = strengthLabels;
+  // The server's progress doc is the authority (it drives repeat-reward
+  // detection); local values are just the offline fallback.
+  if (serverProgress) Object.assign(next, serverProgress, { eloAfter: eloUpdate.after });
   studentProgress[q.id] = next;
 
   const weaknesses = Object.assign({}, studentLearningProfile.weaknesses || {});
@@ -2135,29 +2150,10 @@ async function recordLearningAttempt(q, v) {
   const eloHistory = Array.isArray(studentLearningProfile.eloHistory) ? studentLearningProfile.eloHistory.slice(-19) : [];
   eloHistory.push({ at: nowIso, q: q.id, d: eloUpdate.difficulty, before: eloUpdate.before, after: eloUpdate.after, credit: Math.round(credit * 100) / 100 });
   studentLearningProfile = { weaknesses, strengths, topicStats, conceptStats, skillStats, totals, recentNotes, elo: eloUpdate.after, eloAttempts: eloUpdate.attempts, eloHistory, updatedAt: nowIso };
-  const attemptId = makeDocId("attempt");
-  const attemptDoc = {
-    id: attemptId,
-    questionId: q.id,
-    questionTitle: q.title || "",
-    topic: topicForMemory(q),
-    topics: questionTopics(q),
-    concept: conceptLabel(q),
-    verdict,
-    marks: earned,
-    outOf: possible,
-    credit,
-    strengths: strengthLabels,
-    weaknesses: labels,
-    skillScores: Array.isArray(v.skillScores) ? v.skillScores : [],
-    learningNote: note,
-    nextReviewAt: next.nextReviewAt,
-    createdAt: nowIso
-  };
-
+  // The attempt log and question progress are written server-side by the
+  // marking function (clients are read-only there); the browser persists
+  // only its private learning-profile analytics (elo, weakness buckets).
   try {
-    await setDoc(doc(db, "users", currentUser.uid, "mathQuestionProgress", progressDocId(q)), next, { merge: true });
-    await setDoc(doc(db, "users", currentUser.uid, "mathPerformanceAttempts", attemptId), attemptDoc);
     await setDoc(doc(db, "users", currentUser.uid, "settings", "mathLearningProfile"), studentLearningProfile, { merge: true });
   } catch (e) { console.warn("learning save", e); }
   renderLearningProfile();
@@ -2255,11 +2251,17 @@ async function generateWeaknessPractice() {
 // =====================================================================
 // Built-in starter questions (used as a fallback when the bank is empty)
 // =====================================================================
+// Answer keys for these live in the marking function, not the browser.
 const STARTER_QUESTIONS = [
-  { id: "starter1", level: "P5", topic: "Fractions", blocks: [{ id: "b1", type: "text", content: "Jamie ate ⅖ of a pizza and Sam ate ¼ of the same pizza. What fraction of the pizza is left?" }], expected: "7/20", markingGuide: "Common denominator 20. 2/5=8/20, 1/4=5/20, eaten 13/20, left 7/20." },
-  { id: "starter2", level: "P6", topic: "Ratio", blocks: [{ id: "b1", type: "text", content: "The ratio of red to blue marbles is 3 : 5. There are 24 red marbles. How many marbles are there altogether?" }], expected: "64", markingGuide: "1 unit = 24÷3 = 8. Total units = 8. Total = 8×8 = 64." },
-  { id: "starter3", level: "P6", topic: "Algebra", blocks: [{ id: "b1", type: "text", content: "Solve for x:  3x + 7 = 25" }], expected: "x = 6", markingGuide: "3x = 18, x = 6." }
+  { id: "starter1", level: "P5", topic: "Fractions", blocks: [{ id: "b1", type: "text", content: "Jamie ate ⅖ of a pizza and Sam ate ¼ of the same pizza. What fraction of the pizza is left?" }] },
+  { id: "starter2", level: "P6", topic: "Ratio", blocks: [{ id: "b1", type: "text", content: "The ratio of red to blue marbles is 3 : 5. There are 24 red marbles. How many marbles are there altogether?" }] },
+  { id: "starter3", level: "P6", topic: "Algebra", blocks: [{ id: "b1", type: "text", content: "Solve for x:  3x + 7 = 25" }] }
 ];
+function questionSource(q) {
+  if (q && q.generatedByAi) return "generated";
+  if (q && /^starter\d+$/.test(String(q.id || ""))) return "starter";
+  return "bank";
+}
 
 // =====================================================================
 // Global state
@@ -2338,7 +2340,19 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 async function enterApp(user) {
-  const isAdmin = ADMIN_EMAILS.includes((user.email || "").toLowerCase());
+  // The real admin role is the `admin` custom claim — that's what Firestore
+  // rules and the backend trust. ADMIN_EMAILS only decides who may ASK the
+  // grantAdminRole function for the claim (it re-checks its own list).
+  let tokenResult = null;
+  try { tokenResult = await user.getIdTokenResult(); } catch (e) { console.warn("token read", e); }
+  let isAdmin = !!(tokenResult && tokenResult.claims && tokenResult.claims.admin);
+  if (!isAdmin && ADMIN_EMAILS.includes((user.email || "").toLowerCase())) {
+    try {
+      await grantAdminRoleCall({});
+      tokenResult = await user.getIdTokenResult(true); // force-refresh to pick up the claim
+      isAdmin = !!(tokenResult.claims && tokenResult.claims.admin);
+    } catch (e) { console.warn("admin role claim failed", e); }
+  }
   currentUser = { uid: user.uid, email: user.email, name: user.displayName || (user.email || "").split("@")[0], role: isAdmin ? "admin" : "student" };
 
   $("authScreen").style.display = "none";
@@ -2362,9 +2376,10 @@ async function enterApp(user) {
     await loadFlagNotifications();
     navigateTo("create");
   } else {
-    // students discover the admin and load their bank + marking rubric
+    // students discover the admin and load their bank (the marking rubric
+    // stays private — the marking function reads it server-side)
     try { const cfg = await getDoc(doc(db, "config", "mathAdmin")); if (cfg.exists()) adminUid = cfg.data().uid; } catch (e) { console.warn(e); }
-    if (adminUid) { await loadMarkingSettings(adminUid); await loadBank(adminUid); }
+    if (adminUid) await loadBank(adminUid);
     if (!questionBank.length) questionBank = STARTER_QUESTIONS.slice();
     await loadStudentLearningState(user.uid);
     saveStudentRosterSummary();
@@ -2667,21 +2682,55 @@ document.querySelectorAll(".overlay").forEach(o => o.addEventListener("click", e
 // =====================================================================
 // QUESTION BANK (Firestore: users/{uid}/mathQuestions)
 // =====================================================================
+// Answers live in a separate, admin-only doc (mathQuestionKeys) so the
+// student-readable question doc never contains anything worth peeking at.
+const QUESTION_KEY_FIELDS = ["expected", "markingGuide", "answerKeyImageUrl", "videoExplanationUrl"];
+function splitQuestionDoc(q) {
+  const pub = Object.assign({}, q);
+  const key = { id: q.id };
+  QUESTION_KEY_FIELDS.forEach(f => { if (pub[f]) key[f] = pub[f]; delete pub[f]; });
+  return { pub, key };
+}
 async function loadBank(uid) {
   questionBank = [];
+  const needsSplit = [];
   try {
     const snap = await getDocs(collection(db, "users", uid, "mathQuestions"));
-    snap.forEach(d => questionBank.push(d.data()));
+    snap.forEach(d => {
+      const q = d.data();
+      if (canManageQuestions() && QUESTION_KEY_FIELDS.some(f => q[f])) needsSplit.push(q.id);
+      questionBank.push(q);
+    });
+    if (canManageQuestions()) {
+      // admins merge the private half back in for editing / printing
+      try {
+        const keys = await getDocs(collection(db, "users", uid, "mathQuestionKeys"));
+        const byId = {};
+        keys.forEach(d => { byId[d.id] = d.data(); });
+        questionBank.forEach(q => Object.assign(q, byId[q.id] || {}));
+      } catch (e) { console.warn("key load", e); }
+      if (needsSplit.length) {
+        // one-time migration: strip answers out of the student-readable docs
+        for (const id of needsSplit) {
+          const q = questionBank.find(x => x.id === id);
+          if (q) await saveQuestionDoc(q).catch(e => console.warn("question split", id, e));
+        }
+        console.info(`Moved the answer key out of ${needsSplit.length} student-readable question doc(s).`);
+      }
+    }
     questionBank.sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
   } catch (e) { console.warn("bank load", e); }
 }
 async function saveQuestionDoc(q) {
   if (!canManageQuestions()) throw new Error("Only admin accounts can save questions");
-  await setDoc(doc(db, "users", currentUser.uid, "mathQuestions", q.id), q);
+  const { pub, key } = splitQuestionDoc(q);
+  await setDoc(doc(db, "users", currentUser.uid, "mathQuestions", q.id), pub);
+  await setDoc(doc(db, "users", currentUser.uid, "mathQuestionKeys", q.id), key);
 }
 async function deleteQuestionDoc(id) {
   if (!canManageQuestions()) throw new Error("Only admin accounts can delete questions");
   await deleteDoc(doc(db, "users", currentUser.uid, "mathQuestions", id));
+  await deleteDoc(doc(db, "users", currentUser.uid, "mathQuestionKeys", id)).catch(() => {});
 }
 
 function renderBank() {
@@ -4034,7 +4083,7 @@ function showResult(v, png, reviewPlan = "", usedPhoto = false) {
 }
 
 $("hintBtn").addEventListener("click", async () => {
-  if (!aiReady()) { toast("AI hint isn't ready yet - please wait a moment", "error"); return; }
+  if (!currentUser) { toast("Sign in to use AI hints", "error"); return; }
   if (!questionBank.length) return;
   const q = questionBank[qIndex];
   const typedWorking = $("typedWorking").value.trim();
@@ -4046,41 +4095,27 @@ $("hintBtn").addEventListener("click", async () => {
   btn.disabled = true;
   label.innerHTML = '<span class="spinner dark"></span> Thinking...';
   try {
-    const keyMedia = await answerKeyMedia(q);
-    const solutionMedia = solutionPhotoInlineMedia();
-    const hasAnswerKeyImage = keyMedia.length > 0;
-    const { media, note: mediaNote } = buildPracticeMedia(b64, solutionMedia, keyMedia);
-    const prompt =
-      `You are a friendly Singapore primary-school math tutor giving a student's next-step hint before marking. ` +
-      `${mediaNote}` +
-      `The worksheet screenshot includes the question, any underlining or annotations, handwriting, typed text, or both. ` +
-      `${solutionMedia ? "The photographed paper solution may contain extra student working that is not on the worksheet screenshot; read both as one answer.\n" : "\n"}` +
-      `${hasAnswerKeyImage ? "The teacher's private answer key or worked solution is for you only. Use it to understand the intended method; do not reveal the full solution or final answer.\n" : ""}` +
-      `${studentLearningPreamble()}` +
-      `${teacherConceptNote(q)}` +
-      `${markingPreamble(q.markingGuide)}\n\n` +
-      `QUESTION: "${questionText(q)}"\n` +
-      `CORRECT ANSWER (private - do not reveal it): "${q.expected || "(use the marking guide and answer key image if provided)"}"\n` +
-      `STUDENT'S TYPED WORKING (if any): "${typedWorking || "(none - read it from the image)"}"\n` +
-      `STUDENT'S TYPED FINAL ANSWER (if any): "${finalAnswer || "(none typed)"}"\n\n` +
-      `Use the question and the student's current workings together to decide what they should do next. ` +
-      `Give exactly one helpful hint that nudges the next step. Do not solve the whole question, do not reveal the final answer, and do not give marks. ` +
-      `If their working has a specific mistake, point to the kind of step to re-check without rewriting the full solution. ` +
-      `If they have not started, suggest a sensible first step. Address the student as "you".\n\n` +
-      `Return ONLY JSON: {"hint":"<one concise next-step hint>"}`;
-    const raw = await askGeminiVision(prompt, media, { maxOutputTokens: 450, json: true });
-    const data = parseAIJson(raw);
-    const hint = String(data.hint || "").trim();
+    // Hints come from the getHint Cloud Function, which can read the
+    // private answer key without ever sending it to the browser.
+    const res = await getHintCall({
+      questionId: q.id,
+      source: questionSource(q),
+      typedWorking,
+      finalAnswer,
+      worksheetPng: b64,
+      solutionPhoto: solutionPhotoInlineMedia()
+    });
+    const hint = String((res.data && res.data.hint) || "").trim();
     if (!hint) throw new Error("empty hint - please try again");
     showHint(hint);
     rpgNoteHintUsed();
     toast("Hint ready", "success");
-  } catch (e) { console.error(e); toast("AI hint error: " + aiErrorMessage(e), "error"); }
+  } catch (e) { console.error(e); toast("AI hint error: " + serverErrorMessage(e), "error"); }
   finally { btn.disabled = false; label.textContent = "AI hint"; }
 });
 
 $("submitBtn").addEventListener("click", async () => {
-  if (!aiReady()) { toast("AI marking isn't ready yet — please wait a moment", "error"); return; }
+  if (!currentUser) { toast("Sign in to submit work for marking", "error"); return; }
   if (!questionBank.length) return;
   const typedWorking = $("typedWorking").value.trim();
   if (!strokes.length && !typedWorking && !$("finalAnswer").value.trim() && !solutionPhotoDataUrl) { toast("Write, type, take a photo, or enter an answer first", "error"); return; }
@@ -4088,43 +4123,25 @@ $("submitBtn").addEventListener("click", async () => {
   const png = await exportWorkingPng();
   const b64 = png.split(",")[1];
   const btn = $("submitBtn"); btn.disabled = true; $("submitLabel").innerHTML = '<span class="spinner"></span> Marking your worksheet…';
-  const qText = questionText(q);
   try {
-    const keyMedia = await answerKeyMedia(q);
+    // Marking happens in the markAttempt Cloud Function: it reads the
+    // private answer key, calls Gemini, and writes the attempt + XP with
+    // the Admin SDK. The browser never sees the key and can't grade itself.
     const solutionMedia = solutionPhotoInlineMedia();
-    const hasAnswerKeyImage = keyMedia.length > 0;
-    const { media, note: mediaNote } = buildPracticeMedia(b64, solutionMedia, keyMedia);
-    const prompt =
-      `You are a friendly, encouraging Singapore primary-school math teacher marking a student's worksheet. ` +
-      `${mediaNote}` +
-      `The worksheet screenshot includes the question, any underlining or annotations, handwriting, typed text, or both. ` +
-      `${solutionMedia ? "The photographed paper solution may contain extra student working that is not on the worksheet screenshot; read both as one complete submission.\n" : "\n"}` +
-      `${hasAnswerKeyImage ? "The teacher's private answer key or worked solution is the authority for the intended solution. Read it carefully and use it with the teacher guidance below.\n" : ""}` +
-      `${studentLearningPreamble()}` +
-      `${teacherConceptNote(q)}` +
-      `${markingPreamble(q.markingGuide)}\n\n` +
-      `QUESTION: "${qText}"\n` +
-      `CORRECT ANSWER: "${q.expected || "(use the marking guide and answer key image if provided)"}"\n` +
-      `STUDENT'S TYPED WORKING (if any): "${typedWorking || "(none — read it from the image)"}"\n` +
-      `STUDENT'S TYPED FINAL ANSWER: "${$("finalAnswer").value.trim() || "(none typed — read it from the working)"}"\n\n` +
-      `Read the question and the student's annotations, handwriting, and typed text carefully; follow the working step by step and decide if the method and final answer are right. ` +
-      `Use the correct-answer text, teacher marking guide, and answer-key image as the authority for the intended solution. ` +
-      `Generate a full worked answer key from that guidance, including the main method steps and final answer, so the student can learn after submitting. ` +
-      `Award method marks even if the final answer is wrong but the approach is sound. Address the student as "you". ` +
-      `Identify the student's strengths, weaknesses, and skill scores from this exact attempt. Use concise private labels for memory, not long explanations. ` +
-      `If you genuinely cannot read the handwriting or answer-key image, say so in the feedback.\n\n` +
-      `Return ONLY JSON: {"verdict":"correct"|"partial"|"incorrect","marks":<number>,"outOf":<number>,` +
-      `"feedback":"<2-3 warm sentences>","mistakes":["<specific slip or misread step>", ...],` +
-      `"nextStep":"<one concrete hint, or empty string if fully correct>",` +
-      `"fullAnswerKey":"<complete worked answer key generated from the teacher guidance and answer key image>",` +
-      `"strengths":["<private short strength label>", ...],` +
-      `"weaknesses":["<private short weakness label for teacher memory>", ...],` +
-      `"skillScores":[{"label":"<skill or concept>","score":<0-100>,"evidence":"<brief private evidence>"}],` +
-      `"learningNote":"<one private sentence about what this student seems to need next>"}`;
-    const raw = await askGeminiVision(prompt, media, { maxOutputTokens: 1500, json: true });
-    const v = parseAIJson(raw);
-    const reviewPlan = await recordLearningAttempt(q, v);
-    try { rpgOnMarked(q, v); } catch (err) { console.warn("rpg reward", err); }
+    const res = await markAttemptCall({
+      questionId: q.id,
+      source: questionSource(q),
+      typedWorking,
+      finalAnswer: $("finalAnswer").value.trim(),
+      worksheetPng: b64,
+      solutionPhoto: solutionMedia,
+      practiceMode: aiPracticeActive
+    });
+    const out = res.data || {};
+    const v = out.verdict || {};
+    if (out.videoExplanationUrl) q.videoExplanationUrl = out.videoExplanationUrl; // revealed only after marking
+    const reviewPlan = await recordLearningAttempt(q, v, out.progress);
+    try { rpgOnMarked(q, v, { server: out }); } catch (err) { console.warn("rpg reward", err); }
     showResult(v, png, reviewPlan, !!solutionMedia);
     const verdict = (v.verdict || "").toLowerCase();
     let markMsg = verdict === "correct" ? "Great work! 🎉" : "Marked — see the feedback";
@@ -4133,7 +4150,7 @@ $("submitBtn").addEventListener("click", async () => {
       markMsg += ` • Rating ${lastEloChange.after}${delta ? ` (${delta > 0 ? "+" : ""}${delta})` : ""}`;
     }
     toast(markMsg, verdict === "correct" ? "success" : "");
-  } catch (e) { console.error(e); toast("AI mark error: " + aiErrorMessage(e), "error"); }
+  } catch (e) { console.error(e); toast("AI mark error: " + serverErrorMessage(e), "error"); }
   finally { btn.disabled = false; $("submitLabel").innerHTML = "📸 Submit for AI marking"; }
 });
 
@@ -5618,16 +5635,24 @@ function rpgCodexTabHtml() {
     <div class="section-label" style="margin-top:12px;">Titles</div><div class="rpg-set-row">${titles}</div>`;
 }
 // ---- Starfall rebirth (prestige at level 60+) ----
-function rpgRebirth() {
+async function rpgRebirth() {
   if (!rpgState) return;
   const lvl = rpgLevelInfo().level;
   if (lvl < 60) { toast("Starfall unlocks at level 60", "error"); return; }
   let shards = (lvl - 50) + Math.floor((rpgState.stats.bestFloor || 0) / 10);
   if (lvl >= 99) shards = Math.round(shards * 1.5);
   if (!confirm(`⭐ STARFALL — begin again at level 1 for ${shards} Star Shards?\n\nYOU KEEP: all items, gold, pets, upgrades, collections.\nRESETS: level, skill points (refunded), path seal, daily raids.\nYour gear remembers you — level requirements no longer apply.`)) return;
-  rpgState.shards = (rpgState.shards || 0) + shards;
-  rpgState.rebirths = (rpgState.rebirths || 0) + 1;
-  rpgState.xpBaseline = rpgState.xp;
+  if (RPG_STORAGE_MODE === "firestore") {
+    // the starfall function validates the level and owns shards/rebirths
+    try {
+      const res = await starfallCall({ action: "rebirth", bestFloor: (rpgState.stats && rpgState.stats.bestFloor) || 0 });
+      rpgApplyServerTotals(res.data && res.data.totals);
+    } catch (e) { toast("Starfall failed: " + serverErrorMessage(e), "error"); return; }
+  } else {
+    rpgState.shards = (rpgState.shards || 0) + shards;
+    rpgState.rebirths = (rpgState.rebirths || 0) + 1;
+    rpgState.xpBaseline = rpgState.xp;
+  }
   rpgState.skills = {};
   rpgState.paths = {};
   rpgState.advRuns = null;
@@ -5636,7 +5661,7 @@ function rpgRebirth() {
   rpgPublishLeaderboard();
   rpgRenderCharacterPage();
   rpgRenderSide();
-  toast(`⭐ STARFALL! +${shards} Star Shards — Rebirth ${rpgState.rebirths}`, "success");
+  toast(`⭐ STARFALL! Rebirth ${rpgState.rebirths} — ${rpgState.shards || 0} Star Shards banked`, "success");
 }
 const RPG_STAR_SHOP = [
   { id: "gold", name: "Stargold", icon: "🪙", desc: "+5% gold per rank", max: 10, cost: r => 5 * (r + 1) },
@@ -5644,16 +5669,25 @@ const RPG_STAR_SHOP = [
   { id: "raids", name: "Star Raids", icon: "🏰", desc: "+1 dungeon raid per day", max: 2, cost: () => 40 },
   { id: "nova", name: "Nova the Star-Dragon", icon: "🌟", desc: "Exclusive mythic pet", max: 1, cost: () => 100 }
 ];
-function rpgBuyStar(id) {
+async function rpgBuyStar(id) {
   const s = RPG_STAR_SHOP.find(x => x.id === id);
   if (!s || !rpgState) return;
   const cur = id === "nova" ? (rpgState.star.nova ? 1 : 0) : (rpgState.star[id] || 0);
   if (cur >= s.max) return;
   const cost = s.cost(cur);
   if ((rpgState.shards || 0) < cost) { toast(`Need ${cost} Star Shards — rebirth to earn more!`, "error"); return; }
-  rpgState.shards -= cost;
-  if (id === "nova") { rpgState.star.nova = true; rpgState.inventory.nova_dragon = 1; }
-  else rpgState.star[id] = cur + 1;
+  if (RPG_STORAGE_MODE === "firestore") {
+    // shards are a server currency; the starfall function checks the price
+    try {
+      const res = await starfallCall({ action: "buyStar", id });
+      rpgApplyServerTotals(res.data && res.data.totals);
+    } catch (e) { toast("Star shop: " + serverErrorMessage(e), "error"); return; }
+  } else {
+    rpgState.shards -= cost;
+    if (id === "nova") rpgState.star.nova = true;
+    else rpgState.star[id] = cur + 1;
+  }
+  if (id === "nova" && rpgState.star.nova) rpgState.inventory.nova_dragon = 1;
   rpgSave();
   rpgRenderCharacterPage();
   toast(`⭐ ${s.name}!`, "success");
@@ -5778,6 +5812,15 @@ async function rpgInit() {
   const saved = await rpgLoadState();
   if (!currentUser || currentUser.uid !== uid) return; // signed out while loading
   rpgState = rpgHydrate(saved);
+  if (RPG_STORAGE_MODE === "firestore") {
+    // Pull the authoritative progression. First call seeds it from the old
+    // client-owned save (one-time legacy import); afterwards it just reads.
+    try {
+      const res = await importLegacyProgressionCall({});
+      if (!currentUser || currentUser.uid !== uid) return;
+      rpgApplyServerTotals(res.data && res.data.totals);
+    } catch (e) { console.warn("progression sync", e); }
+  }
   const stats = rpgPlayerStats();
   if (!Number.isFinite(rpgState.hp) || rpgState.hp === null) rpgState.hp = stats.maxHp;
   rpgState.hp = Math.max(1, Math.min(rpgState.hp, stats.maxHp));
@@ -5846,17 +5889,36 @@ function rpgRolloverMonth() {
   rpgState.monthKey = key;
   rpgState.monthXp = 0;
 }
-function rpgApplyRewards(gold, xp) {
-  const learn = (rpgState && rpgState.star && rpgState.star.learn) || 0;
-  if (learn && xp > 0) xp = Math.round(xp * (1 + 0.05 * learn));
-  try { rpgRaidContribute(xp); } catch (_) {}
+// Mirrors the server-owned progression (users/{uid}/serverStats/progress)
+// into the local hero state. The local copy is display-only — the backend
+// is the authority for XP, month standings, rebirths, shards and stars.
+function rpgApplyServerTotals(totals) {
+  if (!rpgState || !totals) return;
+  rpgState.xp = totals.xp || 0;
+  rpgState.monthXp = totals.monthXp || 0;
+  rpgState.monthKey = totals.monthKey || rpgState.monthKey;
+  rpgState.lastMonthXp = totals.lastMonthXp || 0;
+  rpgState.lastMonthKey = totals.lastMonthKey || rpgState.lastMonthKey;
+  rpgState.xpBaseline = totals.xpBaseline || 0;
+  rpgState.rebirths = totals.rebirths || 0;
+  rpgState.shards = totals.shards || 0;
+  if (totals.star) rpgState.star = Object.assign({ gold: 0, learn: 0, raids: 0, nova: false }, totals.star);
+}
+function rpgApplyRewards(gold, xp, serverTotals) {
   const before = rpgLevelInfo().level;
   const goldPct = rpgPlayerStats().goldPct || 0;
   if (goldPct && gold > 0) gold = Math.round(gold * (1 + goldPct));
   rpgState.gold += gold;
-  rpgState.xp += xp;
-  rpgRolloverMonth();
-  rpgState.monthXp += xp;
+  if (serverTotals) {
+    rpgApplyServerTotals(serverTotals);
+  } else {
+    // local/preview mode only — this XP never reaches the leaderboard
+    const learn = (rpgState && rpgState.star && rpgState.star.learn) || 0;
+    if (learn && xp > 0) xp = Math.round(xp * (1 + 0.05 * learn));
+    rpgState.xp += xp;
+    rpgRolloverMonth();
+    rpgState.monthXp += xp;
+  }
   rpgState.stats.goldEarned += gold;
   const after = rpgLevelInfo().level;
   if (after > before) rpgState.hp = rpgPlayerStats().maxHp; // level up = full heal
@@ -5967,17 +6029,27 @@ function rpgSurgeOffer() {
 }
 function rpgOnMarked(q, v, opts = {}) {
   if (!rpgState) return;
+  const server = opts.server || null;            // markAttempt response: authoritative reward + totals
+  const serverReward = server && server.reward ? server.reward : null;
   const verdict = String((v && v.verdict) || "incorrect").toLowerCase();
   const credit = attemptCredit(verdict, v || {});
   const diff = questionDifficultyRating(q || {});
   const boost = aiPracticeActive ? 1.25 : 1; // growth-zone practice pays more
-  const repeatAttempt = !opts.simulated && q && studentProgress[q.id] && (studentProgress[q.id].attempts || 0) > 1;
-  let gold = Math.round((6 + diff / 100) * credit * boost);
-  let xp = Math.round((16 + diff / 45) * credit * boost);
-  if (credit <= 0) { gold = 0; xp = 3; } // effort XP — progress never stalls completely
-  if (repeatAttempt) { gold = Math.round(gold * 0.4); xp = Math.round(xp * 0.5); }
+  const repeatAttempt = serverReward ? !!serverReward.repeatAttempt
+    : (!opts.simulated && q && studentProgress[q.id] && (studentProgress[q.id].attempts || 0) > 1);
+  let gold, xp;
+  if (serverReward) {
+    gold = serverReward.gold || 0;
+    xp = serverReward.xp || 0;
+  } else {
+    // local/preview fallback — mirrors the server formula
+    gold = Math.round((6 + diff / 100) * credit * boost);
+    xp = Math.round((16 + diff / 45) * credit * boost);
+    if (credit <= 0) { gold = 0; xp = 3; } // effort XP — progress never stalls completely
+    if (repeatAttempt) { gold = Math.round(gold * 0.4); xp = Math.round(xp * 0.5); }
+    if (xp > 0 && rpgSurgeBonus("xp")) xp = Math.round(xp * (1 + rpgSurgeBonus("xp")));
+  }
   if (gold > 0 && rpgSurgeBonus("gold")) gold = Math.round(gold * (1 + rpgSurgeBonus("gold")));
-  if (xp > 0 && rpgSurgeBonus("xp")) xp = Math.round(xp * (1 + rpgSurgeBonus("xp")));
   rpgState.stats.marked++;
   if (credit >= 0.95) rpgState.stats.correct++;
   if (!opts.simulated) {
@@ -5986,8 +6058,13 @@ function rpgOnMarked(q, v, opts = {}) {
   }
 
   const round = rpgState.battle ? rpgBattleRound(credit) : null;
-  if (round && round.victory) { gold += round.victory.gold; xp += round.victory.xp; }
-  const lvl = rpgApplyRewards(gold, xp);
+  if (round && round.victory) {
+    // battle victories pay gold + loot; XP is earned by marked questions
+    // only, because the server can't verify battle outcomes
+    gold += round.victory.gold;
+    if (serverReward) round.victory.xp = 0; else xp += round.victory.xp;
+  }
+  const lvl = rpgApplyRewards(gold, xp, server ? server.totals : null);
   rpgHintUsedQ = false;
   rpgSave();
   rpgPublishLeaderboard();
@@ -6523,49 +6600,37 @@ function rpgPublishLeaderboard() {
   clearTimeout(rpgPublishTimer);
   rpgPublishTimer = setTimeout(() => {
     if (!rpgState || !currentUser) return;
+    // Cosmetic fields only — XP / level / month standings / rebirths are
+    // written by the markAttempt function, and Firestore rules reject any
+    // client write that touches them.
     setDoc(doc(db, "gameLeaderboard", currentUser.uid), {
       uid: currentUser.uid,
       name: currentUser.name || "Student",
-      level: rpgLevelInfo().level,
-      xp: rpgState.xp,
-      monthXp: rpgState.monthXp || 0,
-      monthKey: rpgState.monthKey || rpgMonthKey(),
-      lastMonthXp: rpgState.lastMonthXp || 0,
-      lastMonthKey: rpgState.lastMonthKey || null,
       wins: (rpgState.stats && rpgState.stats.wins) || 0,
       bestFloor: (rpgState.stats && rpgState.stats.bestFloor) || 0,
       arenaWins: (rpgState.stats && rpgState.stats.arenaWins) || 0,
-      rebirths: rpgState.rebirths || 0,
       house: rpgHouseOf(currentUser.uid).id,
       clazz: rpgState.clazz || null,
       equipment: rpgState.equipment,
       updatedAt: new Date().toISOString()
-    }).catch(e => console.warn("leaderboard publish", e));
+    }, { merge: true }).catch(e => console.warn("leaderboard publish", e));
   }, 1200);
 }
 // ---- Class raid boss: one shared weekly HP pool the whole class chips away ----
 const RAID_MAX_HP = 20000, RAID_BOUNTY = 250;
 function rpgRaidWeek() { return "W" + Math.floor(Date.now() / 604800000); }
-let rpgRaidPending = 0, rpgRaidTimer = null, rpgRaidCache = null;
-function rpgRaidContribute(points) {
-  if (!points || !currentUser || RPG_STORAGE_MODE !== "firestore" || currentUser.role !== "student") return;
-  rpgRaidPending += Math.round(points);
-  clearTimeout(rpgRaidTimer);
-  rpgRaidTimer = setTimeout(() => {
-    const pts = rpgRaidPending;
-    rpgRaidPending = 0;
-    setDoc(doc(db, "raidBoss", "current"), { weekKey: rpgRaidWeek(), maxHp: RAID_MAX_HP, name: "Ancient Math Devourer", emoji: "🐲", dealt: increment(pts) }, { merge: true })
-      .catch(e => console.warn("raid", e));
-  }, 4000);
-}
+// Raid damage is contributed by the markAttempt function (1 XP = 1 damage);
+// Firestore rules make raidBoss/current read-only for clients.
+let rpgRaidCache = null;
 async function rpgRaidHtml() {
   if (RPG_STORAGE_MODE !== "firestore") return "";
   try {
     const snap = await getDoc(doc(db, "raidBoss", "current"));
     let d = snap.exists() ? snap.data() : null;
     if (!d || d.weekKey !== rpgRaidWeek()) {
+      // new week: render a fresh boss; the server resets the doc on the
+      // next marked attempt
       d = { weekKey: rpgRaidWeek(), maxHp: RAID_MAX_HP, dealt: 0, name: "Ancient Math Devourer", emoji: "🐲" };
-      setDoc(doc(db, "raidBoss", "current"), d).catch(() => {});
     }
     rpgRaidCache = d;
     const left = Math.max(0, (d.maxHp || RAID_MAX_HP) - (d.dealt || 0));
@@ -7815,6 +7880,9 @@ $("rpgBattle").addEventListener("click", e => {
   const btn = e.target.closest("[data-rpg-act]");
   if (!btn || !rpgState) return;
   const act = btn.dataset.rpgAct;
+  // sim-* are admin preview tools: enforce the role here, not just in the
+  // renderer — a student can inject the button from dev tools
+  if (act.startsWith("sim-") && !canManageQuestions()) return;
   if (act === "start") rpgStartBattle();
   else if (act === "flee") rpgFlee();
   else if (act === "character") navigateTo("character");

@@ -1,0 +1,174 @@
+rules_version = '2';
+
+// =====================================================================
+// Firestore rules for the Math Practice app (project: mathgen--app)
+//
+// !! DEPLOY WARNING !!
+// This project is SHARED with the Science app. Deploying this file
+// replaces the rules for the WHOLE project. Before deploying, paste the
+// Science app's collection rules into the marked section near the bottom,
+// otherwise the Science app will lose access to its data.
+//
+// Trust model:
+//  - Admins are identified by the `admin: true` custom claim (set via the
+//    grantAdminRole callable). The ADMIN_EMAILS list in the client is
+//    cosmetic only.
+//  - Marking verdicts, attempts, question progress, XP/leaderboard stats
+//    and raid-boss damage are written ONLY by Cloud Functions through the
+//    Admin SDK (which bypasses these rules). Clients get read access.
+//  - Everything a student can write is namespaced to their own uid and,
+//    where shared (leaderboard), restricted to cosmetic fields.
+// =====================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isAdmin() {
+      return signedIn() && request.auth.token.admin == true;
+    }
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    // Which admin's question bank students should load.
+    // Written by the grantAdminRole function and the admin client.
+    match /config/mathAdmin {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // Per-student roster summary shown on the admin dashboard.
+    // Self-reported analytics; the authoritative attempt log lives in
+    // users/{uid}/mathPerformanceAttempts (server-written).
+    match /studentProfiles/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow write: if isOwner(uid) || isAdmin();
+    }
+
+    // Shared game leaderboard. XP / level / month standings are written by
+    // the markAttempt function; clients may only touch cosmetic fields.
+    match /gameLeaderboard/{uid} {
+      allow read: if signedIn();
+      allow create: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(
+          ['uid', 'name', 'house', 'clazz', 'equipment',
+           'wins', 'bestFloor', 'arenaWins', 'updatedAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 60;
+      allow update: if isOwner(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+          ['uid', 'name', 'house', 'clazz', 'equipment',
+           'wins', 'bestFloor', 'arenaWins', 'updatedAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 60;
+      allow delete: if isAdmin();
+    }
+
+    // Weekly class raid boss. Damage is contributed by the markAttempt
+    // function only — clients just read it.
+    match /raidBoss/{docId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // Trigger Email extension queue. Only admins may enqueue mail; the
+    // extension itself reads with a service account and bypasses rules.
+    match /mail/{mailId} {
+      allow create: if isAdmin();
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /users/{uid} {
+      // No documents are stored directly on /users/{uid} today, but keep it
+      // owner-locked in case that changes.
+      allow read, write: if isOwner(uid) || isAdmin();
+
+      // Public half of the question bank (no answers). Any signed-in user
+      // may read; only admins write (and only into their own bank).
+      match /mathQuestions/{qid} {
+        allow read: if signedIn();
+        allow write: if isAdmin() && isOwner(uid);
+      }
+
+      // Private half: expected answer, marking guide, answer-key image and
+      // video URLs. Students never read this — the marking function reads
+      // it through the Admin SDK.
+      match /mathQuestionKeys/{qid} {
+        allow read, write: if isAdmin() && isOwner(uid);
+      }
+
+      // Student-generated AI practice questions (the student saw the answer
+      // at generation time, so these stay client-readable).
+      match /generatedPracticeQuestions/{qid} {
+        allow read, write: if isOwner(uid) || isAdmin();
+      }
+
+      // Marking outcomes — server-written, read-only for clients.
+      match /mathQuestionProgress/{qid} {
+        allow read: if isOwner(uid) || isAdmin();
+        allow write: if false;
+      }
+      match /mathPerformanceAttempts/{attemptId} {
+        allow read: if isOwner(uid) || isAdmin();
+        allow write: if false;
+      }
+
+      // Server-authoritative progression (XP, month standings, rebirths,
+      // star shop, rate-limit counters). Written only by Cloud Functions.
+      match /serverStats/{docId} {
+        allow read: if isOwner(uid) || isAdmin();
+        allow write: if false;
+      }
+
+      // Per-user settings. mathLearningProfile (elo/weakness analytics) and
+      // mathRpg (hero save: gold, items, battles + display mirrors of the
+      // server XP) are client-written by design; neither is trusted for
+      // competitive stats. mathMarking / mathGeneration belong to admins.
+      match /settings/{docId} {
+        allow read: if isOwner(uid) || isAdmin();
+        allow write: if (isOwner(uid) || isAdmin())
+          && docId in ['mathLearningProfile', 'mathRpg', 'mathMarking', 'mathGeneration'];
+      }
+
+      // Students flag questions into the ADMIN's subtree; the admin
+      // reviews them there. Anyone signed in may create a flag about
+      // themselves; only the subtree owner (the admin) may read/update.
+      match /questionFlags/{flagId} {
+        allow read, update, delete: if isOwner(uid) || isAdmin();
+        allow create: if signedIn()
+          && request.resource.data.flaggerUid == request.auth.uid
+          && request.resource.data.feedback is string
+          && request.resource.data.feedback.size() <= 2000;
+      }
+
+      // New-question email opt-in: students manage their own doc (keyed by
+      // their uid) inside the admin's subtree.
+      match /questionEmailSubscribers/{subUid} {
+        allow read, write: if isOwner(subUid) || isOwner(uid) || isAdmin();
+      }
+
+      // Admin-side log of notification emails sent per question.
+      match /questionUploadNotifications/{noteId} {
+        allow read, write: if isOwner(uid) || isAdmin();
+      }
+    }
+
+    // =================================================================
+    // !! SCIENCE APP RULES GO HERE !!
+    // Copy the Science app's existing rules from the Firebase console
+    // (Firestore -> Rules) into this section before deploying, so both
+    // apps keep working. Without this, every Science collection falls
+    // through to the default deny below.
+    // =================================================================
+
+    // Default deny for anything not matched above.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
