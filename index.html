@@ -4148,6 +4148,84 @@ function showResult(v, png, reviewPlan = "", usedPhoto = false) {
   resultEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
+// =====================================================================
+// CLIENT-SIDE MARKING FALLBACK
+// The marking/hint Cloud Functions are the secure primary path (they read
+// the private answer key server-side). But if they can't be reached — e.g.
+// the functions aren't deployed — we fall back to marking directly in the
+// browser with Firebase AI Logic, exactly like the app did before marking
+// moved server-side. So practice + AI Marking keep working on a plain site
+// publish, with no functions/secrets/billing required. Admins have the
+// answer key locally; for students the AI solves and marks the question
+// itself (it cannot read the private key, by design).
+// =====================================================================
+function markUnreachable(e) {
+  const code = String((e && e.code) || "").replace(/^functions\//, "").toLowerCase();
+  if (code === "internal" || code === "not-found" || code === "unavailable") return true;
+  const m = String((e && e.message) || "").toLowerCase();
+  return /internal|not[- ]found|reach the marking|couldn't reach|failed to fetch|networkerror|network error|load failed/.test(m);
+}
+async function clientMarkVerdict(q, { media = [], typedWorking = "", finalAnswer = "", photoOnly = false } = {}) {
+  if (!aiReady()) throw new Error("AI isn't ready on this device yet — wait a moment and try again");
+  const hasKey = !!(q && (q.expected || q.markingGuide));
+  const submissionNote = photoOnly
+    ? "The attached image(s) are a photo or scan of a printed worksheet the student answered by hand. Read the printed question together with the student's handwritten working and final answer as one complete submission.\n"
+    : "The attached worksheet image shows the question plus the student's handwriting and/or typed working.\n";
+  const prompt =
+    "You are a friendly, encouraging Singapore primary-school math teacher marking a student's worksheet. " +
+    submissionNote +
+    markingPreamble(q && q.markingGuide) + "\n\n" +
+    `QUESTION: "${questionText(q)}"\n` +
+    (hasKey
+      ? `CORRECT ANSWER: "${q.expected || "(use the marking guide)"}"\n`
+      : "No official answer key is available on this device, so solve the question yourself and mark the student against your own correct solution.\n") +
+    `STUDENT'S TYPED WORKING (if any): "${typedWorking || "(none — read it from the image)"}"\n` +
+    `STUDENT'S TYPED FINAL ANSWER: "${finalAnswer || "(none typed — read it from the working)"}"\n\n` +
+    "Follow the working step by step and decide if the method and final answer are right. Award method marks for a sound approach even if the final answer is wrong. Address the student as \"you\". Generate a full worked answer key so the student can learn after submitting.\n\n" +
+    `Return ONLY JSON: {"verdict":"correct"|"partial"|"incorrect","marks":<number>,"outOf":<number>,"feedback":"<2-3 warm sentences>","mistakes":["<specific slip or misread step>", ...],"nextStep":"<one concrete hint, or empty string if fully correct>","fullAnswerKey":"<complete worked solution and final answer>","strengths":["<short label>"],"weaknesses":["<short label>"],"skillScores":[{"label":"<skill>","score":<0-100>,"evidence":"<brief>"}],"learningNote":"<one sentence>"}`;
+  const v = parseAIJson(await askGeminiVision(prompt, media, { maxOutputTokens: 1500, json: true }));
+  v.verdict = ["correct", "partial", "incorrect"].includes(String(v.verdict || "").toLowerCase()) ? String(v.verdict).toLowerCase() : "incorrect";
+  v.marks = Math.max(0, Math.min(50, Number(v.marks) || 0));
+  v.outOf = Math.max(1, Math.min(50, Number(v.outOf) || 1));
+  return v;
+}
+async function clientHint(q, { media = [], typedWorking = "", finalAnswer = "" } = {}) {
+  if (!aiReady()) throw new Error("AI isn't ready on this device yet");
+  const prompt =
+    "You are a friendly Singapore primary-school math tutor giving a student's next-step hint before marking. " +
+    "The attached worksheet image shows the question and the student's working.\n" +
+    `QUESTION: "${questionText(q)}"\n` +
+    (q && (q.expected || q.markingGuide) ? `CORRECT ANSWER (private — do not reveal it): "${q.expected || "(see guide)"}"\n` : "") +
+    `STUDENT'S TYPED WORKING (if any): "${typedWorking || "(none — read it from the image)"}"\n` +
+    `STUDENT'S TYPED FINAL ANSWER (if any): "${finalAnswer || "(none typed)"}"\n\n` +
+    "Give exactly one helpful hint that nudges the next step. Do not solve the whole question, do not reveal the final answer, and do not give marks. Address the student as \"you\".\n\n" +
+    `Return ONLY JSON: {"hint":"<one concise next-step hint>"}`;
+  const d = parseAIJson(await askGeminiVision(prompt, media, { maxOutputTokens: 450, json: true }));
+  const hint = String(d.hint || "").trim();
+  if (!hint) throw new Error("empty hint - please try again");
+  return hint;
+}
+async function clientIdentifyQuestion(media) {
+  if (!questionBank.length) return { q: null, candidates: [] };
+  const list = questionBank.map((q, i) => `[${i}] (${q.level || "?"} · ${studentTopicsLabel(q)}) ${q.title ? q.title + " — " : ""}${(questionText(q) || "(no text)").slice(0, 240)}`).join("\n");
+  const prompt =
+    "You match a photo or scan of a hand-answered math worksheet to ONE question from a list. " +
+    "Match on the printed question wording, numbers and diagram — ignore the handwriting. If none of them is the same question, return matchIndex -1.\n\n" +
+    "QUESTION LIST:\n" + list + "\n\n" +
+    `Return ONLY JSON: {"matchIndex":<integer index from the list, or -1>,"confidence":<0-1>,"alternates":[<up to 3 other plausible indexes>]}`;
+  const d = parseAIJson(await askGeminiVision(prompt, media, { maxOutputTokens: 300, json: true }));
+  let idx = Number(d.matchIndex);
+  const valid = Number.isInteger(idx) && idx >= 0 && idx < questionBank.length;
+  let conf = Number(d.confidence); if (!Number.isFinite(conf)) conf = valid ? 0.6 : 0;
+  const alts = (Array.isArray(d.alternates) ? d.alternates : []).map(Number).filter(n => Number.isInteger(n) && n >= 0 && n < questionBank.length && n !== idx).slice(0, 3);
+  if (!valid || conf < 0.5) {
+    const idxs = [...(valid ? [idx] : []), ...alts];
+    const candidates = idxs.map(n => { const q = questionBank[n]; return { source: questionSource(q), id: q.id, title: q.title, level: q.level, topics: studentTopicsLabel(q) }; });
+    return { q: null, candidates };
+  }
+  return { q: questionBank[idx], candidates: [] };
+}
+
 $("hintBtn").addEventListener("click", async () => {
   if (!currentUser) { toast("Sign in to use AI hints", "error"); return; }
   if (!questionBank.length) return;
@@ -4176,7 +4254,18 @@ $("hintBtn").addEventListener("click", async () => {
     showHint(hint);
     rpgNoteHintUsed();
     toast("Hint ready", "success");
-  } catch (e) { console.error(e); toast("AI hint error: " + serverErrorMessage(e), "error"); }
+  } catch (e) {
+    if (!markUnreachable(e)) { console.error(e); toast("AI hint error: " + serverErrorMessage(e), "error"); }
+    else {
+      // Server hint unreachable — hint directly in the browser.
+      try {
+        const media = [{ mimeType: "image/png", data: b64 }];
+        const sol = solutionPhotoInlineMedia(); if (sol) media.push(sol);
+        const hint = await clientHint(q, { media, typedWorking, finalAnswer });
+        showHint(hint); rpgNoteHintUsed(); toast("Hint ready", "success");
+      } catch (e2) { console.error(e, e2); toast("AI hint error: " + serverErrorMessage(e2), "error"); }
+    }
+  }
   finally { btn.disabled = false; label.textContent = "AI hint"; }
 });
 
@@ -4216,7 +4305,24 @@ $("submitBtn").addEventListener("click", async () => {
       markMsg += ` • Rating ${lastEloChange.after}${delta ? ` (${delta > 0 ? "+" : ""}${delta})` : ""}`;
     }
     toast(markMsg, verdict === "correct" ? "success" : "");
-  } catch (e) { console.error(e); toast("AI mark error: " + serverErrorMessage(e), "error"); }
+  } catch (e) {
+    if (!markUnreachable(e)) { console.error(e); toast("AI mark error: " + serverErrorMessage(e), "error"); }
+    else {
+      // Server marking unreachable (e.g. functions not deployed) — mark in
+      // the browser so practice still works.
+      try {
+        const solutionMedia = solutionPhotoInlineMedia();
+        const worksheetMedia = [{ mimeType: "image/png", data: b64 }];
+        if (solutionMedia) worksheetMedia.push(solutionMedia);
+        const v = await clientMarkVerdict(q, { media: worksheetMedia, typedWorking, finalAnswer: $("finalAnswer").value.trim() });
+        const reviewPlan = await recordLearningAttempt(q, v);
+        try { rpgOnMarked(q, v, {}); } catch (err) { console.warn("rpg reward", err); }
+        showResult(v, png, reviewPlan, !!solutionMedia);
+        const verdict = (v.verdict || "").toLowerCase();
+        toast((verdict === "correct" ? "Great work! 🎉" : "Marked — see the feedback") + " · marked on this device", verdict === "correct" ? "success" : "");
+      } catch (e2) { console.error(e, e2); toast("AI mark error: " + serverErrorMessage(e2), "error"); }
+    }
+  }
   finally { btn.disabled = false; $("submitLabel").innerHTML = "📸 Submit for AI marking"; }
 });
 
@@ -4315,7 +4421,27 @@ async function aiMarkRun(opts = {}) {
     aiMarkSetStatus("");
     await aiMarkApplyResult(out);
   } catch (e) {
-    console.error(e); aiMarkSetStatus("AI marking error: " + serverErrorMessage(e));
+    if (!markUnreachable(e)) { console.error(e); aiMarkSetStatus("AI marking error: " + serverErrorMessage(e)); }
+    else {
+      // Server unreachable — identify + mark the photo directly in the browser.
+      try {
+        aiMarkSetStatus("Marking on this device…");
+        const media = [{ mimeType: aiMarkMedia.mimeType, data: aiMarkMedia.data }];
+        let q = opts.questionId ? questionBank.find(x => x.id === opts.questionId) : null;
+        if (!q) {
+          const idr = await clientIdentifyQuestion(media);
+          if (!idr.q) { aiMarkSetStatus(""); aiMarkRenderPicker(idr.candidates || []); return; }
+          q = idr.q;
+        }
+        const v = await clientMarkVerdict(q, { media, photoOnly: true });
+        const out = {
+          ok: true, verdict: v, videoExplanationUrl: q.videoExplanationUrl || "",
+          matched: { source: questionSource(q), id: q.id, title: q.title || "", level: q.level || "", topics: studentTopicsLabel(q), concept: conceptLabel(q), difficulty: q.difficulty || 0, confidence: 1 }
+        };
+        aiMarkSetStatus("");
+        await aiMarkApplyResult(out);
+      } catch (e2) { console.error(e, e2); aiMarkSetStatus("AI marking error: " + serverErrorMessage(e2)); }
+    }
   } finally {
     aiMarkBusy = false; runBtn.disabled = false; label.textContent = "✨ Mark it";
   }
