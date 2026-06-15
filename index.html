@@ -1340,7 +1340,17 @@ const starfallCall = httpsCallable(cloudFunctions, "starfall");
 const importLegacyProgressionCall = httpsCallable(cloudFunctions, "importLegacyProgression");
 const grantAdminRoleCall = httpsCallable(cloudFunctions, "grantAdminRole");
 function serverErrorMessage(e) {
-  return String((e && e.message) || e || "server error").replace(/^(Firebase|functions):\s*/i, "");
+  const code = String((e && e.code) || "").replace(/^functions\//, "").toLowerCase();
+  const raw = String((e && e.message) || e || "server error").replace(/^(Firebase|functions):\s*/i, "").trim();
+  // A bare "internal" / "not-found" from a callable almost always means the
+  // Cloud Function couldn't be reached — usually it hasn't been deployed yet,
+  // or its GEMINI_API_KEY secret is missing (which blocks deploy). Make that
+  // actionable instead of showing a cryptic "internal".
+  if (code === "internal" || code === "not-found" || /^internal$/i.test(raw)) {
+    return "couldn't reach the marking service. If you're the admin, deploy the Cloud Functions (firebase deploy --only functions) and make sure the GEMINI_API_KEY secret is set.";
+  }
+  if (code === "unauthenticated" || /unauthenticated/i.test(raw)) return "your session expired — please sign in again.";
+  return raw;
 }
 const googleProvider = new GoogleAuthProvider();
 if (RECAPTCHA_SITE_KEY && !RECAPTCHA_SITE_KEY.startsWith("PASTE_")) {
