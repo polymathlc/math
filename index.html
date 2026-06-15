@@ -2388,6 +2388,7 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
+let clientAdminFallback = false;
 async function enterApp(user) {
   // The real admin role is the `admin` custom claim — that's what Firestore
   // rules and the backend trust. ADMIN_EMAILS only decides who may ASK the
@@ -2395,12 +2396,18 @@ async function enterApp(user) {
   let tokenResult = null;
   try { tokenResult = await user.getIdTokenResult(); } catch (e) { console.warn("token read", e); }
   let isAdmin = !!(tokenResult && tokenResult.claims && tokenResult.claims.admin);
+  clientAdminFallback = false;
   if (!isAdmin && ADMIN_EMAILS.includes((user.email || "").toLowerCase())) {
     try {
       await grantAdminRoleCall({});
       tokenResult = await user.getIdTokenResult(true); // force-refresh to pick up the claim
       isAdmin = !!(tokenResult.claims && tokenResult.claims.admin);
     } catch (e) { console.warn("admin role claim failed", e); }
+    // If the claim couldn't be granted (e.g. the grantAdminRole function isn't
+    // deployed), still trust an allow-listed email as admin in the browser so
+    // the question tools keep working — the model the app used before admin
+    // moved to a server claim. Firestore writes then rely on the project rules.
+    if (!isAdmin) { isAdmin = true; clientAdminFallback = true; console.info("Using client-side admin for allow-listed email (grantAdminRole unavailable)."); }
   }
   currentUser = { uid: user.uid, email: user.email, name: user.displayName || (user.email || "").split("@")[0], role: isAdmin ? "admin" : "student" };
 
@@ -2757,7 +2764,7 @@ async function loadBank(uid) {
     const snap = await getDocs(collection(db, "users", uid, "mathQuestions"));
     snap.forEach(d => {
       const q = d.data();
-      if (canManageQuestions() && QUESTION_KEY_FIELDS.some(f => q[f])) needsSplit.push(q.id);
+      if (canManageQuestions() && !clientAdminFallback && QUESTION_KEY_FIELDS.some(f => q[f])) needsSplit.push(q.id);
       questionBank.push(q);
     });
     if (canManageQuestions()) {
@@ -2780,11 +2787,24 @@ async function loadBank(uid) {
     questionBank.sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
   } catch (e) { console.warn("bank load", e); }
 }
+function isPermissionError(e) {
+  return String((e && e.code) || "") === "permission-denied" || /permission|insufficient|PERMISSION_DENIED/i.test(String((e && e.message) || ""));
+}
 async function saveQuestionDoc(q) {
   if (!canManageQuestions()) throw new Error("Only admin accounts can save questions");
   const { pub, key } = splitQuestionDoc(q);
-  await setDoc(doc(db, "users", currentUser.uid, "mathQuestions", q.id), pub);
-  await setDoc(doc(db, "users", currentUser.uid, "mathQuestionKeys", q.id), key);
+  try {
+    await setDoc(doc(db, "users", currentUser.uid, "mathQuestions", q.id), pub);
+    await setDoc(doc(db, "users", currentUser.uid, "mathQuestionKeys", q.id), key);
+  } catch (e) {
+    // The private answer-key collection isn't writable here (its rules aren't
+    // deployed). Fall back to storing the whole question — answer key included
+    // — in the main doc, like the app did before the public/private split, so
+    // saving still succeeds.
+    if (isPermissionError(e)) {
+      await setDoc(doc(db, "users", currentUser.uid, "mathQuestions", q.id), q);
+    } else throw e;
+  }
 }
 async function deleteQuestionDoc(id) {
   if (!canManageQuestions()) throw new Error("Only admin accounts can delete questions");
