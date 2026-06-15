@@ -798,6 +798,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
     </div>
     <nav class="sidebar-nav">
       <div class="nav-item active" data-page="practice"><span class="ico">✍️</span> Practice</div>
+      <div class="nav-item" id="navAiMark"><span class="ico">📸</span> AI Marking</div>
       <div class="nav-section rpg-el" style="display:none;">Game</div>
       <div class="nav-item rpg-el" data-page="character" style="display:none;"><span class="ico">🛡️</span> Character</div>
       <div class="nav-item rpg-el" data-page="leaderboard" style="display:none;"><span class="ico">🏆</span> Leaderboard</div>
@@ -1144,6 +1145,43 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
   </div>
 </div>
 
+<div class="overlay" id="aiMarkOverlay">
+  <div class="overlay-card wide">
+    <div class="overlay-head"><h3>📸 AI Marking</h3><button class="close" data-close="aiMarkOverlay">×</button></div>
+    <div class="overlay-body">
+      <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:16px;">Snap or upload a photo (or PDF) of a worksheet question you've answered on paper. The AI finds the matching question, marks it, and shows the worked solution and video — so you can self-mark and self-learn.</p>
+
+      <!-- Step 1: capture / upload -->
+      <div id="aiMarkPick">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+          <button class="btn btn-primary btn-lg" id="aiMarkCameraBtn" type="button" style="flex:1;min-width:160px;">📷 Take photo</button>
+          <button class="btn btn-ghost btn-lg" id="aiMarkUploadBtn" type="button" style="flex:1;min-width:160px;">🖼️ Upload image / PDF</button>
+        </div>
+        <div class="ai-drop" id="aiMarkZone">
+          <div style="font-size:1.8rem;margin-bottom:6px;">📄</div>
+          <b>Click to choose</b>, or paste (⌘V) / drop a photo or PDF here<br><span style="font-size:0.8rem;">Photos are compressed automatically · PDF up to 14 MB</span>
+        </div>
+        <input id="aiMarkFile" type="file" accept="image/*,application/pdf" class="hidden">
+        <input id="aiMarkCameraInput" type="file" accept="image/*" capture="environment" class="hidden">
+      </div>
+
+      <!-- Step 2: preview + mark -->
+      <div id="aiMarkPreviewWrap" style="display:none;">
+        <div id="aiMarkPreview" style="display:flex;align-items:center;gap:14px;background:var(--bg-soft,#f5f5f4);border-radius:12px;padding:12px;margin-bottom:14px;"></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-ghost" id="aiMarkRetakeBtn" type="button">↺ Choose another</button>
+          <button class="btn btn-primary" id="aiMarkRunBtn" type="button" style="flex:1;min-width:160px;"><span id="aiMarkRunLabel">✨ Mark it</span></button>
+        </div>
+      </div>
+
+      <div id="aiMarkStatus" style="margin-top:14px;font-size:0.9rem;color:var(--text-muted);"></div>
+
+      <!-- Step 3: result -->
+      <div class="result" id="aiMarkResult" style="display:none;margin-top:18px;"></div>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="previewOverlay">
   <div class="overlay-card wide">
     <div class="overlay-head"><h3 id="previewTitle">Question preview</h3><button class="close" data-close="previewOverlay">×</button></div>
@@ -1296,6 +1334,7 @@ const storage = getStorage(app);
 // Functions so browser dev tools can't award XP or read answer keys.
 const cloudFunctions = getFunctions(app);
 const markAttemptCall = httpsCallable(cloudFunctions, "markAttempt", { timeout: 240000 });
+const markFromPhotoCall = httpsCallable(cloudFunctions, "markFromPhoto", { timeout: 240000 });
 const getHintCall = httpsCallable(cloudFunctions, "getHint", { timeout: 240000 });
 const starfallCall = httpsCallable(cloudFunctions, "starfall");
 const importLegacyProgressionCall = httpsCallable(cloudFunctions, "importLegacyProgression");
@@ -3892,7 +3931,10 @@ $("typedWorking").addEventListener("input", hideHint);
 $("finalAnswer").addEventListener("input", hideHint);
 let cameraStream = null;
 let cameraFacing = "environment";
-$("photoSolutionBtn").addEventListener("click", openCameraModal);
+// The live-camera modal is shared: "solution" attaches the photo to the
+// practice worksheet; "aimark" feeds it to the standalone AI Marking flow.
+let cameraTarget = "solution";
+$("photoSolutionBtn").addEventListener("click", () => openCameraModal("solution"));
 $("cameraCloseBtn").addEventListener("click", closeCameraModal);
 $("cameraOverlay").addEventListener("click", e => { if (e.target === $("cameraOverlay")) closeCameraModal(); });
 $("cameraCaptureBtn").addEventListener("click", captureCameraPhoto);
@@ -3905,7 +3947,8 @@ async function onSolutionFileInputChange(e) {
   e.target.value = "";
   if (!file) return;
   closeCameraModal();
-  await handleSolutionFile(file);
+  if (cameraTarget === "aimark") await aiMarkAcceptFile(file);
+  else await handleSolutionFile(file);
 }
 async function handleSolutionFile(file) {
   const btn = $("photoSolutionBtn");
@@ -3916,7 +3959,8 @@ async function handleSolutionFile(file) {
   catch (err) { console.error(err); toast("Photo attach error: " + (err.message || err), "error"); }
   finally { btn.disabled = false; label.textContent = "📷 Photo answer"; }
 }
-async function openCameraModal() {
+async function openCameraModal(target = "solution") {
+  cameraTarget = target;
   $("cameraOverlay").classList.add("show");
   await startCameraStream();
 }
@@ -3993,8 +4037,10 @@ async function captureCameraPhoto() {
   let file;
   try { file = await canvasToImageFile(canvas, `camera-${Date.now()}.jpg`); }
   catch (err) { console.error(err); toast("Couldn't capture the photo, please try again", "error"); return; }
+  const target = cameraTarget;
   closeCameraModal();
-  await handleSolutionFile(file);
+  if (target === "aimark") await aiMarkAcceptFile(file);
+  else await handleSolutionFile(file);
 }
 async function canvasToImageFile(canvas, name) {
   if (canvas.toBlob) {
@@ -4162,6 +4208,246 @@ $("submitBtn").addEventListener("click", async () => {
     toast(markMsg, verdict === "correct" ? "success" : "");
   } catch (e) { console.error(e); toast("AI mark error: " + serverErrorMessage(e), "error"); }
   finally { btn.disabled = false; $("submitLabel").innerHTML = "📸 Submit for AI marking"; }
+});
+
+// =====================================================================
+// AI MARKING — standalone "snap a paper worksheet and self-mark" flow.
+// The photo/PDF is sent to the markFromPhoto Cloud Function, which finds
+// the matching bank question, marks it with the private answer key, and
+// returns the verdict, worked solution and video. We mirror the practice
+// flow afterwards (learning profile + RPG rewards) so self-marking on
+// paper feeds the same learning loop as on-screen practice.
+// =====================================================================
+let aiMarkMedia = null;   // { mimeType, data, isPdf, name, previewUrl }
+let aiMarkBusy = false;
+
+function aiMarkSetStatus(text) { $("aiMarkStatus").textContent = text || ""; }
+
+function openAiMark() {
+  if (!currentUser) { toast("Sign in to use AI Marking", "error"); return; }
+  aiMarkReset();
+  $("sidebar").classList.remove("open");
+  $("aiMarkOverlay").classList.add("show");
+  // On phones/tablets, jump straight to the camera as requested.
+  if (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) aiMarkTakePhoto();
+}
+function aiMarkTakePhoto() {
+  // Mobile: the capture input opens the device camera app (most reliable).
+  // Desktop: use the in-page live camera modal.
+  if (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) $("aiMarkCameraInput").click();
+  else openCameraModal("aimark");
+}
+function aiMarkReset() {
+  aiMarkMedia = null;
+  $("aiMarkFile").value = "";
+  $("aiMarkCameraInput").value = "";
+  $("aiMarkPreview").innerHTML = "";
+  $("aiMarkPreviewWrap").style.display = "none";
+  $("aiMarkResult").style.display = "none";
+  $("aiMarkResult").innerHTML = "";
+  aiMarkSetStatus("");
+  $("aiMarkPick").style.display = "block";
+}
+async function aiMarkAcceptFile(file) {
+  if (!file) return;
+  if (!currentUser) { toast("Sign in to use AI Marking", "error"); return; }
+  const isPdf = file.type === "application/pdf";
+  if (!file.type.startsWith("image/") && !isPdf) { toast("Please choose a photo or a PDF", "error"); return; }
+  if (isPdf && file.size > 14 * 1024 * 1024) { toast("PDF too large (max 14 MB) — export just the page you need", "error"); return; }
+  if (!isPdf && file.size > 25 * 1024 * 1024) { toast("Image too large (max 25 MB)", "error"); return; }
+  if (!$("aiMarkOverlay").classList.contains("show")) $("aiMarkOverlay").classList.add("show");
+  aiMarkSetStatus(`Preparing the ${isPdf ? "PDF" : "photo"}…`);
+  try {
+    if (isPdf) {
+      aiMarkMedia = { mimeType: file.type, data: await _fileToBase64(file), isPdf: true, name: file.name || "worksheet.pdf", previewUrl: "" };
+    } else {
+      const dataUrl = await imageFileToOptimizedDataUrl(file);
+      const info = dataUrlInfo(dataUrl);
+      aiMarkMedia = { mimeType: info.mimeType || "image/jpeg", data: info.data, isPdf: false, name: file.name || "photo.jpg", previewUrl: dataUrl };
+    }
+    if (aiMarkMedia.data.length > 19000000) { aiMarkMedia = null; aiMarkSetStatus("That file is too large even after processing — use a smaller photo or split the PDF."); return; }
+    aiMarkSetStatus("");
+    aiMarkShowPreview();
+  } catch (e) {
+    console.error(e); aiMarkMedia = null;
+    aiMarkSetStatus("Couldn't read that file — please try another. (" + (e.message || e) + ")");
+  }
+}
+function aiMarkShowPreview() {
+  if (!aiMarkMedia) return;
+  $("aiMarkPick").style.display = "none";
+  $("aiMarkResult").style.display = "none";
+  $("aiMarkResult").innerHTML = "";
+  $("aiMarkPreview").innerHTML = aiMarkMedia.isPdf
+    ? `<div style="font-size:2rem;">📄</div><div><b>${escapeHtml(aiMarkMedia.name)}</b><div style="color:var(--text-muted);font-size:0.85rem;">PDF ready to mark</div></div>`
+    : `<img src="${aiMarkMedia.previewUrl}" alt="Selected worksheet" style="max-height:160px;max-width:55%;border-radius:8px;object-fit:contain;"><div style="color:var(--text-muted);font-size:0.85rem;">Photo ready to mark</div>`;
+  $("aiMarkPreviewWrap").style.display = "block";
+}
+async function aiMarkRun(opts = {}) {
+  if (aiMarkBusy) return;
+  if (!aiMarkMedia) { toast("Choose a photo or PDF first", "error"); return; }
+  if (!currentUser) { toast("Sign in to use AI Marking", "error"); return; }
+  aiMarkBusy = true;
+  const runBtn = $("aiMarkRunBtn"), label = $("aiMarkRunLabel");
+  runBtn.disabled = true; label.innerHTML = '<span class="spinner"></span> Marking…';
+  aiMarkSetStatus(opts.questionId ? "Marking against the chosen question…" : "Finding the matching question and marking…");
+  try {
+    const payload = { pages: [{ mimeType: aiMarkMedia.mimeType, data: aiMarkMedia.data }] };
+    if (opts.questionId) { payload.questionId = opts.questionId; payload.source = opts.source || "bank"; }
+    const res = await markFromPhotoCall(payload);
+    const out = res.data || {};
+    if (out.needsPick) {
+      aiMarkSetStatus(out.reason === "empty-bank" ? "There are no questions in the bank yet." : "");
+      aiMarkRenderPicker(out.candidates || []);
+      return;
+    }
+    if (!out.verdict) throw new Error("no result returned");
+    aiMarkSetStatus("");
+    await aiMarkApplyResult(out);
+  } catch (e) {
+    console.error(e); aiMarkSetStatus("AI marking error: " + serverErrorMessage(e));
+  } finally {
+    aiMarkBusy = false; runBtn.disabled = false; label.textContent = "✨ Mark it";
+  }
+}
+// Mirror the on-screen practice flow: record the attempt to the learning
+// profile (ELO / weakness buckets) and pay out RPG rewards, then render.
+async function aiMarkApplyResult(out) {
+  const v = out.verdict || {};
+  const q = aiMarkResolveQuestion(out.matched || {});
+  if (out.videoExplanationUrl && q) q.videoExplanationUrl = out.videoExplanationUrl;
+  let reviewPlan = "";
+  try { reviewPlan = await recordLearningAttempt(q, v, out.progress); } catch (e) { console.warn("ai mark record", e); }
+  try { rpgOnMarked(q, v, { server: out }); } catch (e) { console.warn("ai mark rpg", e); }
+  aiMarkRenderResult(out, reviewPlan);
+  const verdict = (v.verdict || "").toLowerCase();
+  toast(verdict === "correct" ? "Great work! 🎉" : "Marked — see the feedback", verdict === "correct" ? "success" : "");
+}
+function aiMarkResolveQuestion(matched) {
+  if (matched && matched.id) {
+    const found = questionBank.find(x => x.id === matched.id);
+    if (found) return found;
+  }
+  const topics = parseTopics(matched.topics || "");
+  return {
+    id: matched.id || ("aimark_" + Date.now()),
+    title: matched.title || "",
+    level: matched.level || "",
+    topic: matched.topics || "",
+    topics: topics.length ? topics : (matched.topics ? [matched.topics] : []),
+    concept: matched.concept || "",
+    difficulty: matched.difficulty || 0,
+    blocks: []
+  };
+}
+function aiMarkVideoHtml(rawUrl) {
+  const info = normalizeVideoExplanationUrl(rawUrl);
+  if (!info) return "";
+  const src = escapeHtml(info.url);
+  const frame = info.kind === "video"
+    ? `<div class="video-explanation-frame"><video controls preload="metadata" src="${src}"></video></div>`
+    : `<div class="video-explanation-frame"><iframe src="${src}" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen title="Video explanation"></iframe></div>`;
+  return `<div class="feedback-block"><h4>🎬 Video explanation</h4>${frame}</div>`;
+}
+function aiMarkRenderResult(out, reviewPlan) {
+  const v = out.verdict || {}, matched = out.matched || {};
+  const verdict = (v.verdict || "incorrect").toLowerCase();
+  const klass = verdict === "correct" ? "correct" : verdict === "partial" ? "partial" : "incorrect";
+  const icon = verdict === "correct" ? "✓" : verdict === "partial" ? "≈" : "✗";
+  const title = verdict === "partial" ? "Almost there" : verdict;
+  const score = (typeof v.marks === "number") ? `${v.marks} / ${v.outOf || 1} marks` : "";
+  const mistakes = Array.isArray(v.mistakes) ? v.mistakes.filter(Boolean) : [];
+  const fullAnswerKey = String(v.fullAnswerKey || v.answerKey || "").trim();
+  const conf = Number(matched.confidence);
+  const confChip = (conf > 0 && conf < 1) ? `<span class="chip" title="How sure the AI was about the match">match ${Math.round(conf * 100)}%</span>` : "";
+  const matchLevel = matched.level ? `<span class="chip">${escapeHtml(matched.level)}</span>` : "";
+  const matchTopics = matched.topics ? `<span class="chip topic">${escapeHtml(matched.topics)}</span>` : "";
+  const reward = out.reward;
+  const rewardLine = (reward && currentUser && currentUser.role === "student")
+    ? `<div class="rpg-reward-line" style="display:block;">＋${reward.xp || 0} XP · ＋${reward.gold || 0} gold${reward.repeatAttempt ? " · repeat practice" : ""}</div>` : "";
+
+  let html = "";
+  if (matched.id) {
+    html += `<div class="feedback-block" style="background:rgba(74,124,89,0.08);">
+      <h4>📄 Matched question</h4>
+      <p style="margin:0 0 8px;"><b>${escapeHtml(matched.title || "Untitled question")}</b></p>
+      <div class="q-meta" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">${matchLevel}${matchTopics}${confChip}</div>
+      <button class="btn btn-ghost btn-sm" id="aiMarkWrongMatchBtn" type="button">Not this question? Choose the right one</button>
+    </div>`;
+  }
+  html += `<div class="verdict-banner ${klass}"><div class="verdict-icon">${icon}</div><div class="verdict-text"><h3 style="text-transform:capitalize;">${escapeHtml(title)}</h3><div class="score">${escapeHtml(score)}</div></div></div>`;
+  html += rewardLine;
+  if (v.feedback) html += `<div class="feedback-block"><h4>💬 Feedback</h4><p>${escapeHtml(v.feedback)}</p></div>`;
+  if (mistakes.length) html += `<div class="feedback-block"><h4>🔍 What to check</h4><ul>${mistakes.map(m => `<li>${escapeHtml(m)}</li>`).join("")}</ul></div>`;
+  if (v.nextStep) html += `<div class="feedback-block"><h4>➡️ Next step</h4><p>${escapeHtml(v.nextStep)}</p></div>`;
+  if (reviewPlan) html += `<div class="feedback-block"><h4>🗓️ Review plan</h4><p>${escapeHtml(reviewPlan)}</p></div>`;
+  if (fullAnswerKey) html += `<div class="feedback-block"><h4>🧾 Full answer key</h4><p class="answer-key-text">${escapeHtml(fullAnswerKey)}</p></div>`;
+  html += aiMarkVideoHtml(out.videoExplanationUrl);
+  if (aiMarkMedia && !aiMarkMedia.isPdf && aiMarkMedia.previewUrl) {
+    html += `<div class="feedback-block"><h4>📸 What you submitted</h4><div class="captured"><img src="${aiMarkMedia.previewUrl}" alt="Your worksheet photo"></div></div>`;
+  }
+  html += `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;"><button class="btn btn-primary" id="aiMarkAnotherBtn" type="button">📸 Mark another</button></div>`;
+
+  const el = $("aiMarkResult");
+  el.innerHTML = html;
+  el.style.display = "block";
+  $("aiMarkPreviewWrap").style.display = "none";
+  const wrong = $("aiMarkWrongMatchBtn"); if (wrong) wrong.addEventListener("click", () => aiMarkRenderPicker([]));
+  $("aiMarkAnotherBtn").addEventListener("click", aiMarkReset);
+  el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+function aiMarkRenderPicker(candidates) {
+  const suggested = (candidates || []).filter(c => c && c.id);
+  let html = `<div class="feedback-block">
+    <h4>🔎 Which question is this?</h4>
+    <p style="color:var(--text-muted);">${suggested.length ? "Tap the matching question to mark it:" : "Search your questions and pick the right one:"}</p>`;
+  if (suggested.length) {
+    html += suggested.map(c =>
+      `<button class="btn btn-ghost btn-sm aimark-pick" data-id="${escapeHtml(c.id)}" data-source="${escapeHtml(c.source || "bank")}" style="display:block;width:100%;text-align:left;margin-bottom:6px;">
+        <b>${escapeHtml(c.title || "Untitled")}</b> <span style="color:var(--text-muted);">${escapeHtml([c.level, c.topics].filter(Boolean).join(" · "))}</span>
+      </button>`).join("") + `<div style="height:8px;"></div>`;
+  }
+  html += `<input id="aiMarkPickSearch" type="text" placeholder="Search all questions by title, level or topic…" style="width:100%;padding:8px 10px;border:1px solid var(--border,#ddd);border-radius:8px;margin-bottom:8px;box-sizing:border-box;">
+    <div id="aiMarkPickResults"></div>
+    <div style="margin-top:12px;"><button class="btn btn-ghost btn-sm" id="aiMarkPickerOver" type="button">↺ Start over</button></div></div>`;
+  const el = $("aiMarkResult");
+  el.innerHTML = html;
+  el.style.display = "block";
+  $("aiMarkPreviewWrap").style.display = "none";
+  el.querySelectorAll(".aimark-pick").forEach(b => b.addEventListener("click", () => aiMarkRun({ questionId: b.dataset.id, source: b.dataset.source })));
+  $("aiMarkPickerOver").addEventListener("click", aiMarkReset);
+  const renderList = term => {
+    const t = String(term || "").trim().toLowerCase();
+    const matches = questionBank.filter(q => {
+      if (!t) return true;
+      const hay = [q.title, q.level, studentTopicsLabel(q), (q.blocks || []).filter(b => b.type === "text").map(b => stripHtml(b.content)).join(" ")].join(" ").toLowerCase();
+      return hay.includes(t);
+    }).slice(0, 30);
+    $("aiMarkPickResults").innerHTML = matches.length
+      ? matches.map(q => `<button class="btn btn-ghost btn-sm aimark-pick2" data-id="${escapeHtml(q.id)}" style="display:block;width:100%;text-align:left;margin-bottom:6px;"><b>${escapeHtml(q.title || "Untitled")}</b> <span style="color:var(--text-muted);">${escapeHtml([q.level, studentTopicsLabel(q)].filter(Boolean).join(" · "))}</span></button>`).join("")
+      : `<div class="empty-note">No matching questions.</div>`;
+    $("aiMarkPickResults").querySelectorAll(".aimark-pick2").forEach(b => b.addEventListener("click", () => aiMarkRun({ questionId: b.dataset.id, source: "bank" })));
+  };
+  renderList("");
+  const search = $("aiMarkPickSearch");
+  if (search) search.addEventListener("input", e => renderList(e.target.value));
+  el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+$("navAiMark").addEventListener("click", openAiMark);
+$("aiMarkCameraBtn").addEventListener("click", aiMarkTakePhoto);
+$("aiMarkUploadBtn").addEventListener("click", () => $("aiMarkFile").click());
+$("aiMarkZone").addEventListener("click", () => $("aiMarkFile").click());
+$("aiMarkZone").addEventListener("dragover", e => e.preventDefault());
+$("aiMarkZone").addEventListener("drop", e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) aiMarkAcceptFile(f); });
+$("aiMarkFile").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) aiMarkAcceptFile(f); });
+$("aiMarkCameraInput").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) aiMarkAcceptFile(f); });
+$("aiMarkRetakeBtn").addEventListener("click", aiMarkReset);
+$("aiMarkRunBtn").addEventListener("click", () => aiMarkRun());
+document.addEventListener("paste", e => {
+  if (!$("aiMarkOverlay").classList.contains("show")) return;
+  const items = (e.clipboardData || {}).items || [];
+  for (const it of items) { if (it.type && it.type.startsWith("image/")) { e.preventDefault(); aiMarkAcceptFile(it.getAsFile()); return; } }
 });
 
 // =====================================================================

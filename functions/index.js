@@ -317,6 +317,86 @@ async function loadQuestionWithKey(uid, source, questionId) {
   return { q, adminUid };
 }
 
+// ---------------------------------------------------------------------
+// AI Marking ("markFromPhoto") helpers — match a photographed worksheet
+// to a known question, then hand off to markKnownQuestion to grade it.
+// ---------------------------------------------------------------------
+const PHOTO_MATCH_AUTO_THRESHOLD = 0.5;   // below this we ask the student to confirm the match
+const CATALOGUE_MAX_QUESTIONS = 400;       // cap the size of the matcher prompt
+const CATALOGUE_TEXT_CHARS = 240;
+
+// Submission pages: up to 6, each an image or a PDF, within the same size
+// caps as the worksheet image marking uses.
+function validSubmissionPages(raw) {
+  const arr = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+  if (!arr.length) throw new HttpsError("invalid-argument", "No photo or file was provided.");
+  if (arr.length > 6) throw new HttpsError("invalid-argument", "Too many pages — send up to 6.");
+  let total = 0;
+  const pages = arr.map((p, i) => {
+    const mimeType = String((p && p.mimeType) || "");
+    const data = String((p && p.data) || "");
+    if (!mimeType.startsWith("image/") && mimeType !== "application/pdf") {
+      throw new HttpsError("invalid-argument", `Page ${i + 1}: must be an image or a PDF.`);
+    }
+    if (!data || data.length > MAX_IMAGE_B64) {
+      throw new HttpsError("invalid-argument", `Page ${i + 1}: missing or too large (max ~7 MB).`);
+    }
+    total += data.length;
+    return { mimeType, data };
+  });
+  if (total > MAX_TOTAL_B64) throw new HttpsError("invalid-argument", "Combined files are too large — use smaller images or split the PDF.");
+  return pages;
+}
+
+// Compact, answer-free catalogue of the questions a student might be holding:
+// the teacher's bank plus the student's own generated practice.
+async function loadPhotoMatchCatalogue(uid, adminUid) {
+  const out = [];
+  const collect = (snap, src) => snap.forEach(docSnap => {
+    const q = Object.assign({ id: docSnap.id }, docSnap.data());
+    out.push({
+      source: src,
+      id: q.id,
+      title: cleanText(q.title, 120),
+      level: cleanText(q.level, 40),
+      topics: studentTopicLabel(questionTopics(q)),
+      text: questionText(q).slice(0, CATALOGUE_TEXT_CHARS)
+    });
+  });
+  if (adminUid) {
+    try { collect(await db.collection(`users/${adminUid}/mathQuestions`).get(), "bank"); }
+    catch (e) { console.warn("catalogue bank load failed", e.message || e); }
+  }
+  try { collect(await db.collection(`users/${uid}/generatedPracticeQuestions`).get(), "generated"); }
+  catch (e) { /* generated practice is optional */ }
+  return out.slice(0, CATALOGUE_MAX_QUESTIONS);
+}
+
+// Asks the model which catalogue entry the photographed question matches.
+async function identifyQuestionFromPhoto(apiKey, media, catalogue) {
+  const list = catalogue
+    .map((c, i) => `[${i}] (${c.level || "?"} · ${c.topics || "Math"}) ${c.title ? c.title + " — " : ""}${c.text || "(no text)"}`)
+    .join("\n");
+  const prompt =
+    `You match a photo or scan of a student's hand-answered math worksheet to ONE question from a known list. ` +
+    `The image shows a printed question plus the student's handwriting. Match on the PRINTED question wording, numbers and diagram — ignore the handwriting. ` +
+    `If the page shows several questions, choose the one the student has actually worked on. ` +
+    `If none of the list entries is the same question, return matchIndex -1.\n\n` +
+    `QUESTION LIST:\n${list}\n\n` +
+    `Return ONLY JSON: {"matchIndex":<integer index from the list, or -1>,"confidence":<0-1 how sure you are>,"alternates":[<up to 3 other plausible indexes, best first>]}`;
+  const data = parseAIJson(await askGemini(apiKey, prompt, media, { maxOutputTokens: 300 }));
+  let index = Number(data.matchIndex);
+  if (!Number.isInteger(index) || index < 0 || index >= catalogue.length) index = -1;
+  let confidence = Number(data.confidence);
+  if (!Number.isFinite(confidence)) confidence = index >= 0 ? 0.6 : 0;
+  confidence = Math.max(0, Math.min(1, confidence));
+  const alternates = (Array.isArray(data.alternates) ? data.alternates : [])
+    .map(n => Number(n))
+    .filter(n => Number.isInteger(n) && n >= 0 && n < catalogue.length && n !== index)
+    .slice(0, 3);
+  return { index, confidence, alternates };
+}
+
 async function loadMarkingSettings(adminUid) {
   const defaults = { instructions: "", strictness: 3 };
   if (!adminUid) return defaults;
@@ -508,48 +588,30 @@ async function contributeRaidDamage(points) {
 }
 
 // ---------------------------------------------------------------------
-// markAttempt
+// markKnownQuestion — shared core. Marks a submission against a question
+// whose public + private halves are already resolved, writes the attempt,
+// progress, XP / month standings, leaderboard and raid damage, and returns
+// the verdict. Used by markAttempt (on-screen worksheet) and markFromPhoto
+// (a photo or PDF of a printed worksheet) so the reward formula and the
+// ledger writes have a single source of truth. Callers differ only in the
+// media they attach and how the submission is described to the marker.
 // ---------------------------------------------------------------------
-export const markAttempt = onCall(CALL_OPTS, async (request) => {
-  const auth = requireAuth(request);
-  const uid = auth.uid;
-  const isAdmin = isAdminAuth(auth);
-  const d = request.data || {};
-
-  const source = ["bank", "generated", "starter"].includes(d.source) ? d.source : "bank";
-  const typedWorking = cleanText(d.typedWorking, 6000);
-  const finalAnswer = cleanText(d.finalAnswer, 800);
-  const worksheetB64 = String(d.worksheetPng || "");
-  if (!worksheetB64 || worksheetB64.length > MAX_IMAGE_B64) {
-    throw new HttpsError("invalid-argument", "Worksheet image missing or too large.");
-  }
-  const solutionMedia = validImagePart(d.solutionPhoto, "Solution photo");
-  if (worksheetB64.length + (solutionMedia ? solutionMedia.data.length : 0) > MAX_TOTAL_B64) {
-    throw new HttpsError("invalid-argument", "Combined images too large — retake the photo at a smaller size.");
-  }
-  const practiceMode = d.practiceMode === true;
-
-  const statsBefore = await reserveMarkSlot(uid, "mark");
-
-  const { q, adminUid } = await loadQuestionWithKey(uid, source, d.questionId);
-  const [settings, preamble, keyMedia] = await Promise.all([
-    loadMarkingSettings(adminUid || (source === "generated" || source === "starter" ? await getAdminUid().catch(() => null) : null)),
-    studentLearningPreamble(uid, isAdmin),
-    answerKeyMedia(q)
+async function markKnownQuestion({ uid, isAdmin, q, source, adminUid, statsBefore, media, mediaNote, submissionNote, keyAttached, typedWorking = "", finalAnswer = "", practiceMode = false }) {
+  const [settings, preamble] = await Promise.all([
+    loadMarkingSettings(adminUid),
+    studentLearningPreamble(uid, isAdmin)
   ]);
 
   const progRef = db.doc(`users/${uid}/mathQuestionProgress/${progressDocId(q)}`);
   const progSnap = await progRef.get();
   const existing = progSnap.exists ? progSnap.data() : { questionId: q.id, attempts: 0, wrongCount: 0, correctStreak: 0 };
 
-  const { media, note: mediaNote } = buildPracticeMedia(worksheetB64, solutionMedia, keyMedia);
   const qText = questionText(q);
   const prompt =
     `You are a friendly, encouraging Singapore primary-school math teacher marking a student's worksheet. ` +
     `${mediaNote}` +
-    `The worksheet screenshot includes the question, any underlining or annotations, handwriting, typed text, or both. ` +
-    `${solutionMedia ? "The photographed paper solution may contain extra student working that is not on the worksheet screenshot; read both as one complete submission.\n" : "\n"}` +
-    `${keyMedia.length ? "The teacher's private answer key or worked solution is the authority for the intended solution. Read it carefully and use it with the teacher guidance below.\n" : ""}` +
+    `${submissionNote}` +
+    `${keyAttached ? "The teacher's private answer key or worked solution is the authority for the intended solution. Read it carefully and use it with the teacher guidance below.\n" : ""}` +
     INJECTION_GUARD +
     `${preamble}` +
     `${teacherConceptNote(q)}` +
@@ -701,6 +763,138 @@ export const markAttempt = onCall(CALL_OPTS, async (request) => {
     totals,
     videoExplanationUrl: cleanText(q.videoExplanationUrl, 800)
   };
+}
+
+// ---------------------------------------------------------------------
+// markAttempt
+// ---------------------------------------------------------------------
+export const markAttempt = onCall(CALL_OPTS, async (request) => {
+  const auth = requireAuth(request);
+  const uid = auth.uid;
+  const isAdmin = isAdminAuth(auth);
+  const d = request.data || {};
+
+  const source = ["bank", "generated", "starter"].includes(d.source) ? d.source : "bank";
+  const typedWorking = cleanText(d.typedWorking, 6000);
+  const finalAnswer = cleanText(d.finalAnswer, 800);
+  const worksheetB64 = String(d.worksheetPng || "");
+  if (!worksheetB64 || worksheetB64.length > MAX_IMAGE_B64) {
+    throw new HttpsError("invalid-argument", "Worksheet image missing or too large.");
+  }
+  const solutionMedia = validImagePart(d.solutionPhoto, "Solution photo");
+  if (worksheetB64.length + (solutionMedia ? solutionMedia.data.length : 0) > MAX_TOTAL_B64) {
+    throw new HttpsError("invalid-argument", "Combined images too large — retake the photo at a smaller size.");
+  }
+  const practiceMode = d.practiceMode === true;
+
+  const statsBefore = await reserveMarkSlot(uid, "mark");
+
+  const { q, adminUid } = await loadQuestionWithKey(uid, source, d.questionId);
+  // Marking settings come from the bank admin (or the registered admin for
+  // generated/starter sources). The worksheet screenshot is page 1; an
+  // optional photographed paper solution and the private key follow.
+  const settingsAdminUid = adminUid || (source === "generated" || source === "starter" ? await getAdminUid().catch(() => null) : null);
+  const keyMedia = await answerKeyMedia(q);
+  const { media, note: mediaNote } = buildPracticeMedia(worksheetB64, solutionMedia, keyMedia);
+  const submissionNote =
+    `The worksheet screenshot includes the question, any underlining or annotations, handwriting, typed text, or both. ` +
+    `${solutionMedia ? "The photographed paper solution may contain extra student working that is not on the worksheet screenshot; read both as one complete submission.\n" : "\n"}`;
+
+  return await markKnownQuestion({
+    uid, isAdmin, q, source, adminUid: settingsAdminUid, statsBefore,
+    media, mediaNote, submissionNote, keyAttached: keyMedia.length > 0,
+    typedWorking, finalAnswer, practiceMode
+  });
+});
+
+// ---------------------------------------------------------------------
+// markFromPhoto — "AI Marking". A student photographs (or uploads a photo
+// or PDF of) a printed worksheet they answered by hand. We identify which
+// question it is, then mark it against the private answer key — so a teacher
+// can just print worksheets and students self-mark and self-learn.
+//
+// The attached image(s)/PDF ARE the complete submission (there is no
+// on-screen worksheet). Identification and marking share the same per-user
+// rate-limit slot and daily cap as markAttempt, so this can't be farmed.
+// ---------------------------------------------------------------------
+export const markFromPhoto = onCall(CALL_OPTS, async (request) => {
+  const auth = requireAuth(request);
+  const uid = auth.uid;
+  const isAdmin = isAdminAuth(auth);
+  const d = request.data || {};
+
+  const pages = validSubmissionPages(d.pages);
+  const explicitId = cleanText(d.questionId, 160);
+  const explicitSource = ["bank", "generated", "starter"].includes(d.source) ? d.source : "bank";
+
+  // ---- Step 1: which question is this? ----
+  // Identification grants no XP, so it is not rate-limited; the marking slot
+  // is reserved only once we know we will grade. This also means a student
+  // who confirms a question after a "needsPick" response is not blocked by
+  // the 15-second cooldown from the identify call moments earlier.
+  let source = explicitSource, qid = explicitId, matchConfidence = 1;
+  if (!explicitId) {
+    const catalogueAdminUid = await getAdminUid().catch(() => null);
+    const catalogue = await loadPhotoMatchCatalogue(uid, catalogueAdminUid);
+    if (!catalogue.length) return { ok: true, needsPick: true, candidates: [], reason: "empty-bank" };
+    let match;
+    try {
+      match = await identifyQuestionFromPhoto(GEMINI_API_KEY.value(), pages, catalogue);
+    } catch (e) {
+      console.error("photo identify failed", e);
+      throw new HttpsError("unavailable", "Couldn't read that photo — try again with a clearer, well-lit picture.");
+    }
+    const best = match.index >= 0 ? catalogue[match.index] : null;
+    if (!best || match.confidence < PHOTO_MATCH_AUTO_THRESHOLD) {
+      // Not sure enough to mark automatically — let the student confirm.
+      const seen = new Set();
+      const candidates = [match.index, ...match.alternates]
+        .filter(i => i >= 0 && i < catalogue.length)
+        .map(i => catalogue[i])
+        .filter(c => c && !seen.has(c.source + "|" + c.id) && seen.add(c.source + "|" + c.id))
+        .map(c => ({ source: c.source, id: c.id, title: c.title, level: c.level, topics: c.topics }));
+      return { ok: true, needsPick: true, candidates, confidence: match.confidence };
+    }
+    source = best.source; qid = best.id; matchConfidence = match.confidence;
+  }
+
+  // ---- Step 2: reserve a marking slot, then grade against the private key ----
+  const statsBefore = await reserveMarkSlot(uid, "mark");
+  const { q, adminUid } = await loadQuestionWithKey(uid, source, qid);
+  const settingsAdminUid = adminUid || await getAdminUid().catch(() => null);
+  const keyMedia = await answerKeyMedia(q);
+
+  const media = pages.concat(keyMedia);
+  const pageLabel = pages.length > 1
+    ? `1–${pages.length}) the student's photographed/scanned worksheet pages`
+    : "1) the student's photographed or scanned worksheet";
+  const labels = [pageLabel];
+  if (keyMedia.length) labels.push(`${pages.length + 1}) teacher's private answer key/worked solution`);
+  const mediaNote = `Attached images: ${labels.join("; ")}.\n`;
+  const submissionNote =
+    `The attached image(s) are a photo or scan of a printed worksheet the student has already answered by hand. ` +
+    `Read the printed question together with the student's handwritten working and final answer as one complete submission. ` +
+    `${pages.length > 1 ? "The pages belong to the same submission; read them in order.\n" : "\n"}`;
+
+  const result = await markKnownQuestion({
+    uid, isAdmin, q, source, adminUid: settingsAdminUid, statsBefore,
+    media, mediaNote, submissionNote, keyAttached: keyMedia.length > 0,
+    typedWorking: "", finalAnswer: "", practiceMode: false
+  });
+
+  return Object.assign({
+    ok: true,
+    matched: {
+      source,
+      id: q.id,
+      title: q.title || "",
+      level: q.level || "",
+      topics: studentTopicLabel(questionTopics(q)),
+      concept: conceptLabel(q),
+      difficulty: questionDifficultyRating(q),
+      confidence: matchConfidence
+    }
+  }, result);
 });
 
 // ---------------------------------------------------------------------
