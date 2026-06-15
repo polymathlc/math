@@ -1,0 +1,70 @@
+name: Deploy Cloud Functions
+
+# Publishes the Math Practice Cloud Functions (markAttempt, markFromPhoto,
+# getHint, starfall, …) to the mathgen--app project. Runs automatically when
+# anything under functions/ changes on main, and can be run on demand from the
+# Actions tab.
+#
+# IMPORTANT: this deploys ONLY functions. The Firestore/Storage rules in this
+# repo are shared with the Science app (see the warnings in firestore.rules /
+# storage.rules), so they are deliberately NOT deployed here.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "functions/**"
+      - "firebase.json"
+      - ".firebaserc"
+      - ".github/workflows/deploy-functions.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-functions
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_PROJECT: mathgen--app
+      # Optional: if you add a GEMINI_API_KEY repo secret, the workflow keeps
+      # the Secret Manager value in sync. If you set the secret another way
+      # (console / CLI), leave it unset and this step is skipped.
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install function dependencies
+        working-directory: functions
+        run: npm install --no-audit --no-fund
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Authenticate to Firebase
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "::error::Missing FIREBASE_SERVICE_ACCOUNT secret. Add the service-account JSON in repo Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-sa.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-sa.json" >> "$GITHUB_ENV"
+
+      - name: Sync GEMINI_API_KEY secret (optional)
+        if: ${{ env.GEMINI_API_KEY != '' }}
+        continue-on-error: true
+        run: |
+          printf '%s' "$GEMINI_API_KEY" | firebase functions:secrets:set GEMINI_API_KEY --project "$FIREBASE_PROJECT" --data-file -
+
+      - name: Deploy functions
+        run: firebase deploy --only functions --project "$FIREBASE_PROJECT" --force --non-interactive
