@@ -489,34 +489,43 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .rpg-bar-row { margin-bottom: 8px; }
 .rpg-bar-row .rpg-bar-cap { display: flex; justify-content: space-between; font-family: 'Space Mono', monospace; font-size: 0.6rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 3px; }
 /* battle banner */
-.rpg-battle { position: sticky; top: var(--topbar-h, 62px); z-index: 30; margin-bottom: 14px; }
-.rpg-battle-card { border-radius: var(--radius-lg); background: linear-gradient(135deg, #2b2640 0%, #1f2937 100%); color: #fff; padding: 14px 16px; box-shadow: var(--shadow-md); border: 1px solid #3a3553; }
-.rpg-battle-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.rpg-battle { position: sticky; top: var(--topbar-h, 62px); z-index: 30; margin-bottom: 8px; }
+.rpg-battle-card { border-radius: var(--radius-lg); background: linear-gradient(135deg, #2b2640 0%, #1f2937 100%); color: #fff; padding: 9px 13px; box-shadow: var(--shadow-md); border: 1px solid #3a3553; }
+.rpg-battle-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
 .rpg-battle-title { font-weight: 700; letter-spacing: -0.01em; }
-.rpg-battle-sub { color: rgba(255,255,255,0.65); font-size: 0.84rem; flex: 1; min-width: 160px; }
+.rpg-battle-sub { color: rgba(255,255,255,0.65); font-size: 0.82rem; flex: 1; min-width: 150px; }
+.rpg-battle-mini { display: none; flex: 1; min-width: 120px; font-family: 'Space Mono', monospace; font-size: 0.76rem; color: rgba(255,255,255,0.8); }
+.rpg-battle-mini b { color: #ffd76a; }
 .rpg-battle-head .btn { border-color: rgba(255,255,255,0.25); color: #fff; background: rgba(255,255,255,0.08); }
 .rpg-battle-head .btn:hover { background: rgba(255,255,255,0.16); border-color: rgba(255,255,255,0.4); }
 .rpg-battle-head .btn-primary { background: var(--primary); border-color: transparent; }
 .rpg-battle-head .btn-primary:hover { background: var(--primary-hover); }
-.rpg-arena { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: stretch; margin-top: 12px; }
-.rpg-fighter { position: relative; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-md); padding: 10px 12px; display: flex; align-items: center; gap: 12px; overflow: hidden; }
-.rpg-fighter-art { width: 74px; height: 74px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.rpg-battle-min { padding: 4px 9px !important; line-height: 1; }
+/* Minimized: collapse to a single header line so the working canvas gets the space back. */
+.rpg-battle-card.collapsed .rpg-battle-sub,
+.rpg-battle-card.collapsed .rpg-arena,
+.rpg-battle-card.collapsed .rpg-log,
+.rpg-battle-card.collapsed .rpg-sim { display: none; }
+.rpg-battle-card.collapsed .rpg-battle-mini { display: inline-block; }
+.rpg-arena { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: stretch; margin-top: 8px; }
+.rpg-fighter { position: relative; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-md); padding: 7px 10px; display: flex; align-items: center; gap: 10px; overflow: hidden; }
+.rpg-fighter-art { width: 48px; height: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 .rpg-fighter-art svg { width: 100%; height: 100%; }
-.rpg-foe-emoji { font-size: 3rem; line-height: 1; animation: rpgBob 2.2s ease-in-out infinite; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.4)); }
+.rpg-foe-emoji { font-size: 2.1rem; line-height: 1; animation: rpgBob 2.2s ease-in-out infinite; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.4)); }
 .rpg-fighter.hit .rpg-foe-emoji, .rpg-fighter.hit .rpg-fighter-art { animation: rpgShake 0.4s ease; }
 .rpg-fighter-info { flex: 1; min-width: 0; }
-.rpg-fighter-name { font-weight: 700; font-size: 0.92rem; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rpg-fighter-lv { font-family: 'Space Mono', monospace; font-size: 0.62rem; color: #ffd76a; }
-.rpg-fighter-hp { font-family: 'Space Mono', monospace; font-size: 0.62rem; color: rgba(255,255,255,0.75); margin-top: 3px; }
-.rpg-vs { align-self: center; font-family: 'Space Mono', monospace; font-weight: 700; font-size: 0.85rem; color: rgba(255,255,255,0.5); }
-.rpg-log { margin-top: 10px; font-size: 0.86rem; color: rgba(255,255,255,0.85); line-height: 1.45; min-height: 1.4em; }
+.rpg-fighter-name { font-weight: 700; font-size: 0.86rem; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rpg-fighter-lv { font-family: 'Space Mono', monospace; font-size: 0.6rem; color: #ffd76a; }
+.rpg-fighter-hp { font-family: 'Space Mono', monospace; font-size: 0.6rem; color: rgba(255,255,255,0.75); margin-top: 2px; }
+.rpg-vs { align-self: center; font-family: 'Space Mono', monospace; font-weight: 700; font-size: 0.8rem; color: rgba(255,255,255,0.5); }
+.rpg-log { margin-top: 6px; font-size: 0.8rem; color: rgba(255,255,255,0.85); line-height: 1.4; min-height: 1.3em; }
 .rpg-log b { color: #ffd76a; }
 .rpg-float { position: absolute; top: 26%; left: 50%; transform: translateX(-50%); font-family: 'Space Mono', monospace; font-weight: 700; font-size: 1.15rem; pointer-events: none; animation: rpgFloatUp 1.1s ease-out forwards; z-index: 5; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
 .rpg-float.dmg { color: #ffd76a; }
 .rpg-float.hurt { color: #ff8d8d; }
 .rpg-float.heal { color: #8af0a5; }
-.rpg-sim { margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.18); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-family: 'Space Mono', monospace; font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255,255,255,0.55); }
-.rpg-sim button { font-family: inherit; font-size: 0.66rem; padding: 5px 9px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.08); color: #fff; cursor: pointer; }
+.rpg-sim { margin-top: 7px; padding-top: 7px; border-top: 1px dashed rgba(255,255,255,0.18); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-family: 'Space Mono', monospace; font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255,255,255,0.55); }
+.rpg-sim button { font-family: inherit; font-size: 0.66rem; padding: 4px 8px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.08); color: #fff; cursor: pointer; }
 .rpg-sim button:hover { background: rgba(255,255,255,0.18); }
 @keyframes rpgBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
 @keyframes rpgShake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
@@ -6926,6 +6935,8 @@ function rpgSimRowHtml() {
     <button type="button" data-rpg-act="sim-reset">reset hero</button>
   </div>`;
 }
+function rpgBattleMinimized() { try { return localStorage.getItem("rpgBattleMin") === "1"; } catch (_) { return false; } }
+function rpgSetBattleMinimized(v) { try { localStorage.setItem("rpgBattleMin", v ? "1" : "0"); } catch (_) {} }
 function rpgRenderBattle() {
   const wrap = $("rpgBattle");
   if (!wrap) return;
@@ -6947,10 +6958,13 @@ function rpgRenderBattle() {
     </div>`;
     return;
   }
-  wrap.innerHTML = `<div class="rpg-battle-card">
+  const min = rpgBattleMinimized();
+  wrap.innerHTML = `<div class="rpg-battle-card${min ? " collapsed" : ""}">
     <div class="rpg-battle-head">
       <span class="rpg-battle-title">⚔️ Battle!</span>
       <span class="rpg-battle-sub">Submit your working — a correct answer is an attack.</span>
+      <span class="rpg-battle-mini">${escapeHtml(currentUser && currentUser.name || "You")} <b>${rpgState.hp}</b> · ${escapeHtml(enemy.name)} <b>${battle.enemyHp}</b></span>
+      <button class="btn btn-sm rpg-battle-min" type="button" data-rpg-act="toggle-min" title="${min ? "Expand the battle panel" : "Minimize — give the working area more space"}">${min ? "▸ Battle" : "▾ Hide"}</button>
       <button class="btn btn-sm" type="button" data-rpg-act="flee">🏃 Flee</button>
     </div>
     <div class="rpg-arena">
@@ -8675,6 +8689,7 @@ $("rpgBattle").addEventListener("click", e => {
   if (act.startsWith("sim-") && !canManageQuestions()) return;
   if (act === "start") rpgStartBattle();
   else if (act === "flee") rpgFlee();
+  else if (act === "toggle-min") { rpgSetBattleMinimized(!rpgBattleMinimized()); rpgRenderBattle(); }
   else if (act === "character") navigateTo("character");
   else if (act === "sim-correct") rpgSimulate("correct");
   else if (act === "sim-partial") rpgSimulate("partial");
