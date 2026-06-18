@@ -296,6 +296,21 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .v-correct { color: #2f8a3e; font-weight: 700; text-transform: capitalize; }
 .v-partial { color: #b07d12; font-weight: 700; text-transform: capitalize; }
 .v-incorrect { color: #c0392b; font-weight: 700; text-transform: capitalize; }
+.act-row.expandable { cursor: pointer; }
+.act-row.expandable:hover { background: var(--surface-alt); }
+.act-caret { color: var(--text-muted); font-size: 0.75rem; }
+.act-guess { display: inline-block; font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #9a6406; background: rgba(224,164,74,0.18); border: 1px solid #e0a44a; border-radius: 999px; padding: 1px 7px; margin-left: 6px; vertical-align: middle; }
+.act-detail-cell { background: var(--surface-alt); padding: 12px 14px 14px !important; }
+.act-lbl { font-family: 'Space Mono', monospace; font-size: 0.58rem; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-muted); margin: 8px 0 4px; }
+.act-lbl:first-child { margin-top: 0; }
+.act-skill { display: flex; align-items: center; gap: 9px; margin: 4px 0; font-size: 0.84rem; }
+.act-skill-bar { flex: 0 0 80px; height: 7px; border-radius: 4px; background: var(--border); overflow: hidden; }
+.act-skill-bar > i { display: block; height: 100%; }
+.act-skill b { font-family: 'Space Mono', monospace; min-width: 26px; }
+.act-skill-lbl { font-weight: 600; }
+.act-ev { color: var(--text-muted); }
+.act-tag-row { font-size: 0.84rem; margin: 5px 0; }
+.act-tag-row .act-lbl { display: inline-block; margin: 0 6px 0 0; }
 .learning-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .learning-list { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; min-height: 82px; }
 .learning-list h5 { font-family: 'Space Mono', monospace; font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
@@ -2179,19 +2194,52 @@ function attemptTopicLabel(a) {
   if (Array.isArray(a.topics) && a.topics.length) return a.topics.join(", ");
   return a.topic || a.concept || "";
 }
+function attemptAvgSkill(a) {
+  const ss = Array.isArray(a.skillScores) ? a.skillScores.map(s => Number(s && s.score)).filter(n => Number.isFinite(n)) : [];
+  return ss.length ? Math.round(ss.reduce((x, y) => x + y, 0) / ss.length) : null;
+}
+function attemptHasAnalysis(a) {
+  return (Array.isArray(a.skillScores) && a.skillScores.length > 0) ||
+    (Array.isArray(a.strengths) && a.strengths.length > 0) ||
+    (Array.isArray(a.weaknesses) && a.weaknesses.length > 0) ||
+    !!(a.learningNote && String(a.learningNote).trim());
+}
+// The AI marker's per-attempt read of HOW the student solved it — skill
+// scores with evidence, strengths, focus areas and a learning note. This is
+// what tells you whether they understood the method or just produced an answer.
+function attemptDetailHtml(x) {
+  const parts = [];
+  const ss = Array.isArray(x.skillScores) ? x.skillScores.slice(0, 8) : [];
+  if (ss.length) {
+    parts.push(`<div class="act-lbl">Method / skill read</div>` + ss.map(s => {
+      const score = Math.max(0, Math.min(100, Math.round(Number(s && s.score) || 0)));
+      const col = score >= 70 ? "#2f8a3e" : score >= 40 ? "#b07d12" : "#c0392b";
+      return `<div class="act-skill"><span class="act-skill-bar"><i style="width:${score}%;background:${col};"></i></span><b>${score}</b><span class="act-skill-lbl">${escapeHtml(s.label || "")}</span>${s.evidence ? `<span class="act-ev">— ${escapeHtml(s.evidence)}</span>` : ""}</div>`;
+    }).join(""));
+  }
+  const strengths = (Array.isArray(x.strengths) ? x.strengths : []).map(s => escapeHtml(String(s))).filter(Boolean);
+  const weak = (Array.isArray(x.weaknesses) ? x.weaknesses : []).map(s => escapeHtml(String(s))).filter(Boolean);
+  if (strengths.length) parts.push(`<div class="act-tag-row"><span class="act-lbl">Strengths</span> ${strengths.join(", ")}</div>`);
+  if (weak.length) parts.push(`<div class="act-tag-row"><span class="act-lbl">Focus areas</span> ${weak.join(", ")}</div>`);
+  if (x.learningNote) parts.push(`<div class="act-tag-row"><span class="act-lbl">Note</span> ${escapeHtml(String(x.learningNote))}</div>`);
+  return parts.join("") || `<div class="sr-email">No method analysis was recorded for this attempt.</div>`;
+}
 function analyzeAttempts(attempts) {
   // attempts arrive newest-first; walk chronologically to measure gaps
   const chron = attempts.slice().reverse();
   let rapid = 0, fastest = Infinity, lastMs = null, lastHour = 0, today = 0;
+  let skillSum = 0, skillCount = 0;
   const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
   const nowMs = Date.now();
   const perQuestion = new Map();
   const gaps = {};
+  const answerOnlyIds = new Set();   // correct, but weak method read or answered too fast
   chron.forEach(a => {
+    let g = null;
     const ms = Date.parse(a.createdAt || "");
     if (Number.isFinite(ms)) {
       if (lastMs != null) {
-        const g = ms - lastMs;
+        g = ms - lastMs;
         gaps[a.id] = g;
         if (g >= 0 && g < RAPID_SUBMIT_MS) rapid++;
         if (g >= 0 && g < fastest) fastest = g;
@@ -2203,10 +2251,22 @@ function analyzeAttempts(attempts) {
     const key = a.questionId || a.questionTitle || a.id;
     const e = perQuestion.get(key) || { title: a.questionTitle || a.questionId || "Question", count: 0 };
     e.count++; perQuestion.set(key, e);
+    // Understanding vs. answer-only: a "correct" with a weak method read, or
+    // one delivered too fast to have actually worked it, is worth a look.
+    const avgSkill = attemptAvgSkill(a);
+    if (avgSkill != null) { skillSum += avgSkill; skillCount++; }
+    const correct = String(a.verdict || "").toLowerCase() === "correct" || (Number(a.credit) || 0) >= 0.95;
+    const tooFast = g != null && g >= 0 && g < 20000;
+    if (correct && ((avgSkill != null && avgSkill < 40) || tooFast)) answerOnlyIds.add(a.id);
   });
   let mostRepeated = null;
   perQuestion.forEach(e => { if (!mostRepeated || e.count > mostRepeated.count) mostRepeated = e; });
-  return { rapid, fastest: fastest === Infinity ? null : fastest, gaps, mostRepeated, lastHour, today, uniqueQuestions: perQuestion.size };
+  return {
+    rapid, fastest: fastest === Infinity ? null : fastest, gaps, mostRepeated,
+    lastHour, today, uniqueQuestions: perQuestion.size,
+    avgUnderstanding: skillCount ? Math.round(skillSum / skillCount) : null,
+    answerOnlyIds
+  };
 }
 function renderStudentActivity(row, attempts, totals, loadError) {
   const body = $("studentActivityBody");
@@ -2224,25 +2284,31 @@ function renderStudentActivity(row, attempts, totals, loadError) {
   const capped = attempts.length >= 300;
   const recentLogins = Array.isArray(row.recentLogins) ? row.recentLogins.slice(-8).reverse() : [];
 
+  const answerOnly = a.answerOnlyIds ? a.answerOnlyIds.size : 0;
   const chips = [
     `<div class="act-chip"><b>${totalSubs}</b>submissions</div>`,
-    `<div class="act-chip"><b>${acc}</b>correct (${correct})</div>`,
+    `<div class="act-chip"><b>${acc}</b>correct (${correct})</div>`
+  ];
+  if (a.avgUnderstanding != null) chips.push(`<div class="act-chip${a.avgUnderstanding < 40 ? " warn" : ""}"><b>${a.avgUnderstanding}</b>avg method score</div>`);
+  chips.push(
     `<div class="act-chip"><b>${a.uniqueQuestions}</b>questions${capped ? " (recent)" : ""}</div>`,
     `<div class="act-chip"><b>${a.today}</b>today</div>`,
     `<div class="act-chip"><b>${a.lastHour}</b>last hour</div>`,
     `<div class="act-chip${a.rapid ? " warn" : ""}"><b>${a.rapid}</b>rapid (&lt;30s apart)</div>`,
     `<div class="act-chip${a.fastest != null && a.fastest < RAPID_SUBMIT_MS ? " warn" : ""}"><b>${formatGap(a.fastest)}</b>fastest gap</div>`
-  ];
+  );
+  if (attempts.length) chips.push(`<div class="act-chip${answerOnly ? " warn" : ""}"><b>${answerOnly}</b>answer-only?</div>`);
   if (a.mostRepeated && a.mostRepeated.count >= 2) {
     chips.push(`<div class="act-chip${a.mostRepeated.count >= 4 ? " warn" : ""}"><b>${a.mostRepeated.count}×</b>${escapeHtml(a.mostRepeated.title)}</div>`);
   }
 
   const concerns = [];
   if (a.rapid >= 3) concerns.push(`${a.rapid} submissions came less than 30 seconds apart`);
+  if (answerOnly >= 3) concerns.push(`${answerOnly} correct answers showed a weak method read or came in too fast (possible answer-only / guessing)`);
   if (a.mostRepeated && a.mostRepeated.count >= 4) concerns.push(`"${a.mostRepeated.title}" was submitted ${a.mostRepeated.count} times (possible answer-fishing)`);
   if (a.fastest != null && a.fastest < 20000) concerns.push(`the fastest gap between two submissions was only ${formatGap(a.fastest)}`);
   const noteHtml = concerns.length
-    ? `<div class="act-note">⚠️ Worth a closer look: ${escapeHtml(concerns.join("; "))}. Open the questions below to check their working.</div>`
+    ? `<div class="act-note">⚠️ Worth a closer look: ${escapeHtml(concerns.join("; "))}. Tap a question to see how they solved it.</div>`
     : "";
 
   const loginHtml = recentLogins.length
@@ -2253,21 +2319,25 @@ function renderStudentActivity(row, attempts, totals, loadError) {
   if (!attempts.length) {
     tableHtml = `<div class="empty-note" style="padding:20px;">No marked attempts recorded yet for this student.</div>`;
   } else {
-    const rowsHtml = attempts.map(x => {
+    const rowsHtml = attempts.map((x, idx) => {
       const v = String(x.verdict || "").toLowerCase();
       const vClass = v === "correct" ? "v-correct" : v === "partial" ? "v-partial" : "v-incorrect";
       const marks = `${Math.round((Number(x.marks) || 0) * 10) / 10}/${Number(x.outOf) || 1}`;
       const g = a.gaps[x.id];
       const rapid = Number.isFinite(g) && g >= 0 && g < RAPID_SUBMIT_MS;
       const topic = attemptTopicLabel(x);
-      return `<tr>
+      const expandable = attemptHasAnalysis(x);
+      const flagged = a.answerOnlyIds && a.answerOnlyIds.has(x.id);
+      const mainRow = `<tr class="act-row${expandable ? " expandable" : ""}"${expandable ? ` data-act-idx="${idx}"` : ""}>
         <td class="sr-when">${escapeHtml(formatHistoryDate(x.createdAt) || "—")}</td>
-        <td><div class="sr-name" style="font-weight:600;">${escapeHtml(x.questionTitle || x.questionId || "Question")}</div>${topic ? `<div class="sr-email">${escapeHtml(topic)}</div>` : ""}</td>
+        <td><div class="sr-name" style="font-weight:600;">${expandable ? `<span class="act-caret" id="actcar-${idx}">▸</span> ` : ""}${escapeHtml(x.questionTitle || x.questionId || "Question")}${flagged ? ` <span class="act-guess" title="Correct, but the method read was weak or it was answered very fast">answer-only?</span>` : ""}</div>${topic ? `<div class="sr-email">${escapeHtml(topic)}</div>` : ""}</td>
         <td class="${vClass}">${escapeHtml(v || "—")}<div class="sr-email">${marks}</div></td>
         <td class="sr-num">${escapeHtml(x.source || "bank")}</td>
         <td class="sr-num">+${Number(x.xpAwarded) || 0}</td>
         <td class="sr-num${rapid ? " act-flag" : ""}">${formatGap(g)}${rapid ? " ⚡" : ""}</td>
       </tr>`;
+      const detailRow = expandable ? `<tr class="act-detail" id="actdet-${idx}" hidden><td colspan="6" class="act-detail-cell">${attemptDetailHtml(x)}</td></tr>` : "";
+      return mainRow + detailRow;
     }).join("");
     tableHtml = `<div class="sr-table-wrap"><table class="sr-table">
       <thead><tr><th>Time</th><th>Question</th><th>Result</th><th>Source</th><th>XP</th><th>Gap</th></tr></thead>
@@ -2276,6 +2346,15 @@ function renderStudentActivity(row, attempts, totals, loadError) {
   }
 
   body.innerHTML = `<div class="act-chips">${chips.join("")}</div>` + loginHtml + noteHtml + tableHtml;
+  body.querySelectorAll(".act-row[data-act-idx]").forEach(tr => {
+    tr.addEventListener("click", () => {
+      const idx = tr.dataset.actIdx;
+      const det = document.getElementById("actdet-" + idx);
+      const car = document.getElementById("actcar-" + idx);
+      if (det) det.hidden = !det.hidden;
+      if (car) car.textContent = det && !det.hidden ? "▾" : "▸";
+    });
+  });
 }
 async function loadStudentLearningState(uid) {
   studentProgress = {};
@@ -7333,12 +7412,35 @@ async function rpgRaidHtml() {
 }
 let rpgBoardTab = "month";
 let rpgBoardRows = null;
+let rpgBoardNames = null;   // admin-only uid→name backfill from studentProfiles
+// A player's XP is written by the markAttempt function; their display name is
+// written separately by their own browser. For the admin's board we fill any
+// missing name from studentProfiles so server-written rows still show who they
+// are. (Students can't read others' profiles, so they fall back to the name on
+// the row, which the server now stamps too.)
+async function rpgEnsureBoardNames(force) {
+  if (!currentUser || currentUser.role !== "admin") { rpgBoardNames = rpgBoardNames || {}; return; }
+  if (rpgBoardNames && !force) return;
+  const map = {};
+  try {
+    const snap = await getDocs(collection(db, "studentProfiles"));
+    snap.forEach(d => { const r = d.data(); if (r && r.uid) map[r.uid] = r.name || r.email || ""; });
+  } catch (e) { console.warn("board names", e); }
+  rpgBoardNames = map;
+}
+function rpgBoardName(r) {
+  return (r && r.name) || (rpgBoardNames && rpgBoardNames[r && r.uid]) || "Student";
+}
 async function rpgFetchLeaderboard(force) {
   if (rpgBoardRows && !force) return rpgBoardRows;
   const rows = [];
   try {
     const snap = await getDocs(collection(db, "gameLeaderboard"));
-    snap.forEach(d => { const r = d.data(); if (r && r.uid && r.name) rows.push(r); });
+    // Keep every row that has a uid. The server writes the authoritative XP
+    // (sometimes before the player's cosmetic name write lands), so a real
+    // competitor must never be dropped just for a missing name — we fall back
+    // to a name at render time instead.
+    snap.forEach(d => { const r = d.data(); if (r && r.uid) rows.push(r); });
   } catch (e) { console.warn("leaderboard load", e); return null; }
   rpgBoardRows = rows;
   return rows;
@@ -7375,6 +7477,7 @@ async function rpgRenderLeaderboard(force = false) {
     body.innerHTML = `<div class="empty-note">Couldn't load the leaderboard. Ensure your Firestore rules let signed-in users read the <b>gameLeaderboard</b> collection.</div>`;
     return;
   }
+  await rpgEnsureBoardNames(force);
   // overlay your own live state so the board never lags behind your last answer
   const rows = fetched.slice();
   if (rpgState && currentUser && currentUser.role === "student") {
@@ -7390,7 +7493,11 @@ async function rpgRenderLeaderboard(force = false) {
     const i = rows.findIndex(r => r.uid === currentUser.uid);
     if (i >= 0) rows[i] = mine; else rows.push(mine);
   }
-  const list = rows.map(r => Object.assign({}, r, { shownXp: rpgBoardXp(r) }))
+  // The registered teacher/admin runs the class — keep them off the student
+  // competition board (the server already skips writing admin XP; this also
+  // hides any legacy admin row).
+  const visible = rows.filter(r => r && r.uid && r.uid !== adminUid);
+  const list = visible.map(r => Object.assign({}, r, { shownXp: rpgBoardXp(r) }))
     .filter(r => r.shownXp > 0)
     .sort((a, b) => b.shownXp - a.shownXp || String(a.updatedAt || "").localeCompare(String(b.updatedAt || "")));
   if (!list.length) {
@@ -7406,7 +7513,7 @@ async function rpgRenderLeaderboard(force = false) {
   let houseBar = "";
   if (rpgBoardTab === "month") {
     const tot = {};
-    rows.forEach(r => { const h = r.house || rpgHouseOf(r.uid).id; tot[h] = (tot[h] || 0) + (r.monthKey === rpgMonthKey() ? r.monthXp || 0 : 0); });
+    visible.forEach(r => { const h = r.house || rpgHouseOf(r.uid).id; tot[h] = (tot[h] || 0) + (r.monthKey === rpgMonthKey() ? r.monthXp || 0 : 0); });
     const maxT = Math.max(1, ...RPG_HOUSES.map(h => tot[h.id] || 0));
     houseBar = `<div class="rpg-houses">` + RPG_HOUSES.map(h =>
       `<div class="rpg-house-row"><span>${h.icon} ${h.name}</span><div class="rpg-house-bar"><div style="width:${Math.round((tot[h.id] || 0) / maxT * 100)}%;background:${h.color};"></div></div><b>${tot[h.id] || 0}</b></div>`).join("") + `</div>`;
@@ -7419,7 +7526,7 @@ async function rpgRenderLeaderboard(force = false) {
       <div class="rpg-board-rank">${medal}</div>
       <div class="rpg-board-ava">${rpgAvatarSvg(r.equipment || {})}</div>
       <div class="rpg-board-main">
-        <div class="rpg-board-name">${r.clazz && RPG_CLASSES[r.clazz] ? RPG_CLASSES[r.clazz].icon + " " : ""}${escapeHtml(r.name)}${r.rebirths ? ` <span class="rpg-item-up" title="Starfall rebirths">R${r.rebirths}</span>` : ""}${me ? `<span class="rpg-you-tag">You</span>` : ""}</div>
+        <div class="rpg-board-name">${r.clazz && RPG_CLASSES[r.clazz] ? RPG_CLASSES[r.clazz].icon + " " : ""}${escapeHtml(rpgBoardName(r))}${r.rebirths ? ` <span class="rpg-item-up" title="Starfall rebirths">R${r.rebirths}</span>` : ""}${me ? `<span class="rpg-you-tag">You</span>` : ""}</div>
         <div class="rpg-board-meta">${(RPG_HOUSES.find(h => h.id === (r.house || rpgHouseOf(r.uid).id)) || RPG_HOUSES[0]).icon} Lv ${r.level || 1} · ${r.wins || 0} battles won${r.bestFloor ? ` · 🏰 F${r.bestFloor}` : ""}${r.arenaWins ? ` · ⚔️ ${r.arenaWins}W` : ""}</div>
       </div>
       ${rpgPrizeBadge(rank)}
