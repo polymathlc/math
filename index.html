@@ -281,6 +281,21 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .sr-num { font-family: 'Space Mono', monospace; white-space: nowrap; }
 .sr-weak { max-width: 280px; }
 .sr-when { font-size: 0.78rem; color: var(--text-muted); white-space: nowrap; }
+.sr-row { cursor: pointer; transition: background 0.12s; }
+.sr-row:hover { background: var(--surface-alt); }
+.sr-go { text-align: right; color: var(--text-muted); font-size: 1.15rem; line-height: 1; }
+.sr-sort { display: flex; align-items: center; gap: 7px; font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); font-family: 'Space Mono', monospace; }
+.sr-sort select { font-family: 'Space Grotesk', sans-serif; font-size: 0.85rem; padding: 6px 9px; border: 1.5px solid var(--border); border-radius: var(--radius-md); background: var(--surface-alt); color: var(--text); }
+.act-chips { display: flex; flex-wrap: wrap; gap: 9px; margin-bottom: 14px; }
+.act-chip { background: var(--surface-alt); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 7px 12px; font-size: 0.78rem; color: var(--text-muted); line-height: 1.3; white-space: nowrap; }
+.act-chip b { display: block; font-family: 'Space Mono', monospace; font-size: 1.05rem; color: var(--text); font-weight: 700; }
+.act-chip.warn { border-color: #e0a44a; background: rgba(224,164,74,0.14); color: #9a6406; }
+.act-chip.warn b { color: #9a6406; }
+.act-note { background: rgba(224,164,74,0.14); border: 1px solid #e0a44a; border-radius: var(--radius-md); padding: 11px 13px; font-size: 0.86rem; color: #7a4f08; margin-bottom: 14px; line-height: 1.45; }
+.act-flag { color: #c0392b; font-weight: 700; }
+.v-correct { color: #2f8a3e; font-weight: 700; text-transform: capitalize; }
+.v-partial { color: #b07d12; font-weight: 700; text-transform: capitalize; }
+.v-incorrect { color: #c0392b; font-weight: 700; text-transform: capitalize; }
 .learning-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .learning-list { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; min-height: 82px; }
 .learning-list h5 { font-family: 'Space Mono', monospace; font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
@@ -1011,8 +1026,16 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
     <!-- ================= STUDENT RESULTS PAGE (admin) ================= -->
     <div class="page" id="page-students">
       <div class="page-head" style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;">
-        <div><h3>Student Results</h3><p>Track every student's rating, accuracy and weaknesses. <span id="studentRosterCount"></span></p></div>
-        <button class="btn btn-ghost" id="refreshRosterBtn" type="button" style="margin-left:auto;">Refresh</button>
+        <div><h3>Student Results</h3><p>Recent logins, activity and every question each student has attempted — tap a student to open their full question log with times. <span id="studentRosterCount"></span></p></div>
+        <label class="sr-sort" style="margin-left:auto;">Sort
+          <select id="rosterSort">
+            <option value="rating">Rating</option>
+            <option value="login">Recent login</option>
+            <option value="attempts">Attempts</option>
+            <option value="name">Name</option>
+          </select>
+        </label>
+        <button class="btn btn-ghost" id="refreshRosterBtn" type="button">Refresh</button>
       </div>
       <div id="studentRoster"></div>
     </div>
@@ -1242,6 +1265,16 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
   </div>
 </div>
 
+<div class="overlay" id="studentActivityOverlay">
+  <div class="overlay-card wide">
+    <div class="overlay-head"><h3 id="studentActivityTitle">Student activity</h3><button class="close" data-close="studentActivityOverlay">×</button></div>
+    <div class="overlay-body">
+      <div id="studentActivityBody"></div>
+    </div>
+    <div class="overlay-foot"><button class="btn btn-ghost" id="refreshActivityBtn" type="button">Refresh</button><button class="btn btn-primary" data-close="studentActivityOverlay">Done</button></div>
+  </div>
+</div>
+
 <div class="overlay" id="aiPrintOverlay">
   <div class="overlay-card" style="max-width:430px;">
     <div class="overlay-head"><h3>Print practice set</h3><button class="close" data-close="aiPrintOverlay">×</button></div>
@@ -1304,7 +1337,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/fireba
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
   updateProfile, GoogleAuthProvider, signInWithPopup, signOut, browserPopupRedirectResolver }
   from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, collection, getDocs, deleteDoc, increment }
+import { getFirestore, doc, getDoc, setDoc, collection, getDocs, deleteDoc, increment, query, orderBy, limit }
   from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app-check.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-functions.js";
@@ -2012,6 +2045,34 @@ async function saveStudentRosterSummary() {
   try { await setDoc(doc(db, "studentProfiles", currentUser.uid), summary, { merge: true }); }
   catch (e) { console.warn("roster summary save", e); }
 }
+// Records a sign-in so the admin dashboard can show recent logins. Stored on
+// the student's own studentProfiles doc (owner-writable). Like the rest of
+// that doc this is self-reported context for the teacher, NOT an anti-cheat
+// signal — the authoritative record is mathPerformanceAttempts (server-written).
+async function recordLoginEvent() {
+  if (loginRecorded) return;                 // once per page session
+  if (!currentUser || currentUser.role !== "student") return;
+  loginRecorded = true;
+  const nowIso = new Date().toISOString();
+  try {
+    const ref = doc(db, "studentProfiles", currentUser.uid);
+    let recent = [];
+    try {
+      const snap = await getDoc(ref);
+      if (snap.exists() && Array.isArray(snap.data().recentLogins)) recent = snap.data().recentLogins.slice();
+    } catch (_) { /* first login, or unreadable — start fresh */ }
+    recent.push(nowIso);
+    if (recent.length > 25) recent = recent.slice(-25);   // keep the last 25 sessions
+    await setDoc(ref, {
+      uid: currentUser.uid,
+      name: currentUser.name || "",
+      email: currentUser.email || "",
+      lastLogin: nowIso,
+      recentLogins: recent,
+      loginCount: increment(1)
+    }, { merge: true });
+  } catch (e) { console.warn("login event", e); loginRecorded = false; }
+}
 async function loadStudentRoster() {
   const wrap = $("studentRoster");
   if (!wrap) return;
@@ -2027,31 +2088,194 @@ async function loadStudentRoster() {
     return;
   }
   rows = rows.filter(r => r && !ADMIN_EMAILS.includes(String(r.email || "").toLowerCase()));
-  renderStudentRoster(rows);
+  studentRosterRows = rows;
+  renderStudentRoster();
 }
-function renderStudentRoster(rows) {
+function rosterLoginMs(r) { return Date.parse((r && (r.lastLogin || r.lastActive)) || "") || 0; }
+function sortRosterRows(rows) {
+  const sorted = rows.slice();
+  if (rosterSortMode === "login") sorted.sort((a, b) => rosterLoginMs(b) - rosterLoginMs(a));
+  else if (rosterSortMode === "attempts") sorted.sort((a, b) => (b.attempts || 0) - (a.attempts || 0));
+  else if (rosterSortMode === "name") sorted.sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+  else sorted.sort((a, b) => (b.elo || 0) - (a.elo || 0) || (b.attempts || 0) - (a.attempts || 0));
+  return sorted;
+}
+function renderStudentRoster() {
   const wrap = $("studentRoster");
+  if (!wrap) return;
+  const rows = studentRosterRows;
   $("studentRosterCount").textContent = rows.length ? `${rows.length} student${rows.length === 1 ? "" : "s"}` : "";
   if (!rows.length) {
     wrap.innerHTML = `<div class="empty-note" style="padding:20px;">No student activity yet. Students appear here after they sign in and submit work.</div>`;
     return;
   }
-  rows.sort((a, b) => (b.elo || 0) - (a.elo || 0) || (b.attempts || 0) - (a.attempts || 0));
-  const body = rows.map(r => {
+  const body = sortRosterRows(rows).map(r => {
     const acc = r.attempts ? Math.round((r.accuracy || 0) * 100) + "%" : "—";
     const weak = (r.topWeaknesses || []).map(w => escapeHtml(w.label || "")).filter(Boolean).slice(0, 3).join(", ") || "—";
-    return `<tr>
+    const loginAt = r.lastLogin || r.lastActive;
+    const sessions = Number(r.loginCount) || (Array.isArray(r.recentLogins) ? r.recentLogins.length : 0);
+    const loginCell = loginAt
+      ? `${escapeHtml(formatHistoryDate(loginAt) || "—")}${sessions ? `<div class="sr-email">${sessions} session${sessions === 1 ? "" : "s"}</div>` : ""}`
+      : "—";
+    return `<tr class="sr-row" data-student-uid="${escapeHtml(r.uid || "")}" title="View full activity & question log">
       <td><div class="sr-name">${escapeHtml(r.name || "Student")}</div><div class="sr-email">${escapeHtml(r.email || "")}</div></td>
       <td class="sr-num">${r.elo != null ? r.elo : "—"}</td>
       <td class="sr-num">${r.attempts || 0}</td>
       <td class="sr-num">${acc}</td>
       <td class="sr-weak">${weak}</td>
-      <td class="sr-when">${escapeHtml(formatHistoryDate(r.lastActive) || "—")}</td>
+      <td class="sr-when">${loginCell}</td>
+      <td class="sr-go" aria-hidden="true">›</td>
     </tr>`;
   }).join("");
   wrap.innerHTML = `<div class="card card-pad"><div class="sr-table-wrap"><table class="sr-table">
-    <thead><tr><th>Student</th><th>Rating</th><th>Attempts</th><th>Accuracy</th><th>Top weaknesses</th><th>Last active</th></tr></thead>
+    <thead><tr><th>Student</th><th>Rating</th><th>Attempts</th><th>Accuracy</th><th>Top weaknesses</th><th>Last login</th><th></th></tr></thead>
     <tbody>${body}</tbody></table></div></div>`;
+  wrap.querySelectorAll(".sr-row[data-student-uid]").forEach(tr => {
+    tr.addEventListener("click", () => openStudentActivity(tr.dataset.studentUid));
+  });
+}
+
+// ===== Per-student activity log: the authoritative, server-written record of
+// every question a student has submitted, with exact times. Lets the admin
+// audit activity and spot cheating (rapid-fire or repeated submissions).
+// Reads users/{uid}/mathPerformanceAttempts + serverStats (admin-readable). =====
+const RAPID_SUBMIT_MS = 30 * 1000;   // consecutive submissions closer than this look unusually fast
+let activityStudentUid = null;
+async function openStudentActivity(uid) {
+  if (!canManageQuestions()) { toast("Only admin accounts can view student activity", "error"); return; }
+  if (!uid) return;
+  activityStudentUid = uid;
+  const row = studentRosterRows.find(r => r && r.uid === uid) || {};
+  $("studentActivityTitle").textContent = (row.name || "Student") + " — activity";
+  $("studentActivityBody").innerHTML = `<div class="empty-note" style="padding:20px;">Loading activity…</div>`;
+  $("studentActivityOverlay").classList.add("show");
+  await loadStudentActivity(uid);
+}
+async function loadStudentActivity(uid) {
+  const row = studentRosterRows.find(r => r && r.uid === uid) || {};
+  let attempts = [], totals = null, loadError = false;
+  try {
+    const snap = await getDocs(query(collection(db, "users", uid, "mathPerformanceAttempts"), orderBy("createdAt", "desc"), limit(300)));
+    snap.forEach(d => attempts.push(Object.assign({ id: d.id }, d.data())));
+  } catch (e) { console.warn("activity attempts load", e); loadError = true; }
+  try {
+    const s = await getDoc(doc(db, "users", uid, "serverStats", "progress"));
+    if (s.exists()) totals = s.data();
+  } catch (e) { console.warn("activity stats load", e); }
+  if (activityStudentUid !== uid) return;   // a newer open superseded this one
+  renderStudentActivity(row, attempts, totals, loadError);
+}
+function formatGap(ms) {
+  if (ms == null || !Number.isFinite(ms) || ms < 0) return "—";
+  if (ms < 1000) return "0s";
+  const s = Math.round(ms / 1000);
+  if (s < 90) return s + "s";
+  const m = Math.round(s / 60);
+  if (m < 90) return m + "m";
+  const h = ms / 3600000;
+  return (h < 10 ? h.toFixed(1) : Math.round(h)) + "h";
+}
+function attemptTopicLabel(a) {
+  if (Array.isArray(a.topics) && a.topics.length) return a.topics.join(", ");
+  return a.topic || a.concept || "";
+}
+function analyzeAttempts(attempts) {
+  // attempts arrive newest-first; walk chronologically to measure gaps
+  const chron = attempts.slice().reverse();
+  let rapid = 0, fastest = Infinity, lastMs = null, lastHour = 0, today = 0;
+  const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
+  const nowMs = Date.now();
+  const perQuestion = new Map();
+  const gaps = {};
+  chron.forEach(a => {
+    const ms = Date.parse(a.createdAt || "");
+    if (Number.isFinite(ms)) {
+      if (lastMs != null) {
+        const g = ms - lastMs;
+        gaps[a.id] = g;
+        if (g >= 0 && g < RAPID_SUBMIT_MS) rapid++;
+        if (g >= 0 && g < fastest) fastest = g;
+      }
+      lastMs = ms;
+      if (nowMs - ms <= 3600 * 1000) lastHour++;
+      if (ms >= dayStart.getTime()) today++;
+    }
+    const key = a.questionId || a.questionTitle || a.id;
+    const e = perQuestion.get(key) || { title: a.questionTitle || a.questionId || "Question", count: 0 };
+    e.count++; perQuestion.set(key, e);
+  });
+  let mostRepeated = null;
+  perQuestion.forEach(e => { if (!mostRepeated || e.count > mostRepeated.count) mostRepeated = e; });
+  return { rapid, fastest: fastest === Infinity ? null : fastest, gaps, mostRepeated, lastHour, today, uniqueQuestions: perQuestion.size };
+}
+function renderStudentActivity(row, attempts, totals, loadError) {
+  const body = $("studentActivityBody");
+  if (!body) return;
+  if (loadError) {
+    body.innerHTML = `<div class="empty-note" style="padding:20px;">Couldn't load this student's activity. If the grantAdminRole function isn't deployed your account may lack the admin claim Firestore rules require to read other students' records — deploy the Cloud Functions, then sign in again.</div>`;
+    return;
+  }
+  const a = analyzeAttempts(attempts);
+  const totalSubs = (totals && Number(totals.attempts)) || attempts.length;
+  const correct = totals && Number.isFinite(Number(totals.correct))
+    ? Number(totals.correct)
+    : attempts.filter(x => String(x.verdict || "").toLowerCase() === "correct").length;
+  const acc = totalSubs ? Math.round(correct / totalSubs * 100) + "%" : "—";
+  const capped = attempts.length >= 300;
+  const recentLogins = Array.isArray(row.recentLogins) ? row.recentLogins.slice(-8).reverse() : [];
+
+  const chips = [
+    `<div class="act-chip"><b>${totalSubs}</b>submissions</div>`,
+    `<div class="act-chip"><b>${acc}</b>correct (${correct})</div>`,
+    `<div class="act-chip"><b>${a.uniqueQuestions}</b>questions${capped ? " (recent)" : ""}</div>`,
+    `<div class="act-chip"><b>${a.today}</b>today</div>`,
+    `<div class="act-chip"><b>${a.lastHour}</b>last hour</div>`,
+    `<div class="act-chip${a.rapid ? " warn" : ""}"><b>${a.rapid}</b>rapid (&lt;30s apart)</div>`,
+    `<div class="act-chip${a.fastest != null && a.fastest < RAPID_SUBMIT_MS ? " warn" : ""}"><b>${formatGap(a.fastest)}</b>fastest gap</div>`
+  ];
+  if (a.mostRepeated && a.mostRepeated.count >= 2) {
+    chips.push(`<div class="act-chip${a.mostRepeated.count >= 4 ? " warn" : ""}"><b>${a.mostRepeated.count}×</b>${escapeHtml(a.mostRepeated.title)}</div>`);
+  }
+
+  const concerns = [];
+  if (a.rapid >= 3) concerns.push(`${a.rapid} submissions came less than 30 seconds apart`);
+  if (a.mostRepeated && a.mostRepeated.count >= 4) concerns.push(`"${a.mostRepeated.title}" was submitted ${a.mostRepeated.count} times (possible answer-fishing)`);
+  if (a.fastest != null && a.fastest < 20000) concerns.push(`the fastest gap between two submissions was only ${formatGap(a.fastest)}`);
+  const noteHtml = concerns.length
+    ? `<div class="act-note">⚠️ Worth a closer look: ${escapeHtml(concerns.join("; "))}. Open the questions below to check their working.</div>`
+    : "";
+
+  const loginHtml = recentLogins.length
+    ? `<div style="margin:0 0 14px;font-size:0.85rem;color:var(--text-muted);"><b style="color:var(--text);">Recent logins:</b> ${recentLogins.map(t => escapeHtml(formatHistoryDate(t))).filter(Boolean).join("  ·  ")}</div>`
+    : "";
+
+  let tableHtml;
+  if (!attempts.length) {
+    tableHtml = `<div class="empty-note" style="padding:20px;">No marked attempts recorded yet for this student.</div>`;
+  } else {
+    const rowsHtml = attempts.map(x => {
+      const v = String(x.verdict || "").toLowerCase();
+      const vClass = v === "correct" ? "v-correct" : v === "partial" ? "v-partial" : "v-incorrect";
+      const marks = `${Math.round((Number(x.marks) || 0) * 10) / 10}/${Number(x.outOf) || 1}`;
+      const g = a.gaps[x.id];
+      const rapid = Number.isFinite(g) && g >= 0 && g < RAPID_SUBMIT_MS;
+      const topic = attemptTopicLabel(x);
+      return `<tr>
+        <td class="sr-when">${escapeHtml(formatHistoryDate(x.createdAt) || "—")}</td>
+        <td><div class="sr-name" style="font-weight:600;">${escapeHtml(x.questionTitle || x.questionId || "Question")}</div>${topic ? `<div class="sr-email">${escapeHtml(topic)}</div>` : ""}</td>
+        <td class="${vClass}">${escapeHtml(v || "—")}<div class="sr-email">${marks}</div></td>
+        <td class="sr-num">${escapeHtml(x.source || "bank")}</td>
+        <td class="sr-num">+${Number(x.xpAwarded) || 0}</td>
+        <td class="sr-num${rapid ? " act-flag" : ""}">${formatGap(g)}${rapid ? " ⚡" : ""}</td>
+      </tr>`;
+    }).join("");
+    tableHtml = `<div class="sr-table-wrap"><table class="sr-table">
+      <thead><tr><th>Time</th><th>Question</th><th>Result</th><th>Source</th><th>XP</th><th>Gap</th></tr></thead>
+      <tbody>${rowsHtml}</tbody></table>
+      ${capped ? `<div class="sr-email" style="padding:9px 12px 0;">Showing the 300 most recent submissions.</div>` : ""}</div>`;
+  }
+
+  body.innerHTML = `<div class="act-chips">${chips.join("")}</div>` + loginHtml + noteHtml + tableHtml;
 }
 async function loadStudentLearningState(uid) {
   studentProgress = {};
@@ -2332,6 +2556,9 @@ let aiPracticeQueue = [];        // the focused growth-zone set (also what Print
 let lastEloChange = null;
 let flagNotifications = [];
 let emailNewQuestionOptIn = false;
+let studentRosterRows = [];        // last-loaded studentProfiles rows (for the admin dashboard)
+let rosterSortMode = "rating";     // rating | login | attempts | name
+let loginRecorded = false;         // record one login event per page session
 
 // =====================================================================
 // AUTH
@@ -2382,6 +2609,7 @@ onAuthStateChanged(auth, async (user) => {
     adminUid = null;
     flagNotifications = [];
     emailNewQuestionOptIn = false;
+    loginRecorded = false;
     rpgOnSignOut();
     $("appShell").classList.remove("show");
     $("authScreen").style.display = "flex";
@@ -2439,6 +2667,7 @@ async function enterApp(user) {
     if (!questionBank.length) questionBank = STARTER_QUESTIONS.slice();
     await loadStudentLearningState(user.uid);
     saveStudentRosterSummary();
+    recordLoginEvent();
     await loadStudentGeneratedQuestions(user.uid);
     await loadEmailSubscription();
     prioritizeReviewQuestions();
@@ -4087,6 +4316,8 @@ $("clearSolutionPhotoBtn").addEventListener("click", () => clearSolutionPhoto())
 $("generateWeaknessBtn").addEventListener("click", generateWeaknessPractice);
 $("aiPracticeBtn").addEventListener("click", startAiPractice);
 $("refreshRosterBtn").addEventListener("click", loadStudentRoster);
+$("rosterSort").addEventListener("change", e => { rosterSortMode = e.target.value; renderStudentRoster(); });
+$("refreshActivityBtn").addEventListener("click", () => { if (activityStudentUid) loadStudentActivity(activityStudentUid); });
 $("aiPrintWorksheet").addEventListener("click", () => { closeOverlay("aiPrintOverlay"); printQuestions(aiPracticeQueue, "AI practice — growth zone", { withAnswers: false }); });
 $("aiPrintWithKey").addEventListener("click", () => { closeOverlay("aiPrintOverlay"); printQuestions(aiPracticeQueue, "AI practice — growth zone", { withAnswers: true }); });
 
