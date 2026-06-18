@@ -311,6 +311,23 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .act-ev { color: var(--text-muted); }
 .act-tag-row { font-size: 0.84rem; margin: 5px 0; }
 .act-tag-row .act-lbl { display: inline-block; margin: 0 6px 0 0; }
+/* single-question share / QR hub */
+.qshare-meta { font-family: 'Space Mono', monospace; font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
+.qshare-question { background: var(--surface-alt); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px; }
+.qshare-actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0 8px; }
+.qshare-actions .btn { flex: 1; min-width: 150px; }
+.qshare-hint { font-size: 0.84rem; color: var(--text-muted); line-height: 1.45; }
+.qshare-admin { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 14px; display: grid; gap: 14px; }
+.qshare-lbl { font-family: 'Space Mono', monospace; font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
+.qshare-key { background: var(--surface-alt); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px; font-size: 0.92rem; }
+.qshare-guide { white-space: pre-wrap; color: #444; font-size: 0.88rem; margin-top: 4px; line-height: 1.5; }
+.qshare-akimg { display: block; max-width: 100%; margin-top: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.qshare-link-row { display: flex; gap: 8px; }
+.qshare-link-row input { flex: 1; min-width: 0; padding: 8px 10px; border: 1.5px solid var(--border); border-radius: var(--radius-md); background: var(--surface-alt); font-size: 0.8rem; font-family: 'Space Mono', monospace; color: var(--text); }
+.qshare-qr { margin-top: 12px; width: 162px; }
+.qshare-qr svg { width: 150px !important; height: 150px !important; display: block; background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px; }
+.print-qr-toggle { display: flex; align-items: flex-start; gap: 8px; font-size: 0.86rem; color: var(--text); margin: 4px 0 2px; line-height: 1.4; cursor: pointer; }
+.print-qr-toggle input { margin-top: 2px; }
 .learning-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .learning-list { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; min-height: 82px; }
 .learning-list h5 { font-family: 'Space Mono', monospace; font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
@@ -1242,6 +1259,14 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
   </div>
 </div>
 
+<div class="overlay" id="questionShareOverlay">
+  <div class="overlay-card wide">
+    <div class="overlay-head"><h3 id="questionShareTitle">Question</h3><button class="close" data-close="questionShareOverlay">×</button></div>
+    <div class="overlay-body"><div id="questionShareBody"></div></div>
+    <div class="overlay-foot"><button class="btn btn-primary" data-close="questionShareOverlay">Done</button></div>
+  </div>
+</div>
+
 <div class="overlay" id="printOverlay">
   <div class="overlay-card">
     <div class="overlay-head"><h3>Print practice</h3><button class="close" data-close="printOverlay">×</button></div>
@@ -1251,6 +1276,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
           <button class="btn btn-primary" id="printCurrentBtn" type="button">Current question</button>
           <button class="btn btn-ghost" id="printAllBtn" type="button">Whole practice</button>
         </div>
+        <label class="print-qr-toggle"><input type="checkbox" id="printQrToggle" checked> Add a QR code to each question — students scan to AI-mark &amp; watch the solution</label>
         <div>
           <div class="hint" style="margin-bottom:8px;">Choose several questions, then print or save as PDF from your browser print dialog.</div>
           <div class="print-list" id="printQuestionList"></div>
@@ -2634,6 +2660,12 @@ let studentGeneratedQuestions = [];
 let qIndex = 0;
 let editorBlocks = [];           // editor block list
 let currentEditingId = null;
+// A single-question deep link from a printed QR / shared link: ?q=<id>&src=<src>.
+// Captured once at load and opened after the bank finishes loading.
+let pendingShareQ = (() => {
+  try { const p = new URLSearchParams(location.search); const id = p.get("q"); return id ? { id, src: p.get("src") || "bank" } : null; }
+  catch (_) { return null; }
+})();
 let aiMarkingSettings = { instructions: "", strictness: 3 };
 let aiGenSettings = { instructions: "" };
 let studentProgress = {};        // per-question spaced-review state for students
@@ -2763,6 +2795,8 @@ async function enterApp(user) {
   }
   rpgInit().catch(e => console.warn("rpg init", e));
   renderQuestion();
+  // If they arrived via a question QR / shared link, open that one question.
+  if (pendingShareQ) { const t = pendingShareQ; pendingShareQ = null; setTimeout(() => openQuestionShareById(t.id), 80); }
 }
 function canManageQuestions() { return !!currentUser && currentUser.role === "admin"; }
 function makeDocId(prefix) { return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`; }
@@ -3148,6 +3182,7 @@ function renderBank() {
         <div class="meta"><span class="chip">${escapeHtml(q.level || "—")}</span><span class="chip topic">${escapeHtml(adminTopicsLabel(q))}</span>${conceptBadge}${videoBadge}${answerKeyBadge}<span>${escapeHtml(preview)}</span></div></div>
        <div class="bank-item-actions">
         <button class="btn btn-ghost btn-sm" data-preview="${q.id}">Preview</button>
+        <button class="btn btn-ghost btn-sm" data-share="${q.id}">🔗 Share / QR</button>
         <button class="btn btn-ghost btn-sm" data-edit="${q.id}">Edit</button>
         <button class="btn btn-danger btn-sm" data-del="${q.id}">Delete</button></div>`;
     list.appendChild(el);
@@ -3155,6 +3190,10 @@ function renderBank() {
   list.querySelectorAll("[data-preview]").forEach(b => b.addEventListener("click", () => {
     const q = questionBank.find(x => x.id === b.dataset.preview);
     if (q) openQuestionPreview(q, "Practice preview — as students see it");
+  }));
+  list.querySelectorAll("[data-share]").forEach(b => b.addEventListener("click", () => {
+    const q = questionBank.find(x => x.id === b.dataset.share);
+    if (q) openQuestionShare(q);
   }));
   list.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => editQuestion(b.dataset.edit)));
   list.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => removeQuestion(b.dataset.del)));
@@ -3992,9 +4031,11 @@ async function exportWorkingPng() {
 function stripHtml(s) { const d = document.createElement("div"); d.innerHTML = s || ""; return (d.textContent || "").trim(); }
 function questionText(q) { return (q.blocks || []).filter(b => b.type === "text").map(b => stripHtml(b.content)).join(" "); }
 let previewPrintQuestions = [];
-function questionPreviewHtml(q, numberLabel = "") {
+function questionPreviewHtml(q, numberLabel = "", qrSvg = "") {
   const meta = [q.level, studentTopicsLabel(q)].filter(Boolean).join(" - ");
+  const qr = qrSvg ? `<div class="q-qr">${qrSvg}<div class="q-qr-cap">📱 Scan to AI-mark<br>&amp; watch the solution</div></div>` : "";
   return `<section class="preview-sheet">
+    ${qr}
     <div class="preview-title">${numberLabel ? escapeHtml(numberLabel) + " - " : ""}${escapeHtml(q.title || "Question")}${meta ? ` (${escapeHtml(meta)})` : ""}</div>
     <div class="q-body">${renderQuestionBlocksHtml(q.blocks || [])}</div>
     <div class="worksheet-working-label preview-working">Working</div>
@@ -4031,6 +4072,73 @@ function openQuestionPreview(q, title = "Practice preview") {
   $("previewBody").innerHTML = practicePreviewHtml(q);
   $("previewOverlay").classList.add("show");
 }
+
+// ---- Single-question hub (opened from a printed QR / shared link, or from
+// the bank's "Share / QR" button). Students get the question + a one-tap way
+// to AI-mark it; admins also see the answer key, video and the shareable
+// link + QR for that one question. ----
+function openQuestionShareById(id) {
+  let q = questionBank.find(x => x.id === id);
+  if (!q && Array.isArray(studentGeneratedQuestions)) q = studentGeneratedQuestions.find(x => x.id === id);
+  if (!q) { toast("That question isn't in your set — ask your teacher to share it again.", "error"); return; }
+  openQuestionShare(q);
+}
+function openQuestionShare(q) {
+  if (!q) return;
+  const admin = canManageQuestions();
+  $("questionShareTitle").textContent = q.title || "Question";
+  const metaBits = [q.level, studentTopicsLabel(q)].filter(Boolean).join(" · ");
+  $("questionShareBody").innerHTML =
+    `${metaBits ? `<div class="qshare-meta">${escapeHtml(metaBits)}</div>` : ""}
+     <div class="qshare-question q-body">${renderQuestionBlocksHtml(q.blocks || [])}</div>
+     <div class="qshare-actions">
+       <button class="btn btn-primary" type="button" id="qshareMarkBtn">📸 AI-mark my answer</button>
+       <button class="btn btn-ghost" type="button" id="qsharePracticeBtn">✍️ Do it on screen</button>
+     </div>
+     <div class="qshare-hint">${admin
+        ? "Students who scan this land right here to mark their work; the worked solution and video unlock after they submit."
+        : "Snap a photo of your paper working to AI-mark it, or do it on screen. The worked solution and video appear after you submit."}</div>
+     ${admin ? renderShareAdminSection(q) : ""}`;
+  $("questionShareOverlay").classList.add("show");
+  $("qshareMarkBtn").addEventListener("click", () => { closeOverlay("questionShareOverlay"); openAiMarkForQuestion(q); });
+  $("qsharePracticeBtn").addEventListener("click", () => { closeOverlay("questionShareOverlay"); goPracticeQuestion(q); });
+  if (admin) wireShareAdminSection(q);
+}
+function renderShareAdminSection(q) {
+  const ans = String(q.expected || "").trim();
+  const guide = String(q.markingGuide || "").trim();
+  const akImg = q.answerKeyImageUrl ? `<img class="qshare-akimg" src="${escapeHtml(q.answerKeyImageUrl)}" alt="Answer key">` : "";
+  const keyBody = (ans ? `<div><b>Answer:</b> ${escapeHtml(ans)}</div>` : "") +
+    (guide ? `<div class="qshare-guide">${escapeHtml(guide)}</div>` : "") + akImg;
+  const video = q.videoExplanationUrl ? aiMarkVideoHtml(q.videoExplanationUrl) : "";
+  return `<div class="qshare-admin">
+    <div class="qshare-key"><div class="qshare-lbl">Answer key (admin only)</div>${keyBody || '<div class="qshare-guide">No answer key on this question yet.</div>'}</div>
+    ${video ? `<div>${video}</div>` : ""}
+    <div class="qshare-shareblock">
+      <div class="qshare-lbl">Share this question</div>
+      <div class="qshare-link-row"><input id="qshareLink" type="text" readonly value="${escapeHtml(questionShareUrl(q))}"><button class="btn btn-ghost btn-sm" type="button" id="qshareCopyBtn">Copy</button></div>
+      <div class="qshare-qr" id="qshareQr">Generating QR…</div>
+    </div>
+  </div>`;
+}
+function wireShareAdminSection(q) {
+  const copyBtn = $("qshareCopyBtn");
+  if (copyBtn) copyBtn.addEventListener("click", async () => {
+    const url = questionShareUrl(q);
+    try { await navigator.clipboard.writeText(url); toast("Link copied", "success"); }
+    catch (_) { const i = $("qshareLink"); if (i) { i.focus(); i.select(); try { document.execCommand("copy"); toast("Link copied", "success"); } catch (e) {} } }
+  });
+  const qrBox = $("qshareQr");
+  if (qrBox) makeQrSvg(questionShareUrl(q))
+    .then(svg => { qrBox.innerHTML = svg; })
+    .catch(() => { qrBox.textContent = "Couldn't load the QR generator — check your connection."; });
+}
+function goPracticeQuestion(q) {
+  const i = questionBank.findIndex(x => x.id === q.id);
+  if (i >= 0) qIndex = i;
+  navigateTo("practice");
+  renderQuestion();
+}
 function answerKeyPrintHtml(questions) {
   const items = questions.map((q, i) => {
     const ans = String(q.expected || "").trim();
@@ -4042,8 +4150,8 @@ function answerKeyPrintHtml(questions) {
   }).join("");
   return `<section class="preview-sheet answer-key"><div class="preview-title">Answer key</div>${items}</section>`;
 }
-function printDocumentHtml(questions, title, opts = {}) {
-  const body = questions.map((q, i) => questionPreviewHtml(q, questions.length > 1 ? `Question ${i + 1}` : "")).join("") +
+function printDocumentHtml(questions, title, opts = {}, qrMap = {}) {
+  const body = questions.map((q, i) => questionPreviewHtml(q, questions.length > 1 ? `Question ${i + 1}` : "", qrMap[q.id] || "")).join("") +
     (opts && opts.withAnswers ? answerKeyPrintHtml(questions) : "");
   return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>
     * { box-sizing: border-box; }
@@ -4062,6 +4170,9 @@ function printDocumentHtml(questions, title, opts = {}) {
     .math-sqrt { display: inline-flex; align-items: flex-start; vertical-align: -0.1em; margin: 0 0.08em; }
     .math-sqrt .root { font-size: 1.1em; line-height: 1; padding-right: 0.04em; }
     .math-sqrt .radicand { border-top: 1.5px solid currentColor; padding: 0.02em 0.18em 0; line-height: 1.15; }
+    .q-qr { float: right; width: 118px; text-align: center; margin: 0 0 10px 14px; }
+    .q-qr svg { width: 104px !important; height: 104px !important; display: block; margin: 0 auto; }
+    .q-qr-cap { font-family: Consolas, monospace; font-size: 8px; color: #6b675f; margin-top: 4px; line-height: 1.3; }
     .answer-key { background-image: none; }
     .answer-key .ak-item { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #eee; }
     .answer-key .ak-item:last-child { border-bottom: 0; }
@@ -4078,13 +4189,60 @@ function printDocumentHtml(questions, title, opts = {}) {
     window.addEventListener("load", () => setTimeout(() => { window.focus(); window.print(); }, 250));
   <\/script></body></html>`;
 }
-function printQuestions(questions, title = "Math practice", opts = {}) {
+// ---- QR codes + single-question share links --------------------------
+// Each printed question carries a QR to its deep link (?q=<id>); scanning
+// opens the app on that one question so a student can AI-mark their paper
+// working (the worked solution + video unlock after they submit).
+let _qrLibPromise = null;
+function loadQrLib() {
+  if (!_qrLibPromise) {
+    _qrLibPromise = import("https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/+esm")
+      .then(m => m.default || m)
+      .catch(e => { _qrLibPromise = null; throw e; });
+  }
+  return _qrLibPromise;
+}
+async function makeQrSvg(text) {
+  const qrcode = await loadQrLib();
+  const qr = qrcode(0, "M");
+  qr.addData(String(text));
+  qr.make();
+  return qr.createSvgTag({ cellSize: 4, margin: 1, scalable: true });
+}
+// Bank and starter questions are the same for everyone, so their links work
+// for any student. Generated practice is per-student, so it isn't shareable.
+function shareableQuestionSource(q) {
+  const src = questionSource(q);
+  return (src === "bank" || src === "starter") ? src : null;
+}
+function questionShareUrl(q) {
+  const params = new URLSearchParams();
+  params.set("q", q.id);
+  const src = questionSource(q);
+  if (src !== "bank") params.set("src", src);
+  return location.origin + location.pathname + "?" + params.toString();
+}
+async function buildQrMap(questions) {
+  const map = {};
+  for (const q of questions) {
+    if (!shareableQuestionSource(q)) continue;
+    try { map[q.id] = await makeQrSvg(questionShareUrl(q)); }
+    catch (e) { console.warn("qr gen failed", e); }
+  }
+  return map;
+}
+async function printQuestions(questions, title = "Math practice", opts = {}) {
   const list = (questions || []).filter(q => q && (q.blocks || []).length);
   if (!list.length) { toast("Choose at least one question to print", "error"); return; }
   const w = window.open("", "_blank");
   if (!w) { toast("Please allow pop-ups to print or save as PDF", "error"); return; }
+  // Opened synchronously (keeps the pop-up allowed); fill it after the QR codes
+  // — which need a small library fetch — are ready.
+  w.document.write('<!doctype html><meta charset="utf-8"><title>Preparing…</title><body style="font-family:Arial,sans-serif;padding:28px;color:#555;">Preparing your printout…</body>');
+  let qrMap = {};
+  if (opts.withQr) { try { qrMap = await buildQrMap(list); } catch (e) { console.warn("qr map failed", e); } }
   w.document.open();
-  w.document.write(printDocumentHtml(list, title, opts));
+  w.document.write(printDocumentHtml(list, title, opts, qrMap));
   w.document.close();
 }
 function questionListSummary(q) {
@@ -4265,14 +4423,15 @@ $("prevBtn").addEventListener("click", () => changeQuestion(-1));
 $("nextBtn").addEventListener("click", () => changeQuestion(1));
 $("flagQuestionBtn").addEventListener("click", openFlagQuestion);
 $("practicePrintBtn").addEventListener("click", openPrintOverlay);
-$("previewPrintBtn").addEventListener("click", () => printQuestions(previewPrintQuestions, "Question preview"));
-$("printCurrentBtn").addEventListener("click", () => printQuestions([questionBank[qIndex]], "Current math question"));
-$("printAllBtn").addEventListener("click", () => printQuestions(questionBank, "Math practice"));
+const printWantsQr = () => { const t = $("printQrToggle"); return !t || t.checked; };
+$("previewPrintBtn").addEventListener("click", () => printQuestions(previewPrintQuestions, "Question preview", { withQr: true }));
+$("printCurrentBtn").addEventListener("click", () => printQuestions([questionBank[qIndex]], "Current math question", { withQr: printWantsQr() }));
+$("printAllBtn").addEventListener("click", () => printQuestions(questionBank, "Math practice", { withQr: printWantsQr() }));
 $("printSelectedBtn").addEventListener("click", () => {
   const selected = Array.from($("printQuestionList").querySelectorAll("input[type=checkbox]:checked"))
     .map(inp => questionBank[Number(inp.value)])
     .filter(Boolean);
-  printQuestions(selected, "Selected math questions");
+  printQuestions(selected, "Selected math questions", { withQr: printWantsQr() });
 });
 $("typedWorking").addEventListener("input", hideHint);
 $("finalAnswer").addEventListener("input", hideHint);
@@ -4406,8 +4565,8 @@ $("aiPracticeBtn").addEventListener("click", startAiPractice);
 $("refreshRosterBtn").addEventListener("click", loadStudentRoster);
 $("rosterSort").addEventListener("change", e => { rosterSortMode = e.target.value; renderStudentRoster(); });
 $("refreshActivityBtn").addEventListener("click", () => { if (activityStudentUid) loadStudentActivity(activityStudentUid); });
-$("aiPrintWorksheet").addEventListener("click", () => { closeOverlay("aiPrintOverlay"); printQuestions(aiPracticeQueue, "AI practice — growth zone", { withAnswers: false }); });
-$("aiPrintWithKey").addEventListener("click", () => { closeOverlay("aiPrintOverlay"); printQuestions(aiPracticeQueue, "AI practice — growth zone", { withAnswers: true }); });
+$("aiPrintWorksheet").addEventListener("click", () => { closeOverlay("aiPrintOverlay"); printQuestions(aiPracticeQueue, "AI practice — growth zone", { withAnswers: false, withQr: true }); });
+$("aiPrintWithKey").addEventListener("click", () => { closeOverlay("aiPrintOverlay"); printQuestions(aiPracticeQueue, "AI practice — growth zone", { withAnswers: true, withQr: true }); });
 
 const resultEl = $("result");
 function hideResult() {
@@ -4675,6 +4834,7 @@ $("submitBtn").addEventListener("click", async () => {
 // =====================================================================
 let aiMarkMedia = null;   // { mimeType, data, isPdf, name, previewUrl }
 let aiMarkBusy = false;
+let aiMarkTarget = null;  // when set, mark against a specific question (from a shared link / QR)
 
 function aiMarkSetStatus(text) { $("aiMarkStatus").textContent = text || ""; }
 
@@ -4701,7 +4861,16 @@ function aiMarkReset() {
   $("aiMarkResult").style.display = "none";
   $("aiMarkResult").innerHTML = "";
   aiMarkSetStatus("");
+  aiMarkTarget = null;
   $("aiMarkPick").style.display = "block";
+}
+// Open AI Marking pre-aimed at one question (from a shared link / printed QR),
+// so the photo is graded against that exact question instead of being matched.
+function openAiMarkForQuestion(q) {
+  if (!q) return;
+  openAiMark();
+  aiMarkTarget = { questionId: q.id, source: questionSource(q) };
+  aiMarkSetStatus(`Ready to mark “${q.title || "this question"}” — snap or upload a photo of your working.`);
 }
 async function aiMarkAcceptFile(file) {
   if (!file) return;
@@ -4745,10 +4914,11 @@ async function aiMarkRun(opts = {}) {
   aiMarkBusy = true;
   const runBtn = $("aiMarkRunBtn"), label = $("aiMarkRunLabel");
   runBtn.disabled = true; label.innerHTML = '<span class="spinner"></span> Marking…';
-  aiMarkSetStatus(opts.questionId ? "Marking against the chosen question…" : "Finding the matching question and marking…");
+  const target = opts.questionId ? opts : (aiMarkTarget || {});
+  aiMarkSetStatus(target.questionId ? "Marking against the chosen question…" : "Finding the matching question and marking…");
   try {
     const payload = { pages: [{ mimeType: aiMarkMedia.mimeType, data: aiMarkMedia.data }] };
-    if (opts.questionId) { payload.questionId = opts.questionId; payload.source = opts.source || "bank"; }
+    if (target.questionId) { payload.questionId = target.questionId; payload.source = target.source || "bank"; }
     const res = await markFromPhotoCall(payload);
     const out = res.data || {};
     if (out.needsPick) {
@@ -4766,7 +4936,7 @@ async function aiMarkRun(opts = {}) {
       try {
         aiMarkSetStatus("Marking on this device…");
         const media = [{ mimeType: aiMarkMedia.mimeType, data: aiMarkMedia.data }];
-        let q = opts.questionId ? questionBank.find(x => x.id === opts.questionId) : null;
+        let q = target.questionId ? questionBank.find(x => x.id === target.questionId) : null;
         if (!q) {
           const idr = await clientIdentifyQuestion(media);
           if (!idr.q) { aiMarkSetStatus(""); aiMarkRenderPicker(idr.candidates || []); return; }
