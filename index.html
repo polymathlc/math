@@ -930,6 +930,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
             </div>
             <div class="q-nav">
               <button class="btn btn-primary student-only" id="aiPracticeBtn" title="Practice questions you got wrong, then questions matched to your rating">🤖 AI practice</button>
+              <button class="btn btn-ghost student-only" id="videoOnlyBtn" title="Practise only questions that have a video explanation" aria-pressed="false">🎬 Video only</button>
               <button class="btn btn-ghost" id="flagQuestionBtn">Flag</button>
               <button class="btn btn-ghost" id="practicePrintBtn">Print / PDF</button>
               <button class="btn btn-ghost" id="prevBtn">‹ Prev</button>
@@ -2027,11 +2028,15 @@ function startAiPractice() {
   const target = rating + 80;            // growth zone: just above the current rating
   const loBand = rating - 40, hiBand = rating + 200;
   const weak = studentWeakTopics();
-  const review = [], pool = [];
+  // When the "Video only" filter is on, build the set from video-backed
+  // questions and keep the rest aside so they stay in the bank.
+  const review = [], pool = [], skipped = [];
   questionBank.forEach(q => {
+    if (videoOnlyFilter && !questionHasVideo(q)) { skipped.push(q); return; }
     const p = studentProgress[q.id];
     if (questionWrongBefore(p) && !questionMastered(p)) review.push(q); else pool.push(q);
   });
+  if (videoOnlyFilter && !review.length && !pool.length) { toast("No questions with a video explanation to practise yet", "error"); return; }
   review.sort((a, b) => {
     const pa = studentProgress[a.id] || {}, pb = studentProgress[b.id] || {};
     const da = dueTime(pa), db = dueTime(pb);
@@ -2064,7 +2069,7 @@ function startAiPractice() {
   aiPracticeQueue = reviewSet.concat(growthSet);
   const inSet = new Set(aiPracticeQueue.map(q => q.id));
   const remainder = review.slice(reviewSet.length).concat(pool.slice(growthSet.length)).filter(q => !inSet.has(q.id));
-  questionBank = aiPracticeQueue.concat(remainder);
+  questionBank = aiPracticeQueue.concat(remainder, skipped);
   qIndex = 0;
   aiPracticeActive = true;
   aiPracticeStats = { review: reviewSet.length, growth: growthSet.length, total: aiPracticeQueue.length };
@@ -2698,6 +2703,7 @@ let aiGenSettings = { instructions: "" };
 let studentProgress = {};        // per-question spaced-review state for students
 let studentLearningProfile = { weaknesses: {}, strengths: {}, topicStats: {}, conceptStats: {}, skillStats: {}, totals: {}, recentNotes: [] };
 let aiPracticeActive = false;    // AI practice queue mode (review wrong-first, then growth-zone)
+let videoOnlyFilter = false;     // student filter: only show questions that have a video explanation
 let aiPracticeStats = { review: 0, growth: 0, total: 0 };
 let aiPracticeQueue = [];        // the focused growth-zone set (also what Print uses)
 let lastEloChange = null;
@@ -3145,6 +3151,9 @@ function splitQuestionDoc(q) {
   const pub = Object.assign({}, q);
   const key = { id: q.id };
   QUESTION_KEY_FIELDS.forEach(f => { if (pub[f]) key[f] = pub[f]; delete pub[f]; });
+  // Keep a non-sensitive flag in the student-readable doc so students can
+  // filter to questions that have a video explanation, without exposing the URL.
+  pub.hasVideoExplanation = !!q.videoExplanationUrl;
   return { pub, key };
 }
 async function loadBank(uid) {
@@ -3158,6 +3167,10 @@ async function loadBank(uid) {
       questionBank.push(q);
     });
     if (canManageQuestions()) {
+      // remember which public docs already advertise a video, so we only
+      // re-save the ones whose flag is missing or stale (below)
+      const pubVideoFlag = {};
+      questionBank.forEach(q => { pubVideoFlag[q.id] = !!q.hasVideoExplanation; });
       // admins merge the private half back in for editing / printing
       try {
         const keys = await getDocs(collection(db, "users", uid, "mathQuestionKeys"));
@@ -3165,13 +3178,19 @@ async function loadBank(uid) {
         keys.forEach(d => { byId[d.id] = d.data(); });
         questionBank.forEach(q => Object.assign(q, byId[q.id] || {}));
       } catch (e) { console.warn("key load", e); }
-      if (needsSplit.length) {
-        // one-time migration: strip answers out of the student-readable docs
-        for (const id of needsSplit) {
+      // Re-save docs that still carry answers in the public half (one-time
+      // split migration) or whose public "has video" flag is out of sync, so
+      // students can filter to questions that have a video explanation.
+      const needsResave = new Set(needsSplit);
+      if (!clientAdminFallback) {
+        questionBank.forEach(q => { if (!!q.videoExplanationUrl !== pubVideoFlag[q.id]) needsResave.add(q.id); });
+      }
+      if (needsResave.size) {
+        for (const id of needsResave) {
           const q = questionBank.find(x => x.id === id);
-          if (q) await saveQuestionDoc(q).catch(e => console.warn("question split", id, e));
+          if (q) await saveQuestionDoc(q).catch(e => console.warn("question sync", id, e));
         }
-        console.info(`Moved the answer key out of ${needsSplit.length} student-readable question doc(s).`);
+        console.info(`Synced ${needsResave.size} student-readable question doc(s).`);
       }
     }
     questionBank.sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
@@ -4427,8 +4446,43 @@ function showHint(text) {
   $("aiHintText").textContent = text || "";
   $("aiHintCard").classList.toggle("show", !!text);
 }
+// ---- Video-only practice filter -------------------------------------------
+// Students can choose to work through only the questions that have a video
+// explanation, so every question they attempt has a recording to learn from.
+// The student-readable doc carries a `hasVideoExplanation` flag (set in
+// splitQuestionDoc); admins also have the URL itself merged in.
+function questionHasVideo(q) { return !!(q && (q.videoExplanationUrl || q.hasVideoExplanation)); }
+function passesVideoFilter(q) { return !videoOnlyFilter || questionHasVideo(q); }
+function visiblePracticeIndices() {
+  const out = [];
+  questionBank.forEach((q, i) => { if (passesVideoFilter(q)) out.push(i); });
+  return out;
+}
+function nextVisibleIndex(from, delta) {
+  const step = delta > 0 ? 1 : -1;
+  for (let i = from + step; i >= 0 && i < questionBank.length; i += step) {
+    if (passesVideoFilter(questionBank[i])) return i;
+  }
+  return -1;
+}
+function renderVideoOnlyBtn() {
+  const btn = $("videoOnlyBtn");
+  if (!btn) return;
+  btn.classList.toggle("btn-primary", videoOnlyFilter);
+  btn.classList.toggle("btn-ghost", !videoOnlyFilter);
+  btn.setAttribute("aria-pressed", videoOnlyFilter ? "true" : "false");
+  btn.textContent = videoOnlyFilter ? "🎬 Video only ✓" : "🎬 Video only";
+}
+function toggleVideoOnlyFilter() {
+  videoOnlyFilter = !videoOnlyFilter;
+  if (videoOnlyFilter && questionBank.length && !visiblePracticeIndices().length) {
+    toast("No questions have a video explanation yet", "error");
+  }
+  renderQuestion();
+}
 function renderQuestion() {
   renderLearningProfile();
+  renderVideoOnlyBtn();
   if (!questionBank.length) {
     $("qMeta").style.display = "none";
     $("flagQuestionBtn").disabled = true;
@@ -4439,13 +4493,27 @@ function renderQuestion() {
     hideHint();
     return;
   }
+  const vis = videoOnlyFilter ? visiblePracticeIndices() : null;
+  if (videoOnlyFilter && !vis.length) {
+    $("qMeta").style.display = "none";
+    $("flagQuestionBtn").disabled = true;
+    $("qBody").innerHTML = `<div class="empty-note">No questions with a video explanation yet. Turn off <b>🎬 Video only</b> to see every question.</div>`;
+    $("finalAnswer").value = "";
+    $("typedWorking").value = "";
+    clearSolutionPhoto({ silent: true });
+    hideHint();
+    return;
+  }
   $("qMeta").style.display = "flex";
   $("flagQuestionBtn").disabled = false;
   if (qIndex >= questionBank.length) qIndex = 0;
+  if (videoOnlyFilter && !vis.includes(qIndex)) qIndex = vis[0];
   const q = questionBank[qIndex];
   $("qLevel").textContent = q.level || "—";
   $("qTopic").textContent = studentTopicsLabel(q);
-  $("qCounter").textContent = `${qIndex + 1} / ${questionBank.length}`;
+  $("qCounter").textContent = videoOnlyFilter
+    ? `${vis.indexOf(qIndex) + 1} / ${vis.length}`
+    : `${qIndex + 1} / ${questionBank.length}`;
   updateDifficultyChip(q);
   if (aiPracticeActive) renderAiPracticeBar();
   $("qBody").innerHTML = renderQuestionBlocksHtml(q.blocks || []);
@@ -4460,10 +4528,10 @@ function renderQuestion() {
   rpgQuestionChanged();
 }
 function changeQuestion(delta) {
-  let ni = qIndex + delta;
+  let ni = nextVisibleIndex(qIndex, delta);
   if (delta > 0 && currentUser && currentUser.role === "student") {
     const now = Date.now();
-    const dueIndex = questionBank.findIndex((q, i) => i !== qIndex && dueTime(studentProgress[q.id]) && dueTime(studentProgress[q.id]) <= now);
+    const dueIndex = questionBank.findIndex((q, i) => i !== qIndex && passesVideoFilter(q) && dueTime(studentProgress[q.id]) && dueTime(studentProgress[q.id]) <= now);
     if (dueIndex >= 0) ni = dueIndex;
   }
   if (ni < 0 || ni >= questionBank.length) return;
@@ -4613,6 +4681,7 @@ async function canvasToImageFile(canvas, name) {
 $("clearSolutionPhotoBtn").addEventListener("click", () => clearSolutionPhoto());
 $("generateWeaknessBtn").addEventListener("click", generateWeaknessPractice);
 $("aiPracticeBtn").addEventListener("click", startAiPractice);
+$("videoOnlyBtn").addEventListener("click", toggleVideoOnlyFilter);
 $("refreshRosterBtn").addEventListener("click", loadStudentRoster);
 $("rosterSort").addEventListener("change", e => { rosterSortMode = e.target.value; renderStudentRoster(); });
 $("refreshActivityBtn").addEventListener("click", () => { if (activityStudentUid) loadStudentActivity(activityStudentUid); });
