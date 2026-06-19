@@ -107,11 +107,20 @@ a { color: var(--primary); }
 .nav-item:hover { background: rgba(255,255,255,0.07); color: #fff; }
 .nav-item.active { background: var(--primary); color: #fff; }
 .nav-item .ico { font-size: 1.05rem; width: 20px; text-align: center; }
-.sidebar-foot { padding: 14px; border-top: 1px solid rgba(255,255,255,0.08); }
+.sidebar-foot { padding: 14px 14px 30px; border-top: 1px solid rgba(255,255,255,0.08); }
 .sidebar-user { font-size: 0.8rem; color: rgba(255,255,255,0.6); margin-bottom: 8px; padding: 0 4px; word-break: break-all; }
 .sidebar-user b { color: #fff; display: block; font-size: 0.86rem; }
 .logout-btn { width: 100%; padding: 9px; background: rgba(255,255,255,0.08); color: #fff; border: none; border-radius: var(--radius-md); cursor: pointer; font-family: inherit; font-size: 0.86rem; font-weight: 600; }
 .logout-btn:hover { background: rgba(255,255,255,0.16); }
+/* Always-visible build version, bottom-left of the viewport, on every screen */
+.app-version { position: fixed; left: 10px; bottom: 8px; z-index: 200; pointer-events: none;
+  font-family: 'Space Mono', monospace; font-size: 0.62rem; letter-spacing: 0.06em;
+  color: #fff; background: rgba(20,18,16,0.55); padding: 2px 8px; border-radius: 999px; }
+/* Question Bank search bar */
+.bank-search { width: 100%; box-sizing: border-box; margin-bottom: 14px; padding: 11px 14px;
+  border: 1.5px solid var(--border); border-radius: var(--radius-md); font-family: inherit;
+  font-size: 0.95rem; color: var(--text); background: #fff; }
+.bank-search:focus { outline: none; border-color: var(--accent-blue); }
 
 .main { margin-left: 248px; flex: 1; min-width: 0; }
 @media (max-width: 820px) {
@@ -1060,6 +1069,8 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
     <div class="page" id="page-bank">
       <div class="page-head"><h3>Question Bank</h3><p>All questions your students will practise. <span id="bankCount"></span></p></div>
       <div class="card card-pad">
+        <input id="bankSearch" type="search" class="bank-search" autocomplete="off"
+          placeholder="Search questions by title, level, topic, concept, answer or text…">
         <div id="bankList"></div>
       </div>
     </div>
@@ -2656,6 +2667,7 @@ function questionSource(q) {
 let currentUser = null;          // { uid, email, name, role }
 let adminUid = null;             // for students: whose bank to load
 let questionBank = [];           // the active practice questions
+let bankSearchTerm = "";         // Question Bank search filter
 let studentGeneratedQuestions = [];
 let qIndex = 0;
 let editorBlocks = [];           // editor block list
@@ -3175,13 +3187,25 @@ async function deleteQuestionDoc(id) {
   await deleteDoc(doc(db, "users", currentUser.uid, "mathQuestionKeys", id)).catch(() => {});
 }
 
+function bankSearchHaystack(q) {
+  return [
+    q.title, q.level, adminTopicsLabel(q), conceptLabel(q), q.expected, q.markingGuide, q.createdBy,
+    (q.blocks || []).filter(b => b.type === "text").map(b => stripHtml(b.content)).join(" ")
+  ].filter(Boolean).join(" ").toLowerCase();
+}
 function renderBank() {
   if (!canManageQuestions()) { navigateTo("practice"); return; }
   const list = $("bankList");
-  $("bankCount").textContent = questionBank.length ? `${questionBank.length} question${questionBank.length > 1 ? "s" : ""}.` : "";
-  if (!questionBank.length) { list.innerHTML = `<div class="empty-note">No questions yet. Go to <b>Create Question</b> to add one ✦</div>`; return; }
+  const total = questionBank.length;
+  const term = bankSearchTerm.trim();
+  const matches = term ? questionBank.filter(q => bankSearchHaystack(q).includes(term.toLowerCase())) : questionBank;
+  $("bankCount").textContent = !total ? ""
+    : term ? `${matches.length} of ${total} match “${term}”.`
+    : `${total} question${total > 1 ? "s" : ""}.`;
+  if (!total) { list.innerHTML = `<div class="empty-note">No questions yet. Go to <b>Create Question</b> to add one ✦</div>`; return; }
+  if (!matches.length) { list.innerHTML = `<div class="empty-note">No questions match “${escapeHtml(term)}”.</div>`; return; }
   list.innerHTML = "";
-  questionBank.forEach(q => {
+  matches.forEach(q => {
     const firstText = (q.blocks || []).find(b => b.type === "text");
     const preview = firstText ? stripHtml(firstText.content).slice(0, 90) : "(no text)";
     const el = document.createElement("div");
@@ -8888,6 +8912,14 @@ console.info("MathQuest build 2026-06-12T19 (standoff + shake-isolation fix)");
 setAuthMode("login");
 resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
+
+// Build version — bump this on every change so it's easy to see what's deployed.
+const APP_VERSION = "v1.0.0 · 2026-06-19";
+{ const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
+
+// Question Bank search — filter as you type
+{ const _bs = $("bankSearch"); if (_bs) _bs.addEventListener("input", e => { bankSearchTerm = e.target.value; renderBank(); }); }
 </script>
+<div class="app-version" id="appVersion" title="App build version"></div>
 </body>
 </html>
