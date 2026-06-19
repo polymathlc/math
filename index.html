@@ -1385,7 +1385,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 // =====================================================================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
-  updateProfile, GoogleAuthProvider, signInWithPopup, signOut, browserPopupRedirectResolver }
+  updateProfile, GoogleAuthProvider, signInWithPopup, signOut, signInAnonymously, browserPopupRedirectResolver }
   from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, collection, getDocs, deleteDoc, increment, query, orderBy, limit }
   from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
@@ -2722,6 +2722,7 @@ function _authError(e) {
   return (e && e.message) ? e.message.replace("Firebase: ", "") : "Sign-in failed";
 }
 
+let guestSignInTried = false;
 onAuthStateChanged(auth, async (user) => {
   if (user) { await enterApp(user); }
   else {
@@ -2731,6 +2732,15 @@ onAuthStateChanged(auth, async (user) => {
     emailNewQuestionOptIn = false;
     loginRecorded = false;
     rpgOnSignOut();
+    // Scanned a question QR? Let them in as an anonymous guest (no login screen)
+    // if the bank owner has enabled Anonymous sign-in. onAuthStateChanged then
+    // fires again with the guest user. If it's not enabled, fall back to the
+    // normal sign-in screen with the question still pending.
+    if (pendingShareQ && !guestSignInTried) {
+      guestSignInTried = true;
+      try { await signInAnonymously(auth); return; }
+      catch (e) { console.warn("guest sign-in unavailable (enable Anonymous in Firebase Auth)", e); }
+    }
     $("appShell").classList.remove("show");
     $("authScreen").style.display = "flex";
   }
@@ -2757,7 +2767,8 @@ async function enterApp(user) {
     // moved to a server claim. Firestore writes then rely on the project rules.
     if (!isAdmin) { isAdmin = true; clientAdminFallback = true; console.info("Using client-side admin for allow-listed email (grantAdminRole unavailable)."); }
   }
-  currentUser = { uid: user.uid, email: user.email, name: user.displayName || (user.email || "").split("@")[0], role: isAdmin ? "admin" : "student" };
+  const isGuest = !!user.isAnonymous;
+  currentUser = { uid: user.uid, email: user.email, name: user.displayName || (user.email || "").split("@")[0] || (isGuest ? "Guest" : "Student"), role: isAdmin ? "admin" : "student", isGuest };
 
   $("authScreen").style.display = "none";
   $("appShell").classList.add("show");
@@ -2786,8 +2797,9 @@ async function enterApp(user) {
     if (adminUid) await loadBank(adminUid);
     if (!questionBank.length) questionBank = STARTER_QUESTIONS.slice();
     await loadStudentLearningState(user.uid);
-    saveStudentRosterSummary();
-    recordLoginEvent();
+    // Guests (anonymous QR visitors) aren't tracked as real students, so they
+    // don't write to the roster, login log or leaderboard.
+    if (!currentUser.isGuest) { saveStudentRosterSummary(); recordLoginEvent(); }
     await loadStudentGeneratedQuestions(user.uid);
     await loadEmailSubscription();
     prioritizeReviewQuestions();
@@ -7542,7 +7554,7 @@ function rpgMonthKey(d = new Date()) { return d.getFullYear() + "-" + String(d.g
 function rpgPrevMonthKey() { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1); return rpgMonthKey(d); }
 let rpgPublishTimer = null;
 function rpgPublishLeaderboard() {
-  if (!rpgState || !currentUser || currentUser.role !== "student" || RPG_STORAGE_MODE !== "firestore") return;
+  if (!rpgState || !currentUser || currentUser.role !== "student" || currentUser.isGuest || RPG_STORAGE_MODE !== "firestore") return;
   clearTimeout(rpgPublishTimer);
   rpgPublishTimer = setTimeout(() => {
     if (!rpgState || !currentUser) return;

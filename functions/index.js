@@ -271,6 +271,9 @@ function requireAuth(request) {
   return request.auth;
 }
 const isAdminAuth = auth => auth.token && auth.token.admin === true;
+// Anonymous "guest" sessions (used for scan-a-QR access) shouldn't appear on
+// the shared leaderboard or class raid, and aren't tracked as real students.
+const isGuestAuth = auth => !!(auth && auth.token && auth.token.firebase && auth.token.firebase.sign_in_provider === "anonymous");
 // Best-effort display name for the shared leaderboard: the account's
 // displayName, else the local part of its email. Mirrors the client's
 // currentUser.name so a student looks the same whoever wrote their row.
@@ -605,7 +608,7 @@ async function contributeRaidDamage(points) {
 // ledger writes have a single source of truth. Callers differ only in the
 // media they attach and how the submission is described to the marker.
 // ---------------------------------------------------------------------
-async function markKnownQuestion({ uid, isAdmin, displayName = "", q, source, adminUid, statsBefore, media, mediaNote, submissionNote, keyAttached, typedWorking = "", finalAnswer = "", practiceMode = false }) {
+async function markKnownQuestion({ uid, isAdmin, isGuest = false, displayName = "", q, source, adminUid, statsBefore, media, mediaNote, submissionNote, keyAttached, typedWorking = "", finalAnswer = "", practiceMode = false }) {
   const [settings, preamble] = await Promise.all([
     loadMarkingSettings(adminUid),
     studentLearningPreamble(uid, isAdmin)
@@ -748,10 +751,10 @@ async function markKnownQuestion({ uid, isAdmin, displayName = "", q, source, ad
     tx.set(progRef, progress, { merge: true });
     attemptDoc.xpAwarded = finalXp;
     tx.set(db.doc(`users/${uid}/mathPerformanceAttempts/${attemptId}`), attemptDoc);
-    if (!isAdmin) tx.set(db.doc(`gameLeaderboard/${uid}`), leaderboardStatsUpdate(uid, stats, displayName), { merge: true });
+    if (!isAdmin && !isGuest) tx.set(db.doc(`gameLeaderboard/${uid}`), leaderboardStatsUpdate(uid, stats, displayName), { merge: true });
     totals = publicTotals(stats);
   });
-  if (!isAdmin) await contributeRaidDamage(finalXp);
+  if (!isAdmin && !isGuest) await contributeRaidDamage(finalXp);
 
   return {
     verdict: {
@@ -810,7 +813,7 @@ export const markAttempt = onCall(CALL_OPTS, async (request) => {
     `${solutionMedia ? "The photographed paper solution may contain extra student working that is not on the worksheet screenshot; read both as one complete submission.\n" : "\n"}`;
 
   return await markKnownQuestion({
-    uid, isAdmin, displayName: displayNameFromAuth(auth), q, source, adminUid: settingsAdminUid, statsBefore,
+    uid, isAdmin, isGuest: isGuestAuth(auth), displayName: displayNameFromAuth(auth), q, source, adminUid: settingsAdminUid, statsBefore,
     media, mediaNote, submissionNote, keyAttached: keyMedia.length > 0,
     typedWorking, finalAnswer, practiceMode
   });
@@ -886,7 +889,7 @@ export const markFromPhoto = onCall(CALL_OPTS, async (request) => {
     `${pages.length > 1 ? "The pages belong to the same submission; read them in order.\n" : "\n"}`;
 
   const result = await markKnownQuestion({
-    uid, isAdmin, displayName: displayNameFromAuth(auth), q, source, adminUid: settingsAdminUid, statsBefore,
+    uid, isAdmin, isGuest: isGuestAuth(auth), displayName: displayNameFromAuth(auth), q, source, adminUid: settingsAdminUid, statsBefore,
     media, mediaNote, submissionNote, keyAttached: keyMedia.length > 0,
     typedWorking: "", finalAnswer: "", practiceMode: false
   });
@@ -997,7 +1000,7 @@ export const starfall = onCall(LIGHT_OPTS, async (request) => {
     }
     stats.updatedAt = new Date().toISOString();
     tx.set(statsRef(uid), stats, { merge: true });
-    if (!isAdminAuth(auth)) tx.set(db.doc(`gameLeaderboard/${uid}`), leaderboardStatsUpdate(uid, stats, displayNameFromAuth(auth)), { merge: true });
+    if (!isAdminAuth(auth) && !isGuestAuth(auth)) tx.set(db.doc(`gameLeaderboard/${uid}`), leaderboardStatsUpdate(uid, stats, displayNameFromAuth(auth)), { merge: true });
     return publicTotals(stats);
   });
   return { totals };
@@ -1040,7 +1043,7 @@ export const importLegacyProgression = onCall(LIGHT_OPTS, async (request) => {
   rolloverMonth(stats);
   await statsRef(uid).set(stats);
   if (!isAdminAuth(auth)) {
-    await db.doc(`gameLeaderboard/${uid}`).set(leaderboardStatsUpdate(uid, stats, displayNameFromAuth(auth)), { merge: true });
+    if (!isGuestAuth(auth)) await db.doc(`gameLeaderboard/${uid}`).set(leaderboardStatsUpdate(uid, stats, displayNameFromAuth(auth)), { merge: true });
   }
   return { totals: publicTotals(stats), imported: true };
 });
