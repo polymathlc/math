@@ -748,6 +748,21 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 @keyframes packFlash { 0% { opacity: 0.9; } 100% { opacity: 0; } }
 .pack-mythic-text { background: linear-gradient(90deg, #e84393, #ffd76a, #4aa3ff, #e84393); background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: mythicShift 2.2s linear infinite; }
 @keyframes mythicShift { to { background-position: 300% 0; } }
+/* multi-pack buy row + haul results */
+.pack-buy-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.pack-buy-row .btn { padding: 9px 13px; font-size: 0.84rem; }
+.pack-buy-row .btn-alt { background: rgba(255,255,255,0.14); color: #fff; border-color: rgba(255,255,255,0.25); }
+.pack-buy-row .btn-alt:hover { background: rgba(255,255,255,0.24); }
+.pack-buy-row .btn-alt:disabled { opacity: 0.4; cursor: default; }
+.pack-haul { text-align: center; }
+.pack-haul-head { font-family: 'Space Mono', monospace; font-weight: 700; font-size: 0.95rem; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 4px; }
+.pack-haul-sum { font-size: 0.82rem; color: var(--text-muted); margin-bottom: 14px; }
+.pack-haul-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(116px, 1fr)); gap: 10px; }
+.pack-haul-card { position: relative; border: 1px solid var(--border); border-left: 3px solid var(--rar, var(--border)); border-radius: var(--radius-md); padding: 10px 8px 9px; background: var(--surface-alt); transform: scale(0); }
+.pack-haul-x { position: absolute; top: 5px; right: 6px; font-family: 'Space Mono', monospace; font-weight: 700; font-size: 0.7rem; color: #fff; background: var(--rar, var(--text)); border-radius: 999px; padding: 1px 7px; }
+.pack-haul-rar { font-family: 'Space Mono', monospace; font-weight: 700; font-size: 0.56rem; letter-spacing: 0.1em; text-transform: uppercase; }
+.pack-haul-name { font-size: 0.82rem; font-weight: 700; line-height: 1.2; margin-top: 2px; }
+.pack-haul-tag { font-size: 0.68rem; color: var(--text-muted); margin-top: 3px; min-height: 0.9em; }
 /* classes & skill tree */
 .class-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 @media (max-width: 720px) { .class-cards { grid-template-columns: 1fr; } }
@@ -1371,7 +1386,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 </div>
 
 <div class="overlay" id="rpgPackOverlay">
-  <div class="overlay-card" style="max-width:440px;">
+  <div class="overlay-card" style="max-width:520px;">
     <div class="overlay-head"><h3>🎁 Booster Pack</h3><button class="close" data-close="rpgPackOverlay">×</button></div>
     <div class="overlay-body" id="rpgPackBody"></div>
     <div class="overlay-foot"><button class="btn btn-ghost" data-close="rpgPackOverlay">Close</button><button class="btn btn-primary" id="rpgPackAgain" type="button" style="display:none;">Open another</button></div>
@@ -7451,10 +7466,17 @@ function rpgSkillsTabHtml() {
 }
 function rpgPacksTabHtml() {
   const mythics = RPG_ITEMS.filter(it => it.rarity === "mythic");
+  const can = rpgAffordablePackCount();
+  const fmt = n => n.toLocaleString();
   return `<div class="pack-shop">
     <div class="pack-hero"><span class="pack-hero-box">🎁</span>
       <div><h4>Booster Pack</h4><p>One random item from the entire armoury — and the <b class="pack-mythic-text">only</b> way to get Mythic gear.</p>
-      <button class="btn btn-primary" type="button" data-rpg-pack ${rpgState.gold < RPG_PACK_COST ? "disabled" : ""}>Open pack · 🪙 ${RPG_PACK_COST}</button></div>
+      <div class="pack-buy-row">
+        <button class="btn btn-primary" type="button" data-rpg-packs="1" ${can < 1 ? "disabled" : ""}>Open · 🪙 ${fmt(RPG_PACK_COST)}</button>
+        <button class="btn btn-alt" type="button" data-rpg-packs="10" ${can < 10 ? "disabled" : ""}>×10 · 🪙 ${fmt(RPG_PACK_COST * 10)}</button>
+        <button class="btn btn-alt" type="button" data-rpg-packs="50" ${can < 50 ? "disabled" : ""}>×50 · 🪙 ${fmt(RPG_PACK_COST * 50)}</button>
+        <button class="btn btn-alt" type="button" data-rpg-packs="all" ${can < 1 ? "disabled" : ""}>Spend all${can ? ` · ${fmt(can)} pack${can === 1 ? "" : "s"}` : ""}</button>
+      </div></div>
     </div>
     <div class="pack-rates">${RPG_PACK_RATES.map(([r, p]) => `<span class="pack-rate" style="border-color:${RPG_RARITY[r].color};color:${RPG_RARITY[r].color};">${RPG_RARITY[r].label} ${p}%</span>`).join("")}<span class="pack-rate">Duplicates refund gold</span></div>
     <div class="section-label" style="margin-top:16px;">Mythic treasures</div>
@@ -7468,12 +7490,17 @@ function rpgRollPackRarity() {
   return "common";
 }
 function rpgPackPrice() { return rpgState && rpgState.packCoupon ? Math.round(RPG_PACK_COST / 2) : RPG_PACK_COST; }
-function rpgOpenPack() {
-  if (!rpgState) return;
-  const price = rpgPackPrice();
-  if (rpgState.gold < price) { toast(`A pack costs 🪙 ${price} — solve more questions!`, "error"); return; }
-  rpgState.gold -= price;
-  if (rpgState.packCoupon) { rpgState.packCoupon = 0; toast("🎟️ Half-price coupon used!", ""); }
+// How many packs the current gold can buy right now (the single coupon, if any,
+// discounts only the first pack).
+function rpgAffordablePackCount() {
+  if (!rpgState || RPG_PACK_COST <= 0) return 0;
+  let gold = rpgState.gold, n = 0;
+  const half = Math.round(RPG_PACK_COST / 2);
+  if (rpgState.packCoupon && gold >= half) { gold -= half; n++; }
+  return n + Math.floor(gold / RPG_PACK_COST);
+}
+// Roll a single pull (price already paid). Mutates gold (dup refund), inventory & stats.
+function rpgPullOne() {
   const rarity = rpgRollPackRarity();
   const pool = RPG_ITEMS.filter(it => it.rarity === rarity && (it.packOnly || it.price > 0));
   const it = pool[Math.floor(Math.random() * pool.length)];
@@ -7482,16 +7509,42 @@ function rpgOpenPack() {
   if (dup) { refund = Math.max(30, Math.round((it.price || 1500) * 0.4)); rpgState.gold += refund; }
   else { rpgState.inventory[it.id] = 1; rpgRollAffixes(it, true); }
   rpgState.stats.packsOpened = (rpgState.stats.packsOpened || 0) + 1;
+  return { it, dup, refund };
+}
+// Open n packs at once (n is a number or "all"). One pull is the classic reveal;
+// several show the whole haul in one grid.
+function rpgOpenPacks(n) {
+  if (!rpgState) return;
+  const max = rpgAffordablePackCount();
+  if (max < 1) { toast(`A pack costs 🪙 ${rpgPackPrice()} — solve more questions!`, "error"); return; }
+  const want = n === "all" ? max : Math.min(Math.max(1, Math.floor(n || 1)), max);
+  const results = [];
+  let spent = 0, usedCoupon = false;
+  for (let i = 0; i < want; i++) {
+    const price = rpgPackPrice();
+    if (rpgState.gold < price) break;
+    rpgState.gold -= price; spent += price;
+    if (rpgState.packCoupon) { rpgState.packCoupon = 0; usedCoupon = true; }
+    results.push(rpgPullOne());
+  }
+  const count = results.length;
+  if (!count) return;
+  if (usedCoupon) toast("🎟️ Half-price coupon used!", "");
+  const refunded = results.reduce((s, r) => s + r.refund, 0);
   rpgSave();
   rpgPublishLeaderboard();
   const token = ++rpgPackToken;
-  const rar = RPG_RARITY[it.rarity];
   $("rpgPackBody").innerHTML = `<div class="pack-stage"><div class="pack-flash" id="packFlash"></div><span class="pack-box">🎁</span></div>`;
   const again = $("rpgPackAgain");
   if (again) again.style.display = "none";
   $("rpgPackOverlay").classList.add("show");
-  setTimeout(() => { if (rpgPackToken === token) rpgPackReveal(it, dup, refund); }, 1550);
+  setTimeout(() => {
+    if (rpgPackToken !== token) return;
+    if (count === 1) rpgPackReveal(results[0].it, results[0].dup, results[0].refund);
+    else rpgPackRevealMulti(results, spent, refunded, count);
+  }, count === 1 ? 1550 : 1100);
 }
+function rpgOpenPack() { rpgOpenPacks(1); }
 function rpgPackReveal(it, dup, refund) {
   const rar = RPG_RARITY[it.rarity];
   const rank = rar.rank;
@@ -7535,6 +7588,43 @@ function rpgPackReveal(it, dup, refund) {
   }
   if (document.querySelector("#page-character.active")) rpgRenderCharacterPage();
   toast(dup ? `Duplicate ${it.name} → +🪙 ${refund}` : `${rar.label} pull: ${it.name}!`, rank >= 5 ? "success" : "");
+}
+function rpgPackRevealMulti(results, spent, refunded, count) {
+  // Group identical pulls so the haul stays compact even for 50 packs.
+  const agg = {};
+  let newCount = 0, dupCount = 0;
+  for (const r of results) {
+    if (r.dup) dupCount++; else newCount++;
+    const k = r.it.id;
+    if (!agg[k]) agg[k] = { it: r.it, n: 0, news: 0, refund: 0 };
+    agg[k].n++;
+    if (r.dup) agg[k].refund += r.refund; else agg[k].news++;
+  }
+  const items = Object.values(agg).sort((a, b) =>
+    (RPG_RARITY[b.it.rarity].rank - RPG_RARITY[a.it.rarity].rank) || a.it.name.localeCompare(b.it.name));
+  const best = items[0], bestRar = RPG_RARITY[best.it.rarity], bestMythic = best.it.rarity === "mythic";
+  const cards = items.map((a, i) => {
+    const rar = RPG_RARITY[a.it.rarity], myth = a.it.rarity === "mythic";
+    const dups = a.n - a.news;
+    const tag = [a.news ? `✨ ${a.news} new` : "", dups ? `+🪙 ${a.refund}` : ""].filter(Boolean).join(" · ");
+    return `<div class="pack-haul-card pack-reveal t-${a.it.rarity}" style="--rar:${rar.color};animation-delay:${Math.min(i * 0.05, 0.7).toFixed(2)}s;">
+      ${a.n > 1 ? `<span class="pack-haul-x">×${a.n}</span>` : ""}
+      <div class="pack-item-art t-${a.it.rarity}" style="width:62px;height:62px;margin:0 auto 6px;">${rpgItemIconSvg(a.it)}</div>
+      <div class="pack-haul-rar ${myth ? "pack-mythic-text" : ""}" style="${myth ? "" : `color:${rar.color};`}">${myth ? "✦ MYTHIC" : rar.label}</div>
+      <div class="pack-haul-name">${escapeHtml(rpgDisplayName(a.it))}</div>
+      <div class="pack-haul-tag">${tag}</div>
+    </div>`;
+  }).join("");
+  const body = $("rpgPackBody");
+  body.innerHTML = `<div class="pack-haul">
+    <div class="pack-haul-head ${bestMythic ? "pack-mythic-text" : ""}" style="${bestMythic ? "" : `color:${bestRar.color};`}">${count} packs opened — best: ${bestMythic ? "✦ MYTHIC ✦" : bestRar.label}!</div>
+    <div class="pack-haul-sum">${newCount} new · ${dupCount} duplicate${dupCount === 1 ? "" : "s"} · spent 🪙 ${spent.toLocaleString()}${refunded ? ` · refunded 🪙 ${refunded.toLocaleString()}` : ""}</div>
+    <div class="pack-haul-grid">${cards}</div>
+  </div>`;
+  const again = $("rpgPackAgain");
+  if (again) { again.style.display = ""; again.disabled = rpgState.gold < RPG_PACK_COST; again.textContent = `Open another · 🪙 ${RPG_PACK_COST}`; }
+  if (document.querySelector("#page-character.active")) rpgRenderCharacterPage();
+  toast(`Opened ${count} packs — ${newCount} new item${newCount === 1 ? "" : "s"}!`, bestRar.rank >= 5 ? "success" : "");
 }
 function rpgEquip(itemId) {
   const it = RPG_ITEMS_BY_ID[itemId];
@@ -8855,8 +8945,8 @@ document.querySelectorAll(".rpg-tab").forEach(b => b.addEventListener("click", (
 $("rpgTabBody").addEventListener("click", e => {
   const filter = e.target.closest("[data-rpg-filter]");
   if (filter) { rpgShopSlot = filter.dataset.rpgFilter; rpgRenderTab(); return; }
-  const pack = e.target.closest("[data-rpg-pack]");
-  if (pack) { rpgOpenPack(); return; }
+  const packs = e.target.closest("[data-rpg-packs]");
+  if (packs) { const v = packs.dataset.rpgPacks; rpgOpenPacks(v === "all" ? "all" : Number(v)); return; }
   const quest = e.target.closest("[data-rpg-quest]");
   if (quest) { rpgClaimQuest(Number(quest.dataset.rpgQuest)); return; }
   const star = e.target.closest("[data-rpg-star]");
@@ -8914,7 +9004,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.0.0 · 2026-06-19";
+const APP_VERSION = "v1.1.0 · 2026-06-19";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
