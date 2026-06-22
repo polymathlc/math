@@ -3868,8 +3868,14 @@ function changeQuestion(delta) {
   let ni = qIndex + delta;
   if (delta > 0 && currentUser && currentUser.role === "student") {
     const now = Date.now();
-    const dueIndex = questionBank.findIndex((q, i) => i !== qIndex && dueTime(studentProgress[q.id]) && dueTime(studentProgress[q.id]) <= now);
-    if (dueIndex >= 0) ni = dueIndex;
+    // Prefer the next question that's due for review, but only look *forward*
+    // from the current position so Next keeps advancing — scanning from the
+    // start of the bank used to keep snapping back to an earlier due question,
+    // which trapped navigation in a loop.
+    for (let i = qIndex + 1; i < questionBank.length; i++) {
+      const q = questionBank[i];
+      if (dueTime(studentProgress[q.id]) && dueTime(studentProgress[q.id]) <= now) { ni = i; break; }
+    }
   }
   if (ni < 0 || ni >= questionBank.length) return;
   if ((strokes.length || $("typedWorking").value.trim() || solutionPhotoDataUrl) && !confirm("Move on? Your current working will be cleared.")) return;
