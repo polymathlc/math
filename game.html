@@ -978,7 +978,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 
         <div class="editor-field"><label>Correct answer <span style="color:var(--text-light);font-weight:400;">(optional if you attach a guide/image)</span></label><input id="qExpectedInput" type="text" placeholder="e.g. 7/20"><div class="hint">The expected final answer. You can also provide the worked answer in the marking guide or answer key image.</div></div>
         <div class="editor-field"><label>Marking guide <span style="color:var(--text-light);font-weight:400;">(per-question)</span></label><textarea id="qGuideInput" placeholder="Worked solution / what to look for in the working. e.g. Common denominator 20; 2/5=8/20, 1/4=5/20; eaten 13/20; left 7/20."></textarea><div class="hint">Private notes for the AI marker — students never see this.</div></div>
-        <div class="editor-field"><label>Video explanation link <span style="color:var(--text-light);font-weight:400;">(optional)</span></label><input id="qVideoInput" type="text" placeholder="Dropbox or Google Drive video link"><div class="hint">Shown only after a student uses AI marking. Dropbox and Google Drive share links are converted for embedding automatically.</div></div>
+        <div class="editor-field"><label>Video explanation link <span style="color:var(--text-light);font-weight:400;">(optional)</span></label><input id="qVideoInput" type="text" placeholder="YouTube, Dropbox or Google Drive video link"><div class="hint">Shown only after a student uses AI marking. YouTube, Vimeo, Dropbox and Google Drive share links are converted for embedding automatically.</div></div>
         <div class="editor-field">
           <label>Answer key image <span style="color:var(--text-light);font-weight:400;">(optional)</span></label>
           <div class="img-zone" id="answerKeyZone" tabindex="0">📎 Click, paste or drop a worked answer key image here</div>
@@ -4027,15 +4027,39 @@ function googleDriveFileId(u) {
   return u.searchParams.get("id") || "";
 }
 
+// Pull a YouTube video id out of any of the share/watch/short link shapes.
+function youTubeVideoId(u, host) {
+  if (host === "youtu.be") return u.pathname.slice(1).split("/")[0] || "";
+  const v = u.searchParams.get("v");
+  if (v) return v;
+  const m = u.pathname.match(/\/(?:embed|shorts|live|v)\/([^/?#]+)/);
+  return m ? m[1] : "";
+}
+
 function normalizeVideoExplanationUrl(raw) {
   const value = String(raw || "").trim();
   if (!value) return null;
   try {
     const u = new URL(value);
-    const host = u.hostname.toLowerCase().replace(/^www\./, "");
+    const host = u.hostname.toLowerCase().replace(/^www\./, "").replace(/^m\./, "");
     if (host === "drive.google.com") {
       const id = googleDriveFileId(u);
       if (id) return { kind: "iframe", url: `https://drive.google.com/file/d/${encodeURIComponent(id)}/preview` };
+    }
+    // YouTube watch/share/shorts links can't be framed directly (the watch
+    // page refuses embedding) — convert them to the /embed/ player URL.
+    if (host === "youtube.com" || host === "youtube-nocookie.com" || host === "youtu.be") {
+      const id = youTubeVideoId(u, host);
+      if (id) {
+        const start = u.searchParams.get("t") || u.searchParams.get("start");
+        const secs = start ? String(parseInt(start, 10) || 0) : "";
+        return { kind: "iframe", url: `https://www.youtube.com/embed/${encodeURIComponent(id)}${secs ? `?start=${secs}` : ""}` };
+      }
+    }
+    // Vimeo page links likewise need the player.vimeo.com embed URL.
+    if (host === "vimeo.com") {
+      const id = (u.pathname.match(/\/(\d+)/) || [])[1];
+      if (id) return { kind: "iframe", url: `https://player.vimeo.com/video/${encodeURIComponent(id)}` };
     }
     if (host === "dropbox.com" || host.endsWith(".dropbox.com") || host === "dropboxusercontent.com" || host.endsWith(".dropboxusercontent.com")) {
       u.protocol = "https:";
