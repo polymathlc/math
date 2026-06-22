@@ -373,6 +373,10 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .feedback-block li { font-size: 0.92rem; margin-bottom: 4px; }
 .video-explanation-frame { width: 100%; aspect-ratio: 16 / 9; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: #000; margin-top: 8px; }
 .video-explanation-frame iframe, .video-explanation-frame video { display: block; width: 100%; height: 100%; border: 0; background: #000; }
+.video-explanation-frame .video-fallback { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; height: 100%; padding: 16px; color: #fff; text-align: center; font-size: 0.9rem; }
+.video-explanation-frame .video-fallback a { color: #fff; font-weight: 600; text-decoration: underline; }
+.video-open-link { display: inline-block; margin-top: 6px; font-size: 0.85rem; color: var(--text-muted); text-decoration: none; }
+.video-open-link:hover { text-decoration: underline; }
 .captured { margin-top: 4px; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: var(--surface-alt); }
 .captured img { display: block; width: 100%; }
 .captured-cap { font-size: 0.72rem; color: var(--text-muted); padding: 7px 10px; font-family: 'Space Mono', monospace; }
@@ -4744,8 +4748,9 @@ function normalizeVideoExplanationUrl(raw) {
     if (host === "dropbox.com" || host.endsWith(".dropbox.com") || host === "dropboxusercontent.com" || host.endsWith(".dropboxusercontent.com")) {
       u.protocol = "https:";
       u.hostname = "dl.dropboxusercontent.com";
-      u.searchParams.delete("dl");
-      u.searchParams.delete("raw");
+      // Keep rlkey (the access key for /scl/ share links); drop the download
+      // and viewer-experience flags so the file streams as raw bytes.
+      ["dl", "raw", "e"].forEach(p => u.searchParams.delete(p));
       u.searchParams.set("raw", "1");
       return { kind: "video", url: u.toString() };
     }
@@ -4756,6 +4761,26 @@ function normalizeVideoExplanationUrl(raw) {
   }
 }
 
+// Build the embed markup for a normalized video link. Inline <video> playback
+// can fail silently for containers/codecs a browser can't decode (e.g. .mov
+// QuickTime screen recordings in Chrome/Firefox), so we always offer an
+// "open in a new tab" escape hatch and swap to a clear message on error.
+function videoEmbedHtml(info) {
+  const src = escapeHtml(info.url);
+  if (info.kind === "video") {
+    return `<div class="video-explanation-frame"><video controls playsinline preload="metadata" src="${src}" onerror="videoEmbedFailed(this)"></video></div>`
+      + `<a class="video-open-link" href="${src}" target="_blank" rel="noopener noreferrer">Trouble viewing? Open the video in a new tab ↗</a>`;
+  }
+  return `<div class="video-explanation-frame"><iframe src="${src}" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen title="Video explanation"></iframe></div>`;
+}
+// Exposed on window so the inline onerror handler can reach it from this module.
+window.videoEmbedFailed = function (el) {
+  const frame = el && el.closest && el.closest(".video-explanation-frame");
+  if (!frame) return;
+  const url = el.getAttribute("src") || "";
+  frame.innerHTML = `<div class="video-fallback">This video can't play in the browser.<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">▶ Open it in a new tab</a></div>`;
+};
+
 function renderVideoExplanation(q) {
   const block = $("videoExplanationBlock");
   const target = $("videoExplanationEmbed");
@@ -4765,10 +4790,7 @@ function renderVideoExplanation(q) {
     block.style.display = "none";
     return;
   }
-  const src = escapeHtml(info.url);
-  target.innerHTML = info.kind === "video"
-    ? `<div class="video-explanation-frame"><video controls preload="metadata" src="${src}"></video></div>`
-    : `<div class="video-explanation-frame"><iframe src="${src}" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen title="Video explanation"></iframe></div>`;
+  target.innerHTML = videoEmbedHtml(info);
   block.style.display = "block";
 }
 
@@ -5138,11 +5160,7 @@ function aiMarkResolveQuestion(matched) {
 function aiMarkVideoHtml(rawUrl) {
   const info = normalizeVideoExplanationUrl(rawUrl);
   if (!info) return "";
-  const src = escapeHtml(info.url);
-  const frame = info.kind === "video"
-    ? `<div class="video-explanation-frame"><video controls preload="metadata" src="${src}"></video></div>`
-    : `<div class="video-explanation-frame"><iframe src="${src}" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen title="Video explanation"></iframe></div>`;
-  return `<div class="feedback-block"><h4>🎬 Video explanation</h4>${frame}</div>`;
+  return `<div class="feedback-block"><h4>🎬 Video explanation</h4>${videoEmbedHtml(info)}</div>`;
 }
 function aiMarkRenderResult(out, reviewPlan) {
   const v = out.verdict || {}, matched = out.matched || {};
