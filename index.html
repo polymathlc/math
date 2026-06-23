@@ -1650,15 +1650,24 @@ async function askGeminiImageEdit(prompt, media) {
 }
 function parseAIJson(raw) {
   let s = (raw || "").trim();
-  if (!s) throw new Error("empty AI response — please try again");
+  if (!s) throw new Error("the AI returned an empty response — please try again");
   s = s.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
   const start = s.search(/[\[{]/);
   if (start > 0) s = s.slice(start);
+  if (!s) throw new Error("the AI returned an empty response — please try again");
   try { return JSON.parse(s); }
   catch (firstError) {
     const repaired = repairAIJsonText(s);
     try { return JSON.parse(repaired); }
-    catch (_) { throw firstError; }
+    catch (_) {
+      // "Unexpected end of JSON input" means the response was cut off before it
+      // finished (often the model spent its token budget on thinking). Surface
+      // that plainly instead of the raw parser error — a retry usually works.
+      if (/unexpected end of (json|input)/i.test(String((firstError && firstError.message) || ""))) {
+        throw new Error("the AI's response was cut off before it finished — please try again");
+      }
+      throw firstError;
+    }
   }
 }
 function repairAIJsonText(s) {
@@ -3868,7 +3877,10 @@ async function verifyGeneratedQuestion(variant, media) {
     `Return ONLY valid JSON in this exact shape, with line breaks inside strings escaped as \\n and no markdown fences:\n` +
     `{"makesSense":<true|false>,"issues":"<empty if it makes sense, else exactly what is wrong, especially with the numbers>",` +
     `"expected":"<your own verified final answer, with units>","markingGuide":"<your own verified worked solution / answer key>"}`;
-  return parseAIJson(await askGeminiVision(prompt, media, { maxOutputTokens: 1500, json: true, models: geminiRegenModels, modelNames: AI_REGEN_MODEL_NAMES, thinkingBudget: -1 }));
+  // Generous output ceiling: dynamic thinking (thinkingBudget: -1) shares this
+  // budget with the answer, so a tight limit truncates the JSON and parsing
+  // fails with "Unexpected end of JSON input".
+  return parseAIJson(await askGeminiVision(prompt, media, { maxOutputTokens: 4096, json: true, models: geminiRegenModels, modelNames: AI_REGEN_MODEL_NAMES, thinkingBudget: -1 }));
 }
 async function regenerateQuestionVariant() {
   if (!canManageQuestions()) { toast("Only admin accounts can regenerate questions", "error"); return; }
@@ -3916,7 +3928,10 @@ async function regenerateQuestionVariant() {
     const MAX_ATTEMPTS = 3;
     let chosen = null, verified = false, lastIssues = "";
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-      const gen = parseAIJson(await askGeminiVision(buildPrompt(lastIssues), media, { maxOutputTokens: 2200, json: true, models: geminiRegenModels, modelNames: AI_REGEN_MODEL_NAMES, thinkingBudget: -1 }));
+      // Large ceiling: this returns a full question plus a worked marking guide,
+      // and dynamic thinking also draws from maxOutputTokens — too low a limit
+      // truncates the JSON ("Unexpected end of JSON input").
+      const gen = parseAIJson(await askGeminiVision(buildPrompt(lastIssues), media, { maxOutputTokens: 6144, json: true, models: geminiRegenModels, modelNames: AI_REGEN_MODEL_NAMES, thinkingBudget: -1 }));
       const genText = String(gen.questionText || "").trim();
       if (!genText) throw new Error("the AI did not return a new question");
 
@@ -9462,7 +9477,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.2.3 · 2026-06-23";
+const APP_VERSION = "v1.2.4 · 2026-06-23";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
