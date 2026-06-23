@@ -4072,9 +4072,11 @@ async function checkQuestionWithAI() {
       `Stated final answer: ${q.expected || "(none given)"}\n` +
       `Marking guide / working: ${q.markingGuide || "(none given)"}\n` +
       (q.answerKeyImageUrl ? `An answer key image is attached as additional reference.\n` : ``) +
-      `\nReturn ONLY valid JSON in this exact shape, with line breaks inside strings escaped as \\n and no markdown fences:\n` +
-      `{"verdict":"green"|"amber"|"red","summary":"<one short plain-language sentence overall>",` +
-      `"issues":["<each specific problem, especially numbers that don't fit the context; empty array if none>"],` +
+      `\nKeep "summary" to ONE short sentence. Put every concrete problem as its own short, specific string in "issues" — that array is where the explanation must go, so do NOT leave it empty when the verdict is amber or red. ` +
+      `In "checks", mark a part "issue" ONLY if that specific part is itself wrong, otherwise "ok": "scenario" = the question's story, wording and given numbers; "working" = the marking guide / worked solution; "answer" = the stated final answer. (For example, a typo only in the working makes just "working" an issue, with "scenario" and "answer" still "ok".)\n` +
+      `Return ONLY valid JSON in this exact shape, with line breaks inside strings escaped as \\n and no markdown fences:\n` +
+      `{"verdict":"green"|"amber"|"red","summary":"<one short sentence>",` +
+      `"issues":["<each specific problem as its own short string; empty array only when the verdict is green>"],` +
       `"checks":{"scenario":"ok"|"issue","working":"ok"|"issue","answer":"ok"|"issue"}}`;
 
     const media = [];
@@ -4087,7 +4089,10 @@ async function checkQuestionWithAI() {
       catch (e) { console.warn("answer key image could not be attached for check", e); }
     }
 
-    const res = parseAIJson(await askGeminiVision(prompt, media, { maxOutputTokens: 1200, json: true, models: geminiRegenModels, modelNames: AI_REGEN_MODEL_NAMES, thinkingBudget: -1 }));
+    // Dynamic thinking (thinkingBudget: -1) competes with the answer for the
+    // maxOutputTokens budget, so keep this generous — at 1200 the JSON was being
+    // cut off mid-sentence, losing the explanation.
+    const res = parseAIJson(await askGeminiVision(prompt, media, { maxOutputTokens: 3072, json: true, models: geminiRegenModels, modelNames: AI_REGEN_MODEL_NAMES, thinkingBudget: -1 }));
 
     const issues = (Array.isArray(res.issues) ? res.issues : []).map(s => String(s || "").trim()).filter(Boolean);
     let checks = res.checks && typeof res.checks === "object" ? res.checks : null;
@@ -9457,7 +9462,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.2.2 · 2026-06-23";
+const APP_VERSION = "v1.2.3 · 2026-06-23";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
