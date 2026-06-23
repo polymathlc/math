@@ -1479,13 +1479,16 @@ const RECAPTCHA_SITE_KEY = "6Le98gwtAAAAAAzkjJTZXFM5D8tpjx_P4rtRuhuH";
 const AI_MODEL = "gemini-3.5-flash";
 const AI_FALLBACK_MODELS = ["gemini-2.5-flash"]; // tried in order when the primary model is overloaded or unreachable
 const AI_IMAGE_MODELS = ["gemini-3.1-flash-image-preview", "gemini-2.5-flash-image"];
-// Regenerating or checking a question needs stronger numerical reasoning than
-// the everyday flash model — flash sometimes invents numbers that don't work
-// out — so it runs on the pro model (the flash models are kept behind it as
-// fallbacks). If the pro model isn't reachable on this project yet (e.g. still
-// rolling out), askGeminiVision treats "model not found" as a fall-through and
-// quietly drops to flash, so the feature keeps working either way.
-const AI_REGEN_MODEL = "gemini-3.5-pro";
+// Regenerating or checking a question needs more careful numerical reasoning
+// than everyday marking, so these calls run with extended "thinking" enabled
+// (thinkingBudget: -1) on the strongest model the Gemini Developer API exposes
+// for this project. As of mid-2026 that is gemini-3.5-flash — it outperforms
+// last year's pro models, and gemini-3.5-pro is NOT yet generally available on
+// this backend (it's in limited Vertex preview). When 3.5-pro reaches GA here,
+// just switch this constant to "gemini-3.5-pro": askGeminiVision treats a
+// "model not found" error as a fall-through to flash, so a premature switch
+// degrades gracefully rather than breaking the feature.
+const AI_REGEN_MODEL = "gemini-3.5-flash";
 const ADMIN_EMAILS = ['chungzhikai@gmail.com', 'abigail.yew@stanfordmanpower.com'];
 
 const app = initializeApp(firebaseConfig);
@@ -1531,7 +1534,7 @@ try {
 // Pro model (with the flash models behind it as fallbacks) used for regenerating
 // question variants and for the checker subagent that vets them.
 let geminiRegenModels = [];
-const AI_REGEN_MODEL_NAMES = [AI_REGEN_MODEL, ...AI_TEXT_MODEL_NAMES];
+const AI_REGEN_MODEL_NAMES = [...new Set([AI_REGEN_MODEL, ...AI_TEXT_MODEL_NAMES])];
 try {
   geminiRegenModels = AI_REGEN_MODEL_NAMES.map(model => getGenerativeModel(aiBackend, { model }, AI_REQUEST_OPTIONS));
 } catch (e) { console.warn("Firebase regen AI init failed:", e); }
@@ -9454,7 +9457,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.2.1 · 2026-06-23";
+const APP_VERSION = "v1.2.2 · 2026-06-23";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
