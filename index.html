@@ -1040,6 +1040,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
         <div style="flex:1;"><h3 id="createHeading">Create Question</h3><p>Add a math question for your students. They'll see it on the practice pad.</p></div>
         <button class="btn btn-ghost" id="previewCreateBtn">👁️ Preview in practice</button>
         <button class="btn btn-ghost" id="aiBuildBtn">✨ Build with AI</button>
+        <button class="btn btn-ghost" id="regenQBtn" title="Make a fresh variant of the question in the editor — different names, objects and numbers — then have the AI check it and write its own answer key"><span id="regenQLabel">🔄 Regenerate variant</span></button>
       </div>
       <div class="card card-pad">
         <div class="editor-grid">
@@ -3760,6 +3761,93 @@ function populateEditorFromAi(d) {
   $("cancelEditBtn").style.display = "none";
   renderEditorBlocks();
 }
+
+// Regenerate a fresh variant of whatever question is currently in the editor:
+// same concept/structure/difficulty, but different names, objects and numbers
+// where it makes sense. The AI also checks the new question is solvable and
+// writes its own answer key (expected answer + marking guide).
+function setRegenBusy(busy) {
+  const btn = $("regenQBtn"), label = $("regenQLabel");
+  btn.disabled = busy;
+  label.innerHTML = busy ? '<span class="spinner dark"></span> Regenerating…' : "🔄 Regenerate variant";
+}
+async function regenerateQuestionVariant() {
+  if (!canManageQuestions()) { toast("Only admin accounts can regenerate questions", "error"); return; }
+  if (!aiReady()) { toast("AI isn't ready yet — please wait a moment", "error"); return; }
+  const q = collectQuestion();
+  const sourceText = editorBlocks.filter(b => b.type === "text").map(b => (b.content || "").trim()).filter(Boolean).join("\n\n");
+  const hasDiagram = editorBlocks.some(b => b.type === "image");
+  const diagramUrl = (editorBlocks.find(b => b.type === "image" && (b.url || "").trim()) || {}).url || "";
+  if (!sourceText && !hasDiagram) { toast("Add or build a question first, then regenerate a variant", "error"); return; }
+  setRegenBusy(true);
+  try {
+    const prompt =
+      `You are helping a Singapore primary-school math teacher create a fresh VARIANT of one of their existing practice questions. ` +
+      genPreamble() +
+      `Here is the original question:\n` +
+      `Title: ${q.title}\nLevel: ${q.level || "(unspecified)"}\nTopics: ${q.topic || "(unspecified)"}\nConcept (teacher-only): ${q.concept || "(none)"}\n` +
+      `Question text:\n${sourceText || "(the question is carried by the attached diagram)"}\n` +
+      (q.expected ? `Original final answer (reference only — recompute your own): ${q.expected}\n` : "") +
+      (q.markingGuide ? `Original marking guide (reference only): ${q.markingGuide}\n` : "") +
+      `\nCreate a NEW version of THE SAME question that tests the exact same concept, method, structure, number of steps and difficulty, ` +
+      `but is clearly different: change the people's names, the objects/context, and the numbers, quantities and proportions WHERE IT MAKES SENSE. ` +
+      `Keep the numbers clean and realistic so everything still works out neatly, and keep the wording natural.\n` +
+      (hasDiagram
+        ? `IMPORTANT: this question relies on a figure/diagram that you CANNOT redraw, so the diagram stays exactly as it is${diagramUrl ? " (it is attached)" : ""}. ` +
+          `Do NOT change any length, angle, measurement or value that is read from or fixed by the diagram — only change things that are independent of the figure (such as names or context), and make sure the new wording still matches the diagram.\n`
+        : ``) +
+      `Then act as a careful checker: confirm the new question is complete, unambiguous and solvable, solve it yourself, and write the answer key. ` +
+      `If anything does not work out (numbers no longer divide nicely, the diagram no longer fits, etc.) set "ok" to false and explain in "issues"; otherwise set "ok" to true and leave "issues" empty.\n` +
+      `Return ONLY valid JSON in this exact shape, with line breaks inside strings escaped as \\n and no markdown fences:\n` +
+      `{"ok":<true|false>,"issues":"<empty if ok, else what is wrong>","title":"<short title for the variant>",` +
+      `"questionText":"<full new question text>","expected":"<the correct final answer, with units>",` +
+      `"markingGuide":"<full worked solution and what to look for in the working — this is the answer key>"}`;
+    let media = [];
+    if (diagramUrl) {
+      try { const m = await imageUrlToInlineMedia(diagramUrl); if (m) media = [m]; }
+      catch (e) { console.warn("diagram could not be attached for regeneration", e); }
+    }
+    const data = parseAIJson(await askGeminiVision(prompt, media, { maxOutputTokens: 2200, json: true }));
+    const newText = String(data.questionText || "").trim();
+    if (!newText) throw new Error("the AI did not return a new question");
+    if (!String(data.expected || "").trim() && !String(data.markingGuide || "").trim()) throw new Error("the AI did not return an answer key");
+
+    // Swap the question text into the first text block; keep any diagram blocks untouched.
+    let replacedText = false;
+    const rebuilt = [];
+    for (const b of editorBlocks) {
+      if (b.type === "text") {
+        if (!replacedText) { rebuilt.push({ id: b.id, type: "text", content: newText }); replacedText = true; }
+      } else { rebuilt.push(b); }
+    }
+    if (!replacedText) rebuilt.unshift({ id: genBlockId(), type: "text", content: newText });
+    editorBlocks = rebuilt;
+
+    // A variant is saved as a NEW question so the original is never overwritten.
+    currentEditingId = null;
+    if (String(data.title || "").trim()) $("qTitleInput").value = String(data.title).trim();
+    $("qExpectedInput").value = String(data.expected || "").trim();
+    $("qGuideInput").value = String(data.markingGuide || "").trim();
+    // The old worked answer key image and solution video describe the previous numbers, so they no longer apply.
+    setAnswerKeyImage("");
+    $("qVideoInput").value = "";
+    $("createHeading").textContent = "Create Question";
+    $("saveQBtn").textContent = "💾 Save to Question Bank";
+    $("cancelEditBtn").style.display = "none";
+    renderEditorBlocks();
+    navigateTo("create");
+
+    const issues = String(data.issues || "").trim();
+    if (data.ok === false || issues) toast("Variant ready, but the AI flagged: " + (issues || "please double-check it"), "error");
+    else toast("New variant ready — the AI wrote the answer key. Review and save as a new question.", "success");
+  } catch (e) {
+    console.error(e);
+    toast("Regenerate failed: " + aiErrorMessage(e), "error");
+  } finally {
+    setRegenBusy(false);
+  }
+}
+$("regenQBtn").addEventListener("click", regenerateQuestionVariant);
 
 // =====================================================================
 // DRAWING PAD
