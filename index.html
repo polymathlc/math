@@ -398,6 +398,32 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .editor-field input:focus, .editor-field textarea:focus, .editor-field select:focus { outline: none; border-color: var(--border-focus); background: #fff; }
 .hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; }
 
+/* "Check with AI" sanity-check traffic light (admin question editor) */
+.check-ai-panel { display: flex; align-items: center; gap: 14px; margin: 0 0 16px; padding: 13px 15px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-alt); }
+.check-ai-panel[hidden] { display: none; }
+.traffic-light { display: flex; flex-direction: column; gap: 6px; padding: 7px; border-radius: 12px; background: #2c2a27; flex-shrink: 0; box-shadow: var(--shadow-sm); }
+.traffic-light .lamp { width: 16px; height: 16px; border-radius: 50%; background: rgba(255,255,255,0.13); transition: background var(--transition), box-shadow var(--transition); }
+.check-ai-panel.checking .lamp.amber { background: var(--accent-orange); animation: lampPulse 0.9s ease-in-out infinite; }
+.check-ai-panel.good .lamp.green { background: var(--accent-green); box-shadow: 0 0 9px 1px rgba(58,158,95,0.85); }
+.check-ai-panel.warn .lamp.amber { background: var(--accent-orange); box-shadow: 0 0 9px 1px rgba(212,136,42,0.85); }
+.check-ai-panel.bad .lamp.red { background: var(--accent-red); box-shadow: 0 0 9px 1px rgba(217,79,79,0.85); }
+@keyframes lampPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(212,136,42,0.45); } 50% { box-shadow: 0 0 10px 2px rgba(212,136,42,0.9); } }
+.check-ai-body { flex: 1; min-width: 0; }
+.check-ai-body h4 { font-size: 0.95rem; margin-bottom: 3px; }
+.check-ai-panel.good .check-ai-body h4 { color: var(--accent-green); }
+.check-ai-panel.warn .check-ai-body h4 { color: var(--accent-orange); }
+.check-ai-panel.bad .check-ai-body h4 { color: var(--accent-red); }
+.check-ai-body p { font-size: 0.86rem; color: var(--text-muted); margin: 0; }
+.check-ai-body ul { margin: 7px 0 0; padding-left: 18px; font-size: 0.84rem; color: var(--text); }
+.check-ai-body ul li { margin: 2px 0; }
+.check-ai-aspects { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+.check-ai-aspects .aspect { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; font-size: 0.74rem; font-weight: 600; background: #fff; border: 1px solid var(--border); color: var(--text-muted); }
+.check-ai-aspects .aspect i { width: 8px; height: 8px; border-radius: 50%; background: var(--text-light); }
+.check-ai-aspects .aspect.ok { color: var(--accent-green); border-color: transparent; background: var(--accent-green-light); }
+.check-ai-aspects .aspect.ok i { background: var(--accent-green); }
+.check-ai-aspects .aspect.issue { color: var(--accent-red); border-color: transparent; background: var(--accent-red-light); }
+.check-ai-aspects .aspect.issue i { background: var(--accent-red); }
+
 .block-card { border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: 12px; background: var(--surface-alt); overflow: hidden; }
 .block-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #fff; border-bottom: 1px solid var(--border); }
 .block-badge { font-family: 'Space Mono', monospace; font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; background: var(--primary-light); color: var(--primary); font-weight: 700; }
@@ -1041,8 +1067,26 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
         <button class="btn btn-ghost" id="previewCreateBtn">👁️ Preview in practice</button>
         <button class="btn btn-ghost" id="aiBuildBtn">✨ Build with AI</button>
         <button class="btn btn-ghost" id="regenQBtn" title="Make a fresh variant of the question in the editor — different names, objects and numbers — then a second AI pass checks the numbers make sense and writes the verified answer key"><span id="regenQLabel">🔄 Regenerate variant</span></button>
+        <button class="btn btn-ghost" id="checkAiBtn" title="Check with AI — a second AI pass re-solves the question and judges whether the scenario, working and answer make sense together (e.g. it flags a decimal or fraction count of objects/people that should be a whole number) and shows a red / amber / green light"><span id="checkAiLabel">🚦 Check with AI</span></button>
       </div>
       <div class="card card-pad">
+        <div class="check-ai-panel" id="checkAiPanel" role="status" aria-live="polite" hidden>
+          <div class="traffic-light" aria-hidden="true">
+            <span class="lamp red"></span>
+            <span class="lamp amber"></span>
+            <span class="lamp green"></span>
+          </div>
+          <div class="check-ai-body">
+            <h4 id="checkAiTitle">Checking…</h4>
+            <p id="checkAiMsg"></p>
+            <div class="check-ai-aspects" id="checkAiAspects" hidden>
+              <span class="aspect" data-k="scenario"><i></i>Scenario</span>
+              <span class="aspect" data-k="working"><i></i>Working</span>
+              <span class="aspect" data-k="answer"><i></i>Answer</span>
+            </div>
+            <ul id="checkAiIssues" hidden></ul>
+          </div>
+        </div>
         <div class="editor-grid">
           <div class="editor-field"><label>Title</label><input id="qTitleInput" type="text" placeholder="e.g. Fractions — pizza left over"></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
@@ -3607,6 +3651,7 @@ function resetEditor() {
   $("saveQBtn").textContent = "💾 Save to Question Bank";
   $("cancelEditBtn").style.display = "none";
   renderEditorBlocks();
+  clearCheckAiPanel();
 }
 $("clearQBtn").addEventListener("click", () => { if (confirm("Clear the editor?")) resetEditor(); });
 $("cancelEditBtn").addEventListener("click", () => { resetEditor(); navigateTo("bank"); });
@@ -3627,6 +3672,7 @@ function editQuestion(id) {
   $("saveQBtn").textContent = "💾 Save changes";
   $("cancelEditBtn").style.display = "";
   renderEditorBlocks();
+  clearCheckAiPanel();
   navigateTo("create");
 }
 
@@ -3899,6 +3945,7 @@ async function regenerateQuestionVariant() {
     $("saveQBtn").textContent = "💾 Save to Question Bank";
     $("cancelEditBtn").style.display = "none";
     renderEditorBlocks();
+    clearCheckAiPanel();
     navigateTo("create");
 
     if (verified) toast("New variant ready — a second AI pass checked the numbers and wrote the verified answer key. Review and save as a new question.", "success");
@@ -3911,6 +3958,144 @@ async function regenerateQuestionVariant() {
   }
 }
 $("regenQBtn").addEventListener("click", regenerateQuestionVariant);
+
+// =====================================================================
+// CHECK WITH AI — sanity-check the question currently in the editor and
+// show a red / amber / green "traffic light". A reviewer AI re-solves the
+// question from scratch and judges whether the scenario (the story), the
+// working (marking guide) and the final answer all make sense together —
+// in particular flagging numbers that don't fit the context, such as a
+// decimal or fraction count of objects/people that should be a whole
+// number, impossible/ugly results, or an answer the working can't support.
+// =====================================================================
+const CHECK_AI_STATES = {
+  checking: { title: "Checking with AI…", msg: "Re-solving the question and checking the numbers make sense in context…" },
+  good: { title: "Green light — makes sense", msg: "The scenario, working and answer all hold together." },
+  warn: { title: "Amber — worth a second look", msg: "It mostly works, but the AI flagged something to double-check." },
+  bad: { title: "Red light — doesn't add up", msg: "The AI thinks the numbers or wording don't make sense yet." },
+  error: { title: "Couldn't finish the check", msg: "" }
+};
+function clearCheckAiPanel() {
+  const panel = $("checkAiPanel");
+  if (!panel) return;
+  panel.hidden = true;
+  panel.classList.remove("checking", "good", "warn", "bad");
+}
+// Hide a stale verdict the moment the teacher edits the scenario, working
+// or answer — a green light from before the edit can no longer be trusted.
+function invalidateCheckAiOnEdit() {
+  const panel = $("checkAiPanel");
+  if (panel && !panel.hidden && !panel.classList.contains("checking")) clearCheckAiPanel();
+}
+function setCheckAiState(state, { msg, issues, checks } = {}) {
+  const panel = $("checkAiPanel");
+  if (!panel) return;
+  panel.hidden = false;
+  panel.classList.remove("checking", "good", "warn", "bad");
+  if (["checking", "good", "warn", "bad"].includes(state)) panel.classList.add(state);
+  const preset = CHECK_AI_STATES[state] || CHECK_AI_STATES.error;
+  $("checkAiTitle").textContent = preset.title;
+  $("checkAiMsg").textContent = msg != null ? msg : preset.msg;
+
+  // Per-aspect chips: Scenario / Working / Answer
+  const aspectsEl = $("checkAiAspects");
+  const hasChecks = checks && ["scenario", "working", "answer"].some(k => checks[k]);
+  if (hasChecks) {
+    aspectsEl.querySelectorAll(".aspect").forEach(el => {
+      const v = String(checks[el.dataset.k] || "").toLowerCase();
+      el.classList.toggle("ok", v === "ok");
+      el.classList.toggle("issue", v === "issue");
+    });
+    aspectsEl.hidden = false;
+  } else {
+    aspectsEl.hidden = true;
+  }
+
+  const list = $("checkAiIssues");
+  list.innerHTML = "";
+  const items = (issues || []).map(s => String(s || "").trim()).filter(Boolean);
+  if (items.length) {
+    items.slice(0, 8).forEach(t => { const li = document.createElement("li"); li.textContent = t; list.appendChild(li); });
+    list.hidden = false;
+  } else {
+    list.hidden = true;
+  }
+}
+function setCheckAiBusy(busy) {
+  const btn = $("checkAiBtn"), label = $("checkAiLabel");
+  if (btn) btn.disabled = busy;
+  if (label) label.innerHTML = busy ? '<span class="spinner dark"></span> Checking…' : "🚦 Check with AI";
+}
+async function checkQuestionWithAI() {
+  if (!canManageQuestions()) { toast("Only admin accounts can check questions", "error"); return; }
+  if (!aiReady()) { toast("AI isn't ready yet — please wait a moment", "error"); return; }
+  const q = collectQuestion();
+  const sourceText = editorBlocks.filter(b => b.type === "text").map(b => (b.content || "").trim()).filter(Boolean).join("\n\n");
+  const hasDiagram = editorBlocks.some(b => b.type === "image");
+  const diagramUrl = (editorBlocks.find(b => b.type === "image" && (b.url || "").trim()) || {}).url || "";
+  if (!sourceText && !hasDiagram) { toast("Add or build a question first, then check it with AI", "error"); return; }
+
+  setCheckAiBusy(true);
+  setCheckAiState("checking");
+  $("checkAiPanel").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  try {
+    const prompt =
+      `You are a meticulous Singapore primary-school math checker acting as a quality gate before a question is saved. ` +
+      `Independently work the question out from scratch, then judge whether the SCENARIO (the story/wording), the WORKING (the marking guide / worked solution) and the FINAL ANSWER all make sense and agree with each other.\n` +
+      `Pay special attention to whether every number makes sense IN CONTEXT:\n` +
+      `- Things that can only be whole (people, objects, animals, marbles, books, cars, etc.) must come out as whole numbers — flag any decimal or fraction count of such things.\n` +
+      `- No negative, zero or impossible quantities where they make no sense; ages, lengths, prices and times must be realistic.\n` +
+      `- Totals, ratios, remainders, fractions and percentages must all be mutually consistent and actually work out.\n` +
+      `- Results should be clean where a primary student would expect clean numbers; flag ugly/awkward values that suggest a typo.\n` +
+      `- The question must be complete, unambiguous and solvable with primary-school methods, and the stated answer must be the one the working leads to.\n` +
+      (hasDiagram ? `A diagram is attached — make sure the wording matches it and any value read from it stays consistent.\n` : ``) +
+      `\nTitle: ${q.title || "(none)"}\nLevel: ${q.level || "(unspecified)"}\nTopics: ${q.topic || "(unspecified)"}\nConcept (teacher-only): ${q.concept || "(none)"}\n` +
+      `Question / scenario:\n${sourceText || "(the question is carried by the attached diagram)"}\n` +
+      `Stated final answer: ${q.expected || "(none given)"}\n` +
+      `Marking guide / working: ${q.markingGuide || "(none given)"}\n` +
+      (q.answerKeyImageUrl ? `An answer key image is attached as additional reference.\n` : ``) +
+      `\nReturn ONLY valid JSON in this exact shape, with line breaks inside strings escaped as \\n and no markdown fences:\n` +
+      `{"verdict":"green"|"amber"|"red","summary":"<one short plain-language sentence overall>",` +
+      `"issues":["<each specific problem, especially numbers that don't fit the context; empty array if none>"],` +
+      `"checks":{"scenario":"ok"|"issue","working":"ok"|"issue","answer":"ok"|"issue"}}`;
+
+    const media = [];
+    if (diagramUrl) {
+      try { const m = await imageUrlToInlineMedia(diagramUrl); if (m) media.push(m); }
+      catch (e) { console.warn("diagram could not be attached for check", e); }
+    }
+    if (q.answerKeyImageUrl) {
+      try { const m = await imageUrlToInlineMedia(q.answerKeyImageUrl); if (m) media.push(m); }
+      catch (e) { console.warn("answer key image could not be attached for check", e); }
+    }
+
+    const res = parseAIJson(await askGeminiVision(prompt, media, { maxOutputTokens: 1200, json: true, models: geminiRegenModels, modelNames: AI_REGEN_MODEL_NAMES, thinkingBudget: -1 }));
+
+    const issues = (Array.isArray(res.issues) ? res.issues : []).map(s => String(s || "").trim()).filter(Boolean);
+    let checks = res.checks && typeof res.checks === "object" ? res.checks : null;
+    const flaggedAspect = checks && ["scenario", "working", "answer"].some(k => String(checks[k] || "").toLowerCase() === "issue");
+    // Normalise the verdict defensively: trust an explicit colour, else infer
+    // from whether anything was flagged.
+    let verdict = String(res.verdict || "").trim().toLowerCase();
+    if (!["green", "amber", "red"].includes(verdict)) verdict = (issues.length || flaggedAspect) ? "amber" : "green";
+    if (!checks && verdict === "green") checks = { scenario: "ok", working: "ok", answer: "ok" };
+
+    const state = verdict === "green" ? "good" : verdict === "red" ? "bad" : "warn";
+    setCheckAiState(state, { msg: String(res.summary || "").trim() || undefined, issues, checks });
+  } catch (e) {
+    console.error(e);
+    setCheckAiState("error", { msg: aiErrorMessage(e) });
+    toast("Check failed: " + aiErrorMessage(e), "error");
+  } finally {
+    setCheckAiBusy(false);
+  }
+}
+$("checkAiBtn").addEventListener("click", checkQuestionWithAI);
+// A verdict only describes the question as it was when checked, so drop it as
+// soon as the scenario text, answer or marking guide is edited.
+["qExpectedInput", "qGuideInput", "qTitleInput", "qLevelInput", "qTopicInput", "qConceptInput"]
+  .forEach(id => { const el = $(id); if (el) el.addEventListener("input", invalidateCheckAiOnEdit); });
+$("blocksList").addEventListener("input", invalidateCheckAiOnEdit);
 
 // =====================================================================
 // DRAWING PAD
@@ -9254,7 +9439,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.1.0 · 2026-06-19";
+const APP_VERSION = "v1.2.0 · 2026-06-23";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
