@@ -1479,10 +1479,13 @@ const RECAPTCHA_SITE_KEY = "6Le98gwtAAAAAAzkjJTZXFM5D8tpjx_P4rtRuhuH";
 const AI_MODEL = "gemini-3.5-flash";
 const AI_FALLBACK_MODELS = ["gemini-2.5-flash"]; // tried in order when the primary model is overloaded or unreachable
 const AI_IMAGE_MODELS = ["gemini-3.1-flash-image-preview", "gemini-2.5-flash-image"];
-// Regenerating a question variant needs stronger numerical reasoning than the
-// everyday flash model — flash sometimes invents numbers that don't work out —
-// so it runs on the pro model (flash is kept only as a last-resort fallback).
-const AI_REGEN_MODEL = "gemini-3.1-pro";
+// Regenerating or checking a question needs stronger numerical reasoning than
+// the everyday flash model — flash sometimes invents numbers that don't work
+// out — so it runs on the pro model (the flash models are kept behind it as
+// fallbacks). If the pro model isn't reachable on this project yet (e.g. still
+// rolling out), askGeminiVision treats "model not found" as a fall-through and
+// quietly drops to flash, so the feature keeps working either way.
+const AI_REGEN_MODEL = "gemini-3.5-pro";
 const ADMIN_EMAILS = ['chungzhikai@gmail.com', 'abigail.yew@stanfordmanpower.com'];
 
 const app = initializeApp(firebaseConfig);
@@ -1549,6 +1552,15 @@ function isTransientAiError(e) {
   const msg = String((e && e.message) || e || "").toLowerCase();
   return /abort|timed? ?out|deadline|failed to fetch|networkerror|network error|load failed|overloaded|unavailable|resource.?exhausted|too many requests|\b(429|500|502|503|504)\b/.test(msg);
 }
+// A "model not found / not supported" error means this project can't use that
+// exact model id (e.g. a pro model still rolling out). It won't fix itself on a
+// retry, but a *different* model in the fallback list can — so unlike other
+// non-transient errors we let it fall through to the next model instead of
+// failing the whole request.
+function isModelNotFoundError(e) {
+  const msg = String((e && e.message) || e || "").toLowerCase();
+  return /\b404\b/.test(msg) || /is not found for api version/.test(msg) || /not supported for generatecontent/.test(msg) || /\bis not found\b/.test(msg);
+}
 async function withAiRetry(run, { tries = 3, baseDelayMs = 1200, timeoutTries = 2 } = {}) {
   const max = Math.max(1, tries);
   const timeoutMax = Math.max(1, timeoutTries);
@@ -1585,8 +1597,11 @@ async function askGeminiVision(prompt, media, { maxOutputTokens = 1024, json = t
       const res = await withAiRetry(() => models[i].generateContent({ contents: [{ role: "user", parts }], generationConfig }), { tries: 2, timeoutTries: 1 });
       return (res.response.text() || "").trim();
     } catch (e) {
-      // A non-transient failure on the primary (bad request, safety block) won't be fixed by another model.
-      if (i === 0 && !isTransientAiError(e)) throw e;
+      // On the primary model a non-transient failure (bad request, safety block)
+      // normally can't be fixed by another model, so we fail fast — except a
+      // "model not found" error, where a different model in the fallback list
+      // very well might work, so we let that one fall through.
+      if (i === 0 && !isTransientAiError(e) && !isModelNotFoundError(e)) throw e;
       if (!lastErr || isTransientAiError(e)) lastErr = e;
       if (i < models.length - 1) console.warn(`AI model "${modelNames[i]}" failed, trying "${modelNames[i + 1]}"…`, e);
     }
@@ -9439,7 +9454,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.2.0 · 2026-06-23";
+const APP_VERSION = "v1.2.1 · 2026-06-23";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
