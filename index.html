@@ -1040,7 +1040,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
         <div style="flex:1;"><h3 id="createHeading">Create Question</h3><p>Add a math question for your students. They'll see it on the practice pad.</p></div>
         <button class="btn btn-ghost" id="previewCreateBtn">👁️ Preview in practice</button>
         <button class="btn btn-ghost" id="aiBuildBtn">✨ Build with AI</button>
-        <button class="btn btn-ghost" id="regenQBtn" title="Make a fresh variant of the question in the editor — different names, objects and numbers — then have the AI check it and write its own answer key"><span id="regenQLabel">🔄 Regenerate variant</span></button>
+        <button class="btn btn-ghost" id="regenQBtn" title="Make a fresh variant of the question in the editor — different names, objects and numbers — then a second AI pass checks the numbers make sense and writes the verified answer key"><span id="regenQLabel">🔄 Regenerate variant</span></button>
       </div>
       <div class="card card-pad">
         <div class="editor-grid">
@@ -1435,6 +1435,10 @@ const RECAPTCHA_SITE_KEY = "6Le98gwtAAAAAAzkjJTZXFM5D8tpjx_P4rtRuhuH";
 const AI_MODEL = "gemini-3.5-flash";
 const AI_FALLBACK_MODELS = ["gemini-2.5-flash"]; // tried in order when the primary model is overloaded or unreachable
 const AI_IMAGE_MODELS = ["gemini-3.1-flash-image-preview", "gemini-2.5-flash-image"];
+// Regenerating a question variant needs stronger numerical reasoning than the
+// everyday flash model — flash sometimes invents numbers that don't work out —
+// so it runs on the pro model (flash is kept only as a last-resort fallback).
+const AI_REGEN_MODEL = "gemini-3.1-pro";
 const ADMIN_EMAILS = ['chungzhikai@gmail.com', 'abigail.yew@stanfordmanpower.com'];
 
 const app = initializeApp(firebaseConfig);
@@ -1477,6 +1481,13 @@ try {
   geminiTextModels = AI_TEXT_MODEL_NAMES.map(model => getGenerativeModel(aiBackend, { model }, AI_REQUEST_OPTIONS));
   geminiModel = geminiTextModels[0] || null;
 } catch (e) { console.warn("Firebase AI init failed:", e); }
+// Pro model (with the flash models behind it as fallbacks) used for regenerating
+// question variants and for the checker subagent that vets them.
+let geminiRegenModels = [];
+const AI_REGEN_MODEL_NAMES = [AI_REGEN_MODEL, ...AI_TEXT_MODEL_NAMES];
+try {
+  geminiRegenModels = AI_REGEN_MODEL_NAMES.map(model => getGenerativeModel(aiBackend, { model }, AI_REQUEST_OPTIONS));
+} catch (e) { console.warn("Firebase regen AI init failed:", e); }
 let geminiImageModels = [];
 try {
   geminiImageModels = AI_IMAGE_MODELS.map(model => getGenerativeModel(aiBackend, {
@@ -1517,23 +1528,23 @@ function aiErrorMessage(e) {
   return raw;
 }
 
-async function askGeminiVision(prompt, media, { maxOutputTokens = 1024, json = true } = {}) {
-  if (!geminiTextModels.length) throw new Error("AI is not configured yet");
+async function askGeminiVision(prompt, media, { maxOutputTokens = 1024, json = true, models = geminiTextModels, modelNames = AI_TEXT_MODEL_NAMES, thinkingBudget = 0 } = {}) {
+  if (!models.length) throw new Error("AI is not configured yet");
   const parts = [{ text: prompt }];
   (media || []).forEach(m => parts.push({ inlineData: { mimeType: m.mimeType, data: m.data } }));
-  const generationConfig = { maxOutputTokens, temperature: 0.2, thinkingConfig: { thinkingBudget: 0 } };
+  const generationConfig = { maxOutputTokens, temperature: 0.2, thinkingConfig: { thinkingBudget } };
   if (json) generationConfig.responseMimeType = "application/json";
   let lastErr = null;
-  for (let i = 0; i < geminiTextModels.length; i++) {
+  for (let i = 0; i < models.length; i++) {
     try {
       // Per model: up to 2 quick retries, but a 4-min timeout moves straight to the fallback model.
-      const res = await withAiRetry(() => geminiTextModels[i].generateContent({ contents: [{ role: "user", parts }], generationConfig }), { tries: 2, timeoutTries: 1 });
+      const res = await withAiRetry(() => models[i].generateContent({ contents: [{ role: "user", parts }], generationConfig }), { tries: 2, timeoutTries: 1 });
       return (res.response.text() || "").trim();
     } catch (e) {
       // A non-transient failure on the primary (bad request, safety block) won't be fixed by another model.
       if (i === 0 && !isTransientAiError(e)) throw e;
       if (!lastErr || isTransientAiError(e)) lastErr = e;
-      if (i < geminiTextModels.length - 1) console.warn(`AI model "${AI_TEXT_MODEL_NAMES[i]}" failed, trying "${AI_TEXT_MODEL_NAMES[i + 1]}"…`, e);
+      if (i < models.length - 1) console.warn(`AI model "${modelNames[i]}" failed, trying "${modelNames[i + 1]}"…`, e);
     }
   }
   throw lastErr || new Error("AI request failed");
@@ -3764,12 +3775,36 @@ function populateEditorFromAi(d) {
 
 // Regenerate a fresh variant of whatever question is currently in the editor:
 // same concept/structure/difficulty, but different names, objects and numbers
-// where it makes sense. The AI also checks the new question is solvable and
-// writes its own answer key (expected answer + marking guide).
+// where it makes sense. Generation runs on the stronger "pro" model; the result
+// is then handed to a separate checker subagent that must confirm the question
+// makes sense (numbers work out, solvable, unambiguous) and writes the verified
+// answer key before anything is shown. Rejected variants are retried with the
+// checker's feedback so the numbers get fixed.
 function setRegenBusy(busy) {
   const btn = $("regenQBtn"), label = $("regenQLabel");
   btn.disabled = busy;
   label.innerHTML = busy ? '<span class="spinner dark"></span> Regenerating…' : "🔄 Regenerate variant";
+}
+// Checker subagent: a separate AI call (on the pro model) that independently
+// re-solves a freshly generated variant and decides whether it actually makes
+// sense — numbers work out, solvable, unambiguous, answer key correct — before
+// we ever show it. Returns the verdict plus its own re-derived answer key.
+async function verifyGeneratedQuestion(variant, media) {
+  const prompt =
+    `You are a meticulous Singapore primary-school math checker. Another AI wrote the practice question below. ` +
+    `Work it out yourself from scratch and judge whether it genuinely makes sense for students.\n` +
+    `Check carefully that: every number, quantity and proportion is realistic and mutually consistent; the numbers actually work out ` +
+    `(no impossible, negative or ugly fractional results where whole numbers are expected; totals, ratios and remainders all add up); ` +
+    `the question is complete and unambiguous; it is solvable with primary-school methods; and the claimed answer key is correct.\n` +
+    (media && media.length ? `A diagram is attached — make sure the wording matches it and any value read from it stays consistent.\n` : ``) +
+    `Title: ${variant.title || "(none)"}\nLevel: ${variant.level || "(unspecified)"}\nTopics: ${variant.topic || "(unspecified)"}\nConcept (teacher-only): ${variant.concept || "(none)"}\n` +
+    `Question text:\n${variant.questionText}\n` +
+    `Claimed final answer: ${variant.expected || "(none given)"}\n` +
+    `Claimed marking guide: ${variant.markingGuide || "(none given)"}\n` +
+    `Return ONLY valid JSON in this exact shape, with line breaks inside strings escaped as \\n and no markdown fences:\n` +
+    `{"makesSense":<true|false>,"issues":"<empty if it makes sense, else exactly what is wrong, especially with the numbers>",` +
+    `"expected":"<your own verified final answer, with units>","markingGuide":"<your own verified worked solution / answer key>"}`;
+  return parseAIJson(await askGeminiVision(prompt, media, { maxOutputTokens: 1500, json: true, models: geminiRegenModels, modelNames: AI_REGEN_MODEL_NAMES, thinkingBudget: -1 }));
 }
 async function regenerateQuestionVariant() {
   if (!canManageQuestions()) { toast("Only admin accounts can regenerate questions", "error"); return; }
@@ -3781,7 +3816,7 @@ async function regenerateQuestionVariant() {
   if (!sourceText && !hasDiagram) { toast("Add or build a question first, then regenerate a variant", "error"); return; }
   setRegenBusy(true);
   try {
-    const prompt =
+    const buildPrompt = (fixNote) =>
       `You are helping a Singapore primary-school math teacher create a fresh VARIANT of one of their existing practice questions. ` +
       genPreamble() +
       `Here is the original question:\n` +
@@ -3798,6 +3833,9 @@ async function regenerateQuestionVariant() {
         : ``) +
       `Then act as a careful checker: confirm the new question is complete, unambiguous and solvable, solve it yourself, and write the answer key. ` +
       `If anything does not work out (numbers no longer divide nicely, the diagram no longer fits, etc.) set "ok" to false and explain in "issues"; otherwise set "ok" to true and leave "issues" empty.\n` +
+      (fixNote
+        ? `A previous attempt was REJECTED by an independent checker for: ${fixNote}. Produce a corrected variant that specifically fixes this — above all make sure every number works out cleanly.\n`
+        : ``) +
       `Return ONLY valid JSON in this exact shape, with line breaks inside strings escaped as \\n and no markdown fences:\n` +
       `{"ok":<true|false>,"issues":"<empty if ok, else what is wrong>","title":"<short title for the variant>",` +
       `"questionText":"<full new question text>","expected":"<the correct final answer, with units>",` +
@@ -3807,10 +3845,36 @@ async function regenerateQuestionVariant() {
       try { const m = await imageUrlToInlineMedia(diagramUrl); if (m) media = [m]; }
       catch (e) { console.warn("diagram could not be attached for regeneration", e); }
     }
-    const data = parseAIJson(await askGeminiVision(prompt, media, { maxOutputTokens: 2200, json: true }));
-    const newText = String(data.questionText || "").trim();
-    if (!newText) throw new Error("the AI did not return a new question");
-    if (!String(data.expected || "").trim() && !String(data.markingGuide || "").trim()) throw new Error("the AI did not return an answer key");
+
+    // Generate on the pro model, then hand each draft to the checker subagent.
+    // We only output a variant the checker agrees makes sense; otherwise we retry
+    // with its feedback so the numbers get fixed (up to a few attempts).
+    const MAX_ATTEMPTS = 3;
+    let chosen = null, verified = false, lastIssues = "";
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      const gen = parseAIJson(await askGeminiVision(buildPrompt(lastIssues), media, { maxOutputTokens: 2200, json: true, models: geminiRegenModels, modelNames: AI_REGEN_MODEL_NAMES, thinkingBudget: -1 }));
+      const genText = String(gen.questionText || "").trim();
+      if (!genText) throw new Error("the AI did not return a new question");
+
+      const check = await verifyGeneratedQuestion({
+        title: gen.title || q.title, questionText: genText, expected: gen.expected, markingGuide: gen.markingGuide,
+        level: q.level, topic: q.topic, concept: q.concept
+      }, media);
+      const sane = check.makesSense !== false && !String(check.issues || "").trim();
+      // When the checker is satisfied, trust its independently re-derived answer key.
+      chosen = {
+        title: String(gen.title || "").trim(),
+        questionText: genText,
+        expected: String((sane && check.expected) || gen.expected || check.expected || "").trim(),
+        markingGuide: String((sane && check.markingGuide) || gen.markingGuide || check.markingGuide || "").trim(),
+      };
+      if (sane) { verified = true; lastIssues = ""; break; }
+      lastIssues = String(check.issues || "").trim() || "the numbers didn't check out";
+      console.warn(`regenerate attempt ${attempt} rejected by checker:`, lastIssues);
+    }
+    if (!chosen || !chosen.questionText) throw new Error("the AI did not return a new question");
+    if (!chosen.expected && !chosen.markingGuide) throw new Error("the AI did not return an answer key");
+    const newText = chosen.questionText;
 
     // Swap the question text into the first text block; keep any diagram blocks untouched.
     let replacedText = false;
@@ -3825,9 +3889,9 @@ async function regenerateQuestionVariant() {
 
     // A variant is saved as a NEW question so the original is never overwritten.
     currentEditingId = null;
-    if (String(data.title || "").trim()) $("qTitleInput").value = String(data.title).trim();
-    $("qExpectedInput").value = String(data.expected || "").trim();
-    $("qGuideInput").value = String(data.markingGuide || "").trim();
+    if (chosen.title) $("qTitleInput").value = chosen.title;
+    $("qExpectedInput").value = chosen.expected;
+    $("qGuideInput").value = chosen.markingGuide;
     // The old worked answer key image and solution video describe the previous numbers, so they no longer apply.
     setAnswerKeyImage("");
     $("qVideoInput").value = "";
@@ -3837,9 +3901,8 @@ async function regenerateQuestionVariant() {
     renderEditorBlocks();
     navigateTo("create");
 
-    const issues = String(data.issues || "").trim();
-    if (data.ok === false || issues) toast("Variant ready, but the AI flagged: " + (issues || "please double-check it"), "error");
-    else toast("New variant ready — the AI wrote the answer key. Review and save as a new question.", "success");
+    if (verified) toast("New variant ready — a second AI pass checked the numbers and wrote the verified answer key. Review and save as a new question.", "success");
+    else toast("Variant ready, but the checker still flagged: " + lastIssues + " — please double-check the numbers before saving.", "error");
   } catch (e) {
     console.error(e);
     toast("Regenerate failed: " + aiErrorMessage(e), "error");
