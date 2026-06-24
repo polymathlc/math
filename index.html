@@ -2142,6 +2142,43 @@ function questionHitsWeakTopic(q, weak) {
   if (!weak || !weak.size) return false;
   return questionTopics(q).some(t => weak.has(String(studentTopicLabel(t)).toLowerCase()));
 }
+// A regenerated variant shares the original's "root" id (variantOf). Used to
+// serve a fresh variant of a question the student just got wrong.
+function questionVariantRoot(q) { return q ? String(q.variantOf || q.id) : ""; }
+function relatedVariants(q) {
+  const root = questionVariantRoot(q);
+  if (!root) return [];
+  return questionBank.filter(x => x && x.id !== q.id && questionVariantRoot(x) === root);
+}
+// Best teacher-made variant to retry after a miss: skip mastered ones, prefer
+// never-seen, then the least-attempted.
+function bestVariantToServe(q) {
+  const cands = relatedVariants(q).filter(x => !questionMastered(studentProgress[x.id]));
+  if (!cands.length) return null;
+  cands.sort((a, b) => {
+    const pa = studentProgress[a.id] || {}, pb = studentProgress[b.id] || {};
+    const sa = (pa.attempts || 0) > 0 ? 1 : 0, sb = (pb.attempts || 0) > 0 ? 1 : 0;
+    if (sa !== sb) return sa - sb;
+    return (pa.attempts || 0) - (pb.attempts || 0);
+  });
+  return cands[0];
+}
+// In AI practice, when a question is missed, queue a teacher-made variant of it
+// as the very next question so the same skill is retried with fresh numbers.
+function maybeServeVariantOnMiss(q, v) {
+  if (!aiPracticeActive || !q) return;
+  if (String((v && v.verdict) || "").toLowerCase() === "correct") return;
+  const variant = bestVariantToServe(q);
+  if (!variant) return;
+  const vIdx = questionBank.findIndex(x => x.id === variant.id);
+  if (vIdx !== -1) questionBank.splice(vIdx, 1);
+  qIndex = questionBank.findIndex(x => x.id === q.id);
+  if (qIndex < 0) qIndex = 0;
+  questionBank.splice(qIndex + 1, 0, variant);
+  aiPracticeStats.variants = (aiPracticeStats.variants || 0) + 1;
+  renderAiPracticeBar();
+  toast("Next up: a variant of this question to practise the same skill", "");
+}
 const AI_PRACTICE_SET_MAX = 12, AI_PRACTICE_REVIEW_MAX = 8;
 function startAiPractice() {
   if (!currentUser || currentUser.role !== "student") return;
@@ -2196,7 +2233,7 @@ function startAiPractice() {
   questionBank = aiPracticeQueue.concat(remainder, skipped);
   qIndex = 0;
   aiPracticeActive = true;
-  aiPracticeStats = { review: reviewSet.length, growth: growthSet.length, total: aiPracticeQueue.length };
+  aiPracticeStats = { review: reviewSet.length, growth: growthSet.length, total: aiPracticeQueue.length, variants: 0 };
   renderAiPracticeBar();
   renderQuestion();
   toast(`AI practice ready: ${aiPracticeQueue.length} question${aiPracticeQueue.length === 1 ? "" : "s"} in your growth zone (rating ${Math.round(rating)})`, "success");
@@ -2206,11 +2243,12 @@ function renderAiPracticeBar() {
   if (!bar) return;
   if (!aiPracticeActive) { bar.style.display = "none"; bar.innerHTML = ""; return; }
   const rating = Math.round(studentEloValue());
-  const r = aiPracticeStats.review || 0, g = aiPracticeStats.growth || 0;
+  const r = aiPracticeStats.review || 0, g = aiPracticeStats.growth || 0, vCount = aiPracticeStats.variants || 0;
   const parts = [];
   if (r) parts.push(`<b>${r}</b> to review`);
   if (g) parts.push(`<b>${g}</b> in your growth zone`);
-  const lead = parts.length ? parts.join(" + ") + "." : "questions matched to your rating.";
+  let lead = parts.length ? parts.join(" + ") + "." : "questions matched to your rating.";
+  lead += vCount ? ` Miss one and you'll get a variant to try again (${vCount} so far).` : " Miss one and you'll get a variant to try again.";
   bar.innerHTML = `🤖 <span>AI practice • rating <b>${rating}</b> — ${lead}</span>` +
     `<button class="btn btn-ghost btn-sm" id="aiPrintBtn" type="button" title="Print this practice set as PDF">🖨️ Print set</button>` +
     `<button class="ai-practice-close" id="aiPracticeCloseBtn" type="button" title="Exit AI practice">×</button>`;
@@ -5760,6 +5798,7 @@ $("submitBtn").addEventListener("click", async () => {
     const reviewPlan = await recordLearningAttempt(q, v, out.progress);
     try { rpgOnMarked(q, v, { server: out }); } catch (err) { console.warn("rpg reward", err); }
     showResult(v, png, reviewPlan, !!solutionMedia);
+    maybeServeVariantOnMiss(q, v);
     const verdict = (v.verdict || "").toLowerCase();
     let markMsg = verdict === "correct" ? "Great work! 🎉" : "Marked — see the feedback";
     if (lastEloChange && currentUser && currentUser.role === "student") {
@@ -5780,6 +5819,7 @@ $("submitBtn").addEventListener("click", async () => {
         const reviewPlan = await recordLearningAttempt(q, v);
         try { rpgOnMarked(q, v, {}); } catch (err) { console.warn("rpg reward", err); }
         showResult(v, png, reviewPlan, !!solutionMedia);
+        maybeServeVariantOnMiss(q, v);
         const verdict = (v.verdict || "").toLowerCase();
         toast((verdict === "correct" ? "Great work! 🎉" : "Marked — see the feedback") + " · marked on this device", verdict === "correct" ? "success" : "");
       } catch (e2) { console.error(e, e2); toast("AI mark error: " + serverErrorMessage(e2), "error"); }
