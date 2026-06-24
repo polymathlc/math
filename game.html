@@ -1631,7 +1631,7 @@ function studentTopicLabel(topic) {
   const firstSafe = parts.find(p => !CLUE_TOPIC_WORDS.some(w => p.toLowerCase().includes(w)));
   const candidate = firstSafe || source;
   const lower = candidate.toLowerCase();
-  if (CLUE_TOPIC_WORDS.some(w => lower.includes(w))) return "Problem Solving";
+  if (CLUE_TOPIC_WORDS.some(w => lower.includes(w))) return "Math";
   return candidate;
 }
 function studentTopicsLabel(q) { return studentTopicLabel(questionTopics(q)); }
@@ -2232,14 +2232,14 @@ function learningSnapshotForGeneration(target) {
   };
 }
 function questionFromWeaknessAi(d, target) {
-  const topics = parseTopics(d.topics && d.topics.length ? d.topics : (d.topic || target.topic || "Problem Solving")).map(studentTopicLabel).filter(Boolean);
+  const topics = parseTopics(d.topics && d.topics.length ? d.topics : (d.topic || target.topic || "")).map(studentTopicLabel).filter(Boolean);
   const text = String(d.questionText || d.question || "").trim();
   return {
     id: makeDocId("aiweak"),
     title: String(d.title || `${target.topic || "Math"} practice`).trim(),
     level: String(d.level || "Practice").trim(),
-    topic: (topics.length ? topics : [studentTopicLabel(target.topic || "Problem Solving")]).join(", "),
-    topics: topics.length ? topics : [studentTopicLabel(target.topic || "Problem Solving")],
+    topic: (topics.length ? topics : [studentTopicLabel(target.topic || "")]).join(", "),
+    topics: topics.length ? topics : [studentTopicLabel(target.topic || "")],
     concept: String(d.concept || target.concept || target.label || "").trim(),
     blocks: [{ id: genBlockId(), type: "text", content: text || "Solve the question carefully and show your working." }],
     expected: String(d.expected || "").trim(),
@@ -2267,7 +2267,7 @@ async function generateWeaknessPractice() {
       `Private performance snapshot: ${JSON.stringify(snapshot)}\n\n` +
       `Create a fresh question that practises the target weakness with different numbers and wording from previous questions. ` +
       `Keep it suitable for worksheet working, no image or diagram required, and make sure the answer and marking guide are correct. ` +
-      `For "topics", use broad safe topic labels only. For "concept", use a private teacher-only method/concept label.\n\n` +
+      `For "topics", use the specific content topic only (e.g. Fractions, Ratio, Geometry) — never the generic label "Problem Solving". For "concept", use a specific private teacher-only method/concept label only when one clearly applies, or leave it empty; do not use the generic label "Model Method".\n\n` +
       `Return ONLY valid JSON in this exact shape: {"title":"<short title>","level":"<e.g. P5>","topics":["<topic>"],"concept":"<private concept>",` +
       `"questionText":"<full question text>","expected":"<final answer with units>","markingGuide":"<worked solution and method marks>"}`;
     const raw = await askGeminiVision(prompt, [], { maxOutputTokens: 1800, json: true });
@@ -3316,9 +3316,10 @@ async function runAiBuildFromMedia(source) {
     const prompt =
       `You are helping a Singapore primary-school math teacher turn an exam question (in the attached ${source.isPdf ? "PDF" : "image"}) into a practice question. ` +
       genPreamble() +
-      `For "topics", use one or more broad content topics students can safely see, such as Fractions, Ratio, Percentage, Geometry, Speed, Algebra, or Problem Solving. ` +
+      `For "topics", use one or more specific content topics students can safely see, such as Fractions, Ratio, Percentage, Geometry, Speed, or Algebra. ` +
+      `Always choose the specific content topic — never the generic label "Problem Solving". ` +
       `Do not put solution strategies or concepts that would give away the method inside "topics". ` +
-      `For "concept", use a private teacher-only strategy/concept label when useful, such as Assumption, Total unchanged, Difference unchanged, Guess and Check, Working Backwards, or Model Method.\n` +
+      `For "concept", use a specific private teacher-only strategy/concept label only when one clearly applies, such as Assumption, Total unchanged, Difference unchanged, Guess and Check, or Working Backwards; otherwise leave it empty. Do not use the generic label "Model Method".\n` +
       `Read the question carefully and return ONLY valid JSON in this exact shape. Escape any line breaks inside string values as \\n and do not include markdown fences:\n` +
       `{"title":"<short title>","level":"<e.g. P5 or Sec 1>","topics":["<e.g. Fractions>","<optional second topic>"],"concept":"<teacher-only concept or strategy label, or empty string>",` +
       `"questionText":"<the full question text, cleaned up>","expected":"<the correct final answer, with units>",` +
