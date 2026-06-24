@@ -296,6 +296,18 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .ai-hint-card h4 { font-family: 'Space Mono', monospace; font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-blue); margin-bottom: 6px; }
 .ai-hint-card p { font-size: 0.95rem; line-height: 1.55; color: var(--text); }
 
+/* "Ask AI Mr Chung" — free-form Q&A about the current question */
+.ask-ai-card { display: none; margin-top: 12px; padding: 14px; border: 1px solid var(--accent-purple); border-radius: var(--radius-md); background: rgba(123,94,167,0.07); }
+.ask-ai-card.show { display: block; }
+.ask-ai-card h4 { font-family: 'Space Mono', monospace; font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-purple); margin-bottom: 6px; }
+.ask-ai-card .ask-ai-help { font-size: 0.82rem; line-height: 1.5; color: var(--text-muted); margin-bottom: 9px; }
+.ask-ai-card textarea { width: 100%; min-height: 58px; resize: vertical; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font: inherit; font-size: 0.95rem; line-height: 1.5; background: var(--surface); color: var(--text); }
+.ask-ai-card textarea:focus { outline: none; border-color: var(--accent-purple); }
+.ask-ai-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 9px; align-items: center; }
+.ask-ai-answer { display: none; margin-top: 12px; padding: 12px 13px; border-radius: var(--radius-sm); background: var(--surface); border: 1px solid var(--border); font-size: 0.95rem; line-height: 1.6; color: var(--text); white-space: pre-wrap; }
+.ask-ai-answer.show { display: block; }
+.ask-ai-answer.declined { color: var(--text-muted); font-style: italic; }
+
 /* ========== RESULT ========== */
 .result { margin-top: 18px; display: none; }
 .result.show { display: block; }
@@ -906,7 +918,18 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
           <div class="practice-actions">
             <button class="btn btn-ghost btn-lg" id="photoSolutionBtn"><span id="photoSolutionLabel">📷 Photo answer</span></button>
             <button class="btn btn-ghost btn-lg" id="hintBtn"><span id="hintLabel">AI hint</span></button>
+            <button class="btn btn-ghost btn-lg" id="askAiBtn"><span id="askAiLabel">🧑‍🏫 Ask AI Mr Chung</span></button>
             <button class="btn btn-primary btn-lg" id="submitBtn"><span id="submitLabel">📸 Submit for AI marking</span></button>
+          </div>
+          <div class="ask-ai-card" id="askAiCard">
+            <h4>🧑‍🏫 Ask AI Mr Chung</h4>
+            <p class="ask-ai-help">Ask anything about this question — a tricky step, what a word means, or why a method works (e.g. “Why do we assume they're all correct first?”). Mr Chung reads the whole question, including the diagram and answer key. Off-topic questions won't be answered.</p>
+            <textarea id="askAiInput" rows="2" placeholder="Type your question about this math question…" maxlength="600"></textarea>
+            <div class="ask-ai-row">
+              <button class="btn btn-primary btn-sm" id="askAiSendBtn"><span id="askAiSendLabel">Ask Mr Chung</span></button>
+              <button class="btn btn-ghost btn-sm" id="askAiCloseBtn" type="button">Close</button>
+            </div>
+            <div class="ask-ai-answer" id="askAiAnswer" hidden></div>
           </div>
           <div class="learning-card student-only" id="learningCard">
             <div class="learning-head">
@@ -1297,6 +1320,7 @@ const storage = getStorage(app);
 const cloudFunctions = getFunctions(app);
 const markAttemptCall = httpsCallable(cloudFunctions, "markAttempt", { timeout: 240000 });
 const getHintCall = httpsCallable(cloudFunctions, "getHint", { timeout: 240000 });
+const askMrChungCall = httpsCallable(cloudFunctions, "askMrChung", { timeout: 240000 });
 const starfallCall = httpsCallable(cloudFunctions, "starfall");
 const importLegacyProgressionCall = httpsCallable(cloudFunctions, "importLegacyProgression");
 const grantAdminRoleCall = httpsCallable(cloudFunctions, "grantAdminRole");
@@ -3862,6 +3886,7 @@ function renderQuestion() {
   requestAnimationFrame(setupCanvasSize);
   hideResult();
   hideHint();
+  resetAskAi();
   rpgQuestionChanged();
 }
 function changeQuestion(delta) {
@@ -4152,6 +4177,77 @@ $("hintBtn").addEventListener("click", async () => {
     toast("Hint ready", "success");
   } catch (e) { console.error(e); toast("AI hint error: " + serverErrorMessage(e), "error"); }
   finally { btn.disabled = false; label.textContent = "AI hint"; }
+});
+
+// =====================================================================
+// ASK AI MR CHUNG — a student asks any question about the current math
+// question. The askMrChung Cloud Function reads the whole question (text +
+// diagram + private answer key) and either answers or, for off-topic
+// questions, politely declines.
+// =====================================================================
+function resetAskAi() {
+  const card = $("askAiCard"); if (card) card.classList.remove("show");
+  const input = $("askAiInput"); if (input) input.value = "";
+  const ans = $("askAiAnswer");
+  if (ans) { ans.hidden = true; ans.classList.remove("show", "declined"); ans.textContent = ""; }
+}
+function showAskAnswer(text, declined) {
+  const ans = $("askAiAnswer");
+  if (!ans) return;
+  ans.textContent = text || "";
+  ans.classList.toggle("declined", !!declined);
+  ans.classList.add("show");
+  ans.hidden = false;
+}
+function setAskBusy(busy) {
+  const btn = $("askAiSendBtn"), label = $("askAiSendLabel");
+  if (btn) btn.disabled = busy;
+  if (label) label.innerHTML = busy ? '<span class="spinner"></span> Asking…' : "Ask Mr Chung";
+}
+$("askAiBtn").addEventListener("click", () => {
+  if (!currentUser) { toast("Sign in to ask Mr Chung", "error"); return; }
+  if (!questionBank.length) { toast("Open a question first", "error"); return; }
+  const card = $("askAiCard");
+  const opening = !card.classList.contains("show");
+  card.classList.toggle("show", opening);
+  if (opening) {
+    card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    const input = $("askAiInput"); if (input) input.focus();
+  }
+});
+$("askAiCloseBtn").addEventListener("click", () => { $("askAiCard").classList.remove("show"); });
+async function submitAskMrChung() {
+  if (!currentUser) { toast("Sign in to ask Mr Chung", "error"); return; }
+  if (!questionBank.length) return;
+  const question = $("askAiInput").value.trim();
+  if (!question) { toast("Type a question for Mr Chung first", "error"); $("askAiInput").focus(); return; }
+  const q = questionBank[qIndex];
+  const typedWorking = $("typedWorking").value.trim();
+  const finalAnswer = $("finalAnswer").value.trim();
+  const png = await exportWorkingPng();
+  const b64 = png.split(",")[1];
+  setAskBusy(true);
+  try {
+    const res = await askMrChungCall({
+      questionId: q.id,
+      source: questionSource(q),
+      question,
+      typedWorking,
+      finalAnswer,
+      worksheetPng: b64,
+      solutionPhoto: solutionPhotoInlineMedia()
+    });
+    const out = res.data || {};
+    const answer = String(out.answer || "").trim();
+    if (!answer) throw new Error("empty answer - please try again");
+    showAskAnswer(answer, out.relevant === false);
+  } catch (e) { console.error(e); toast("Ask Mr Chung error: " + serverErrorMessage(e), "error"); }
+  finally { setAskBusy(false); }
+}
+$("askAiSendBtn").addEventListener("click", submitAskMrChung);
+// Ctrl/Cmd+Enter in the box sends, like a chat input.
+$("askAiInput").addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); submitAskMrChung(); }
 });
 
 $("submitBtn").addEventListener("click", async () => {
