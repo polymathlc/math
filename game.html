@@ -296,15 +296,14 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .ai-hint-card h4 { font-family: 'Space Mono', monospace; font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-blue); margin-bottom: 6px; }
 .ai-hint-card p { font-size: 0.95rem; line-height: 1.55; color: var(--text); }
 
-/* "Ask AI Mr Chung" — free-form Q&A about the current question */
-.ask-ai-card { display: none; margin-top: 12px; padding: 14px; border: 1px solid var(--accent-purple); border-radius: var(--radius-md); background: rgba(123,94,167,0.07); }
+/* "Ask AI Mr Chung" — appears inside the result, after a question is marked */
+.ask-ai-help { font-size: 0.86rem; line-height: 1.5; color: var(--text-muted); margin: 2px 0 9px; }
+.ask-ai-card { display: none; margin-top: 10px; }
 .ask-ai-card.show { display: block; }
-.ask-ai-card h4 { font-family: 'Space Mono', monospace; font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-purple); margin-bottom: 6px; }
-.ask-ai-card .ask-ai-help { font-size: 0.82rem; line-height: 1.5; color: var(--text-muted); margin-bottom: 9px; }
 .ask-ai-card textarea { width: 100%; min-height: 58px; resize: vertical; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font: inherit; font-size: 0.95rem; line-height: 1.5; background: var(--surface); color: var(--text); }
 .ask-ai-card textarea:focus { outline: none; border-color: var(--accent-purple); }
 .ask-ai-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 9px; align-items: center; }
-.ask-ai-answer { display: none; margin-top: 12px; padding: 12px 13px; border-radius: var(--radius-sm); background: var(--surface); border: 1px solid var(--border); font-size: 0.95rem; line-height: 1.6; color: var(--text); white-space: pre-wrap; }
+.ask-ai-answer { display: none; margin-top: 12px; padding: 12px 13px; border-radius: var(--radius-sm); background: var(--surface-alt); border: 1px solid var(--border); font-size: 0.95rem; line-height: 1.6; color: var(--text); white-space: pre-wrap; }
 .ask-ai-answer.show { display: block; }
 .ask-ai-answer.declined { color: var(--text-muted); font-style: italic; }
 
@@ -918,18 +917,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
           <div class="practice-actions">
             <button class="btn btn-ghost btn-lg" id="photoSolutionBtn"><span id="photoSolutionLabel">📷 Photo answer</span></button>
             <button class="btn btn-ghost btn-lg" id="hintBtn"><span id="hintLabel">AI hint</span></button>
-            <button class="btn btn-ghost btn-lg" id="askAiBtn"><span id="askAiLabel">🧑‍🏫 Ask AI Mr Chung</span></button>
             <button class="btn btn-primary btn-lg" id="submitBtn"><span id="submitLabel">📸 Submit for AI marking</span></button>
-          </div>
-          <div class="ask-ai-card" id="askAiCard">
-            <h4>🧑‍🏫 Ask AI Mr Chung</h4>
-            <p class="ask-ai-help">Ask anything about this question — a tricky step, what a word means, or why a method works (e.g. “Why do we assume they're all correct first?”). Mr Chung reads the whole question, including the diagram and answer key. Off-topic questions won't be answered.</p>
-            <textarea id="askAiInput" rows="2" placeholder="Type your question about this math question…" maxlength="600"></textarea>
-            <div class="ask-ai-row">
-              <button class="btn btn-primary btn-sm" id="askAiSendBtn"><span id="askAiSendLabel">Ask Mr Chung</span></button>
-              <button class="btn btn-ghost btn-sm" id="askAiCloseBtn" type="button">Close</button>
-            </div>
-            <div class="ask-ai-answer" id="askAiAnswer" hidden></div>
           </div>
           <div class="learning-card student-only" id="learningCard">
             <div class="learning-head">
@@ -966,6 +954,19 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
             <div class="feedback-block" id="nextStepBlock" style="display:none;"><h4>➡️ Next step</h4><p id="fbNextStep"></p></div>
             <div class="feedback-block" id="reviewPlanBlock" style="display:none;"><h4>🗓️ Review plan</h4><p id="fbReviewPlan"></p></div>
             <div class="feedback-block" id="answerKeyBlock" style="display:none;"><h4>🧾 Full answer key</h4><p class="answer-key-text" id="fbAnswerKey"></p></div>
+            <div class="feedback-block" id="askAiBlock">
+              <h4>🧑‍🏫 Ask AI Mr Chung</h4>
+              <p class="ask-ai-help">Now you've seen the answer, ask Mr Chung anything about this question — a tricky step, what a word means, or why a method works (e.g. “Why do we assume they're all correct first?”). Off-topic questions won't be answered.</p>
+              <button class="btn btn-primary btn-sm" id="askAiBtn"><span id="askAiLabel">🧑‍🏫 Ask Mr Chung a question</span></button>
+              <div class="ask-ai-card" id="askAiCard">
+                <textarea id="askAiInput" rows="2" placeholder="Type your question about this math question…" maxlength="600"></textarea>
+                <div class="ask-ai-row">
+                  <button class="btn btn-primary btn-sm" id="askAiSendBtn"><span id="askAiSendLabel">Ask Mr Chung</span></button>
+                  <button class="btn btn-ghost btn-sm" id="askAiCloseBtn" type="button">Close</button>
+                </div>
+                <div class="ask-ai-answer" id="askAiAnswer" hidden></div>
+              </div>
+            </div>
             <div class="feedback-block" id="videoExplanationBlock" style="display:none;"><h4>Video explanation</h4><div id="videoExplanationEmbed"></div></div>
             <div class="feedback-block"><h4>📸 Worksheet sent to the AI</h4>
               <div class="captured"><img id="capturedImg" alt="Your worksheet"><div class="captured-cap" id="capturedCap">This screenshot of your question, annotations, and working is what the AI marked.</div></div>
@@ -4143,6 +4144,7 @@ function showResult(v, png, reviewPlan = "", usedPhoto = false) {
   $("capturedCap").textContent = usedPhoto
     ? "The AI marked this worksheet screenshot together with your attached photo answer."
     : "This screenshot of your question, annotations, and working is what the AI marked.";
+  resetAskAi();
   resultEl.classList.add("show");
   resultEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
