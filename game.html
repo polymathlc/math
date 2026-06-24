@@ -330,6 +330,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .video-explanation-frame iframe, .video-explanation-frame video { display: block; width: 100%; height: 100%; border: 0; background: #000; }
 .captured { margin-top: 4px; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: var(--surface-alt); }
 .captured img { display: block; width: 100%; }
+.answer-key-image { display: block; max-width: 100%; height: auto; margin-top: 4px; border: 1px solid var(--border); border-radius: var(--radius-md); background: #fff; }
 .captured-cap { font-size: 0.72rem; color: var(--text-muted); padding: 7px 10px; font-family: 'Space Mono', monospace; }
 
 /* ========== CAMERA ========== */
@@ -968,6 +969,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
             <div class="feedback-block" id="nextStepBlock" style="display:none;"><h4>➡️ Next step</h4><p id="fbNextStep"></p></div>
             <div class="feedback-block" id="reviewPlanBlock" style="display:none;"><h4>🗓️ Review plan</h4><p id="fbReviewPlan"></p></div>
             <div class="feedback-block" id="answerKeyBlock" style="display:none;"><h4>🧾 Full answer key</h4><p class="answer-key-text" id="fbAnswerKey"></p></div>
+            <div class="feedback-block" id="answerKeyImageBlock" style="display:none;"><h4>🖼️ Answer key</h4><img class="answer-key-image" id="fbAnswerKeyImage" alt="Teacher's answer key"></div>
             <div class="feedback-block" id="askAiBlock">
               <h4>🧑‍🏫 Ask AI Polymath</h4>
               <p class="ask-ai-help">Now you've seen the answer, ask Polymath anything about this question — a tricky step, what a word means, or why a method works (e.g. “Why do we assume they're all correct first?”). Off-topic questions won't be answered.</p>
@@ -4407,6 +4409,10 @@ function showResult(v, png, reviewPlan = "", usedPhoto = false) {
   if (reviewPlan) { $("fbReviewPlan").textContent = reviewPlan; $("reviewPlanBlock").style.display = "block"; } else $("reviewPlanBlock").style.display = "none";
   const fullAnswerKey = String(v.fullAnswerKey || v.answerKey || "").trim();
   if (fullAnswerKey) { $("fbAnswerKey").textContent = fullAnswerKey; $("answerKeyBlock").style.display = "block"; } else $("answerKeyBlock").style.display = "none";
+  // Teacher's answer-key image, revealed only now (after marking) if attached.
+  const akImg = String((questionBank[qIndex] || {}).answerKeyImageUrl || "").trim();
+  if (akImg) { $("fbAnswerKeyImage").src = akImg; $("answerKeyImageBlock").style.display = "block"; }
+  else { $("fbAnswerKeyImage").removeAttribute("src"); $("answerKeyImageBlock").style.display = "none"; }
   renderVideoExplanation(questionBank[qIndex] || {});
   $("capturedImg").src = png;
   $("capturedCap").textContent = usedPhoto
@@ -4546,6 +4552,7 @@ $("submitBtn").addEventListener("click", async () => {
     const out = res.data || {};
     const v = out.verdict || {};
     if (out.videoExplanationUrl) q.videoExplanationUrl = out.videoExplanationUrl; // revealed only after marking
+    if (out.answerKeyImageUrl) q.answerKeyImageUrl = out.answerKeyImageUrl; // answer-key image, revealed only after marking
     const reviewPlan = await recordLearningAttempt(q, v, out.progress);
     try { rpgOnMarked(q, v, { server: out }); } catch (err) { console.warn("rpg reward", err); }
     showResult(v, png, reviewPlan, !!solutionMedia);

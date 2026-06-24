@@ -386,6 +386,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .video-explanation-frame iframe, .video-explanation-frame video { display: block; width: 100%; height: 100%; border: 0; background: #000; }
 .captured { margin-top: 4px; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: var(--surface-alt); }
 .captured img { display: block; width: 100%; }
+.answer-key-image { display: block; max-width: 100%; height: auto; margin-top: 4px; border: 1px solid var(--border); border-radius: var(--radius-md); background: #fff; }
 .captured-cap { font-size: 0.72rem; color: var(--text-muted); padding: 7px 10px; font-family: 'Space Mono', monospace; }
 
 /* ========== CAMERA ========== */
@@ -1076,6 +1077,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
             <div class="feedback-block" id="nextStepBlock" style="display:none;"><h4>➡️ Next step</h4><p id="fbNextStep"></p></div>
             <div class="feedback-block" id="reviewPlanBlock" style="display:none;"><h4>🗓️ Review plan</h4><p id="fbReviewPlan"></p></div>
             <div class="feedback-block" id="answerKeyBlock" style="display:none;"><h4>🧾 Full answer key</h4><p class="answer-key-text" id="fbAnswerKey"></p></div>
+            <div class="feedback-block" id="answerKeyImageBlock" style="display:none;"><h4>🖼️ Answer key</h4><img class="answer-key-image" id="fbAnswerKeyImage" alt="Teacher's answer key"></div>
             <div class="feedback-block" id="askAiBlock">
               <h4>🧑‍🏫 Ask AI Polymath</h4>
               <p class="ask-ai-help">Now you've seen the answer, ask Polymath anything about this question — a tricky step, what a word means, or why a method works (e.g. “Why do we assume they're all correct first?”). Off-topic questions won't be answered.</p>
@@ -5468,6 +5470,10 @@ function showResult(v, png, reviewPlan = "", usedPhoto = false) {
   if (reviewPlan) { $("fbReviewPlan").textContent = reviewPlan; $("reviewPlanBlock").style.display = "block"; } else $("reviewPlanBlock").style.display = "none";
   const fullAnswerKey = String(v.fullAnswerKey || v.answerKey || "").trim();
   if (fullAnswerKey) { $("fbAnswerKey").textContent = fullAnswerKey; $("answerKeyBlock").style.display = "block"; } else $("answerKeyBlock").style.display = "none";
+  // Teacher's answer-key image, revealed only now (after marking) if attached.
+  const akImg = String((questionBank[qIndex] || {}).answerKeyImageUrl || "").trim();
+  if (akImg) { $("fbAnswerKeyImage").src = akImg; $("answerKeyImageBlock").style.display = "block"; }
+  else { $("fbAnswerKeyImage").removeAttribute("src"); $("answerKeyImageBlock").style.display = "none"; }
   renderVideoExplanation(questionBank[qIndex] || {});
   $("capturedImg").src = png;
   $("capturedCap").textContent = usedPhoto
@@ -5732,6 +5738,7 @@ $("submitBtn").addEventListener("click", async () => {
     const out = res.data || {};
     const v = out.verdict || {};
     if (out.videoExplanationUrl) q.videoExplanationUrl = out.videoExplanationUrl; // revealed only after marking
+    if (out.answerKeyImageUrl) q.answerKeyImageUrl = out.answerKeyImageUrl; // answer-key image, revealed only after marking
     const reviewPlan = await recordLearningAttempt(q, v, out.progress);
     try { rpgOnMarked(q, v, { server: out }); } catch (err) { console.warn("rpg reward", err); }
     showResult(v, png, reviewPlan, !!solutionMedia);
@@ -5883,7 +5890,7 @@ async function aiMarkRun(opts = {}) {
         }
         const v = await clientMarkVerdict(q, { media, photoOnly: true });
         const out = {
-          ok: true, verdict: v, videoExplanationUrl: q.videoExplanationUrl || "",
+          ok: true, verdict: v, videoExplanationUrl: q.videoExplanationUrl || "", answerKeyImageUrl: q.answerKeyImageUrl || "",
           matched: { source: questionSource(q), id: q.id, title: q.title || "", level: q.level || "", topics: studentTopicsLabel(q), concept: conceptLabel(q), difficulty: q.difficulty || 0, confidence: 1 }
         };
         aiMarkSetStatus("");
@@ -5900,6 +5907,7 @@ async function aiMarkApplyResult(out) {
   const v = out.verdict || {};
   const q = aiMarkResolveQuestion(out.matched || {});
   if (out.videoExplanationUrl && q) q.videoExplanationUrl = out.videoExplanationUrl;
+  if (out.answerKeyImageUrl && q) q.answerKeyImageUrl = out.answerKeyImageUrl;
   let reviewPlan = "";
   try { reviewPlan = await recordLearningAttempt(q, v, out.progress); } catch (e) { console.warn("ai mark record", e); }
   try { rpgOnMarked(q, v, { server: out }); } catch (e) { console.warn("ai mark rpg", e); }
@@ -5932,6 +5940,11 @@ function aiMarkVideoHtml(rawUrl) {
     ? `<div class="video-explanation-frame"><video controls preload="metadata" src="${src}"></video></div>`
     : `<div class="video-explanation-frame"><iframe src="${src}" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen title="Video explanation"></iframe></div>`;
   return `<div class="feedback-block"><h4>🎬 Video explanation</h4>${frame}</div>`;
+}
+function aiMarkAnswerKeyImageHtml(rawUrl) {
+  const url = String(rawUrl || "").trim();
+  if (!/^(https?:\/\/|data:image\/)/i.test(url)) return "";
+  return `<div class="feedback-block"><h4>🖼️ Answer key</h4><img class="answer-key-image" src="${escapeHtml(url)}" alt="Teacher's answer key"></div>`;
 }
 function aiMarkRenderResult(out, reviewPlan) {
   const v = out.verdict || {}, matched = out.matched || {};
@@ -5966,6 +5979,7 @@ function aiMarkRenderResult(out, reviewPlan) {
   if (v.nextStep) html += `<div class="feedback-block"><h4>➡️ Next step</h4><p>${escapeHtml(v.nextStep)}</p></div>`;
   if (reviewPlan) html += `<div class="feedback-block"><h4>🗓️ Review plan</h4><p>${escapeHtml(reviewPlan)}</p></div>`;
   if (fullAnswerKey) html += `<div class="feedback-block"><h4>🧾 Full answer key</h4><p class="answer-key-text">${escapeHtml(fullAnswerKey)}</p></div>`;
+  html += aiMarkAnswerKeyImageHtml(out.answerKeyImageUrl);
   html += aiMarkVideoHtml(out.videoExplanationUrl);
   if (aiMarkMedia && !aiMarkMedia.isPdf && aiMarkMedia.previewUrl) {
     html += `<div class="feedback-block"><h4>📸 What you submitted</h4><div class="captured"><img src="${aiMarkMedia.previewUrl}" alt="Your worksheet photo"></div></div>`;

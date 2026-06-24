@@ -459,6 +459,16 @@ async function studentLearningPreamble(uid, isAdmin) {
     `Use this to adapt hints and feedback, but do not reveal hidden weakness labels to the student.\n`;
 }
 
+// The answer-key image, in a form safe to reveal to the student AFTER marking
+// (so they can check their work against it). Pass through https/storage URLs;
+// allow small inline data: images; drop anything else or anything huge.
+function publicAnswerKeyImageUrl(q) {
+  const url = String((q && q.answerKeyImageUrl) || "").trim();
+  if (/^https?:\/\//i.test(url)) return url.slice(0, 2000);
+  if (/^data:image\//i.test(url) && url.length <= 1_500_000) return url;
+  return "";
+}
+
 // Fetches the teacher's answer-key image so it can be attached privately.
 async function answerKeyMedia(q) {
   const url = String((q && q.answerKeyImageUrl) || "").trim();
@@ -820,7 +830,8 @@ async function markKnownQuestion({ uid, isAdmin, isGuest = false, displayName = 
     progress,
     reward: { gold, xp: finalXp, repeatAttempt, streakBonus, practiceBoost: boost > 1 },
     totals,
-    videoExplanationUrl: cleanText(q.videoExplanationUrl, 800)
+    videoExplanationUrl: cleanText(q.videoExplanationUrl, 800),
+    answerKeyImageUrl: publicAnswerKeyImageUrl(q)
   };
 }
 
