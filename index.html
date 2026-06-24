@@ -112,8 +112,8 @@ a { color: var(--primary); }
 .sidebar-user b { color: #fff; display: block; font-size: 0.86rem; }
 .logout-btn { width: 100%; padding: 9px; background: rgba(255,255,255,0.08); color: #fff; border: none; border-radius: var(--radius-md); cursor: pointer; font-family: inherit; font-size: 0.86rem; font-weight: 600; }
 .logout-btn:hover { background: rgba(255,255,255,0.16); }
-/* Always-visible build version, bottom-left of the viewport, on every screen */
-.app-version { position: fixed; left: 10px; bottom: 8px; z-index: 200; pointer-events: none;
+/* Always-visible build version, bottom-right of the viewport, on every screen */
+.app-version { position: fixed; right: 10px; bottom: 8px; z-index: 200; pointer-events: none;
   font-family: 'Space Mono', monospace; font-size: 0.62rem; letter-spacing: 0.06em;
   color: #fff; background: rgba(20,18,16,0.55); padding: 2px 8px; border-radius: 999px; }
 /* Question Bank search bar */
@@ -9963,8 +9963,9 @@ setAuthMode("login");
 resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
-// Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.2.4 · 2026-06-23";
+// Build version — bump this on EVERY change so it's easy to see what's deployed.
+// (Shown in the bottom-right pill. Keep game.html's version in sync.)
+const APP_VERSION = "v1.3.0 · 2026-06-24";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type

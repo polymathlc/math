@@ -778,6 +778,10 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
   .rpg-vs { display: none; }
   .rpg-stat-chips { grid-template-columns: repeat(2, 1fr); }
 }
+/* Always-visible build version, bottom-right of the viewport, on every screen */
+.app-version { position: fixed; right: 10px; bottom: 8px; z-index: 200; pointer-events: none;
+  font-family: 'Space Mono', monospace; font-size: 0.62rem; letter-spacing: 0.06em;
+  color: #fff; background: rgba(20,18,16,0.55); padding: 2px 8px; border-radius: 999px; }
 </style>
 </head>
 <body>
@@ -8354,6 +8358,12 @@ console.info("MathQuest build 2026-06-12T19 (standoff + shake-isolation fix)");
 setAuthMode("login");
 resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
+
+// Build version — bump this on EVERY change so it's easy to see what's deployed.
+// (Shown in the bottom-right pill. Keep index.html's version in sync.)
+const APP_VERSION = "v1.3.0 · 2026-06-24 (preview)";
+{ const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 </script>
+<div class="app-version" id="appVersion" title="App build version"></div>
 </body>
 </html>
