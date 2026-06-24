@@ -409,6 +409,15 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .editor-field input:focus, .editor-field textarea:focus, .editor-field select:focus { outline: none; border-color: var(--border-focus); background: #fff; }
 .hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; }
 
+/* 🎤 Dictate + ✨ Improve tools on admin text boxes */
+.ai-text-tools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.ai-tool-btn { font-family: inherit; font-weight: 600; font-size: 0.72rem; padding: 4px 9px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); cursor: pointer; display: inline-flex; align-items: center; gap: 5px; line-height: 1.4; }
+.ai-tool-btn:hover { color: var(--text); border-color: var(--text-light); }
+.ai-tool-btn:disabled { opacity: 0.6; cursor: default; }
+.ai-tool-btn .spinner { width: 11px; height: 11px; }
+.ai-dictate-btn.recording { color: #fff; background: var(--accent-red); border-color: var(--accent-red); animation: aiRecPulse 1.1s ease-in-out infinite; }
+@keyframes aiRecPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(217,79,79,0.45); } 50% { box-shadow: 0 0 0 5px rgba(217,79,79,0); } }
+.block-body .ai-text-tools { margin-top: 8px; }
 /* "Check with AI" sanity-check traffic light (admin question editor) */
 .check-ai-panel { display: flex; align-items: center; gap: 14px; margin: 0 0 16px; padding: 13px 15px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-alt); }
 .check-ai-panel[hidden] { display: none; }
@@ -3446,6 +3455,15 @@ function renderEditorBlocks() {
   });
   // wire text editing
   wrap.querySelectorAll(".block-edit").forEach(ed => ed.addEventListener("input", () => setBlockField(ed.dataset.block, "content", ed.innerText)));
+  // 🎤 Dictate / ✨ Improve on each text block
+  wrap.querySelectorAll("[data-block-dictate]").forEach(btn => btn.addEventListener("click", () => {
+    const ed = wrap.querySelector(`.block-edit[data-block="${btn.dataset.blockDictate}"]`);
+    if (ed) aiDictateClick(ed, btn);
+  }));
+  wrap.querySelectorAll("[data-block-improve]").forEach(btn => btn.addEventListener("click", () => {
+    const ed = wrap.querySelector(`.block-edit[data-block="${btn.dataset.blockImprove}"]`);
+    if (ed) aiRunImprove(ed, btn);
+  }));
   // wire image url + paste/drop
   wrap.querySelectorAll("[data-imgurl]").forEach(inp => inp.addEventListener("input", () => {
     const val = inp.value.trim();
@@ -3473,7 +3491,11 @@ function renderEditorBlocks() {
   wrap.querySelectorAll("[data-rm]").forEach(b => b.addEventListener("click", () => removeBlockById(b.dataset.rm)));
 }
 function textBlockHtml(b) {
-  return `<div class="block-edit" contenteditable="true" data-block="${b.id}" data-ph="Type the question text…">${escapeHtml(b.content || "")}</div>`;
+  return `<div class="block-edit" contenteditable="true" data-block="${b.id}" data-ph="Type the question text…">${escapeHtml(b.content || "")}</div>
+    <div class="ai-text-tools">
+      <button type="button" class="ai-tool-btn ai-dictate-btn" data-block-dictate="${b.id}" title="Dictate with AI">🎤 Dictate</button>
+      <button type="button" class="ai-tool-btn ai-improve-btn" data-block-improve="${b.id}" title="Improve the wording with AI (keeps the meaning)">✨ Improve</button>
+    </div>`;
 }
 function imgBlockHtml(b) {
   const has = b.url ? "block" : "none";
@@ -4172,6 +4194,211 @@ $("checkAiBtn").addEventListener("click", checkQuestionWithAI);
 ["qExpectedInput", "qGuideInput", "qTitleInput", "qLevelInput", "qTopicInput", "qConceptInput"]
   .forEach(id => { const el = $(id); if (el) el.addEventListener("input", invalidateCheckAiOnEdit); });
 $("blocksList").addEventListener("input", invalidateCheckAiOnEdit);
+
+// =====================================================================
+// ADMIN TEXT TOOLS — 🎤 Dictate (Gemini transcription) + ✨ Improve
+// (rewrite for clarity without changing the content). Attached to every
+// admin text box: the question fields, the content blocks, and the
+// marking / generation settings. All client-side, admin-only.
+// =====================================================================
+// Read/write/insert that works for <input>, <textarea> AND contenteditable.
+function aiFieldRead(el) { return el ? (el.isContentEditable ? (el.innerText || "") : (el.value || "")) : ""; }
+function aiFieldWrite(el, val) {
+  if (!el) return;
+  if (el.isContentEditable) el.innerText = val; else el.value = val;
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+}
+function aiFieldInsert(el, text) {
+  if (!el || !text) return;
+  el.focus();
+  if (el.isContentEditable) {
+    let ok = false;
+    try { ok = document.execCommand("insertText", false, text); } catch (_) {}
+    if (!ok) el.innerText = (el.innerText ? el.innerText.replace(/\s*$/, "") + " " : "") + text;
+  } else if (typeof el.selectionStart === "number") {
+    const s = el.selectionStart, e = el.selectionEnd, v = el.value;
+    const before = v.slice(0, s), after = v.slice(e);
+    const sep = before && !/\s$/.test(before) ? " " : "";
+    el.value = before + sep + text + after;
+    const pos = (before + sep + text).length;
+    try { el.selectionStart = el.selectionEnd = pos; } catch (_) {}
+  } else {
+    el.value = (el.value ? el.value.replace(/\s*$/, "") + " " : "") + text;
+  }
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+}
+function aiToolsCleanText(s) {
+  return String(s || "").trim().replace(/^```[a-z]*\s*/i, "").replace(/```$/, "").trim().replace(/^["']|["']$/g, "").trim();
+}
+
+// ---- ✨ Improve: tidy wording without changing the meaning ----
+async function aiImproveValue(text) {
+  const t = String(text || "").trim();
+  if (!t) return "";
+  const prompt =
+    "You are a careful copy-editor for a teacher's math materials. " +
+    "Rewrite the text between <<< and >>> to improve its sentence structure, grammar, clarity and flow. " +
+    "Do NOT change the meaning, facts, numbers, math, names, units or intent; do not add new information and do not remove any. " +
+    "Keep the same language and keep it concise. Return ONLY the improved text — no quotes, labels or commentary.\n\n" +
+    "<<<\n" + t + "\n>>>";
+  return aiToolsCleanText(await askGeminiVision(prompt, [], { maxOutputTokens: 2048, json: false }));
+}
+async function aiRunImprove(el, btn) {
+  if (!canManageQuestions()) { toast("Only admin accounts can use this", "error"); return; }
+  const text = aiFieldRead(el).trim();
+  if (!text) { toast("Write something first, then improve it", "error"); return; }
+  if (!aiReady()) { toast("AI isn't ready yet — please wait a moment", "error"); return; }
+  const orig = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<span class="spinner dark"></span>';
+  try {
+    const improved = await aiImproveValue(text);
+    if (improved && improved !== text) { aiFieldWrite(el, improved); toast("Improved — review the wording", "success"); }
+    else toast("Looks good already — no changes suggested", "");
+  } catch (e) { console.error(e); toast("Improve failed: " + aiErrorMessage(e), "error"); }
+  finally { btn.disabled = false; btn.innerHTML = orig; }
+}
+
+// ---- 🎤 Dictate: record the mic, transcribe with Gemini ----
+let aiDictation = null; // { recorder, stream, btn, target }
+function aiSetDictateBtn(btn, state) {
+  if (!btn) return;
+  btn.classList.toggle("recording", state === "recording");
+  btn.disabled = state === "transcribing";
+  btn.innerHTML = state === "recording" ? "⏹ Stop" : state === "transcribing" ? '<span class="spinner dark"></span> …' : "🎤 Dictate";
+  btn.title = state === "recording" ? "Stop recording and transcribe" : "Dictate with AI";
+}
+async function aiStartDictation(el, btn) {
+  if (!canManageQuestions()) { toast("Only admin accounts can use this", "error"); return; }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === "undefined") {
+    toast("Voice dictation isn't supported on this browser", "error"); return;
+  }
+  if (!aiReady()) { toast("AI isn't ready yet — please wait a moment", "error"); return; }
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+  catch (e) { toast(e && e.name === "NotAllowedError" ? "Microphone permission was denied" : "Couldn't access the microphone", "error"); return; }
+  let recorder;
+  try { recorder = new MediaRecorder(stream); }
+  catch (e) { stream.getTracks().forEach(t => t.stop()); toast("Recording isn't supported here", "error"); return; }
+  const chunks = [];
+  recorder.addEventListener("dataavailable", e => { if (e.data && e.data.size) chunks.push(e.data); });
+  recorder.addEventListener("stop", async () => {
+    stream.getTracks().forEach(t => t.stop());
+    aiDictation = null;
+    const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+    if (!blob.size) { aiSetDictateBtn(btn, "idle"); toast("Didn't catch any audio — try again", "error"); return; }
+    aiSetDictateBtn(btn, "transcribing");
+    try {
+      const text = await aiTranscribeAudio(blob);
+      if (text) { aiFieldInsert(el, text); toast("Dictation added", "success"); }
+      else toast("Couldn't make out any words — try again", "error");
+    } catch (e) { console.error(e); toast("Dictation failed: " + aiErrorMessage(e), "error"); }
+    finally { aiSetDictateBtn(btn, "idle"); }
+  });
+  recorder.start();
+  aiDictation = { recorder, stream, btn, target: el };
+  aiSetDictateBtn(btn, "recording");
+}
+function aiStopDictation() {
+  if (aiDictation && aiDictation.recorder && aiDictation.recorder.state !== "inactive") {
+    try { aiDictation.recorder.stop(); } catch (_) {}
+  }
+}
+// A click on any dictate button: if a recording is in progress, stop it
+// (and transcribe into the field it started in); otherwise start recording
+// into this field. Only one recording runs at a time.
+function aiDictateClick(el, btn) {
+  if (aiDictation) aiStopDictation();
+  else aiStartDictation(el, btn);
+}
+async function aiTranscribeAudio(blob) {
+  const data = await aiAudioToWavBase64(blob);
+  const prompt =
+    "Transcribe the speech in this audio recording into clear written text for a teacher filling in a form. " +
+    "Return ONLY the transcription, with sensible capitalization and punctuation and nothing else — no quotes, no labels, no commentary. " +
+    "If the audio has no intelligible speech, return an empty string.";
+  return aiToolsCleanText(await askGeminiVision(prompt, [{ mimeType: "audio/wav", data }], { maxOutputTokens: 2048, json: false }));
+}
+// Decode the recorded audio and re-encode it as 16 kHz mono WAV, which Gemini
+// reliably accepts (browser MediaRecorder output is webm/mp4, which it may not).
+async function aiAudioToWavBase64(blob) {
+  const arrayBuf = await blob.arrayBuffer();
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) throw new Error("audio decoding isn't supported on this browser");
+  const ctx = new Ctx();
+  try {
+    const audio = await ctx.decodeAudioData(arrayBuf.slice(0));
+    const targetRate = 16000;
+    const chs = audio.numberOfChannels, len = audio.length;
+    const mono = new Float32Array(len);
+    for (let c = 0; c < chs; c++) { const d = audio.getChannelData(c); for (let i = 0; i < len; i++) mono[i] += d[i] / chs; }
+    const ratio = audio.sampleRate / targetRate;
+    const outLen = Math.max(1, Math.floor(len / ratio));
+    const out = new Float32Array(outLen);
+    for (let i = 0; i < outLen; i++) out[i] = mono[Math.min(len - 1, Math.floor(i * ratio))];
+    return aiEncodeWavBase64(out, targetRate);
+  } finally { try { ctx.close(); } catch (_) {} }
+}
+function aiEncodeWavBase64(samples, sampleRate) {
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+  const w = (off, s) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
+  w(0, "RIFF"); view.setUint32(4, 36 + samples.length * 2, true); w(8, "WAVE");
+  w(12, "fmt "); view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true); view.setUint32(28, sampleRate * 2, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+  w(36, "data"); view.setUint32(40, samples.length * 2, true);
+  let off = 44;
+  for (let i = 0; i < samples.length; i++) { const s = Math.max(-1, Math.min(1, samples[i])); view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7FFF, true); off += 2; }
+  let binary = ""; const bytes = new Uint8Array(buffer), chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  return btoa(binary);
+}
+
+// ---- Toolbar building + attaching ----
+function aiMakeToolBtn(cls, html, title) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "ai-tool-btn " + cls;
+  b.innerHTML = html;
+  if (title) b.title = title;
+  return b;
+}
+function aiToolbarFor(el, { dictate = true, improve = true } = {}) {
+  const bar = document.createElement("div");
+  bar.className = "ai-text-tools";
+  if (dictate) {
+    const d = aiMakeToolBtn("ai-dictate-btn", "🎤 Dictate", "Dictate with AI");
+    d.addEventListener("click", () => aiDictateClick(el, d));
+    bar.appendChild(d);
+  }
+  if (improve) {
+    const i = aiMakeToolBtn("ai-improve-btn", "✨ Improve", "Improve the wording with AI (keeps the meaning)");
+    i.addEventListener("click", () => aiRunImprove(el, i));
+    bar.appendChild(i);
+  }
+  return bar;
+}
+function attachAiToolsTo(id, opts) {
+  const el = $(id);
+  if (!el || el.dataset.aiToolsAttached) return;
+  el.dataset.aiToolsAttached = "1";
+  const bar = aiToolbarFor(el, opts);
+  const field = el.closest(".editor-field");
+  if (field) field.appendChild(bar); else el.insertAdjacentElement("afterend", bar);
+}
+// Attach to the static admin text boxes. Dictate everywhere; Improve only on
+// free-text prose (not short codes / answers / URLs).
+function setupAdminTextTools() {
+  [
+    ["qTitleInput", { dictate: true, improve: true }],
+    ["qLevelInput", { dictate: true, improve: false }],
+    ["qTopicInput", { dictate: true, improve: false }],
+    ["qConceptInput", { dictate: true, improve: true }],
+    ["qExpectedInput", { dictate: true, improve: false }],
+    ["qGuideInput", { dictate: true, improve: true }],
+    ["mkInstructions", { dictate: true, improve: true }],
+    ["genInstructions", { dictate: true, improve: true }]
+  ].forEach(([id, opts]) => attachAiToolsTo(id, opts));
+}
+setupAdminTextTools();
 
 // =====================================================================
 // DRAWING PAD
