@@ -1631,7 +1631,7 @@ function studentTopicLabel(topic) {
   const firstSafe = parts.find(p => !CLUE_TOPIC_WORDS.some(w => p.toLowerCase().includes(w)));
   const candidate = firstSafe || source;
   const lower = candidate.toLowerCase();
-  if (CLUE_TOPIC_WORDS.some(w => lower.includes(w))) return "Problem Solving";
+  if (CLUE_TOPIC_WORDS.some(w => lower.includes(w))) return "Math";
   return candidate;
 }
 function studentTopicsLabel(q) { return studentTopicLabel(questionTopics(q)); }
@@ -1900,6 +1900,43 @@ function questionHitsWeakTopic(q, weak) {
   if (!weak || !weak.size) return false;
   return questionTopics(q).some(t => weak.has(String(studentTopicLabel(t)).toLowerCase()));
 }
+// A regenerated variant shares the original's "root" id (variantOf). Used to
+// serve a fresh variant of a question the student just got wrong.
+function questionVariantRoot(q) { return q ? String(q.variantOf || q.id) : ""; }
+function relatedVariants(q) {
+  const root = questionVariantRoot(q);
+  if (!root) return [];
+  return questionBank.filter(x => x && x.id !== q.id && questionVariantRoot(x) === root);
+}
+// Best teacher-made variant to retry after a miss: skip mastered ones, prefer
+// never-seen, then the least-attempted.
+function bestVariantToServe(q) {
+  const cands = relatedVariants(q).filter(x => !questionMastered(studentProgress[x.id]));
+  if (!cands.length) return null;
+  cands.sort((a, b) => {
+    const pa = studentProgress[a.id] || {}, pb = studentProgress[b.id] || {};
+    const sa = (pa.attempts || 0) > 0 ? 1 : 0, sb = (pb.attempts || 0) > 0 ? 1 : 0;
+    if (sa !== sb) return sa - sb;
+    return (pa.attempts || 0) - (pb.attempts || 0);
+  });
+  return cands[0];
+}
+// In AI practice, when a question is missed, queue a teacher-made variant of it
+// as the very next question so the same skill is retried with fresh numbers.
+function maybeServeVariantOnMiss(q, v) {
+  if (!aiPracticeActive || !q) return;
+  if (String((v && v.verdict) || "").toLowerCase() === "correct") return;
+  const variant = bestVariantToServe(q);
+  if (!variant) return;
+  const vIdx = questionBank.findIndex(x => x.id === variant.id);
+  if (vIdx !== -1) questionBank.splice(vIdx, 1);
+  qIndex = questionBank.findIndex(x => x.id === q.id);
+  if (qIndex < 0) qIndex = 0;
+  questionBank.splice(qIndex + 1, 0, variant);
+  aiPracticeStats.variants = (aiPracticeStats.variants || 0) + 1;
+  renderAiPracticeBar();
+  toast("Next up: a variant of this question to practise the same skill", "");
+}
 const AI_PRACTICE_SET_MAX = 12, AI_PRACTICE_REVIEW_MAX = 8;
 function startAiPractice() {
   if (!currentUser || currentUser.role !== "student") return;
@@ -1950,7 +1987,7 @@ function startAiPractice() {
   questionBank = aiPracticeQueue.concat(remainder);
   qIndex = 0;
   aiPracticeActive = true;
-  aiPracticeStats = { review: reviewSet.length, growth: growthSet.length, total: aiPracticeQueue.length };
+  aiPracticeStats = { review: reviewSet.length, growth: growthSet.length, total: aiPracticeQueue.length, variants: 0 };
   renderAiPracticeBar();
   renderQuestion();
   toast(`AI practice ready: ${aiPracticeQueue.length} question${aiPracticeQueue.length === 1 ? "" : "s"} in your growth zone (rating ${Math.round(rating)})`, "success");
@@ -1960,11 +1997,12 @@ function renderAiPracticeBar() {
   if (!bar) return;
   if (!aiPracticeActive) { bar.style.display = "none"; bar.innerHTML = ""; return; }
   const rating = Math.round(studentEloValue());
-  const r = aiPracticeStats.review || 0, g = aiPracticeStats.growth || 0;
+  const r = aiPracticeStats.review || 0, g = aiPracticeStats.growth || 0, vCount = aiPracticeStats.variants || 0;
   const parts = [];
   if (r) parts.push(`<b>${r}</b> to review`);
   if (g) parts.push(`<b>${g}</b> in your growth zone`);
-  const lead = parts.length ? parts.join(" + ") + "." : "questions matched to your rating.";
+  let lead = parts.length ? parts.join(" + ") + "." : "questions matched to your rating.";
+  lead += vCount ? ` Miss one and you'll get a variant to try again (${vCount} so far).` : " Miss one and you'll get a variant to try again.";
   bar.innerHTML = `🤖 <span>AI practice • rating <b>${rating}</b> — ${lead}</span>` +
     `<button class="btn btn-ghost btn-sm" id="aiPrintBtn" type="button" title="Print this practice set as PDF">🖨️ Print set</button>` +
     `<button class="ai-practice-close" id="aiPracticeCloseBtn" type="button" title="Exit AI practice">×</button>`;
@@ -2232,14 +2270,14 @@ function learningSnapshotForGeneration(target) {
   };
 }
 function questionFromWeaknessAi(d, target) {
-  const topics = parseTopics(d.topics && d.topics.length ? d.topics : (d.topic || target.topic || "Problem Solving")).map(studentTopicLabel).filter(Boolean);
+  const topics = parseTopics(d.topics && d.topics.length ? d.topics : (d.topic || target.topic || "")).map(studentTopicLabel).filter(Boolean);
   const text = String(d.questionText || d.question || "").trim();
   return {
     id: makeDocId("aiweak"),
     title: String(d.title || `${target.topic || "Math"} practice`).trim(),
     level: String(d.level || "Practice").trim(),
-    topic: (topics.length ? topics : [studentTopicLabel(target.topic || "Problem Solving")]).join(", "),
-    topics: topics.length ? topics : [studentTopicLabel(target.topic || "Problem Solving")],
+    topic: (topics.length ? topics : [studentTopicLabel(target.topic || "")]).join(", "),
+    topics: topics.length ? topics : [studentTopicLabel(target.topic || "")],
     concept: String(d.concept || target.concept || target.label || "").trim(),
     blocks: [{ id: genBlockId(), type: "text", content: text || "Solve the question carefully and show your working." }],
     expected: String(d.expected || "").trim(),
@@ -2267,7 +2305,7 @@ async function generateWeaknessPractice() {
       `Private performance snapshot: ${JSON.stringify(snapshot)}\n\n` +
       `Create a fresh question that practises the target weakness with different numbers and wording from previous questions. ` +
       `Keep it suitable for worksheet working, no image or diagram required, and make sure the answer and marking guide are correct. ` +
-      `For "topics", use broad safe topic labels only. For "concept", use a private teacher-only method/concept label.\n\n` +
+      `For "topics", use the specific content topic only (e.g. Fractions, Ratio, Geometry) — never the generic label "Problem Solving". For "concept", use a specific private teacher-only method/concept label only when one clearly applies, or leave it empty; do not use the generic label "Model Method".\n\n` +
       `Return ONLY valid JSON in this exact shape: {"title":"<short title>","level":"<e.g. P5>","topics":["<topic>"],"concept":"<private concept>",` +
       `"questionText":"<full question text>","expected":"<final answer with units>","markingGuide":"<worked solution and method marks>"}`;
     const raw = await askGeminiVision(prompt, [], { maxOutputTokens: 1800, json: true });
@@ -3316,9 +3354,10 @@ async function runAiBuildFromMedia(source) {
     const prompt =
       `You are helping a Singapore primary-school math teacher turn an exam question (in the attached ${source.isPdf ? "PDF" : "image"}) into a practice question. ` +
       genPreamble() +
-      `For "topics", use one or more broad content topics students can safely see, such as Fractions, Ratio, Percentage, Geometry, Speed, Algebra, or Problem Solving. ` +
+      `For "topics", use one or more specific content topics students can safely see, such as Fractions, Ratio, Percentage, Geometry, Speed, or Algebra. ` +
+      `Always choose the specific content topic — never the generic label "Problem Solving". ` +
       `Do not put solution strategies or concepts that would give away the method inside "topics". ` +
-      `For "concept", use a private teacher-only strategy/concept label when useful, such as Assumption, Total unchanged, Difference unchanged, Guess and Check, Working Backwards, or Model Method.\n` +
+      `For "concept", use a specific private teacher-only strategy/concept label only when one clearly applies, such as Assumption, Total unchanged, Difference unchanged, Guess and Check, or Working Backwards; otherwise leave it empty. Do not use the generic label "Model Method".\n` +
       `Read the question carefully and return ONLY valid JSON in this exact shape. Escape any line breaks inside string values as \\n and do not include markdown fences:\n` +
       `{"title":"<short title>","level":"<e.g. P5 or Sec 1>","topics":["<e.g. Fractions>","<optional second topic>"],"concept":"<teacher-only concept or strategy label, or empty string>",` +
       `"questionText":"<the full question text, cleaned up>","expected":"<the correct final answer, with units>",` +
@@ -4556,6 +4595,7 @@ $("submitBtn").addEventListener("click", async () => {
     const reviewPlan = await recordLearningAttempt(q, v, out.progress);
     try { rpgOnMarked(q, v, { server: out }); } catch (err) { console.warn("rpg reward", err); }
     showResult(v, png, reviewPlan, !!solutionMedia);
+    maybeServeVariantOnMiss(q, v);
     const verdict = (v.verdict || "").toLowerCase();
     let markMsg = verdict === "correct" ? "Great work! 🎉" : "Marked — see the feedback";
     if (lastEloChange && currentUser && currentUser.role === "student") {

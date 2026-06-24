@@ -123,7 +123,7 @@ function studentTopicLabel(topic) {
   const parts = source.split(/\s*[-–—:|/]\s*/).map(p => p.trim()).filter(Boolean);
   const firstSafe = parts.find(p => !CLUE_TOPIC_WORDS.some(w => p.toLowerCase().includes(w)));
   const candidate = firstSafe || source;
-  if (CLUE_TOPIC_WORDS.some(w => candidate.toLowerCase().includes(w))) return "Problem Solving";
+  if (CLUE_TOPIC_WORDS.some(w => candidate.toLowerCase().includes(w))) return "Math";
   return candidate;
 }
 const topicForMemory = q => studentTopicLabel(questionTopics(q));
