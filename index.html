@@ -352,7 +352,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .ai-hint-card h4 { font-family: 'Space Mono', monospace; font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-blue); margin-bottom: 6px; }
 .ai-hint-card p { font-size: 0.95rem; line-height: 1.55; color: var(--text); }
 
-/* "Ask AI Mr Chung" — appears inside the result, after a question is marked */
+/* "Ask AI Polymath" — appears inside the result, after a question is marked */
 .ask-ai-help { font-size: 0.86rem; line-height: 1.5; color: var(--text-muted); margin: 2px 0 9px; }
 .ask-ai-card { display: none; margin-top: 10px; }
 .ask-ai-card.show { display: block; }
@@ -1063,13 +1063,13 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
             <div class="feedback-block" id="reviewPlanBlock" style="display:none;"><h4>🗓️ Review plan</h4><p id="fbReviewPlan"></p></div>
             <div class="feedback-block" id="answerKeyBlock" style="display:none;"><h4>🧾 Full answer key</h4><p class="answer-key-text" id="fbAnswerKey"></p></div>
             <div class="feedback-block" id="askAiBlock">
-              <h4>🧑‍🏫 Ask AI Mr Chung</h4>
-              <p class="ask-ai-help">Now you've seen the answer, ask Mr Chung anything about this question — a tricky step, what a word means, or why a method works (e.g. “Why do we assume they're all correct first?”). Off-topic questions won't be answered.</p>
-              <button class="btn btn-primary btn-sm" id="askAiBtn"><span id="askAiLabel">🧑‍🏫 Ask Mr Chung a question</span></button>
+              <h4>🧑‍🏫 Ask AI Polymath</h4>
+              <p class="ask-ai-help">Now you've seen the answer, ask Polymath anything about this question — a tricky step, what a word means, or why a method works (e.g. “Why do we assume they're all correct first?”). Off-topic questions won't be answered.</p>
+              <button class="btn btn-primary btn-sm" id="askAiBtn"><span id="askAiLabel">🧑‍🏫 Ask AI Polymath a question</span></button>
               <div class="ask-ai-card" id="askAiCard">
                 <textarea id="askAiInput" rows="2" placeholder="Type your question about this math question…" maxlength="600"></textarea>
                 <div class="ask-ai-row">
-                  <button class="btn btn-primary btn-sm" id="askAiSendBtn"><span id="askAiSendLabel">Ask Mr Chung</span></button>
+                  <button class="btn btn-primary btn-sm" id="askAiSendBtn"><span id="askAiSendLabel">Ask AI Polymath</span></button>
                   <button class="btn btn-ghost btn-sm" id="askAiCloseBtn" type="button">Close</button>
                 </div>
                 <div class="ask-ai-answer" id="askAiAnswer" hidden></div>
@@ -5270,13 +5270,13 @@ async function clientHint(q, { media = [], typedWorking = "", finalAnswer = "" }
 // Shown verbatim when a student's question isn't about the math question.
 // Mirrors ASK_DECLINE_MESSAGE in functions/index.js.
 const ASK_DECLINE_MESSAGE = "Sorry, I can only help with this math question. Irrelevant questions won't be answered — ask me about the question itself, the diagram, a tricky step, or why a method works, and I'll happily explain!";
-// Browser fallback for "Ask AI Mr Chung" when the Cloud Function is
+// Browser fallback for "Ask AI Polymath" when the Cloud Function is
 // unreachable. Degraded vs the server (no private answer key on a student's
 // device) but still answers conceptual/method questions and declines off-topic ones.
 async function clientAskMrChung(q, { media = [], typedWorking = "", finalAnswer = "", question = "" } = {}) {
   if (!aiReady()) throw new Error("AI isn't ready on this device yet");
   const prompt =
-    `You are "Mr Chung", a warm, patient Singapore primary-school math teacher answering a student's own question about ONE math question they are working on. ` +
+    `You are "Polymath", a warm, patient Singapore primary-school math teacher answering a student's own question about ONE math question they are working on. ` +
     "The attached image(s) show the question (with any diagram) and the student's working — read the whole question carefully before answering.\n" +
     `QUESTION: "${questionText(q)}"\n` +
     (q && (q.expected || q.markingGuide) ? `CORRECT ANSWER (private — use it to stay accurate, do not simply give it away): "${q.expected || "(see guide)"}"\n` : "") +
@@ -5358,7 +5358,7 @@ $("hintBtn").addEventListener("click", async () => {
 });
 
 // =====================================================================
-// ASK AI MR CHUNG — a student asks any question about the current math
+// ASK AI POLYMATH — a student asks any question about the current math
 // question. The askMrChung Cloud Function reads the whole question (text +
 // diagram + private answer key) and either answers or, for off-topic
 // questions, politely declines. Falls back to the browser if unreachable.
@@ -5380,10 +5380,10 @@ function showAskAnswer(text, declined) {
 function setAskBusy(busy) {
   const btn = $("askAiSendBtn"), label = $("askAiSendLabel");
   if (btn) btn.disabled = busy;
-  if (label) label.innerHTML = busy ? '<span class="spinner"></span> Asking…' : "Ask Mr Chung";
+  if (label) label.innerHTML = busy ? '<span class="spinner"></span> Asking…' : "Ask AI Polymath";
 }
 $("askAiBtn").addEventListener("click", () => {
-  if (!currentUser) { toast("Sign in to ask Mr Chung", "error"); return; }
+  if (!currentUser) { toast("Sign in to ask Polymath", "error"); return; }
   if (!questionBank.length) { toast("Open a question first", "error"); return; }
   const card = $("askAiCard");
   const opening = !card.classList.contains("show");
@@ -5395,10 +5395,10 @@ $("askAiBtn").addEventListener("click", () => {
 });
 $("askAiCloseBtn").addEventListener("click", () => { $("askAiCard").classList.remove("show"); });
 async function submitAskMrChung() {
-  if (!currentUser) { toast("Sign in to ask Mr Chung", "error"); return; }
+  if (!currentUser) { toast("Sign in to ask Polymath", "error"); return; }
   if (!questionBank.length) return;
   const question = $("askAiInput").value.trim();
-  if (!question) { toast("Type a question for Mr Chung first", "error"); $("askAiInput").focus(); return; }
+  if (!question) { toast("Type a question for Polymath first", "error"); $("askAiInput").focus(); return; }
   const q = questionBank[qIndex];
   const typedWorking = $("typedWorking").value.trim();
   const finalAnswer = $("finalAnswer").value.trim();
@@ -5420,7 +5420,7 @@ async function submitAskMrChung() {
     if (!answer) throw new Error("empty answer - please try again");
     showAskAnswer(answer, out.relevant === false);
   } catch (e) {
-    if (!markUnreachable(e)) { console.error(e); toast("Ask Mr Chung error: " + serverErrorMessage(e), "error"); }
+    if (!markUnreachable(e)) { console.error(e); toast("Ask AI Polymath error: " + serverErrorMessage(e), "error"); }
     else {
       // Server unreachable — answer directly in the browser.
       try {
@@ -5428,7 +5428,7 @@ async function submitAskMrChung() {
         const sol = solutionPhotoInlineMedia(); if (sol) media.push(sol);
         const out = await clientAskMrChung(q, { media, typedWorking, finalAnswer, question });
         showAskAnswer(out.answer, out.relevant === false);
-      } catch (e2) { console.error(e, e2); toast("Ask Mr Chung error: " + serverErrorMessage(e2), "error"); }
+      } catch (e2) { console.error(e, e2); toast("Ask AI Polymath error: " + serverErrorMessage(e2), "error"); }
     }
   } finally { setAskBusy(false); }
 }
