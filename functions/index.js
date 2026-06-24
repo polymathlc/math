@@ -39,7 +39,7 @@ const AI_TEXT_MODELS = ["gemini-3.5-flash", "gemini-2.5-flash"];
 // An honest student cannot read + solve + write up a question this fast.
 const MIN_MARK_INTERVAL_MS = 15 * 1000;
 const MIN_HINT_INTERVAL_MS = 15 * 1000;
-// "Ask AI Mr Chung" is a free, no-XP Q&A call; give it its own short cooldown
+// "Ask AI Polymath" is a free, no-XP Q&A call; give it its own short cooldown
 // so asking a question doesn't burn the hint cooldown (and vice-versa).
 const MIN_ASK_INTERVAL_MS = 8 * 1000;
 const DAILY_MARK_CAP = 200;
@@ -595,7 +595,7 @@ async function reserveMarkSlot(uid, kind) {
       stats.dailyCount = (stats.dailyCount || 0) + 1;
     } else if (kind === "ask") {
       if (now - (stats.lastAskAt || 0) < MIN_ASK_INTERVAL_MS) {
-        throw new HttpsError("resource-exhausted", "One question at a time — give Mr Chung a few seconds.");
+        throw new HttpsError("resource-exhausted", "One question at a time — give Polymath a few seconds.");
       }
       stats.lastAskAt = now;
     } else {
@@ -1010,8 +1010,8 @@ export const getHint = onCall(CALL_OPTS, async (request) => {
 });
 
 // ---------------------------------------------------------------------
-// askMrChung — "Ask AI Mr Chung". A student asks any free-form question
-// about the question they're working on; Mr Chung answers using the WHOLE
+// askMrChung — "Ask AI Polymath". A student asks any free-form question
+// about the question they're working on; Polymath answers using the WHOLE
 // question — the wording, every diagram (in the worksheet screenshot and
 // attached directly), and the teacher's private answer key. Off-topic
 // questions are politely declined. No marks, no XP; nothing private is
@@ -1027,7 +1027,7 @@ export const askMrChung = onCall(CALL_OPTS, async (request) => {
   const d = request.data || {};
   const source = ["bank", "generated", "starter"].includes(d.source) ? d.source : "bank";
   const studentQuestion = cleanText(d.question, 600).trim();
-  if (!studentQuestion) throw new HttpsError("invalid-argument", "Type a question for Mr Chung first.");
+  if (!studentQuestion) throw new HttpsError("invalid-argument", "Type a question for Polymath first.");
   const typedWorking = cleanText(d.typedWorking, 6000);
   const finalAnswer = cleanText(d.finalAnswer, 800);
   const worksheetB64 = String(d.worksheetPng || "");
@@ -1057,7 +1057,7 @@ export const askMrChung = onCall(CALL_OPTS, async (request) => {
   const mediaNote = media.length ? `Attached images: ${labels.join("; ")}.\n` : "";
 
   const prompt =
-    `You are "Mr Chung", a warm, patient Singapore primary-school math teacher answering a student's OWN question about one specific math question they are working on. ` +
+    `You are "Polymath", a warm, patient Singapore primary-school math teacher answering a student's OWN question about one specific math question they are working on. ` +
     `${mediaNote}` +
     `Before you answer, read the WHOLE question as one: the printed wording, every attached diagram/image, the student's working, and the teacher's private answer key if attached. Use them together so your answer is correct and consistent with the diagram and the intended method.\n` +
     `${keyMedia.length ? "The answer key is for your understanding only — use it to stay accurate, but do NOT just hand over the final answer; guide the student to reach it themselves.\n" : ""}` +
@@ -1084,7 +1084,7 @@ export const askMrChung = onCall(CALL_OPTS, async (request) => {
     return { relevant: true, answer };
   } catch (e) {
     console.error("askMrChung AI failed", e);
-    throw new HttpsError("unavailable", "Mr Chung couldn't answer just now — please try again in a moment.");
+    throw new HttpsError("unavailable", "Polymath couldn't answer just now — please try again in a moment.");
   }
 });
 
