@@ -1014,7 +1014,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
         <div class="editor-field"><label>Video explanation link <span style="color:var(--text-light);font-weight:400;">(optional)</span></label><input id="qVideoInput" type="text" placeholder="YouTube, Dropbox or Google Drive video link"><div class="hint">Shown only after a student uses AI marking. YouTube, Vimeo, Dropbox and Google Drive share links are converted for embedding automatically.</div></div>
         <div class="editor-field">
           <label>Answer key image <span style="color:var(--text-light);font-weight:400;">(optional)</span></label>
-          <div class="img-zone" id="answerKeyZone" tabindex="0">📎 Click, paste or drop a worked answer key image here</div>
+          <div class="img-zone" id="answerKeyZone" tabindex="0">📎 Hover &amp; paste, drop, or click to add a worked answer key image</div>
           <input id="answerKeyFile" type="file" accept="image/*" class="hidden">
           <div class="answer-key-row" style="margin-top:8px;">
             <input id="answerKeyUrlInput" type="text" placeholder="…or paste an answer key image URL">
@@ -2895,6 +2895,9 @@ function renderEditorBlocks() {
   }));
   wrap.querySelectorAll("[data-imgzone]").forEach(z => {
     z.addEventListener("click", () => { const f = $("blocksList").querySelector(`[data-imgfile="${z.dataset.imgzone}"]`); if (f) f.click(); });
+    // Hover-to-paste: an image pasted while the cursor is over this box lands
+    // here without clicking first (routed by the document-wide handler below).
+    enableHoverPaste(z, e => handleImgPaste(z.dataset.imgzone, e));
     z.addEventListener("paste", e => handleImgPaste(z.dataset.imgzone, e));
     z.addEventListener("dragover", e => e.preventDefault());
     z.addEventListener("drop", e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) prepareImgChoice(z.dataset.imgzone, f); });
@@ -2922,7 +2925,7 @@ function textBlockHtml(b) {
 function imgBlockHtml(b) {
   const has = b.url ? "block" : "none";
   const scale = normalizeImageScale(b.scale);
-  return `<div class="img-zone" data-imgzone="${b.id}" tabindex="0">📎 Click, paste or drop an image / diagram here</div>
+  return `<div class="img-zone" data-imgzone="${b.id}" tabindex="0">📎 Hover &amp; paste, drop, or click to add an image / diagram</div>
     <input type="file" accept="image/*" class="hidden" data-imgfile="${b.id}">
     <input type="text" data-imgurl="${b.id}" value="${escapeHtml(b.url || "")}" placeholder="…or paste an image URL" style="width:100%;margin-top:8px;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:0.85rem;">
     <div class="img-size-row">
@@ -2960,6 +2963,20 @@ function handleImgPaste(id, e) {
   const items = (e.clipboardData || {}).items || [];
   for (const it of items) { if (it.type && it.type.startsWith("image/")) { e.preventDefault(); prepareImgChoice(id, it.getAsFile()); return; } }
 }
+// Hover-to-paste: let any image drop-box receive a pasted image while the
+// cursor is simply hovering over it — no click/focus first. We remember the
+// box under the cursor; a single document-wide paste handler routes to it.
+let hoveredPasteZone = null; // { el, handler }
+function enableHoverPaste(el, handler) {
+  if (!el || el.dataset.hoverPaste) return;
+  el.dataset.hoverPaste = "1";
+  el.addEventListener("mouseenter", () => { hoveredPasteZone = { el, handler }; });
+  el.addEventListener("mouseleave", () => { if (hoveredPasteZone && hoveredPasteZone.el === el) hoveredPasteZone = null; });
+}
+document.addEventListener("paste", e => {
+  if (e.defaultPrevented) return;        // a focused box already handled it
+  if (hoveredPasteZone && document.contains(hoveredPasteZone.el)) hoveredPasteZone.handler(e);
+});
 function renderImgChoice(id) {
   const choice = imgChoices.get(id);
   const wrap = $("blocksList").querySelector(`[data-imgchoice="${id}"]`);
@@ -3126,6 +3143,7 @@ async function uploadAnswerKeyFile(file) {
 
 $("answerKeyZone").addEventListener("click", () => $("answerKeyFile").click());
 $("answerKeyZone").addEventListener("paste", handleAnswerKeyPaste);
+enableHoverPaste($("answerKeyZone"), handleAnswerKeyPaste);
 $("answerKeyZone").addEventListener("dragover", e => e.preventDefault());
 $("answerKeyZone").addEventListener("drop", e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) uploadAnswerKeyFile(f); });
 $("answerKeyFile").addEventListener("change", e => { const f = e.target.files[0]; if (f) uploadAnswerKeyFile(f); e.target.value = ""; });
