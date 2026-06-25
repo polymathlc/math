@@ -907,6 +907,84 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
   .rpg-vs { display: none; }
   .rpg-stat-chips { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* =================== DEPENDENCY BOARD (admin) =================== */
+#page-graph { padding: 0; max-width: none; margin: 0; }
+.graph-wrap { display: flex; flex-direction: column; height: calc(100vh - var(--topbar-h, 56px)); }
+.graph-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--surface); }
+.graph-toolbar .graph-title { font-weight: 700; margin-right: 4px; }
+.graph-toolbar .graph-title small { display: block; font-weight: 500; font-size: 0.7rem; color: var(--text-muted); letter-spacing: 0; }
+.graph-toolbar .spacer { flex: 1; }
+.graph-save-state { font-family: 'Space Mono', monospace; font-size: 0.66rem; letter-spacing: 0.06em; color: var(--text-light); }
+.graph-save-state.dirty { color: var(--accent-orange); }
+.graph-save-state.saved { color: var(--primary); }
+.graph-zoom { display: inline-flex; align-items: center; border: 1.5px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+.graph-zoom button { border: 0; background: var(--surface); padding: 7px 11px; cursor: pointer; font-size: 0.95rem; font-weight: 700; color: var(--text); }
+.graph-zoom button:hover { background: var(--surface-alt); }
+.graph-zoom span { padding: 0 8px; font-family: 'Space Mono', monospace; font-size: 0.72rem; color: var(--text-muted); min-width: 46px; text-align: center; }
+
+.graph-viewport { position: relative; flex: 1; overflow: hidden; background-color: var(--surface-alt);
+  background-image: radial-gradient(circle, rgba(74,124,89,0.18) 1.3px, transparent 1.3px);
+  background-size: 26px 26px; background-position: 0 0; cursor: grab; touch-action: none; user-select: none; }
+.graph-viewport.panning { cursor: grabbing; }
+.graph-viewport.linking { cursor: crosshair; }
+.graph-world { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+.graph-edges { position: absolute; left: 0; top: 0; overflow: visible; width: 1px; height: 1px; pointer-events: none; z-index: 1; }
+.graph-edge-hit { stroke: transparent; stroke-width: 22; fill: none; pointer-events: stroke; cursor: pointer; }
+.graph-edge-line { fill: none; stroke: var(--accent-blue); stroke-width: 2.2; pointer-events: none; transition: stroke 0.15s; }
+.graph-edge.hl .graph-edge-line { stroke: var(--accent-orange); stroke-width: 3; }
+.graph-edge.variant .graph-edge-line { stroke: var(--accent-purple); stroke-dasharray: 7 5; }
+.gedge-label.variant { border-color: var(--accent-purple); color: var(--accent-purple); }
+
+.gnode { position: absolute; width: 244px; background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-md); z-index: 2; overflow: hidden; }
+.gnode.linking-source { border-color: var(--accent-orange); box-shadow: 0 0 0 3px var(--accent-orange-light), var(--shadow-md); }
+.graph-viewport.linking .gnode:not(.linking-source):hover { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light), var(--shadow-md); }
+.gnode-head { display: flex; align-items: center; gap: 7px; padding: 9px 11px; cursor: grab; background: linear-gradient(var(--surface), var(--surface-alt)); border-bottom: 1px solid var(--border); }
+.gnode-head:active { cursor: grabbing; }
+.gnode-level { flex: none; font-family: 'Space Mono', monospace; font-size: 0.58rem; letter-spacing: 0.07em; padding: 3px 7px; border-radius: 999px; background: var(--primary-light); color: var(--primary); font-weight: 700; }
+.gnode-title { flex: 1; font-weight: 700; font-size: 0.86rem; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.gnode-body { padding: 9px 11px; }
+.gnode-topic { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 6px; }
+.gnode-topic .chip { font-size: 0.55rem; padding: 2px 7px; }
+.gnode-snippet { font-size: 0.78rem; color: var(--text-muted); line-height: 1.4; max-height: 3.9em; overflow: hidden; }
+.gnode-foot { display: flex; gap: 2px; padding: 6px 8px; border-top: 1px solid var(--border); background: var(--surface-alt); }
+.gnode-foot .spacer { flex: 1; }
+.gnode-act { border: 0; background: transparent; cursor: pointer; padding: 5px 7px; border-radius: var(--radius-sm); font-size: 0.95rem; line-height: 1; color: var(--text); transition: background 0.15s; }
+.gnode-act:hover { background: var(--primary-light); }
+.gnode-act.del:hover { background: var(--accent-red-light); }
+.gnode-act.link.armed { background: var(--accent-orange-light); }
+
+.gedge-label { position: absolute; transform: translate(-50%, -50%); z-index: 3; max-width: 180px;
+  background: var(--surface); border: 1.5px solid var(--accent-blue); color: var(--accent-blue);
+  font-size: 0.66rem; font-weight: 600; line-height: 1.3; padding: 3px 8px; border-radius: 999px;
+  cursor: pointer; box-shadow: var(--shadow-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gedge-label.empty { color: var(--text-light); border-color: var(--border); border-style: dashed; font-weight: 500; }
+.gedge-label:hover { border-color: var(--accent-orange); color: var(--accent-orange); }
+
+.graph-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.graph-empty .inner { text-align: center; color: var(--text-muted); max-width: 360px; }
+.graph-empty .inner h3 { color: var(--text); margin: 0 0 6px; }
+
+.graph-link-banner { display: none; position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 20;
+  background: var(--accent-orange); color: #fff; padding: 8px 16px; border-radius: 999px; box-shadow: var(--shadow-md);
+  font-size: 0.82rem; font-weight: 600; align-items: center; gap: 12px; }
+.graph-viewport.linking .graph-link-banner { display: flex; }
+.graph-link-banner button { border: 0; background: rgba(255,255,255,0.25); color: #fff; border-radius: 999px; cursor: pointer; padding: 3px 10px; font-weight: 700; }
+
+.graph-picker-list { max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.graph-picker-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); cursor: pointer; text-align: left; background: var(--surface); }
+.graph-picker-item:hover { border-color: var(--primary); background: var(--surface-alt); }
+.graph-picker-item .gp-title { flex: 1; font-weight: 600; font-size: 0.88rem; }
+.graph-picker-item .gp-meta { font-size: 0.72rem; color: var(--text-muted); }
+.graph-picker-empty { color: var(--text-muted); text-align: center; padding: 24px; }
+.graph-spawn-menu { position: fixed; z-index: 400; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); padding: 6px; min-width: 220px; }
+.graph-spawn-menu button { display: flex; gap: 9px; align-items: flex-start; width: 100%; border: 0; background: transparent; text-align: left; padding: 9px 10px; border-radius: var(--radius-sm); cursor: pointer; font-family: inherit; }
+.graph-spawn-menu button:hover { background: var(--surface-alt); }
+.graph-spawn-menu .sm-ico { font-size: 1.05rem; line-height: 1.1; }
+.graph-spawn-menu .sm-title { font-weight: 600; font-size: 0.86rem; color: var(--text); }
+.graph-spawn-menu .sm-sub { font-size: 0.72rem; color: var(--text-muted); line-height: 1.3; }
+@media (max-width: 720px) { .gnode { width: 210px; } .graph-toolbar .graph-title small { display: none; } }
 </style>
 </head>
 <body>
@@ -962,6 +1040,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
       <div class="nav-section admin-only">Admin</div>
       <div class="nav-item admin-only" data-page="create"><span class="ico">➕</span> Create Question</div>
       <div class="nav-item admin-only" data-page="bank"><span class="ico">📚</span> Question Bank</div>
+      <div class="nav-item admin-only" data-page="graph" title="Map prerequisite links between questions — the AI reads this when guiding practice"><span class="ico">🕸️</span> Dependency Board</div>
       <div class="nav-item admin-only" data-page="students"><span class="ico">🎓</span> Student Results</div>
       <div class="nav-item admin-only" data-page="worksheet" title="Math Worksheet Creator — build, export and load worksheets"><span class="ico">📝</span> Worksheet Creator</div>
       <div class="nav-item admin-only" id="navMarking"><span class="ico">⚖️</span> AI Marking Guide</div>
@@ -1301,6 +1380,49 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
       <iframe id="worksheetFrame" class="embed-frame" title="Math Worksheet Creator"></iframe>
     </div>
 
+    <!-- ================= DEPENDENCY BOARD PAGE (admin) ================= -->
+    <div class="page" id="page-graph">
+      <div class="graph-wrap">
+        <div class="graph-toolbar">
+          <span class="graph-title">🕸️ Dependency Board<small>Arrow A → B means “A is a prerequisite skill of B”</small></span>
+          <button class="btn btn-primary btn-sm" id="graphAddBtn" type="button">➕ Add question</button>
+          <button class="btn btn-ghost btn-sm" id="graphTidyBtn" type="button" title="Lay the rectangles out on a tidy grid">🧹 Tidy up</button>
+          <button class="btn btn-ghost btn-sm" id="graphFitBtn" type="button" title="Zoom to fit everything">🔍 Fit</button>
+          <div class="spacer"></div>
+          <span class="graph-save-state" id="graphSaveState"></span>
+          <div class="graph-zoom">
+            <button id="graphZoomOut" type="button" title="Zoom out">−</button>
+            <span id="graphZoomLabel">100%</span>
+            <button id="graphZoomIn" type="button" title="Zoom in">+</button>
+          </div>
+        </div>
+        <div class="graph-viewport" id="graphViewport">
+          <div class="graph-link-banner" id="graphLinkBanner">
+            <span id="graphLinkBannerText">Click the question that needs this prerequisite…</span>
+            <button type="button" id="graphLinkCancel">Cancel</button>
+          </div>
+          <div class="graph-world" id="graphWorld">
+            <svg class="graph-edges" id="graphEdges">
+              <defs>
+                <marker id="graphArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent-blue)"></path>
+                </marker>
+                <marker id="graphArrowV" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent-purple)"></path>
+                </marker>
+              </defs>
+            </svg>
+          </div>
+          <div class="graph-empty" id="graphEmpty">
+            <div class="inner">
+              <h3>Build your question network</h3>
+              <p>Add questions as rectangles, then drag from one to another to record a prerequisite link. Add a note to each arrow (e.g. “needs fraction addition first”). The AI reads this map when guiding a student’s practice.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -1400,6 +1522,32 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
     <div class="overlay-head"><h3 id="questionShareTitle">Question</h3><button class="close" data-close="questionShareOverlay">×</button></div>
     <div class="overlay-body"><div id="questionShareBody"></div></div>
     <div class="overlay-foot"><button class="btn btn-primary" data-close="questionShareOverlay">Done</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="graphPickerOverlay">
+  <div class="overlay-card">
+    <div class="overlay-head"><h3>Add a question to the board</h3><button class="close" data-close="graphPickerOverlay">×</button></div>
+    <div class="overlay-body">
+      <input type="search" id="graphPickerSearch" class="bank-search" placeholder="Search by title, level or topic…" autocomplete="off">
+      <div class="graph-picker-list" id="graphPickerList"></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="graphEdgeOverlay">
+  <div class="overlay-card">
+    <div class="overlay-head"><h3>Prerequisite link</h3><button class="close" data-close="graphEdgeOverlay">×</button></div>
+    <div class="overlay-body">
+      <div id="graphEdgeSummary" style="font-size:0.88rem;color:var(--text-muted);line-height:1.5;margin-bottom:14px;"></div>
+      <div class="editor-field"><label>Note on this arrow</label><textarea id="graphEdgeComment" style="min-height:84px;" placeholder="e.g. Master fraction addition before attempting this word problem"></textarea></div>
+    </div>
+    <div class="overlay-foot">
+      <button class="btn btn-danger" type="button" id="graphEdgeDeleteBtn">🗑 Delete link</button>
+      <div style="flex:1"></div>
+      <button class="btn btn-ghost" data-close="graphEdgeOverlay">Cancel</button>
+      <button class="btn btn-primary" type="button" id="graphEdgeSaveBtn">Save note</button>
+    </div>
   </div>
 </div>
 
@@ -2235,6 +2383,7 @@ function startAiPractice() {
     const d = questionDifficultyRating(q), p = studentProgress[q.id];
     return {
       mastered: questionMastered(p) ? 1 : 0,                 // already-mastered questions last
+      prereqReady: graphPrereqsMet(q.id) ? 0 : 1,            // skills whose prerequisites are mastered first (dependency board)
       inBand: d >= loBand && d <= hiBand ? 0 : 1,            // inside the growth band first
       weakHit: questionHitsWeakTopic(q, weak) ? 0 : 1,        // weak-topic questions first
       seen: p && (p.attempts || 0) > 0 ? 1 : 0,              // never-seen questions first
@@ -2244,6 +2393,7 @@ function startAiPractice() {
   pool.sort((a, b) => {
     const sa = growthScore(a), sb = growthScore(b);
     if (sa.mastered !== sb.mastered) return sa.mastered - sb.mastered;
+    if (sa.prereqReady !== sb.prereqReady) return sa.prereqReady - sb.prereqReady;
     if (sa.inBand !== sb.inBand) return sa.inBand - sb.inBand;
     if (sa.weakHit !== sb.weakHit) return sa.weakHit - sb.weakHit;
     if (sa.seen !== sb.seen) return sa.seen - sb.seen;
@@ -2267,12 +2417,13 @@ function renderAiPracticeBar() {
   if (!bar) return;
   if (!aiPracticeActive) { bar.style.display = "none"; bar.innerHTML = ""; return; }
   const rating = Math.round(studentEloValue());
-  const r = aiPracticeStats.review || 0, g = aiPracticeStats.growth || 0, vCount = aiPracticeStats.variants || 0;
+  const r = aiPracticeStats.review || 0, g = aiPracticeStats.growth || 0, vCount = aiPracticeStats.variants || 0, pCount = aiPracticeStats.prereq || 0;
   const parts = [];
   if (r) parts.push(`<b>${r}</b> to review`);
   if (g) parts.push(`<b>${g}</b> in your growth zone`);
   let lead = parts.length ? parts.join(" + ") + "." : "questions matched to your rating.";
   lead += vCount ? ` Miss one and you'll get a variant to try again (${vCount} so far).` : " Miss one and you'll get a variant to try again.";
+  if (pCount) lead += ` Routed you to ${pCount} prerequisite skill${pCount === 1 ? "" : "s"} along the way.`;
   bar.innerHTML = `🤖 <span>AI practice • rating <b>${rating}</b> — ${lead}</span>` +
     `<button class="btn btn-ghost btn-sm" id="aiPrintBtn" type="button" title="Print this practice set as PDF">🖨️ Print set</button>` +
     `<button class="ai-practice-close" id="aiPracticeCloseBtn" type="button" title="Exit AI practice">×</button>`;
@@ -2882,6 +3033,23 @@ let currentEditingId = null;
 // question records `variantOf` — letting practice serve a variant of a question
 // the student got wrong. Set by Regenerate, cleared on reset / edit.
 let pendingVariantOf = null;
+// ---- Dependency Board (admin) state -------------------------------------
+// graphNodes: { qid: {x,y} } board positions; graphEdges: prerequisite links
+// { id, from(prereq), to(dependent), comment, kind('prereq'|'variant') }.
+// Loaded from users/{adminUid}/mathQuestionGraph/main; the AI practice flow
+// and the marking function read the edges to guide students through
+// prerequisite skills.
+let graphNodes = {};
+let graphEdges = [];
+let graphNodeEls = {};            // qid -> rendered .gnode element (admin board)
+let graphPan = { x: 0, y: 0 };
+let graphZoom = 1;
+let graphLoaded = false;
+let graphViewInit = false;        // auto-fit only the first time the board opens
+let graphLinkSourceId = null;     // node we're drawing a prerequisite link FROM
+let graphEditingEdgeId = null;    // edge open in the note editor
+let graphPendingSpawn = null;     // {sourceId}: add+link an AI variant after it saves
+let _graphSaveTimer = null;
 // A single-question deep link from a printed QR / shared link: ?q=<id>&src=<src>.
 // Captured once at load and opened after the bank finishes loading.
 let pendingShareQ = (() => {
@@ -3011,6 +3179,7 @@ async function enterApp(user) {
     await loadMarkingSettings(user.uid);
     await loadGenSettings(user.uid);
     await loadBank(user.uid);
+    await loadQuestionGraph(user.uid);
     await loadFlagNotifications();
     navigateTo("create");
   } else {
@@ -3018,6 +3187,7 @@ async function enterApp(user) {
     // stays private — the marking function reads it server-side)
     try { const cfg = await getDoc(doc(db, "config", "mathAdmin")); if (cfg.exists()) adminUid = cfg.data().uid; } catch (e) { console.warn(e); }
     if (adminUid) await loadBank(adminUid);
+    if (adminUid) await loadQuestionGraph(adminUid);
     if (!questionBank.length) questionBank = STARTER_QUESTIONS.slice();
     await loadStudentLearningState(user.uid);
     // Guests (anonymous QR visitors) aren't tracked as real students, so they
@@ -3225,7 +3395,7 @@ async function notifyQuestionSubscribers(q) {
 // NAVIGATION
 // =====================================================================
 function navigateTo(page) {
-  if (["create", "bank", "worksheet", "students"].includes(page) && !canManageQuestions()) {
+  if (["create", "bank", "worksheet", "students", "graph"].includes(page) && !canManageQuestions()) {
     page = "practice";
     toast("Student accounts can practise questions only", "error");
   }
@@ -3235,13 +3405,14 @@ function navigateTo(page) {
   const nav = document.querySelector(`.nav-item[data-page="${page}"]`); if (nav) nav.classList.add("active");
   if ((page === "character" || page === "leaderboard" || page === "adventure") && rpgGameHidden()) page = "practice";
   if (page !== "adventure") advAbandon();
-  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", worksheet: "Worksheet Creator", students: "Student Results", character: "Character", leaderboard: "Leaderboard", adventure: "Dungeon" };
+  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", graph: "Dependency Board", worksheet: "Worksheet Creator", students: "Student Results", character: "Character", leaderboard: "Leaderboard", adventure: "Dungeon" };
   $("topbarTitle").textContent = titles[page] || "";
   $("sidebar").classList.remove("open");
   if (page === "character") rpgRenderCharacterPage();
   if (page === "leaderboard") rpgRenderLeaderboard();
   if (page === "adventure") rpgRenderAdventure();
   if (page === "bank") renderBank();
+  if (page === "graph") renderGraphPage();
   if (page === "students") loadStudentRoster();
   if (page === "practice") { renderQuestion(); setupCanvasSize(); }
   if (page === "worksheet") {
@@ -3825,6 +3996,7 @@ $("addImageBtn").addEventListener("click", () => addBlock("image"));
 function resetEditor() {
   currentEditingId = null;
   pendingVariantOf = null;
+  graphPendingSpawn = null;
   imgChoices.clear();
   editorBlocks = [{ id: genBlockId(), type: "text", content: "" }];
   $("qTitleInput").value = ""; $("qLevelInput").value = ""; $("qTopicInput").value = ""; $("qConceptInput").value = "";
@@ -3899,6 +4071,7 @@ $("saveQBtn").addEventListener("click", async () => {
     await saveQuestionDoc(q);
     const i = questionBank.findIndex(x => x.id === q.id);
     if (i >= 0) questionBank[i] = q; else questionBank.push(q);
+    graphOnQuestionSaved(q, isNewQuestion);
     if (isNewQuestion) await notifyQuestionSubscribers(q);
     toast(currentEditingId ? "Question updated" : "Question added to bank", "success");
     resetEditor();
@@ -6086,7 +6259,7 @@ $("submitBtn").addEventListener("click", async () => {
     const reviewPlan = await recordLearningAttempt(q, v, out.progress);
     try { rpgOnMarked(q, v, { server: out }); } catch (err) { console.warn("rpg reward", err); }
     showResult(v, png, reviewPlan, !!solutionMedia);
-    maybeServeVariantOnMiss(q, v);
+    if (!maybeServePrerequisiteOnMiss(q, v)) maybeServeVariantOnMiss(q, v);
     const verdict = (v.verdict || "").toLowerCase();
     let markMsg = verdict === "correct" ? "Great work! 🎉" : "Marked — see the feedback";
     if (lastEloChange && currentUser && currentUser.role === "student") {
@@ -6107,7 +6280,7 @@ $("submitBtn").addEventListener("click", async () => {
         const reviewPlan = await recordLearningAttempt(q, v);
         try { rpgOnMarked(q, v, {}); } catch (err) { console.warn("rpg reward", err); }
         showResult(v, png, reviewPlan, !!solutionMedia);
-        maybeServeVariantOnMiss(q, v);
+        if (!maybeServePrerequisiteOnMiss(q, v)) maybeServeVariantOnMiss(q, v);
         const verdict = (v.verdict || "").toLowerCase();
         toast((verdict === "correct" ? "Great work! 🎉" : "Marked — see the feedback") + " · marked on this device", verdict === "correct" ? "success" : "");
       } catch (e2) { console.error(e, e2); toast("AI mark error: " + serverErrorMessage(e2), "error"); }
@@ -10257,6 +10430,498 @@ const APP_VERSION = "v1.2.4 · 2026-06-23";
 
 // Question Bank search — filter as you type
 { const _bs = $("bankSearch"); if (_bs) _bs.addEventListener("input", e => { bankSearchTerm = e.target.value; renderBank(); }); }
+
+// =====================================================================
+// DEPENDENCY BOARD — an infinite, pannable/zoomable canvas where each
+// question is a rectangle and arrows record "A is a prerequisite of B".
+// Teachers map the question network here; the AI practice flow and the
+// marking function read the edges to route students through prerequisite
+// skills and shore up weaknesses. Persisted to
+// users/{adminUid}/mathQuestionGraph/main.
+// =====================================================================
+function graphClamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+function graphFindQ(id) {
+  return questionBank.find(x => x && x.id === id) ||
+    (Array.isArray(studentGeneratedQuestions) ? studentGeneratedQuestions.find(x => x && x.id === id) : null) || null;
+}
+function graphPlainText(blocks) {
+  const t = (blocks || []).filter(b => b.type === "text").map(b => b.content || "").join(" ");
+  const tmp = document.createElement("div"); tmp.innerHTML = t;
+  return (tmp.textContent || "").replace(/\s+/g, " ").trim();
+}
+// Prerequisite links only (variant links are relational, not gating).
+function graphPrereqsOf(qid) {
+  return graphEdges.filter(e => (e.kind || "prereq") === "prereq" && e.to === qid).map(e => e.from);
+}
+function graphPrereqsMet(qid) {
+  const pre = graphPrereqsOf(qid);
+  if (!pre.length) return true;
+  return pre.every(id => { const inBank = questionBank.some(x => x && x.id === id); return !inBank || questionMastered(studentProgress[id]); });
+}
+
+// ---- Firestore persistence ----
+function graphDocRef() {
+  const uid = canManageQuestions() ? (currentUser && currentUser.uid) : adminUid;
+  return uid ? doc(db, "users", uid, "mathQuestionGraph", "main") : null;
+}
+async function loadQuestionGraph(uid) {
+  graphNodes = {}; graphEdges = []; graphLoaded = false;
+  if (!uid) return;
+  try {
+    const s = await getDoc(doc(db, "users", uid, "mathQuestionGraph", "main"));
+    if (s.exists()) {
+      const d = s.data() || {};
+      if (d.nodes && typeof d.nodes === "object") {
+        Object.keys(d.nodes).forEach(k => {
+          const n = d.nodes[k];
+          if (n && typeof n.x === "number" && typeof n.y === "number") graphNodes[k] = { x: n.x, y: n.y };
+        });
+      }
+      if (Array.isArray(d.edges)) {
+        d.edges.forEach(e => {
+          if (e && e.from && e.to) graphEdges.push({
+            id: e.id || ("ge_" + Math.random().toString(36).slice(2, 9)),
+            from: String(e.from), to: String(e.to),
+            comment: String(e.comment || ""), kind: e.kind === "variant" ? "variant" : "prereq"
+          });
+        });
+      }
+    }
+    graphLoaded = true;
+  } catch (e) { console.warn("graph load", e); }
+}
+function setGraphSaveState(state) {
+  const el = $("graphSaveState"); if (!el) return;
+  if (state === "saving") { el.textContent = "Saving…"; el.className = "graph-save-state dirty"; }
+  else if (state === "saved") { el.textContent = "✓ All changes saved"; el.className = "graph-save-state saved"; }
+  else if (state === "dirty") { el.textContent = "Unsaved changes"; el.className = "graph-save-state dirty"; }
+  else { el.textContent = ""; el.className = "graph-save-state"; }
+}
+function scheduleGraphSave() {
+  if (!canManageQuestions()) return;
+  setGraphSaveState("dirty");
+  clearTimeout(_graphSaveTimer);
+  _graphSaveTimer = setTimeout(saveQuestionGraphNow, 800);
+}
+async function saveQuestionGraphNow() {
+  if (!canManageQuestions() || !currentUser) return;
+  const ref = graphDocRef(); if (!ref) return;
+  setGraphSaveState("saving");
+  try {
+    await setDoc(ref, { nodes: graphNodes, edges: graphEdges, updatedAt: new Date().toISOString() });
+    setGraphSaveState("saved");
+  } catch (e) { console.warn("graph save", e); setGraphSaveState("dirty"); toast("Couldn't save the board: " + (e.message || e), "error"); }
+}
+
+// ---- Geometry ----
+// Point where the segment from a rect's centre toward (tx,ty) crosses its edge.
+function graphRectEdgePoint(cx, cy, w, h, tx, ty) {
+  const dx = tx - cx, dy = ty - cy;
+  if (!dx && !dy) return { x: cx, y: cy };
+  const hw = w / 2, hh = h / 2;
+  const s = 1 / Math.max(Math.abs(dx) / hw, Math.abs(dy) / hh);
+  return { x: cx + dx * s, y: cy + dy * s };
+}
+function graphApplyTransform() {
+  const w = $("graphWorld");
+  if (w) w.style.transform = "translate(" + graphPan.x + "px," + graphPan.y + "px) scale(" + graphZoom + ")";
+  const vp = $("graphViewport");
+  if (vp) { const s = 26 * graphZoom; vp.style.backgroundSize = s + "px " + s + "px"; vp.style.backgroundPosition = graphPan.x + "px " + graphPan.y + "px"; }
+}
+function graphUpdateZoomLabel() { const el = $("graphZoomLabel"); if (el) el.textContent = Math.round(graphZoom * 100) + "%"; }
+function graphZoomAt(mx, my, factor) {
+  const wx = (mx - graphPan.x) / graphZoom, wy = (my - graphPan.y) / graphZoom;
+  const nz = graphClamp(graphZoom * factor, 0.2, 2.5);
+  graphPan.x = mx - wx * nz; graphPan.y = my - wy * nz; graphZoom = nz;
+  graphApplyTransform(); graphUpdateZoomLabel();
+}
+function graphZoomBy(factor) { const vp = $("graphViewport"); if (vp) graphZoomAt(vp.clientWidth / 2, vp.clientHeight / 2, factor); }
+function graphFit() {
+  const vp = $("graphViewport"); if (!vp) return;
+  const ids = Object.keys(graphNodes).filter(id => graphNodeEls[id]);
+  if (!ids.length) { graphZoom = 1; graphPan.x = vp.clientWidth / 2 - 122; graphPan.y = vp.clientHeight / 2 - 80; graphApplyTransform(); graphUpdateZoomLabel(); return; }
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  ids.forEach(id => {
+    const n = graphNodes[id], el = graphNodeEls[id];
+    minX = Math.min(minX, n.x); minY = Math.min(minY, n.y);
+    maxX = Math.max(maxX, n.x + el.offsetWidth); maxY = Math.max(maxY, n.y + el.offsetHeight);
+  });
+  const pad = 70, bw = (maxX - minX) + pad * 2, bh = (maxY - minY) + pad * 2;
+  graphZoom = graphClamp(Math.min(vp.clientWidth / bw, vp.clientHeight / bh), 0.2, 1.3);
+  graphPan.x = (vp.clientWidth - (maxX - minX) * graphZoom) / 2 - minX * graphZoom;
+  graphPan.y = (vp.clientHeight - (maxY - minY) * graphZoom) / 2 - minY * graphZoom;
+  graphApplyTransform(); graphUpdateZoomLabel();
+}
+
+// ---- Rendering ----
+function graphPruneMissing() {
+  let changed = false;
+  Object.keys(graphNodes).forEach(id => { if (!graphFindQ(id)) { delete graphNodes[id]; changed = true; } });
+  const before = graphEdges.length;
+  graphEdges = graphEdges.filter(e => graphNodes[e.from] && graphNodes[e.to]);
+  if (graphEdges.length !== before) changed = true;
+  if (changed) scheduleGraphSave();
+}
+function graphBuildNodeEl(q, id) {
+  const el = document.createElement("div");
+  el.className = "gnode" + (graphLinkSourceId === id ? " linking-source" : "");
+  el.dataset.id = id;
+  const topic = studentTopicsLabel(q) || "";
+  let snip = graphPlainText(q.blocks); if (!snip) snip = "(diagram-based question)";
+  if (snip.length > 150) snip = snip.slice(0, 150) + "…";
+  const armed = graphLinkSourceId === id ? " armed" : "";
+  el.innerHTML =
+    '<div class="gnode-head">' +
+      '<span class="gnode-level">' + escapeHtml(q.level || "—") + '</span>' +
+      '<span class="gnode-title">' + escapeHtml(q.title || "Untitled") + '</span>' +
+    '</div>' +
+    '<div class="gnode-body">' +
+      (topic ? '<div class="gnode-topic"><span class="chip topic">' + escapeHtml(topic) + '</span></div>' : '') +
+      '<div class="gnode-snippet">' + escapeHtml(snip) + '</div>' +
+    '</div>' +
+    '<div class="gnode-foot">' +
+      '<button class="gnode-act" data-act="preview" title="Preview the question (eye)">👁</button>' +
+      '<button class="gnode-act" data-act="duplicate" title="Duplicate this question onto the board">⧉</button>' +
+      '<button class="gnode-act" data-act="regen" title="Regenerate a fresh AI variant">✨</button>' +
+      '<span class="spacer"></span>' +
+      '<button class="gnode-act link' + armed + '" data-act="link" title="Draw a prerequisite link from this question">🔗</button>' +
+      '<button class="gnode-act del" data-act="remove" title="Remove from board">✕</button>' +
+    '</div>';
+  el.addEventListener("pointerdown", e => graphOnNodePointerDown(e, el));
+  el.addEventListener("click", e => graphOnNodeClick(e, el));
+  return el;
+}
+function renderGraph() {
+  const world = $("graphWorld"); if (!world) return;
+  if (canManageQuestions()) graphPruneMissing();
+  Array.from(world.querySelectorAll(".gnode")).forEach(n => n.remove());
+  graphNodeEls = {};
+  let count = 0;
+  Object.keys(graphNodes).forEach(id => {
+    const q = graphFindQ(id); if (!q) return;
+    const el = graphBuildNodeEl(q, id);
+    el.style.left = graphNodes[id].x + "px"; el.style.top = graphNodes[id].y + "px";
+    world.appendChild(el); graphNodeEls[id] = el; count++;
+  });
+  const empty = $("graphEmpty"); if (empty) empty.style.display = count ? "none" : "flex";
+  graphRedrawEdges();
+  graphApplyTransform(); graphUpdateZoomLabel();
+}
+function graphRedrawEdges() {
+  const svg = $("graphEdges"), world = $("graphWorld"); if (!svg || !world) return;
+  Array.from(svg.querySelectorAll(".graph-edge")).forEach(n => n.remove());
+  Array.from(world.querySelectorAll(".gedge-label")).forEach(n => n.remove());
+  const NS = "http://www.w3.org/2000/svg";
+  graphEdges.forEach(e => {
+    const aEl = graphNodeEls[e.from], bEl = graphNodeEls[e.to], a = graphNodes[e.from], b = graphNodes[e.to];
+    if (!aEl || !bEl || !a || !b) return;
+    const aw = aEl.offsetWidth, ah = aEl.offsetHeight, bw = bEl.offsetWidth, bh = bEl.offsetHeight;
+    const acx = a.x + aw / 2, acy = a.y + ah / 2, bcx = b.x + bw / 2, bcy = b.y + bh / 2;
+    const start = graphRectEdgePoint(acx, acy, aw, ah, bcx, bcy);
+    const end = graphRectEdgePoint(bcx, bcy, bw, bh, acx, acy);
+    const dx = end.x - start.x, dy = end.y - start.y, len = Math.hypot(dx, dy) || 1;
+    const off = Math.min(40, len * 0.08), nx = -dy / len, ny = dx / len;
+    const mx = (start.x + end.x) / 2, my = (start.y + end.y) / 2;
+    const ctrlx = mx + nx * off, ctrly = my + ny * off;
+    const labelx = 0.25 * start.x + 0.5 * ctrlx + 0.25 * end.x;
+    const labely = 0.25 * start.y + 0.5 * ctrly + 0.25 * end.y;
+    const d = "M " + start.x + " " + start.y + " Q " + ctrlx + " " + ctrly + " " + end.x + " " + end.y;
+    const variant = (e.kind === "variant");
+    const g = document.createElementNS(NS, "g");
+    g.setAttribute("class", "graph-edge" + (variant ? " variant" : "")); g.dataset.edge = e.id;
+    const hit = document.createElementNS(NS, "path"); hit.setAttribute("class", "graph-edge-hit"); hit.setAttribute("d", d); g.appendChild(hit);
+    const line = document.createElementNS(NS, "path"); line.setAttribute("class", "graph-edge-line"); line.setAttribute("d", d);
+    line.setAttribute("marker-end", variant ? "url(#graphArrowV)" : "url(#graphArrow)"); g.appendChild(line);
+    svg.appendChild(g);
+    const lab = document.createElement("div");
+    lab.className = "gedge-label" + (e.comment ? "" : " empty") + (variant ? " variant" : "");
+    lab.dataset.edge = e.id; lab.style.left = labelx + "px"; lab.style.top = labely + "px";
+    lab.textContent = e.comment || "+ add note"; lab.title = e.comment || "Add a note to this prerequisite link";
+    lab.addEventListener("click", ev => { ev.stopPropagation(); graphOpenEdgeEditor(e.id); });
+    world.appendChild(lab);
+  });
+}
+function renderGraphPage() {
+  if (!canManageQuestions()) return;
+  renderGraph();
+  if (!graphViewInit) { graphViewInit = true; graphFit(); }
+}
+
+// ---- Node interactions ----
+function graphOnNodePointerDown(e, node) {
+  if (e.target.closest(".gnode-act")) return;          // buttons handled on click
+  if (e.pointerType === "mouse" && e.button !== 0) return;
+  const id = node.dataset.id;
+  if (graphLinkSourceId) { e.preventDefault(); e.stopPropagation(); graphCompleteLink(id); return; }
+  e.preventDefault(); e.stopPropagation();
+  const start = graphNodes[id] || { x: 0, y: 0 };
+  const sx = e.clientX, sy = e.clientY; let moved = false;
+  try { node.setPointerCapture(e.pointerId); } catch (_) {}
+  function mv(ev) {
+    const ndx = (ev.clientX - sx) / graphZoom, ndy = (ev.clientY - sy) / graphZoom;
+    if (Math.abs(ndx) + Math.abs(ndy) > 2) moved = true;
+    graphNodes[id] = { x: Math.round(start.x + ndx), y: Math.round(start.y + ndy) };
+    node.style.left = graphNodes[id].x + "px"; node.style.top = graphNodes[id].y + "px";
+    graphRedrawEdges();
+  }
+  function up() {
+    try { node.releasePointerCapture(e.pointerId); } catch (_) {}
+    node.removeEventListener("pointermove", mv); node.removeEventListener("pointerup", up); node.removeEventListener("pointercancel", up);
+    if (moved) scheduleGraphSave();
+  }
+  node.addEventListener("pointermove", mv); node.addEventListener("pointerup", up); node.addEventListener("pointercancel", up);
+}
+function graphOnNodeClick(e, node) {
+  const b = e.target.closest(".gnode-act"); if (!b) return;
+  e.stopPropagation();
+  const id = node.dataset.id, act = b.dataset.act;
+  if (act === "preview") { const q = graphFindQ(id); if (q) openQuestionPreview(q, "Question preview"); }
+  else if (act === "duplicate") graphDuplicateNode(id);
+  else if (act === "regen") graphRegenerateNode(id);
+  else if (act === "link") graphToggleLink(id);
+  else if (act === "remove") graphRemoveNode(id);
+}
+
+// ---- Linking ----
+function graphToggleLink(id) {
+  if (graphLinkSourceId) { if (graphLinkSourceId === id) graphCancelLink(); else graphCompleteLink(id); }
+  else graphStartLink(id);
+}
+function graphStartLink(id) {
+  graphLinkSourceId = id;
+  const vp = $("graphViewport"); if (vp) vp.classList.add("linking");
+  const q = graphFindQ(id), t = $("graphLinkBannerText");
+  if (t) t.textContent = "“" + ((q && q.title) || "This question") + "” → click the question that needs it as a prerequisite";
+  renderGraph();
+}
+function graphCancelLink() {
+  graphLinkSourceId = null;
+  const vp = $("graphViewport"); if (vp) vp.classList.remove("linking");
+  renderGraph();
+}
+function graphCompleteLink(targetId) {
+  const src = graphLinkSourceId;
+  graphCancelLink();
+  if (!src || !targetId || src === targetId) return;
+  const e = graphAddEdge(src, targetId, "", "prereq");
+  renderGraph(); scheduleGraphSave();
+  if (e) graphOpenEdgeEditor(e.id);
+}
+function graphAddEdge(fromId, toId, comment, kind) {
+  if (!fromId || !toId || fromId === toId) return null;
+  let e = graphEdges.find(x => x.from === fromId && x.to === toId);
+  if (e) { if (comment) e.comment = comment; if (kind) e.kind = kind; return e; }
+  e = { id: "ge_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6), from: fromId, to: toId, comment: comment || "", kind: kind || "prereq" };
+  graphEdges.push(e); return e;
+}
+
+// ---- Edge note editor ----
+function graphOpenEdgeEditor(edgeId) {
+  const e = graphEdges.find(x => x.id === edgeId); if (!e) return;
+  graphEditingEdgeId = edgeId;
+  const a = graphFindQ(e.from), b = graphFindQ(e.to);
+  const an = escapeHtml((a && a.title) || "This question"), bn = escapeHtml((b && b.title) || "that question");
+  const rel = e.kind === "variant"
+    ? "<b>" + an + "</b> and <b>" + bn + "</b> are variants of the same skill."
+    : "<b>" + an + "</b> is a prerequisite of <b>" + bn + "</b>.";
+  const sum = $("graphEdgeSummary");
+  sum.innerHTML = rel + ' <button class="btn btn-ghost btn-sm" id="graphEdgeSwapBtn" type="button" style="margin-top:10px;">⇄ Swap direction</button>';
+  $("graphEdgeComment").value = e.comment || "";
+  $("graphEdgeOverlay").classList.add("show");
+  const swap = $("graphEdgeSwapBtn");
+  if (swap) swap.addEventListener("click", () => { const t = e.from; e.from = e.to; e.to = t; renderGraph(); scheduleGraphSave(); graphOpenEdgeEditor(edgeId); });
+}
+function graphSaveEdgeNote() {
+  const e = graphEdges.find(x => x.id === graphEditingEdgeId);
+  if (e) { e.comment = $("graphEdgeComment").value.trim(); renderGraph(); scheduleGraphSave(); }
+  closeOverlay("graphEdgeOverlay");
+}
+function graphDeleteEdge() {
+  graphEdges = graphEdges.filter(x => x.id !== graphEditingEdgeId);
+  graphEditingEdgeId = null;
+  renderGraph(); scheduleGraphSave();
+  closeOverlay("graphEdgeOverlay");
+}
+
+// ---- Add / duplicate / regenerate / remove ----
+function graphViewCenterWorld() {
+  const vp = $("graphViewport");
+  const n = Object.keys(graphNodes).length;
+  return {
+    x: Math.round((vp.clientWidth / 2 - graphPan.x) / graphZoom - 122 + (n % 6) * 18),
+    y: Math.round((vp.clientHeight / 2 - graphPan.y) / graphZoom - 70 + (n % 6) * 18)
+  };
+}
+function graphOpenPicker() {
+  const s = $("graphPickerSearch"); if (s) s.value = "";
+  graphRenderPicker("");
+  $("graphPickerOverlay").classList.add("show");
+  setTimeout(() => { if (s) s.focus(); }, 50);
+}
+function graphRenderPicker(term) {
+  term = (term || "").toLowerCase().trim();
+  const list = $("graphPickerList"); if (!list) return;
+  const onBoard = new Set(Object.keys(graphNodes));
+  const items = (questionBank || []).filter(q => q && !onBoard.has(q.id))
+    .filter(q => !term || ((q.title || "") + " " + (q.level || "") + " " + (q.topic || "")).toLowerCase().includes(term));
+  if (!items.length) {
+    list.innerHTML = '<div class="graph-picker-empty">' + (onBoard.size && !term ? "Every question is already on the board." : "No matching questions.") + '</div>';
+    return;
+  }
+  list.innerHTML = "";
+  items.slice(0, 200).forEach(q => {
+    const it = document.createElement("button");
+    it.type = "button"; it.className = "graph-picker-item";
+    it.innerHTML = '<span class="gp-title">' + escapeHtml(q.title || "Untitled") + '</span>' +
+      '<span class="gp-meta">' + escapeHtml([q.level, studentTopicsLabel(q)].filter(Boolean).join(" · ")) + '</span>';
+    it.addEventListener("click", () => graphAddNodeFromPicker(q.id));
+    list.appendChild(it);
+  });
+}
+function graphAddNodeFromPicker(id) {
+  if (graphNodes[id]) return;
+  graphNodes[id] = graphViewCenterWorld();
+  renderGraph(); scheduleGraphSave();
+  graphRenderPicker(($("graphPickerSearch") || {}).value || "");
+}
+async function graphDuplicateNode(id) {
+  if (!canManageQuestions()) { toast("Only admin accounts can duplicate questions", "error"); return; }
+  const q = graphFindQ(id); if (!q) return;
+  const copy = JSON.parse(JSON.stringify(q));
+  copy.id = "mq_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
+  copy.title = (q.title || "Question") + " (copy)";
+  copy.variantOf = q.variantOf || q.id;
+  copy.createdAt = new Date().toISOString();
+  copy.createdBy = currentUser ? currentUser.name : "Admin";
+  try {
+    await saveQuestionDoc(copy);
+    questionBank.push(copy);
+    const src = graphNodes[id] || { x: 0, y: 0 };
+    graphNodes[copy.id] = { x: src.x + 70, y: src.y + 150 };
+    graphAddEdge(id, copy.id, "Variant — same skill, fresh practice", "variant");
+    renderGraph(); scheduleGraphSave();
+    toast("Duplicated — added to the board and linked", "success");
+  } catch (e) { console.error(e); toast("Duplicate failed: " + (e.message || e), "error"); }
+}
+function graphRegenerateNode(id) {
+  if (!canManageQuestions()) { toast("Only admin accounts can regenerate questions", "error"); return; }
+  if (!graphFindQ(id)) return;
+  editQuestion(id);                       // load into the editor + navigate to Create
+  graphPendingSpawn = { sourceId: id };   // after the admin saves it, add+link on the board
+  regenerateQuestionVariant();            // kick off the AI variant (reads the loaded editor)
+}
+// Called from the editor save handler: a freshly-saved AI variant spawned from
+// a board node gets added next to its source and linked as a variant.
+function graphOnQuestionSaved(q, isNew) {
+  if (graphPendingSpawn && isNew && q) {
+    const src = graphPendingSpawn.sourceId; graphPendingSpawn = null;
+    const s = graphNodes[src] || { x: 0, y: 0 };
+    graphNodes[q.id] = { x: s.x + 70, y: s.y + 160 };
+    graphAddEdge(src, q.id, "AI variant — same skill, fresh numbers", "variant");
+    scheduleGraphSave();
+    toast("Variant added to the Dependency Board", "success");
+  }
+  if (graphNodes[q.id] && $("page-graph") && $("page-graph").classList.contains("active")) renderGraph();
+}
+function graphRemoveNode(id) {
+  if (!confirm("Remove this question from the board? The question itself stays in your bank.")) return;
+  delete graphNodes[id];
+  graphEdges = graphEdges.filter(e => e.from !== id && e.to !== id);
+  if (graphLinkSourceId === id) graphCancelLink();
+  renderGraph(); scheduleGraphSave();
+}
+function graphTidy() {
+  const ids = Object.keys(graphNodes); if (!ids.length) return;
+  const depth = {}, visiting = {};
+  function dep(id) {
+    if (depth[id] != null) return depth[id];
+    if (visiting[id]) return 0;            // break cycles
+    visiting[id] = true;
+    let d = 0;
+    graphPrereqsOf(id).filter(p => graphNodes[p]).forEach(p => { d = Math.max(d, dep(p) + 1); });
+    visiting[id] = false; depth[id] = d; return d;
+  }
+  ids.forEach(dep);
+  const cols = {};
+  ids.forEach(id => { (cols[depth[id]] = cols[depth[id]] || []).push(id); });
+  const COLW = 300, ROWH = 175, X0 = 80, Y0 = 80;
+  Object.keys(cols).map(Number).sort((a, b) => a - b).forEach(d => {
+    cols[d].forEach((id, i) => { graphNodes[id] = { x: X0 + d * COLW, y: Y0 + i * ROWH }; });
+  });
+  renderGraph(); scheduleGraphSave(); graphFit();
+}
+
+// ---- Viewport pan / zoom ----
+function graphOnViewportPointerDown(e) {
+  if (e.target.closest(".gnode") || e.target.closest(".gedge-label") || e.target.closest(".graph-edge") || e.target.closest(".graph-link-banner")) return;
+  if (graphLinkSourceId) { graphCancelLink(); return; }
+  if (e.pointerType === "mouse" && e.button !== 0) return;
+  const vp = $("graphViewport");
+  e.preventDefault(); vp.classList.add("panning");
+  try { vp.setPointerCapture(e.pointerId); } catch (_) {}
+  const sx = e.clientX, sy = e.clientY, px = graphPan.x, py = graphPan.y;
+  function mv(ev) { graphPan.x = px + (ev.clientX - sx); graphPan.y = py + (ev.clientY - sy); graphApplyTransform(); }
+  function up() {
+    vp.classList.remove("panning");
+    try { vp.releasePointerCapture(e.pointerId); } catch (_) {}
+    vp.removeEventListener("pointermove", mv); vp.removeEventListener("pointerup", up); vp.removeEventListener("pointercancel", up);
+  }
+  vp.addEventListener("pointermove", mv); vp.addEventListener("pointerup", up); vp.addEventListener("pointercancel", up);
+}
+function graphOnWheel(e) {
+  e.preventDefault();
+  const r = $("graphViewport").getBoundingClientRect();
+  graphZoomAt(e.clientX - r.left, e.clientY - r.top, e.deltaY < 0 ? 1.1 : 1 / 1.1);
+}
+
+// ---- AI practice integration: serve a prerequisite on a miss ----
+function graphBestPrerequisiteToServe(q) {
+  const cands = graphPrereqsOf(q.id).map(id => questionBank.find(x => x && x.id === id)).filter(Boolean)
+    .filter(x => !questionMastered(studentProgress[x.id]));
+  if (!cands.length) return null;
+  cands.sort((a, b) => {
+    const pa = studentProgress[a.id] || {}, pb = studentProgress[b.id] || {};
+    const wa = pa.wrongCount || 0, wb = pb.wrongCount || 0;
+    if (wa !== wb) return wb - wa;
+    return (pa.attempts || 0) - (pb.attempts || 0);
+  });
+  return cands[0];
+}
+function maybeServePrerequisiteOnMiss(q, v) {
+  if (!aiPracticeActive || !q) return false;
+  if (String((v && v.verdict) || "").toLowerCase() === "correct") return false;
+  const pre = graphBestPrerequisiteToServe(q);
+  if (!pre) return false;
+  const idx = questionBank.findIndex(x => x.id === pre.id);
+  if (idx !== -1) questionBank.splice(idx, 1);
+  qIndex = questionBank.findIndex(x => x.id === q.id); if (qIndex < 0) qIndex = 0;
+  questionBank.splice(qIndex + 1, 0, pre);
+  aiPracticeStats.prereq = (aiPracticeStats.prereq || 0) + 1;
+  renderAiPracticeBar();
+  toast("Let's shore up a prerequisite skill first ⛏️", "");
+  return true;
+}
+
+// ---- Wiring (DOM is ready: this module is deferred) ----
+(function wireDependencyBoard() {
+  const vp = $("graphViewport"); if (!vp) return;
+  vp.addEventListener("wheel", graphOnWheel, { passive: false });
+  vp.addEventListener("pointerdown", graphOnViewportPointerDown);
+  const on = (id, fn) => { const el = $(id); if (el) el.addEventListener("click", fn); };
+  on("graphAddBtn", graphOpenPicker);
+  on("graphTidyBtn", graphTidy);
+  on("graphFitBtn", graphFit);
+  on("graphZoomIn", () => graphZoomBy(1.2));
+  on("graphZoomOut", () => graphZoomBy(1 / 1.2));
+  on("graphLinkCancel", graphCancelLink);
+  on("graphEdgeSaveBtn", graphSaveEdgeNote);
+  on("graphEdgeDeleteBtn", graphDeleteEdge);
+  const edges = $("graphEdges");
+  if (edges) edges.addEventListener("click", e => { const g = e.target.closest(".graph-edge"); if (g) graphOpenEdgeEditor(g.dataset.edge); });
+  const search = $("graphPickerSearch");
+  if (search) search.addEventListener("input", e => graphRenderPicker(e.target.value));
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && graphLinkSourceId) graphCancelLink(); });
+})();
 </script>
 <div class="app-version" id="appVersion" title="App build version"></div>
 </body>

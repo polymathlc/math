@@ -108,6 +108,15 @@ service cloud.firestore {
         allow read, write: if isOwner(uid) || isAdmin();
       }
 
+      // Dependency Board: question prerequisite map (node positions + edges).
+      // Any signed-in user may read it (the practice flow uses the edges to
+      // route students through prerequisite skills); only the owning admin
+      // writes it. The marking function reads it through the Admin SDK.
+      match /mathQuestionGraph/{docId} {
+        allow read: if signedIn();
+        allow write: if isAdmin() && isOwner(uid);
+      }
+
       // Marking outcomes — server-written, read-only for clients.
       match /mathQuestionProgress/{qid} {
         allow read: if isOwner(uid) || isAdmin();
