@@ -458,10 +458,11 @@ async function studentLearningPreamble(uid, isAdmin) {
     `${notes.length ? "Recent notes: " + notes.join(" | ") + ". " : ""}` +
     `Use this to adapt hints and feedback, but do not reveal hidden weakness labels to the student.\n`;
 }
-// Prerequisite skills for this question, drawn from the teacher's Dependency
-// Board (users/{adminUid}/mathQuestionGraph/main: edges where `to` is this
-// question and kind is "prereq"). Lets the AI trace a struggling student's
-// mistakes back to a named prerequisite skill and steer them there.
+// Related questions for this one, drawn from the teacher's Dependency Board
+// (users/{adminUid}/mathQuestionGraph/main). Surfaces PREREQUISITES (skills
+// needed first) and EASIER VERSIONS (a gentler question on the same concept)
+// so the AI can trace a struggling student's mistakes to a named prerequisite
+// or steer them to an easier version. Legacy edges used kind "variant".
 async function prerequisiteNote(adminUid, q) {
   if (!adminUid || !q || !q.id) return "";
   try {
@@ -469,20 +470,28 @@ async function prerequisiteNote(adminUid, q) {
     if (!snap.exists) return "";
     const edges = (snap.data() || {}).edges;
     if (!Array.isArray(edges)) return "";
-    const pres = edges.filter(e => e && e.to === q.id && (e.kind || "prereq") === "prereq").slice(0, 6);
-    if (!pres.length) return "";
-    const items = await Promise.all(pres.map(async (e) => {
-      let title = "";
-      try {
-        const ps = await db.doc(`users/${adminUid}/mathQuestions/${e.from}`).get();
-        if (ps.exists) title = String((ps.data() || {}).title || "");
-      } catch (_) { /* skip unreadable prerequisite */ }
-      const note = String(e.comment || "").trim();
-      const base = title || "an earlier question";
-      return note ? `${base} (${note})` : base;
-    }));
-    return `Teacher's prerequisite map for this question: ${items.join("; ")}. ` +
-      `If the student's mistakes trace back to one of these prerequisite skills, name that skill in your guidance and gently steer them to practise it first.\n`;
+    const kindOf = (e) => (e && e.kind === "variant") ? "duplicate" : ((e && e.kind) || "prereq");
+    // Prerequisites: edges pointing INTO this question with kind "prereq".
+    const prereqEdges = edges.filter(e => e && e.to === q.id && kindOf(e) === "prereq").slice(0, 6);
+    // Easier versions: "this -> X easier" or "X -> this harder".
+    const easierEdges = edges.filter(e => e &&
+      ((e.from === q.id && kindOf(e) === "easier") || (e.to === q.id && kindOf(e) === "harder"))).slice(0, 4);
+    if (!prereqEdges.length && !easierEdges.length) return "";
+    const titleOf = async (id) => {
+      try { const ps = await db.doc(`users/${adminUid}/mathQuestions/${id}`).get(); if (ps.exists) return String((ps.data() || {}).title || ""); } catch (_) {}
+      return "";
+    };
+    const describe = async (e, otherId) => {
+      const t = await titleOf(otherId); const note = String((e && e.comment) || "").trim();
+      const base = t || "another question"; return note ? `${base} (${note})` : base;
+    };
+    const prereqs = await Promise.all(prereqEdges.map(e => describe(e, e.from)));
+    const easier = await Promise.all(easierEdges.map(e => describe(e, e.from === q.id ? e.to : e.from)));
+    let out = "Teacher's question map for this one. ";
+    if (prereqs.length) out += `Prerequisite skills (practise these first if the mistake is foundational): ${prereqs.join("; ")}. `;
+    if (easier.length) out += `Easier version(s) to fall back on if the student is overwhelmed: ${easier.join("; ")}. `;
+    out += "When the student struggles, name the specific prerequisite skill or point them to the easier version, but do not reveal answers.\n";
+    return out;
   } catch (_) { return ""; }
 }
 
