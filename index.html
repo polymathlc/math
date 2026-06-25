@@ -982,8 +982,11 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .graph-spawn-menu button { display: flex; gap: 9px; align-items: flex-start; width: 100%; border: 0; background: transparent; text-align: left; padding: 9px 10px; border-radius: var(--radius-sm); cursor: pointer; font-family: inherit; }
 .graph-spawn-menu button:hover { background: var(--surface-alt); }
 .graph-spawn-menu .sm-ico { font-size: 1.05rem; line-height: 1.1; }
-.graph-spawn-menu .sm-title { font-weight: 600; font-size: 0.86rem; color: var(--text); }
-.graph-spawn-menu .sm-sub { font-size: 0.72rem; color: var(--text-muted); line-height: 1.3; }
+.graph-spawn-menu .sm-title { display: block; font-weight: 600; font-size: 0.86rem; color: var(--text); }
+.graph-spawn-menu .sm-sub { display: block; font-size: 0.72rem; color: var(--text-muted); line-height: 1.3; }
+.regen-split { display: inline-flex; align-items: stretch; }
+.regen-split #regenQBtn { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.regen-split .regen-caret { border-top-left-radius: 0; border-bottom-left-radius: 0; border-left: 0; padding: 11px 9px; }
 @media (max-width: 720px) { .gnode { width: 210px; } .graph-toolbar .graph-title small { display: none; } }
 </style>
 </head>
@@ -1209,7 +1212,10 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
         <div style="flex:1;"><h3 id="createHeading">Create Question</h3><p>Add a math question for your students. They'll see it on the practice pad.</p></div>
         <button class="btn btn-ghost" id="previewCreateBtn">👁️ Preview in practice</button>
         <button class="btn btn-ghost" id="aiBuildBtn">✨ Build with AI</button>
-        <button class="btn btn-ghost" id="regenQBtn" title="Make a fresh variant of the question in the editor — different names, objects and numbers — then a second AI pass checks the numbers make sense and writes the verified answer key"><span id="regenQLabel">🔄 Regenerate variant</span></button>
+        <span class="regen-split">
+          <button class="btn btn-ghost" id="regenQBtn" title="Make a fresh variant of the question in the editor — different names, objects and numbers — then a second AI pass checks the numbers make sense and writes the verified answer key"><span id="regenQLabel">🔄 Regenerate variant</span></button>
+          <button class="btn btn-ghost regen-caret" id="regenQCaret" type="button" title="Choose difficulty: same level, easier, or harder" aria-haspopup="true">▾</button>
+        </span>
         <button class="btn btn-ghost" id="checkAiBtn" title="Check with AI — a second AI pass re-solves the question and judges whether the scenario, working and answer make sense together (e.g. it flags a decimal or fraction count of objects/people that should be a whole number) and shows a red / amber / green light"><span id="checkAiLabel">🚦 Check with AI</span></button>
       </div>
       <div class="card card-pad">
@@ -1404,12 +1410,11 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
           <div class="graph-world" id="graphWorld">
             <svg class="graph-edges" id="graphEdges">
               <defs>
-                <marker id="graphArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-                  <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent-blue)"></path>
-                </marker>
-                <marker id="graphArrowV" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-                  <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent-purple)"></path>
-                </marker>
+                <marker id="arrowPrereq" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#4a6fa5"></path></marker>
+                <marker id="arrowHarder" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#d94f4f"></path></marker>
+                <marker id="arrowEasier" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#3a9e5f"></path></marker>
+                <marker id="arrowConcept" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#7b5ea7"></path></marker>
+                <marker id="arrowDup" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#d4882a"></path></marker>
               </defs>
             </svg>
           </div>
@@ -1540,6 +1545,15 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
     <div class="overlay-head"><h3>Prerequisite link</h3><button class="close" data-close="graphEdgeOverlay">×</button></div>
     <div class="overlay-body">
       <div id="graphEdgeSummary" style="font-size:0.88rem;color:var(--text-muted);line-height:1.5;margin-bottom:14px;"></div>
+      <div class="editor-field"><label>Relationship</label>
+        <select id="graphEdgeType">
+          <option value="prereq">🔗 Prerequisite — A is needed before B</option>
+          <option value="easier">🪜 Easier version of B</option>
+          <option value="harder">🔥 Harder version of B</option>
+          <option value="same-concept">🧩 Same concept</option>
+          <option value="duplicate">⧉ Duplicate question</option>
+        </select>
+      </div>
       <div class="editor-field"><label>Note on this arrow</label><textarea id="graphEdgeComment" style="min-height:84px;" placeholder="e.g. Master fraction addition before attempting this word problem"></textarea></div>
     </div>
     <div class="overlay-foot">
@@ -2417,13 +2431,16 @@ function renderAiPracticeBar() {
   if (!bar) return;
   if (!aiPracticeActive) { bar.style.display = "none"; bar.innerHTML = ""; return; }
   const rating = Math.round(studentEloValue());
-  const r = aiPracticeStats.review || 0, g = aiPracticeStats.growth || 0, vCount = aiPracticeStats.variants || 0, pCount = aiPracticeStats.prereq || 0;
+  const r = aiPracticeStats.review || 0, g = aiPracticeStats.growth || 0, vCount = aiPracticeStats.variants || 0, pCount = aiPracticeStats.prereq || 0, eCount = aiPracticeStats.easier || 0;
   const parts = [];
   if (r) parts.push(`<b>${r}</b> to review`);
   if (g) parts.push(`<b>${g}</b> in your growth zone`);
   let lead = parts.length ? parts.join(" + ") + "." : "questions matched to your rating.";
   lead += vCount ? ` Miss one and you'll get a variant to try again (${vCount} so far).` : " Miss one and you'll get a variant to try again.";
-  if (pCount) lead += ` Routed you to ${pCount} prerequisite skill${pCount === 1 ? "" : "s"} along the way.`;
+  const steps = [];
+  if (pCount) steps.push(`${pCount} prerequisite skill${pCount === 1 ? "" : "s"}`);
+  if (eCount) steps.push(`${eCount} easier version${eCount === 1 ? "" : "s"}`);
+  if (steps.length) lead += ` Stepped you back to ${steps.join(" and ")} along the way.`;
   bar.innerHTML = `🤖 <span>AI practice • rating <b>${rating}</b> — ${lead}</span>` +
     `<button class="btn btn-ghost btn-sm" id="aiPrintBtn" type="button" title="Print this practice set as PDF">🖨️ Print set</button>` +
     `<button class="ai-practice-close" id="aiPracticeCloseBtn" type="button" title="Exit AI practice">×</button>`;
@@ -4220,9 +4237,10 @@ async function verifyGeneratedQuestion(variant, media) {
   // fails with "Unexpected end of JSON input".
   return parseAIJson(await askGeminiVision(prompt, media, { maxOutputTokens: 4096, json: true, models: geminiRegenModels, modelNames: AI_REGEN_MODEL_NAMES, thinkingBudget: -1 }));
 }
-async function regenerateQuestionVariant() {
+async function regenerateQuestionVariant(difficulty = "same") {
   if (!canManageQuestions()) { toast("Only admin accounts can regenerate questions", "error"); return; }
   if (!aiReady()) { toast("AI isn't ready yet — please wait a moment", "error"); return; }
+  const diff = (difficulty === "easier" || difficulty === "harder") ? difficulty : "same";
   const q = collectQuestion();
   // The original this variant derives from (its root if the source is itself a
   // variant), recorded on the saved variant so practice can link them.
@@ -4241,8 +4259,13 @@ async function regenerateQuestionVariant() {
       `Question text:\n${sourceText || "(the question is carried by the attached diagram)"}\n` +
       (q.expected ? `Original final answer (reference only — recompute your own): ${q.expected}\n` : "") +
       (q.markingGuide ? `Original marking guide (reference only): ${q.markingGuide}\n` : "") +
-      `\nCreate a NEW version of THE SAME question that tests the exact same concept, method, structure, number of steps and difficulty, ` +
-      `but is clearly different: change the people's names, the objects/context, and the numbers, quantities and proportions WHERE IT MAKES SENSE. ` +
+      `\n` + (
+        diff === "easier"
+          ? `Create a NEW, noticeably EASIER version of this question that tests the SAME topic, concept and method but is more accessible: reduce the number of steps, use smaller and simpler numbers, and make the path to the answer more direct. Change the people's names, the objects/context and the numbers. `
+          : diff === "harder"
+          ? `Create a NEW, noticeably HARDER version of this question that tests the SAME topic, concept and method but is more challenging: add an extra step or two, use larger or less convenient numbers, or add a small additional twist — without drifting to a different topic or concept. Change the people's names, the objects/context and the numbers. `
+          : `Create a NEW version of THE SAME question that tests the exact same concept, method, structure, number of steps and difficulty, but is clearly different: change the people's names, the objects/context, and the numbers, quantities and proportions WHERE IT MAKES SENSE. `
+      ) +
       `Keep the numbers clean and realistic so everything still works out neatly, and keep the wording natural.\n` +
       (hasDiagram
         ? `IMPORTANT: this question relies on a figure/diagram that you CANNOT redraw, so the diagram stays exactly as it is${diagramUrl ? " (it is attached)" : ""}. ` +
@@ -4324,8 +4347,9 @@ async function regenerateQuestionVariant() {
     clearCheckAiPanel();
     navigateTo("create");
 
-    if (verified) toast("New variant ready — a second AI pass checked the numbers and wrote the verified answer key. Review and save as a new question.", "success");
-    else toast("Variant ready, but the checker still flagged: " + lastIssues + " — please double-check the numbers before saving.", "error");
+    const diffWord = diff === "easier" ? "easier " : diff === "harder" ? "harder " : "";
+    if (verified) toast(`New ${diffWord}variant ready — a second AI pass checked the numbers and wrote the verified answer key. Review and save as a new question.`, "success");
+    else toast(`${diffWord ? diffWord.charAt(0).toUpperCase() + diffWord.slice(1) : ""}Variant ready, but the checker still flagged: ` + lastIssues + " — please double-check the numbers before saving.", "error");
   } catch (e) {
     console.error(e);
     toast("Regenerate failed: " + aiErrorMessage(e), "error");
@@ -4333,7 +4357,8 @@ async function regenerateQuestionVariant() {
     setRegenBusy(false);
   }
 }
-$("regenQBtn").addEventListener("click", regenerateQuestionVariant);
+$("regenQBtn").addEventListener("click", () => regenerateQuestionVariant("same"));
+$("regenQCaret").addEventListener("click", () => openDifficultyMenu($("regenQCaret"), d => regenerateQuestionVariant(d)));
 
 // =====================================================================
 // CHECK WITH AI — sanity-check the question currently in the editor and
@@ -6259,7 +6284,7 @@ $("submitBtn").addEventListener("click", async () => {
     const reviewPlan = await recordLearningAttempt(q, v, out.progress);
     try { rpgOnMarked(q, v, { server: out }); } catch (err) { console.warn("rpg reward", err); }
     showResult(v, png, reviewPlan, !!solutionMedia);
-    if (!maybeServePrerequisiteOnMiss(q, v)) maybeServeVariantOnMiss(q, v);
+    if (!maybeServePrerequisiteOnMiss(q, v) && !maybeServeEasierOnMiss(q, v)) maybeServeVariantOnMiss(q, v);
     const verdict = (v.verdict || "").toLowerCase();
     let markMsg = verdict === "correct" ? "Great work! 🎉" : "Marked — see the feedback";
     if (lastEloChange && currentUser && currentUser.role === "student") {
@@ -6280,7 +6305,7 @@ $("submitBtn").addEventListener("click", async () => {
         const reviewPlan = await recordLearningAttempt(q, v);
         try { rpgOnMarked(q, v, {}); } catch (err) { console.warn("rpg reward", err); }
         showResult(v, png, reviewPlan, !!solutionMedia);
-        if (!maybeServePrerequisiteOnMiss(q, v)) maybeServeVariantOnMiss(q, v);
+        if (!maybeServePrerequisiteOnMiss(q, v) && !maybeServeEasierOnMiss(q, v)) maybeServeVariantOnMiss(q, v);
         const verdict = (v.verdict || "").toLowerCase();
         toast((verdict === "correct" ? "Great work! 🎉" : "Marked — see the feedback") + " · marked on this device", verdict === "correct" ? "success" : "");
       } catch (e2) { console.error(e, e2); toast("AI mark error: " + serverErrorMessage(e2), "error"); }
@@ -10439,6 +10464,21 @@ const APP_VERSION = "v1.2.4 · 2026-06-23";
 // skills and shore up weaknesses. Persisted to
 // users/{adminUid}/mathQuestionGraph/main.
 // =====================================================================
+// Relationship types an arrow can record. `prereq` is the only one the AI
+// practice flow treats as a hard gate; the rest are relational metadata the
+// teacher (and the marking AI) can use. read(a,b) describes a -> b in words.
+const GRAPH_REL_TYPES = {
+  prereq:         { label: "Prerequisite",   color: "#4a6fa5", marker: "arrowPrereq",  dashed: false, read: (a, b) => `<b>${a}</b> is a prerequisite of <b>${b}</b>` },
+  harder:         { label: "Harder version", color: "#d94f4f", marker: "arrowHarder",  dashed: false, read: (a, b) => `<b>${b}</b> is a harder version of <b>${a}</b>` },
+  easier:         { label: "Easier version", color: "#3a9e5f", marker: "arrowEasier",  dashed: false, read: (a, b) => `<b>${b}</b> is an easier version of <b>${a}</b>` },
+  "same-concept": { label: "Same concept",   color: "#7b5ea7", marker: "arrowConcept", dashed: true,  read: (a, b) => `<b>${a}</b> and <b>${b}</b> test the same concept` },
+  duplicate:      { label: "Duplicate",      color: "#d4882a", marker: "arrowDup",     dashed: true,  read: (a, b) => `<b>${a}</b> and <b>${b}</b> are duplicate questions` },
+};
+function graphRelCfg(kind) { return GRAPH_REL_TYPES[kind] || GRAPH_REL_TYPES.prereq; }
+function graphNormalizeKind(kind) {
+  if (kind === "variant") return "duplicate";          // legacy edges from earlier builds
+  return GRAPH_REL_TYPES[kind] ? kind : "prereq";
+}
 function graphClamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 function graphFindQ(id) {
   return questionBank.find(x => x && x.id === id) ||
@@ -10449,9 +10489,20 @@ function graphPlainText(blocks) {
   const tmp = document.createElement("div"); tmp.innerHTML = t;
   return (tmp.textContent || "").replace(/\s+/g, " ").trim();
 }
-// Prerequisite links only (variant links are relational, not gating).
+// Prerequisite links only (other relationship types are not hard gates).
 function graphPrereqsOf(qid) {
-  return graphEdges.filter(e => (e.kind || "prereq") === "prereq" && e.to === qid).map(e => e.from);
+  return graphEdges.filter(e => graphNormalizeKind(e.kind) === "prereq" && e.to === qid).map(e => e.from);
+}
+// Questions tagged as an easier version of qid (an "easier B of A": A->B easier,
+// or "A is a harder version of B": B->A harder). Used to scaffold on a miss.
+function graphEasierVersionsOf(qid) {
+  const ids = new Set();
+  graphEdges.forEach(e => {
+    const k = graphNormalizeKind(e.kind);
+    if (k === "easier" && e.from === qid) ids.add(e.to);
+    if (k === "harder" && e.to === qid) ids.add(e.from);
+  });
+  return [...ids];
 }
 function graphPrereqsMet(qid) {
   const pre = graphPrereqsOf(qid);
@@ -10482,7 +10533,7 @@ async function loadQuestionGraph(uid) {
           if (e && e.from && e.to) graphEdges.push({
             id: e.id || ("ge_" + Math.random().toString(36).slice(2, 9)),
             from: String(e.from), to: String(e.to),
-            comment: String(e.comment || ""), kind: e.kind === "variant" ? "variant" : "prereq"
+            comment: String(e.comment || ""), kind: graphNormalizeKind(e.kind)
           });
         });
       }
@@ -10582,7 +10633,7 @@ function graphBuildNodeEl(q, id) {
     '<div class="gnode-foot">' +
       '<button class="gnode-act" data-act="preview" title="Preview the question (eye)">👁</button>' +
       '<button class="gnode-act" data-act="duplicate" title="Duplicate this question onto the board">⧉</button>' +
-      '<button class="gnode-act" data-act="regen" title="Regenerate a fresh AI variant">✨</button>' +
+      '<button class="gnode-act" data-act="regen" title="Regenerate an AI variant — same level, easier, or harder">✨▾</button>' +
       '<span class="spacer"></span>' +
       '<button class="gnode-act link' + armed + '" data-act="link" title="Draw a prerequisite link from this question">🔗</button>' +
       '<button class="gnode-act del" data-act="remove" title="Remove from board">✕</button>' +
@@ -10626,17 +10677,20 @@ function graphRedrawEdges() {
     const labelx = 0.25 * start.x + 0.5 * ctrlx + 0.25 * end.x;
     const labely = 0.25 * start.y + 0.5 * ctrly + 0.25 * end.y;
     const d = "M " + start.x + " " + start.y + " Q " + ctrlx + " " + ctrly + " " + end.x + " " + end.y;
-    const variant = (e.kind === "variant");
+    const cfg = graphRelCfg(graphNormalizeKind(e.kind));
     const g = document.createElementNS(NS, "g");
-    g.setAttribute("class", "graph-edge" + (variant ? " variant" : "")); g.dataset.edge = e.id;
+    g.setAttribute("class", "graph-edge"); g.dataset.edge = e.id;
     const hit = document.createElementNS(NS, "path"); hit.setAttribute("class", "graph-edge-hit"); hit.setAttribute("d", d); g.appendChild(hit);
     const line = document.createElementNS(NS, "path"); line.setAttribute("class", "graph-edge-line"); line.setAttribute("d", d);
-    line.setAttribute("marker-end", variant ? "url(#graphArrowV)" : "url(#graphArrow)"); g.appendChild(line);
+    line.style.stroke = cfg.color;
+    if (cfg.dashed) line.style.strokeDasharray = "7 5";
+    line.setAttribute("marker-end", "url(#" + cfg.marker + ")"); g.appendChild(line);
     svg.appendChild(g);
     const lab = document.createElement("div");
-    lab.className = "gedge-label" + (e.comment ? "" : " empty") + (variant ? " variant" : "");
+    lab.className = "gedge-label" + (e.comment ? "" : " typeonly");
     lab.dataset.edge = e.id; lab.style.left = labelx + "px"; lab.style.top = labely + "px";
-    lab.textContent = e.comment || "+ add note"; lab.title = e.comment || "Add a note to this prerequisite link";
+    lab.style.borderColor = cfg.color; lab.style.color = cfg.color;
+    lab.textContent = e.comment || cfg.label; lab.title = cfg.label + (e.comment ? " — " + e.comment : "");
     lab.addEventListener("click", ev => { ev.stopPropagation(); graphOpenEdgeEditor(e.id); });
     world.appendChild(lab);
   });
@@ -10677,10 +10731,34 @@ function graphOnNodeClick(e, node) {
   const id = node.dataset.id, act = b.dataset.act;
   if (act === "preview") { const q = graphFindQ(id); if (q) openQuestionPreview(q, "Question preview"); }
   else if (act === "duplicate") graphDuplicateNode(id);
-  else if (act === "regen") graphRegenerateNode(id);
+  else if (act === "regen") openDifficultyMenu(b, d => graphRegenerateNode(id, d));
   else if (act === "link") graphToggleLink(id);
   else if (act === "remove") graphRemoveNode(id);
 }
+// Floating "same / easier / harder" menu for the regenerate dropdowns (board
+// nodes and the Create-page caret). Anchored under the clicked element.
+function openDifficultyMenu(anchorEl, onPick) {
+  closeDifficultyMenu();
+  const opts = [
+    { d: "same",   ico: "🔄", t: "Same level",     s: "Fresh numbers, same difficulty" },
+    { d: "easier", ico: "🪜", t: "Easier version", s: "Fewer steps, simpler numbers" },
+    { d: "harder", ico: "🔥", t: "Harder version", s: "Extra step or trickier numbers" },
+  ];
+  const menu = document.createElement("div");
+  menu.className = "graph-spawn-menu"; menu.id = "regenDiffMenu";
+  menu.innerHTML = opts.map(o => '<button type="button" data-d="' + o.d + '"><span class="sm-ico">' + o.ico + '</span><span><span class="sm-title">' + o.t + '</span><span class="sm-sub">' + o.s + '</span></span></button>').join("");
+  document.body.appendChild(menu);
+  const r = anchorEl.getBoundingClientRect();
+  menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 248)) + "px";
+  menu.style.top = (r.bottom + 4) + "px";
+  menu.querySelectorAll("button").forEach(btn => btn.addEventListener("click", () => { const d = btn.dataset.d; closeDifficultyMenu(); onPick(d); }));
+  setTimeout(() => document.addEventListener("pointerdown", closeDifficultyMenuOutside, true), 0);
+}
+function closeDifficultyMenu() {
+  const m = $("regenDiffMenu"); if (m) m.remove();
+  document.removeEventListener("pointerdown", closeDifficultyMenuOutside, true);
+}
+function closeDifficultyMenuOutside(e) { if (!e.target.closest("#regenDiffMenu")) closeDifficultyMenu(); }
 
 // ---- Linking ----
 function graphToggleLink(id) {
@@ -10715,21 +10793,31 @@ function graphAddEdge(fromId, toId, comment, kind) {
   graphEdges.push(e); return e;
 }
 
-// ---- Edge note editor ----
+// ---- Edge relationship editor ----
 function graphOpenEdgeEditor(edgeId) {
   const e = graphEdges.find(x => x.id === edgeId); if (!e) return;
   graphEditingEdgeId = edgeId;
-  const a = graphFindQ(e.from), b = graphFindQ(e.to);
-  const an = escapeHtml((a && a.title) || "This question"), bn = escapeHtml((b && b.title) || "that question");
-  const rel = e.kind === "variant"
-    ? "<b>" + an + "</b> and <b>" + bn + "</b> are variants of the same skill."
-    : "<b>" + an + "</b> is a prerequisite of <b>" + bn + "</b>.";
-  const sum = $("graphEdgeSummary");
-  sum.innerHTML = rel + ' <button class="btn btn-ghost btn-sm" id="graphEdgeSwapBtn" type="button" style="margin-top:10px;">⇄ Swap direction</button>';
+  e.kind = graphNormalizeKind(e.kind);
+  graphRenderEdgeSummary(e);
+  const sel = $("graphEdgeType"); if (sel) sel.value = e.kind;
   $("graphEdgeComment").value = e.comment || "";
   $("graphEdgeOverlay").classList.add("show");
+}
+function graphRenderEdgeSummary(e) {
+  const a = graphFindQ(e.from), b = graphFindQ(e.to);
+  const an = escapeHtml((a && a.title) || "This question"), bn = escapeHtml((b && b.title) || "that question");
+  const sum = $("graphEdgeSummary"); if (!sum) return;
+  sum.innerHTML = graphRelCfg(e.kind).read(an, bn) + "." +
+    ' <button class="btn btn-ghost btn-sm" id="graphEdgeSwapBtn" type="button" style="margin-top:10px;">⇄ Swap direction</button>';
   const swap = $("graphEdgeSwapBtn");
-  if (swap) swap.addEventListener("click", () => { const t = e.from; e.from = e.to; e.to = t; renderGraph(); scheduleGraphSave(); graphOpenEdgeEditor(edgeId); });
+  if (swap) swap.addEventListener("click", () => { const t = e.from; e.from = e.to; e.to = t; renderGraph(); scheduleGraphSave(); graphRenderEdgeSummary(e); });
+}
+function graphSetEdgeType(kind) {
+  const e = graphEdges.find(x => x.id === graphEditingEdgeId);
+  if (!e) return;
+  e.kind = graphNormalizeKind(kind);
+  graphRenderEdgeSummary(e);
+  renderGraph(); scheduleGraphSave();
 }
 function graphSaveEdgeNote() {
   const e = graphEdges.find(x => x.id === graphEditingEdgeId);
@@ -10798,28 +10886,33 @@ async function graphDuplicateNode(id) {
     questionBank.push(copy);
     const src = graphNodes[id] || { x: 0, y: 0 };
     graphNodes[copy.id] = { x: src.x + 70, y: src.y + 150 };
-    graphAddEdge(id, copy.id, "Variant — same skill, fresh practice", "variant");
+    graphAddEdge(id, copy.id, "Exact duplicate", "duplicate");
     renderGraph(); scheduleGraphSave();
     toast("Duplicated — added to the board and linked", "success");
   } catch (e) { console.error(e); toast("Duplicate failed: " + (e.message || e), "error"); }
 }
-function graphRegenerateNode(id) {
+// difficulty: "same" | "easier" | "harder" — picked from the node's ✨ dropdown.
+function graphRegenerateNode(id, difficulty) {
   if (!canManageQuestions()) { toast("Only admin accounts can regenerate questions", "error"); return; }
   if (!graphFindQ(id)) return;
-  editQuestion(id);                       // load into the editor + navigate to Create
-  graphPendingSpawn = { sourceId: id };   // after the admin saves it, add+link on the board
-  regenerateQuestionVariant();            // kick off the AI variant (reads the loaded editor)
+  const rel = difficulty === "easier" ? "easier" : difficulty === "harder" ? "harder" : "same-concept";
+  editQuestion(id);                               // load into the editor + navigate to Create
+  graphPendingSpawn = { sourceId: id, rel };      // after the admin saves it, add+link on the board
+  regenerateQuestionVariant(difficulty);          // kick off the AI variant (reads the loaded editor)
 }
 // Called from the editor save handler: a freshly-saved AI variant spawned from
-// a board node gets added next to its source and linked as a variant.
+// a board node gets added next to its source and linked with the chosen relationship.
 function graphOnQuestionSaved(q, isNew) {
   if (graphPendingSpawn && isNew && q) {
-    const src = graphPendingSpawn.sourceId; graphPendingSpawn = null;
+    const src = graphPendingSpawn.sourceId;
+    const rel = graphNormalizeKind(graphPendingSpawn.rel || "same-concept");
+    graphPendingSpawn = null;
     const s = graphNodes[src] || { x: 0, y: 0 };
     graphNodes[q.id] = { x: s.x + 70, y: s.y + 160 };
-    graphAddEdge(src, q.id, "AI variant — same skill, fresh numbers", "variant");
+    const cmt = rel === "easier" ? "AI easier version" : rel === "harder" ? "AI harder version" : "AI variant — same concept, fresh numbers";
+    graphAddEdge(src, q.id, cmt, rel);
     scheduleGraphSave();
-    toast("Variant added to the Dependency Board", "success");
+    toast("Added to the Dependency Board, linked as " + graphRelCfg(rel).label.toLowerCase(), "success");
   }
   if (graphNodes[q.id] && $("page-graph") && $("page-graph").classList.contains("active")) renderGraph();
 }
@@ -10901,6 +10994,27 @@ function maybeServePrerequisiteOnMiss(q, v) {
   toast("Let's shore up a prerequisite skill first ⛏️", "");
   return true;
 }
+function graphBestEasierToServe(q) {
+  const cands = graphEasierVersionsOf(q.id).map(id => questionBank.find(x => x && x.id === id)).filter(Boolean)
+    .filter(x => !questionMastered(studentProgress[x.id]));
+  if (!cands.length) return null;
+  cands.sort((a, b) => (studentProgress[a.id]?.attempts || 0) - (studentProgress[b.id]?.attempts || 0));
+  return cands[0];
+}
+function maybeServeEasierOnMiss(q, v) {
+  if (!aiPracticeActive || !q) return false;
+  if (String((v && v.verdict) || "").toLowerCase() === "correct") return false;
+  const easier = graphBestEasierToServe(q);
+  if (!easier) return false;
+  const idx = questionBank.findIndex(x => x.id === easier.id);
+  if (idx !== -1) questionBank.splice(idx, 1);
+  qIndex = questionBank.findIndex(x => x.id === q.id); if (qIndex < 0) qIndex = 0;
+  questionBank.splice(qIndex + 1, 0, easier);
+  aiPracticeStats.easier = (aiPracticeStats.easier || 0) + 1;
+  renderAiPracticeBar();
+  toast("Let's try an easier version of this one first 🪜", "");
+  return true;
+}
 
 // ---- Wiring (DOM is ready: this module is deferred) ----
 (function wireDependencyBoard() {
@@ -10916,6 +11030,8 @@ function maybeServePrerequisiteOnMiss(q, v) {
   on("graphLinkCancel", graphCancelLink);
   on("graphEdgeSaveBtn", graphSaveEdgeNote);
   on("graphEdgeDeleteBtn", graphDeleteEdge);
+  const typeSel = $("graphEdgeType");
+  if (typeSel) typeSel.addEventListener("change", e => graphSetEdgeType(e.target.value));
   const edges = $("graphEdges");
   if (edges) edges.addEventListener("click", e => { const g = e.target.closest(".graph-edge"); if (g) graphOpenEdgeEditor(g.dataset.edge); });
   const search = $("graphPickerSearch");
