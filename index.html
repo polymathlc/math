@@ -229,6 +229,29 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
   .swatch { width: 30px; height: 30px; }
 }
 .canvas-empty { position: absolute; inset: auto 18px 18px auto; z-index: 3; display: flex; align-items: flex-end; justify-content: flex-end; pointer-events: none; color: var(--text-light); font-size: 0.95rem; gap: 8px; text-align: right; padding: 0; max-width: min(360px, calc(100% - 36px)); }
+/* Text boxes on the worksheet */
+#textLayer { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+#textLayer.text-mode { pointer-events: auto; cursor: text; }
+.text-box { position: absolute; pointer-events: inherit; max-width: 90%; }
+.text-box-editor { pointer-events: inherit; min-width: 64px; min-height: 1.5em; padding: 4px 9px; border: 1.5px dashed transparent; border-radius: 8px; background: rgba(255,255,255,0.82); color: #2c2a27; font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 500; line-height: 1.45; outline: none; white-space: pre-wrap; word-break: break-word; cursor: text; user-select: text; -webkit-user-select: text; }
+.text-box-editor b, .text-box-editor strong { font-weight: 800; }
+#textLayer.text-mode .text-box-editor { border-color: var(--border); }
+.text-box-editor:focus { border-color: var(--primary); background: #fff; box-shadow: var(--shadow); }
+.text-box-editor:empty:before { content: attr(data-placeholder); color: var(--text-light); font-weight: 500; }
+#textLayer .text-box-editor { user-select: text; -webkit-user-select: text; -webkit-touch-callout: default; }
+.text-box-handle, .text-box-del { position: absolute; top: -11px; width: 22px; height: 22px; border-radius: 6px; display: none; align-items: center; justify-content: center; font-size: 13px; line-height: 1; border: 1px solid var(--border); background: #fff; color: var(--text-light); pointer-events: inherit; padding: 0; }
+.text-box-handle { left: -11px; cursor: grab; }
+.text-box-handle:active { cursor: grabbing; }
+.text-box-del { right: -11px; color: #d94f4f; cursor: pointer; }
+#textLayer.text-mode .text-box-handle, #textLayer.text-mode .text-box-del { display: flex; }
+.text-box.dragging .text-box-editor { box-shadow: var(--shadow-lg); border-color: var(--primary); }
+#textFormatBar { position: fixed; z-index: 9999; display: none; flex-wrap: wrap; align-items: center; gap: 4px; max-width: 326px; padding: 6px; background: #fff; border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg); }
+#textFormatBar button { min-width: 30px; height: 30px; padding: 0 6px; border: 1px solid var(--border); background: #fff; border-radius: 6px; cursor: pointer; font-size: 15px; line-height: 1; display: flex; align-items: center; justify-content: center; color: var(--text); font-family: 'Space Grotesk', sans-serif; }
+#textFormatBar button:hover { border-color: var(--text-light); }
+#textFormatBar button.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+#textFormatBar .fb-sep { width: 1px; height: 22px; background: var(--border); margin: 0 3px; }
+#textFormatBar .fb-syms { display: flex; flex-wrap: wrap; gap: 4px; max-width: 326px; }
+#textFormatBar .fb-syms button { min-width: 28px; height: 28px; font-size: 14px; }
 .typed-working { margin-top: 14px; }
 .typed-working label { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; }
 .typed-working textarea { width: 100%; min-height: 90px; resize: vertical; padding: 11px 13px; font-size: 1rem; font-family: 'Space Grotesk', sans-serif; line-height: 1.55; border: 1.5px solid var(--border); border-radius: var(--radius-md); background: var(--surface-alt); }
@@ -991,11 +1014,12 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
           </div>
           <div class="ai-practice-bar student-only" id="aiPracticeBar" style="display:none;"></div>
 
-          <div class="pad-head"><h2>✍️ Worksheet</h2><span class="pad-hint">Underline the question or make working anywhere</span></div>
+          <div class="pad-head"><h2>✍️ Worksheet</h2><span class="pad-hint">Write, or tap 🅣 then the page to add a text box</span></div>
           <div class="toolbar">
             <div class="tool-group">
               <button class="tool-btn active" id="toolPen" title="Pen">✏️</button>
               <button class="tool-btn" id="toolEraser" title="Eraser">🧽</button>
+              <button class="tool-btn" id="toolText" title="Text box — tap the worksheet to add one">🅣</button>
             </div>
             <div class="tool-divider"></div>
             <div class="tool-group" id="swatches"></div>
@@ -2183,7 +2207,7 @@ const AI_PRACTICE_SET_MAX = 12, AI_PRACTICE_REVIEW_MAX = 8;
 function startAiPractice() {
   if (!currentUser || currentUser.role !== "student") return;
   if (!questionBank.length) { toast("No questions to practise yet", "error"); return; }
-  if ((strokes.length || $("typedWorking").value.trim() || solutionPhotoDataUrl) && !confirm("Start AI practice? Your current working will be cleared.")) return;
+  if ((strokes.length || textBoxes.length || $("typedWorking").value.trim() || solutionPhotoDataUrl) && !confirm("Start AI practice? Your current working will be cleared.")) return;
   const now = Date.now();
   const rating = studentEloValue();
   const target = rating + 80;            // growth zone: just above the current rating
@@ -4508,6 +4532,7 @@ const emptyHint = $("canvasEmpty");
 const worksheetSurface = $("worksheetSurface");
 let dpr = Math.max(1, window.devicePixelRatio || 1);
 let strokes = [], redoStack = [], current = null, drawing = false, activePointerId = null, activePointerKind = "";
+let textBoxes = [];   // worksheet text boxes: { id, el, editor }
 let penColor = "#2c2a27", penWidth = 3, isEraser = false;
 let lastPenAt = 0;
 let canvasCssW = 0, canvasCssH = 0, redrawQueued = false;
@@ -4525,6 +4550,12 @@ function scaleStrokesForSize(nextW, nextH) {
     strokes.forEach(s => scalePointList(s.points, sx, sy));
     redoStack.forEach(s => scalePointList(s.points, sx, sy));
     if (current) scalePointList(current.points, sx, sy);
+    textBoxes.forEach(r => {
+      r.el.style.left = (parseFloat(r.el.style.left) || 0) * sx + "px";
+      r.el.style.top = (parseFloat(r.el.style.top) || 0) * sy + "px";
+      const w = parseFloat(r.el.style.width);
+      if (w) r.el.style.width = w * sx + "px";
+    });
   }
   canvasCssW = nextW;
   canvasCssH = nextH;
@@ -4544,7 +4575,7 @@ function redraw() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
   for (const s of strokes) drawStroke(s);
-  emptyHint.style.display = strokes.length || current ? "none" : "flex";
+  emptyHint.style.display = strokes.length || current || textBoxes.length ? "none" : "flex";
 }
 function drawStroke(s) {
   if (!s.points.length) return;
@@ -4652,22 +4683,246 @@ const swatchWrap = $("swatches");
 COLORS.forEach((c, i) => {
   const el = document.createElement("div");
   el.className = "swatch" + (i === 0 ? " active" : ""); el.style.background = c; el.dataset.color = c;
-  el.addEventListener("click", () => { penColor = c; document.querySelectorAll(".swatch").forEach(s => s.classList.toggle("active", s.dataset.color === c)); setTool("pen"); });
+  el.addEventListener("click", () => {
+    penColor = c;
+    document.querySelectorAll(".swatch").forEach(s => s.classList.toggle("active", s.dataset.color === c));
+    // In text mode a colour swatch recolours the focused text box instead of
+    // switching back to the pen, so students can pick a colour and keep typing.
+    if (currentTool === "text" && activeTextBox) {
+      activeTextBox.editor.focus();
+      document.execCommand("foreColor", false, c);
+    } else {
+      setTool("pen");
+    }
+  });
   swatchWrap.appendChild(el);
 });
-function setTool(t) { isEraser = (t === "eraser"); $("toolPen").classList.toggle("active", !isEraser); $("toolEraser").classList.toggle("active", isEraser); }
+let currentTool = "pen";
+function setTool(t) {
+  currentTool = t;
+  isEraser = (t === "eraser");
+  $("toolPen").classList.toggle("active", t === "pen");
+  $("toolEraser").classList.toggle("active", t === "eraser");
+  $("toolText").classList.toggle("active", t === "text");
+  const textMode = (t === "text");
+  textLayer.classList.toggle("text-mode", textMode);
+  canvas.style.cursor = textMode ? "text" : "crosshair";
+  if (!textMode) {
+    if (activeTextBox) activeTextBox.editor.blur();
+    hideFormatBar();
+    activeTextBox = null;
+  }
+}
 $("toolPen").addEventListener("click", () => setTool("pen"));
 $("toolEraser").addEventListener("click", () => setTool("eraser"));
+$("toolText").addEventListener("click", () => setTool("text"));
+
+// ===== Worksheet text boxes ==========================================
+// Text boxes are HTML overlays (contenteditable) that float above the
+// drawing canvas. They support bold/italic/underline, super/subscript,
+// colour and a palette of common maths symbols, and are baked into the
+// exported worksheet PNG so the marker sees them alongside the handwriting.
+let textBoxSeq = 0;
+let activeTextBox = null;
+const textLayer = document.createElement("div");
+textLayer.id = "textLayer";
+worksheetSurface.appendChild(textLayer);
+
+const MATH_SYMBOLS = ["×","÷","−","±","·","√","π","θ","°","²","³","½","¼","¾","⅓","⅔","≤","≥","≠","≈","∞","Δ","Σ","∫","∠","→","∴","∝","∈","⊥"];
+
+const formatBar = document.createElement("div");
+formatBar.id = "textFormatBar";
+(function buildFormatBar() {
+  const mk = (html, attr, val, title) => `<button type="button" data-${attr}="${val}" title="${title}">${html}</button>`;
+  formatBar.innerHTML =
+    mk("<b>B</b>", "cmd", "bold", "Bold") +
+    mk("<i>I</i>", "cmd", "italic", "Italic") +
+    mk("<u>U</u>", "cmd", "underline", "Underline") +
+    mk("<s>S</s>", "cmd", "strikeThrough", "Strikethrough") +
+    mk("x<sup>2</sup>", "cmd", "superscript", "Superscript") +
+    mk("x<sub>2</sub>", "cmd", "subscript", "Subscript") +
+    mk("⌫", "cmd", "removeFormat", "Clear formatting") +
+    `<span class="fb-sep"></span>` +
+    `<span class="fb-syms">` + MATH_SYMBOLS.map(s => mk(s, "sym", s, s)).join("") + `</span>`;
+})();
+document.body.appendChild(formatBar);
+
+function syncFormatState() {
+  formatBar.querySelectorAll("[data-cmd]").forEach(b => {
+    const cmd = b.dataset.cmd;
+    if (cmd === "removeFormat") return;
+    let on = false;
+    try { on = document.queryCommandState(cmd); } catch (_) {}
+    b.classList.toggle("active", on);
+  });
+}
+function positionFormatBar(rec) {
+  if (!rec) return;
+  const r = rec.el.getBoundingClientRect();
+  const bw = formatBar.offsetWidth || 320;
+  let left = Math.min(r.left, window.innerWidth - bw - 8);
+  left = Math.max(8, left);
+  let top = r.top - (formatBar.offsetHeight || 40) - 8;
+  if (top < 8) top = r.bottom + 8;
+  formatBar.style.left = left + "px";
+  formatBar.style.top = top + "px";
+}
+function showFormatBar() {
+  formatBar.style.display = "flex";
+  positionFormatBar(activeTextBox);
+  syncFormatState();
+}
+function hideFormatBar() { formatBar.style.display = "none"; }
+function maybeHideFormatBar() {
+  const a = document.activeElement;
+  if (formatBar.contains(a)) return;
+  if (textBoxes.some(r => r.editor === a)) return;
+  hideFormatBar();
+  activeTextBox = null;
+}
+function insertAtCaret(editor, text) {
+  editor.focus();
+  let ok = false;
+  try { ok = document.execCommand("insertText", false, text); } catch (_) {}
+  if (!ok) {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount) {
+      const range = sel.getRangeAt(0);
+      range.deleteContents();
+      const node = document.createTextNode(text);
+      range.insertNode(node);
+      range.setStartAfter(node); range.collapse(true);
+      sel.removeAllRanges(); sel.addRange(range);
+    } else {
+      editor.appendChild(document.createTextNode(text));
+    }
+  }
+  updateEmptyHint();
+}
+// mousedown (not click) so the editor keeps its selection while we format.
+formatBar.addEventListener("mousedown", (e) => {
+  const btn = e.target.closest("[data-cmd],[data-sym]");
+  if (!btn) return;
+  e.preventDefault();
+  if (!activeTextBox) return;
+  activeTextBox.editor.focus();
+  if (btn.dataset.cmd) { document.execCommand(btn.dataset.cmd, false, null); syncFormatState(); }
+  else if (btn.dataset.sym != null) { insertAtCaret(activeTextBox.editor, btn.dataset.sym); }
+});
+
+function updateEmptyHint() {
+  emptyHint.style.display = strokes.length || current || textBoxes.length ? "none" : "flex";
+}
+function enableTextBoxDrag(rec, handle) {
+  let startX = 0, startY = 0, origX = 0, origY = 0, dragging = false, pid = null;
+  handle.addEventListener("pointerdown", (e) => {
+    e.preventDefault(); e.stopPropagation();
+    dragging = true; pid = e.pointerId;
+    startX = e.clientX; startY = e.clientY;
+    origX = parseFloat(rec.el.style.left) || 0;
+    origY = parseFloat(rec.el.style.top) || 0;
+    try { handle.setPointerCapture(pid); } catch (_) {}
+    rec.el.classList.add("dragging");
+  });
+  handle.addEventListener("pointermove", (e) => {
+    if (!dragging || e.pointerId !== pid) return;
+    const r = worksheetSurface.getBoundingClientRect();
+    let nx = origX + (e.clientX - startX);
+    let ny = origY + (e.clientY - startY);
+    nx = Math.max(0, Math.min(nx, r.width - 32));
+    ny = Math.max(0, Math.min(ny, r.height - 24));
+    rec.el.style.left = nx + "px";
+    rec.el.style.top = ny + "px";
+    if (activeTextBox === rec) positionFormatBar(rec);
+  });
+  const endDrag = () => { if (!dragging) return; dragging = false; rec.el.classList.remove("dragging"); };
+  handle.addEventListener("pointerup", endDrag);
+  handle.addEventListener("pointercancel", endDrag);
+}
+function removeTextBox(rec) {
+  const i = textBoxes.indexOf(rec);
+  if (i >= 0) textBoxes.splice(i, 1);
+  rec.el.remove();
+  if (activeTextBox === rec) { activeTextBox = null; hideFormatBar(); }
+  updateEmptyHint();
+}
+function clearTextBoxes() {
+  textBoxes.forEach(r => r.el.remove());
+  textBoxes = [];
+  activeTextBox = null;
+  hideFormatBar();
+}
+function createTextBox(x, y, opts = {}) {
+  const box = document.createElement("div");
+  box.className = "text-box";
+  box.style.left = Math.round(x) + "px";
+  box.style.top = Math.round(y) + "px";
+  if (opts.w) box.style.width = opts.w + "px";
+
+  const handle = document.createElement("div");
+  handle.className = "text-box-handle";
+  handle.title = "Drag to move";
+  handle.textContent = "✥";
+
+  const del = document.createElement("button");
+  del.className = "text-box-del";
+  del.type = "button";
+  del.title = "Delete text box";
+  del.textContent = "×";
+
+  const editor = document.createElement("div");
+  editor.className = "text-box-editor";
+  editor.contentEditable = "true";
+  editor.spellcheck = false;
+  editor.setAttribute("data-placeholder", "Type…");
+  if (opts.html) editor.innerHTML = opts.html;
+
+  box.appendChild(handle);
+  box.appendChild(del);
+  box.appendChild(editor);
+  textLayer.appendChild(box);
+
+  const rec = { id: ++textBoxSeq, el: box, editor };
+  textBoxes.push(rec);
+
+  // Stop drawing-surface gesture handlers (which preventDefault touch/select)
+  // from swallowing taps meant for the editor — otherwise typing/caret
+  // placement breaks on touch devices.
+  ["touchstart", "touchmove", "pointerdown", "mousedown", "selectstart"].forEach(t =>
+    box.addEventListener(t, e => e.stopPropagation()));
+
+  editor.addEventListener("focus", () => { activeTextBox = rec; showFormatBar(); });
+  editor.addEventListener("blur", () => setTimeout(maybeHideFormatBar, 150));
+  editor.addEventListener("input", () => { updateEmptyHint(); syncFormatState(); });
+  editor.addEventListener("keyup", syncFormatState);
+  editor.addEventListener("mouseup", syncFormatState);
+  editor.addEventListener("keydown", e => e.stopPropagation());
+
+  del.addEventListener("click", (e) => { e.stopPropagation(); removeTextBox(rec); });
+  enableTextBoxDrag(rec, handle);
+
+  updateEmptyHint();
+  return rec;
+}
+// Tap an empty spot while the text tool is active to drop a new box there.
+textLayer.addEventListener("pointerdown", (e) => {
+  if (e.target !== textLayer) return;   // taps on existing boxes edit them
+  const r = worksheetSurface.getBoundingClientRect();
+  const rec = createTextBox(e.clientX - r.left, e.clientY - r.top);
+  setTimeout(() => rec.editor.focus(), 0);
+});
+window.addEventListener("scroll", () => { if (activeTextBox && formatBar.style.display !== "none") positionFormatBar(activeTextBox); }, true);
 $("penWidth").addEventListener("input", e => penWidth = parseInt(e.target.value, 10) || 3);
 $("undoBtn").addEventListener("click", () => { if (strokes.length) { hideHint(); redoStack.push(strokes.pop()); redraw(); } });
 $("redoBtn").addEventListener("click", () => { if (redoStack.length) { hideHint(); strokes.push(redoStack.pop()); redraw(); } });
 $("clearBtn").addEventListener("click", () => {
-  if ((strokes.length || current || $("typedWorking").value.trim() || solutionPhotoDataUrl) && confirm("Clear all your working?")) {
+  if ((strokes.length || current || textBoxes.length || $("typedWorking").value.trim() || solutionPhotoDataUrl) && confirm("Clear all your working?")) {
     hideHint();
     hideResult();
     strokes = [];
     redoStack = [];
     current = null;
+    clearTextBoxes();
     $("typedWorking").value = "";
     clearSolutionPhoto({ silent: true });
     redraw();
@@ -4754,6 +5009,29 @@ async function prepareWorksheetClone(content) {
   }));
   return new XMLSerializer().serializeToString(clone);
 }
+// Serialise the worksheet text boxes into XHTML for the export <foreignObject>
+// so bold/underline/colour/maths symbols are baked into the marked PNG.
+function buildTextLayerSvgHtml(cssW, cssH) {
+  const wrap = document.createElement("div");
+  wrap.setAttribute("xmlns", "http://www.w3.org/1999/xhtml");
+  wrap.style.cssText = `position:relative;width:${cssW}px;height:${cssH}px;`;
+  const style = document.createElement("style");
+  style.textContent = ".tb{position:absolute;color:#2c2a27;font-family:'Space Grotesk',Arial,sans-serif;font-size:16px;font-weight:500;line-height:1.45;white-space:pre-wrap;word-break:break-word;}.tb u{text-decoration:underline;}.tb b,.tb strong{font-weight:800;}.tb sup{font-size:0.7em;vertical-align:super;}.tb sub{font-size:0.7em;vertical-align:sub;}";
+  wrap.appendChild(style);
+  textBoxes.forEach(r => {
+    const d = document.createElement("div");
+    d.className = "tb";
+    const left = parseFloat(r.el.style.left) || 0;
+    const top = parseFloat(r.el.style.top) || 0;
+    const w = parseFloat(r.el.style.width);
+    // +9px/+4px mirrors the editor's padding so exported text lines up.
+    d.style.cssText = `left:${left + 9}px;top:${top + 4}px;${w ? `width:${w - 18}px;` : "max-width:" + (cssW - left - 18) + "px;"}`;
+    const clone = r.editor.cloneNode(true);
+    Array.from(clone.childNodes).forEach(n => d.appendChild(n));
+    wrap.appendChild(d);
+  });
+  return new XMLSerializer().serializeToString(wrap);
+}
 function drawWorksheetGrid(o, w, h) {
   o.fillStyle = "#fff";
   o.fillRect(0, 0, w, h);
@@ -4818,6 +5096,16 @@ async function exportWorkingPng() {
     }
   }
   o.drawImage(canvas, 0, 0, cssW, cssH);
+  if (textBoxes.length) {
+    try {
+      const tHtml = buildTextLayerSvgHtml(cssW, cssH);
+      const tSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${cssW}" height="${cssH}" viewBox="0 0 ${cssW} ${cssH}"><foreignObject width="${cssW}" height="${cssH}">${tHtml}</foreignObject></svg>`;
+      const tImg = await loadImage(svgDataUrl(tSvg));
+      o.drawImage(tImg, 0, 0, cssW, cssH);
+    } catch (e) {
+      console.warn("Worksheet export text-box layer failed:", e);
+    }
+  }
   if (typed) {
     o.fillStyle = "#fff";
     o.fillRect(0, cssH, cssW, blockH);
@@ -5259,7 +5547,7 @@ function renderQuestion() {
   $("finalAnswer").value = "";
   $("typedWorking").value = "";
   clearSolutionPhoto({ silent: true });
-  strokes = []; redoStack = []; current = null; redraw();
+  strokes = []; redoStack = []; current = null; clearTextBoxes(); redraw();
   requestAnimationFrame(setupCanvasSize);
   hideResult();
   hideHint();
@@ -5280,7 +5568,7 @@ function changeQuestion(delta) {
     }
   }
   if (ni < 0 || ni >= questionBank.length) return;
-  if ((strokes.length || $("typedWorking").value.trim() || solutionPhotoDataUrl) && !confirm("Move on? Your current working will be cleared.")) return;
+  if ((strokes.length || textBoxes.length || $("typedWorking").value.trim() || solutionPhotoDataUrl) && !confirm("Move on? Your current working will be cleared.")) return;
   qIndex = ni; renderQuestion();
 }
 $("prevBtn").addEventListener("click", () => changeQuestion(-1));
@@ -5772,7 +6060,7 @@ $("submitBtn").addEventListener("click", async () => {
   if (!currentUser) { toast("Sign in to submit work for marking", "error"); return; }
   if (!questionBank.length) return;
   const typedWorking = $("typedWorking").value.trim();
-  if (!strokes.length && !typedWorking && !$("finalAnswer").value.trim() && !solutionPhotoDataUrl) { toast("Write, type, take a photo, or enter an answer first", "error"); return; }
+  if (!strokes.length && !textBoxes.length && !typedWorking && !$("finalAnswer").value.trim() && !solutionPhotoDataUrl) { toast("Write, type, take a photo, or enter an answer first", "error"); return; }
   const q = questionBank[qIndex];
   const png = await exportWorkingPng();
   const b64 = png.split(",")[1];
