@@ -701,7 +701,33 @@ async function contributeRaidDamage(points) {
 // ledger writes have a single source of truth. Callers differ only in the
 // media they attach and how the submission is described to the marker.
 // ---------------------------------------------------------------------
-async function markKnownQuestion({ uid, isAdmin, isGuest = false, displayName = "", q, source, adminUid, statsBefore, media, mediaNote, submissionNote, keyAttached, typedWorking = "", finalAnswer = "", practiceMode = false }) {
+// Deterministic verdict for a bare MCQ tap (no working to AI-mark). Keeps the
+// option check instant and free, and never exposes the correct index pre-answer.
+function synthMcqVerdict(q, selectedOption, correctOption) {
+  const letter = (i) => String.fromCharCode(65 + i);
+  const isCorrect = correctOption !== null && selectedOption === correctOption;
+  const topic = (Array.isArray(q.topics) && q.topics[0]) || q.topic || conceptLabel(q) || "this topic";
+  const correctText = correctOption !== null ? `${letter(correctOption)}. ${q.options[correctOption]}` : "";
+  const guide = String(q.markingGuide || "").trim();
+  return {
+    verdict: isCorrect ? "correct" : "incorrect",
+    marks: isCorrect ? 1 : 0,
+    outOf: 1,
+    feedback: isCorrect
+      ? "Correct — you picked the right option. 🎉"
+      : (correctText
+        ? `Not quite — you chose ${letter(selectedOption)}, but the correct answer is ${correctText}. Have a look at the worked solution below.`
+        : "Not quite — review the worked solution below."),
+    mistakes: [],
+    nextStep: isCorrect ? "" : "Review the worked solution, then try a similar question.",
+    fullAnswerKey: guide || (correctText ? `The correct answer is ${correctText}.` : ""),
+    strengths: isCorrect ? [String(topic)] : [],
+    weaknesses: isCorrect ? [] : [String(topic)],
+    skillScores: [{ label: String(topic), score: isCorrect ? 90 : 30, evidence: "MCQ option selection" }],
+    learningNote: isCorrect ? "" : `Revisit ${topic}.`
+  };
+}
+async function markKnownQuestion({ uid, isAdmin, isGuest = false, displayName = "", q, source, adminUid, statsBefore, media, mediaNote, submissionNote, keyAttached, typedWorking = "", finalAnswer = "", practiceMode = false, selectedOption = undefined, studentWorkPresent = true }) {
   const [settings, preamble, prereqNote] = await Promise.all([
     loadMarkingSettings(adminUid),
     studentLearningPreamble(uid, isAdmin),
@@ -713,46 +739,70 @@ async function markKnownQuestion({ uid, isAdmin, isGuest = false, displayName = 
   const existing = progSnap.exists ? progSnap.data() : { questionId: q.id, attempts: 0, wrongCount: 0, correctStreak: 0 };
 
   const qText = questionText(q);
-  const prompt =
-    `You are a friendly, encouraging Singapore primary-school math teacher marking a student's worksheet. ` +
-    `${mediaNote}` +
-    `${submissionNote}` +
-    `${keyAttached ? "The teacher's private answer key or worked solution is the authority for the intended solution. Read it carefully and use it with the teacher guidance below.\n" : ""}` +
-    INJECTION_GUARD +
-    `${preamble}` +
-    `${teacherConceptNote(q)}` +
-    `${prereqNote}` +
-    `${markingPreamble(settings, q.markingGuide)}\n\n` +
-    `QUESTION: "${qText}"\n` +
-    `CORRECT ANSWER: "${q.expected || "(use the marking guide and answer key image if provided)"}"\n` +
-    `STUDENT'S TYPED WORKING (if any): "${typedWorking || "(none — read it from the image)"}"\n` +
-    `STUDENT'S TYPED FINAL ANSWER: "${finalAnswer || "(none typed — read it from the working)"}"\n\n` +
-    `Read the question and the student's annotations, handwriting, and typed text carefully; follow the working step by step and decide if the method and final answer are right. ` +
-    `Use the correct-answer text, teacher marking guide, and answer-key image as the authority for the intended solution. ` +
-    `Generate a full worked answer key from that guidance, including the main method steps and final answer, so the student can learn after submitting. ` +
-    `Award method marks even if the final answer is wrong but the approach is sound. Address the student as "you". ` +
-    `Identify the student's strengths, weaknesses, and skill scores from this exact attempt. Use concise private labels for memory, not long explanations. ` +
-    `If you genuinely cannot read the handwriting or answer-key image, say so in the feedback.\n\n` +
-    `Return ONLY JSON: {"verdict":"correct"|"partial"|"incorrect","marks":<number>,"outOf":<number>,` +
-    `"feedback":"<2-3 warm sentences>","mistakes":["<specific slip or misread step>", ...],` +
-    `"nextStep":"<one concrete hint, or empty string if fully correct>",` +
-    `"fullAnswerKey":"<complete worked answer key generated from the teacher guidance and answer key image>",` +
-    `"strengths":["<private short strength label>", ...],` +
-    `"weaknesses":["<private short weakness label for teacher memory>", ...],` +
-    `"skillScores":[{"label":"<skill or concept>","score":<0-100>,"evidence":"<brief private evidence>"}],` +
-    `"learningNote":"<one private sentence about what this student seems to need next>"}`;
+  // MCQ context: the chosen option is the student's final answer.
+  const isMcq = Array.isArray(q.options) && q.options.length >= 2 &&
+    Number.isInteger(selectedOption) && selectedOption >= 0 && selectedOption < q.options.length;
+  const correctOption = (isMcq && typeof q.correctOption === "number" && q.correctOption >= 0 && q.correctOption < q.options.length)
+    ? q.correctOption : null;
+  const mcqLetter = (i) => String.fromCharCode(65 + i);
+  const mcqContext = isMcq
+    ? `This is a MULTIPLE-CHOICE question. OPTIONS: ${q.options.map((o, i) => `${mcqLetter(i)}. ${o}`).join("; ")}. ` +
+      `The student selected option ${mcqLetter(selectedOption)} ("${q.options[selectedOption]}").` +
+      (correctOption !== null ? ` The correct option is ${mcqLetter(correctOption)}.` : "") +
+      ` The chosen option is the student's final answer: mark "correct" only if they chose the right option; you may still award partial method marks for sound written working.\n`
+    : "";
 
   let v;
-  try {
-    v = parseAIJson(await askGemini(GEMINI_API_KEY.value(), prompt, media, { maxOutputTokens: 1500 }));
-  } catch (e) {
-    console.error("marking AI failed", e);
-    throw new HttpsError("unavailable", "AI marking failed — please try again in a moment.");
+  if (isMcq && !studentWorkPresent) {
+    // Bare option tap — grade deterministically against the private correct index.
+    v = synthMcqVerdict(q, selectedOption, correctOption);
+  } else {
+    const prompt =
+      `You are a friendly, encouraging Singapore primary-school math teacher marking a student's worksheet. ` +
+      `${mediaNote}` +
+      `${submissionNote}` +
+      `${keyAttached ? "The teacher's private answer key or worked solution is the authority for the intended solution. Read it carefully and use it with the teacher guidance below.\n" : ""}` +
+      INJECTION_GUARD +
+      `${preamble}` +
+      `${teacherConceptNote(q)}` +
+      `${prereqNote}` +
+      `${markingPreamble(settings, q.markingGuide)}\n\n` +
+      `QUESTION: "${qText}"\n` +
+      `${mcqContext}` +
+      `CORRECT ANSWER: "${q.expected || "(use the marking guide and answer key image if provided)"}"\n` +
+      `STUDENT'S TYPED WORKING (if any): "${typedWorking || "(none — read it from the image)"}"\n` +
+      `STUDENT'S TYPED FINAL ANSWER: "${finalAnswer || "(none typed — read it from the working)"}"\n\n` +
+      `Read the question and the student's annotations, handwriting, and typed text carefully; follow the working step by step and decide if the method and final answer are right. ` +
+      `Use the correct-answer text, teacher marking guide, and answer-key image as the authority for the intended solution. ` +
+      `Generate a full worked answer key from that guidance, including the main method steps and final answer, so the student can learn after submitting. ` +
+      `Award method marks even if the final answer is wrong but the approach is sound. Address the student as "you". ` +
+      `Identify the student's strengths, weaknesses, and skill scores from this exact attempt. Use concise private labels for memory, not long explanations. ` +
+      `If you genuinely cannot read the handwriting or answer-key image, say so in the feedback.\n\n` +
+      `Return ONLY JSON: {"verdict":"correct"|"partial"|"incorrect","marks":<number>,"outOf":<number>,` +
+      `"feedback":"<2-3 warm sentences>","mistakes":["<specific slip or misread step>", ...],` +
+      `"nextStep":"<one concrete hint, or empty string if fully correct>",` +
+      `"fullAnswerKey":"<complete worked answer key generated from the teacher guidance and answer key image>",` +
+      `"strengths":["<private short strength label>", ...],` +
+      `"weaknesses":["<private short weakness label for teacher memory>", ...],` +
+      `"skillScores":[{"label":"<skill or concept>","score":<0-100>,"evidence":"<brief private evidence>"}],` +
+      `"learningNote":"<one private sentence about what this student seems to need next>"}`;
+    try {
+      v = parseAIJson(await askGemini(GEMINI_API_KEY.value(), prompt, media, { maxOutputTokens: 1500 }));
+    } catch (e) {
+      console.error("marking AI failed", e);
+      throw new HttpsError("unavailable", "AI marking failed — please try again in a moment.");
+    }
   }
 
-  // Sanitize the AI verdict before it touches any ledger.
-  const verdict = ["correct", "partial", "incorrect"].includes(String(v.verdict || "").toLowerCase())
+  // Sanitize the verdict before it touches any ledger.
+  let verdict = ["correct", "partial", "incorrect"].includes(String(v.verdict || "").toLowerCase())
     ? String(v.verdict).toLowerCase() : "incorrect";
+  // For MCQ the chosen option is decisive: a right pick is correct; a wrong pick
+  // can be at best "partial" (method marks), never "correct".
+  if (isMcq && correctOption !== null) {
+    if (selectedOption === correctOption) verdict = "correct";
+    else if (verdict === "correct") verdict = "incorrect";
+  }
   v.verdict = verdict;
   v.marks = Math.max(0, Math.min(50, Number(v.marks) || 0));
   v.outOf = Math.max(1, Math.min(50, Number(v.outOf) || 1));
@@ -869,7 +919,8 @@ async function markKnownQuestion({ uid, isAdmin, isGuest = false, displayName = 
     reward: { gold, xp: finalXp, repeatAttempt, streakBonus, practiceBoost: boost > 1 },
     totals,
     videoExplanationUrl: cleanText(q.videoExplanationUrl, 800),
-    answerKeyImageUrl: publicAnswerKeyImageUrl(q)
+    answerKeyImageUrl: publicAnswerKeyImageUrl(q),
+    correctOption: isMcq ? correctOption : undefined
   };
 }
 
@@ -886,8 +937,17 @@ export const markAttempt = onCall(CALL_OPTS, async (request) => {
   const typedWorking = cleanText(d.typedWorking, 6000);
   const finalAnswer = cleanText(d.finalAnswer, 800);
   const worksheetB64 = String(d.worksheetPng || "");
-  if (!worksheetB64 || worksheetB64.length > MAX_IMAGE_B64) {
-    throw new HttpsError("invalid-argument", "Worksheet image missing or too large.");
+  // MCQ: the student tapped option `selectedOption` (a 0-based index). For a
+  // bare MCQ tap there's no worksheet image, so the screenshot is optional then.
+  const selRaw = d.selectedOption;
+  const selectedOption = Number.isInteger(selRaw) ? selRaw
+    : (selRaw !== "" && selRaw != null && Number.isInteger(Number(selRaw)) ? Number(selRaw) : undefined);
+  const isMcqSubmission = selectedOption !== undefined;
+  if (worksheetB64.length > MAX_IMAGE_B64) {
+    throw new HttpsError("invalid-argument", "Worksheet image too large.");
+  }
+  if (!worksheetB64 && !isMcqSubmission) {
+    throw new HttpsError("invalid-argument", "Worksheet image missing.");
   }
   const solutionMedia = validImagePart(d.solutionPhoto, "Solution photo");
   if (worksheetB64.length + (solutionMedia ? solutionMedia.data.length : 0) > MAX_TOTAL_B64) {
@@ -903,7 +963,11 @@ export const markAttempt = onCall(CALL_OPTS, async (request) => {
   // optional photographed paper solution and the private key follow.
   const settingsAdminUid = adminUid || (source === "generated" || source === "starter" ? await getAdminUid().catch(() => null) : null);
   const keyMedia = await answerKeyMedia(q);
-  const { media, note: mediaNote } = buildPracticeMedia(worksheetB64, solutionMedia, keyMedia);
+  // Only assemble image media when there's a worksheet to mark (a bare MCQ tap
+  // is graded deterministically against the private correct option — no AI).
+  let media = [], mediaNote = "";
+  if (worksheetB64) ({ media, note: mediaNote } = buildPracticeMedia(worksheetB64, solutionMedia, keyMedia));
+  const studentWorkPresent = !!worksheetB64 || !!typedWorking || !!solutionMedia;
   const submissionNote =
     `The worksheet screenshot includes the question, any underlining or annotations, handwriting, typed text, or both. ` +
     `${solutionMedia ? "The photographed paper solution may contain extra student working that is not on the worksheet screenshot; read both as one complete submission.\n" : "\n"}`;
@@ -911,7 +975,8 @@ export const markAttempt = onCall(CALL_OPTS, async (request) => {
   return await markKnownQuestion({
     uid, isAdmin, isGuest: isGuestAuth(auth), displayName: displayNameFromAuth(auth), q, source, adminUid: settingsAdminUid, statsBefore,
     media, mediaNote, submissionNote, keyAttached: keyMedia.length > 0,
-    typedWorking, finalAnswer, practiceMode
+    typedWorking, finalAnswer, practiceMode,
+    selectedOption, studentWorkPresent
   });
 });
 

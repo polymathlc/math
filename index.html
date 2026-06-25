@@ -988,6 +988,47 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .regen-split #regenQBtn { border-top-right-radius: 0; border-bottom-right-radius: 0; }
 .regen-split .regen-caret { border-top-left-radius: 0; border-bottom-left-radius: 0; border-left: 0; padding: 11px 9px; }
 @media (max-width: 720px) { .gnode { width: 210px; } .graph-toolbar .graph-title small { display: none; } }
+
+/* =================== MULTIPLE CHOICE (MCQ) =================== */
+/* Editor option rows */
+.mcq-edit-row { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; }
+.mcq-edit-row .mcq-edit-letter { font-family: 'Space Mono', monospace; font-weight: 700; color: var(--text-muted); width: 16px; text-align: center; }
+.mcq-edit-row input[type="text"] { flex: 1; }
+.mcq-edit-row .mcq-correct-wrap { display: inline-flex; align-items: center; gap: 5px; font-size: 0.74rem; color: var(--text-muted); white-space: nowrap; cursor: pointer; }
+.mcq-edit-row .mcq-correct-wrap input { accent-color: var(--primary); }
+.mcq-edit-row .mcq-del { border: 0; background: transparent; cursor: pointer; color: var(--text-light); font-size: 1.1rem; padding: 2px 6px; border-radius: var(--radius-sm); }
+.mcq-edit-row .mcq-del:hover { background: var(--accent-red-light); color: var(--accent-red); }
+
+/* Student clickable options */
+.mcq-area { margin-top: 14px; }
+.mcq-prompt { font-family: 'Space Mono', monospace; font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 9px; }
+.mcq-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 560px) { .mcq-options { grid-template-columns: 1fr; } }
+.mcq-option { display: flex; align-items: center; gap: 11px; text-align: left; padding: 13px 15px; border: 1.5px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); cursor: pointer; font-family: inherit; font-size: 1rem; color: var(--text); transition: all var(--transition); }
+.mcq-option:hover { border-color: var(--primary); background: var(--surface-alt); }
+.mcq-option .mcq-letter { flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--primary-light); color: var(--primary); font-weight: 700; display: inline-flex; align-items: center; justify-content: center; font-size: 0.92rem; }
+.mcq-option .mcq-text { flex: 1; line-height: 1.35; }
+.mcq-option.selected { border-color: var(--primary); background: var(--primary-light); box-shadow: 0 0 0 2px var(--primary-light); }
+.mcq-option.selected .mcq-letter { background: var(--primary); color: #fff; }
+.mcq-option.correct { border-color: var(--accent-green); background: var(--accent-green-light); }
+.mcq-option.correct .mcq-letter { background: var(--accent-green); color: #fff; }
+.mcq-option.wrong { border-color: var(--accent-red); background: var(--accent-red-light); }
+.mcq-option.wrong .mcq-letter { background: var(--accent-red); color: #fff; }
+.mcq-option[disabled] { cursor: default; }
+.mcq-option[disabled]:hover { background: var(--surface); border-color: var(--border); }
+.mcq-option.correct[disabled]:hover { background: var(--accent-green-light); border-color: var(--accent-green); }
+.mcq-option.wrong[disabled]:hover { background: var(--accent-red-light); border-color: var(--accent-red); }
+.mcq-working-toggle { margin-top: 12px; font-size: 0.82rem; color: var(--accent-blue); cursor: pointer; user-select: none; }
+.mcq-working-toggle:hover { text-decoration: underline; }
+/* MCQ mode: the option buttons are the answer, so the free-text answer box is
+   hidden. The drawing pad + typed working stay available (optional method check),
+   but the typed-working box is tucked away until the student asks for it. */
+#questionCard.mcq-active .final-answer { display: none; }
+#questionCard.mcq-active .typed-working { display: none; }
+#questionCard.mcq-active.mcq-show-working .typed-working { display: block; }
+.mcq-preview-opt { display: flex; gap: 8px; align-items: baseline; margin: 5px 0; font-size: 0.95rem; }
+.mcq-preview-opt .l { font-weight: 700; color: var(--primary); }
+.mcq-preview-opt.is-correct .l { color: var(--accent-green); }
 </style>
 </head>
 <body>
@@ -1125,6 +1166,11 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
             <canvas id="padCanvas"></canvas>
             <div class="canvas-empty" id="canvasEmpty">Underline the question or start your working here ✦</div>
           </div>
+          <div class="mcq-area" id="mcqArea" style="display:none;">
+            <div class="mcq-prompt">Choose your answer</div>
+            <div class="mcq-options" id="mcqOptions"></div>
+            <div class="mcq-working-toggle" id="mcqWorkingToggle">✍️ Show working to check your method with AI (optional)</div>
+          </div>
           <div class="typed-working">
             <label for="typedWorking">⌨️ Or type your working <span style="color:var(--text-light);font-weight:400;">(use this instead of writing if you prefer)</span></label>
             <textarea id="typedWorking" placeholder="Type your steps here, e.g.&#10;2/5 = 8/20, 1/4 = 5/20&#10;eaten = 13/20&#10;left = 7/20"></textarea>
@@ -1253,6 +1299,12 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
         </div>
 
         <div class="editor-field"><label>Correct answer <span style="color:var(--text-light);font-weight:400;">(optional if you attach a guide/image)</span></label><input id="qExpectedInput" type="text" placeholder="e.g. 7/20"><div class="hint">The expected final answer. You can also provide the worked answer in the marking guide or answer key image.</div></div>
+        <div class="editor-field">
+          <label>Multiple-choice options <span style="color:var(--text-light);font-weight:400;">(optional — students tap one)</span></label>
+          <div class="hint">Add 2–6 options to turn this into a clickable MCQ. Choose the radio for the correct option — it stays private; students only see the choices. Leave empty for a free-response question.</div>
+          <div id="mcqOptionsContainer"></div>
+          <button class="btn btn-ghost btn-sm" id="mcqAddOptionBtn" type="button" style="margin-top:8px;">➕ Add option</button>
+        </div>
         <div class="editor-field"><label>Marking guide <span style="color:var(--text-light);font-weight:400;">(per-question)</span></label><textarea id="qGuideInput" placeholder="Worked solution / what to look for in the working. e.g. Common denominator 20; 2/5=8/20, 1/4=5/20; eaten 13/20; left 7/20."></textarea><div class="hint">Private notes for the AI marker — students never see this.</div></div>
         <div class="editor-field"><label>Video explanation link <span style="color:var(--text-light);font-weight:400;">(optional)</span></label><input id="qVideoInput" type="text" placeholder="YouTube, Dropbox or Google Drive video link"><div class="hint">Shown only after a student uses AI marking. YouTube, Vimeo, Dropbox and Google Drive share links are converted for embedding automatically.</div></div>
         <div class="editor-field">
@@ -3045,6 +3097,8 @@ let bankSearchTerm = "";         // Question Bank search filter
 let studentGeneratedQuestions = [];
 let qIndex = 0;
 let editorBlocks = [];           // editor block list
+let editorOptions = [];          // MCQ option rows: [{ id, text }]
+let editorCorrectId = null;      // id of the option row marked correct
 let currentEditingId = null;
 // When saving a regenerated variant, the original/root question id so the new
 // question records `variantOf` — letting practice serve a variant of a question
@@ -3529,6 +3583,11 @@ function splitQuestionDoc(q) {
   const pub = Object.assign({}, q);
   const key = { id: q.id };
   QUESTION_KEY_FIELDS.forEach(f => { if (pub[f]) key[f] = pub[f]; delete pub[f]; });
+  // MCQ: the option texts are student-readable (they tap one), but WHICH option
+  // is correct stays in the admin-only key doc. Handle it explicitly because a
+  // valid index can be 0 (falsy), which the generic loop above would drop.
+  if (typeof q.correctOption === "number") key.correctOption = q.correctOption;
+  delete pub.correctOption;
   // Keep a non-sensitive flag in the student-readable doc so students can
   // filter to questions that have a video explanation, without exposing the URL.
   pub.hasVideoExplanation = !!q.videoExplanationUrl;
@@ -3692,6 +3751,52 @@ function syncImageScaleUi(id) {
   if (preview) preview.style.setProperty("--question-image-width", imageWidthStyle(scale));
   if (down) down.disabled = scale <= IMAGE_SCALE_MIN;
   if (up) up.disabled = scale >= IMAGE_SCALE_MAX;
+}
+
+// ---- MCQ option editor ---------------------------------------------------
+function mcqOptId() { return "opt_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6); }
+function renderEditorOptions() {
+  const wrap = $("mcqOptionsContainer"); if (!wrap) return;
+  wrap.innerHTML = "";
+  if (editorCorrectId && !editorOptions.some(o => o.id === editorCorrectId)) editorCorrectId = null;
+  if (!editorCorrectId && editorOptions.length) editorCorrectId = editorOptions[0].id;
+  editorOptions.forEach((o, i) => {
+    const row = document.createElement("div");
+    row.className = "mcq-edit-row";
+    row.innerHTML =
+      '<span class="mcq-edit-letter">' + String.fromCharCode(65 + i) + '</span>' +
+      '<input type="text" placeholder="Option ' + String.fromCharCode(65 + i) + '" value="' + escapeHtml(o.text || "") + '">' +
+      '<label class="mcq-correct-wrap"><input type="radio" name="mcqCorrect"' + (editorCorrectId === o.id ? " checked" : "") + '> correct</label>' +
+      '<button class="mcq-del" type="button" title="Remove option">✕</button>';
+    const input = row.querySelector('input[type="text"]');
+    input.addEventListener("input", () => { o.text = input.value; });
+    row.querySelector('input[type="radio"]').addEventListener("change", () => { editorCorrectId = o.id; });
+    row.querySelector(".mcq-del").addEventListener("click", () => { editorOptions = editorOptions.filter(x => x.id !== o.id); renderEditorOptions(); });
+    wrap.appendChild(row);
+  });
+  const addBtn = $("mcqAddOptionBtn");
+  if (addBtn) addBtn.textContent = editorOptions.length ? "➕ Add option" : "➕ Add multiple-choice options";
+}
+function mcqAddOption() {
+  if (editorOptions.length >= 6) { toast("Up to 6 options", "error"); return; }
+  // First click seeds a full set of 4 blank options; after that, one at a time.
+  if (!editorOptions.length) { for (let i = 0; i < 4; i++) editorOptions.push({ id: mcqOptId(), text: "" }); }
+  else editorOptions.push({ id: mcqOptId(), text: "" });
+  renderEditorOptions();
+}
+function setEditorOptions(options, correctOption) {
+  editorOptions = (Array.isArray(options) ? options : []).filter(o => o != null).map(t => ({ id: mcqOptId(), text: String(t) }));
+  editorCorrectId = (typeof correctOption === "number" && editorOptions[correctOption]) ? editorOptions[correctOption].id : (editorOptions[0] ? editorOptions[0].id : null);
+  renderEditorOptions();
+}
+// Returns { options, correctOption } from the editor (options >= 2 non-empty), else { options: [] }.
+function collectEditorOptions() {
+  const kept = editorOptions.filter(o => (o.text || "").trim());
+  if (kept.length < 2) return { options: [] };
+  const options = kept.map(o => o.text.trim());
+  let correctOption = kept.findIndex(o => o.id === editorCorrectId);
+  if (correctOption < 0) correctOption = 0;
+  return { options, correctOption };
 }
 
 function renderEditorBlocks() {
@@ -4020,6 +4125,7 @@ function resetEditor() {
   $("qExpectedInput").value = ""; $("qGuideInput").value = "";
   $("qVideoInput").value = "";
   setAnswerKeyImage("");
+  setEditorOptions([]);
   $("createHeading").textContent = "Create Question";
   $("saveQBtn").textContent = "💾 Save to Question Bank";
   $("cancelEditBtn").style.display = "none";
@@ -4028,6 +4134,7 @@ function resetEditor() {
 }
 $("clearQBtn").addEventListener("click", () => { if (confirm("Clear the editor?")) resetEditor(); });
 $("cancelEditBtn").addEventListener("click", () => { resetEditor(); navigateTo("bank"); });
+$("mcqAddOptionBtn").addEventListener("click", mcqAddOption);
 
 function editQuestion(id) {
   if (!canManageQuestions()) { toast("Only admin accounts can edit questions", "error"); navigateTo("practice"); return; }
@@ -4042,6 +4149,7 @@ function editQuestion(id) {
   $("qExpectedInput").value = q.expected || ""; $("qGuideInput").value = q.markingGuide || "";
   $("qVideoInput").value = q.videoExplanationUrl || "";
   setAnswerKeyImage(q.answerKeyImageUrl || "");
+  setEditorOptions(q.options, q.correctOption);
   $("createHeading").textContent = "Edit Question";
   $("saveQBtn").textContent = "💾 Save changes";
   $("cancelEditBtn").style.display = "";
@@ -4075,6 +4183,9 @@ function collectQuestion() {
     createdBy: currentUser ? currentUser.name : "Admin"
   };
   if (variantOf && variantOf !== q.id) q.variantOf = variantOf;
+  // MCQ: include the options (public) + correct index (private) when present.
+  const mcq = collectEditorOptions();
+  if (mcq.options.length >= 2) { q.options = mcq.options; q.correctOption = mcq.correctOption; }
   return q;
 }
 $("saveQBtn").addEventListener("click", async () => {
@@ -4164,10 +4275,12 @@ async function runAiBuildFromMedia(source) {
       `Always choose the specific content topic — never the generic label "Problem Solving". ` +
       `Do not put solution strategies or concepts that would give away the method inside "topics". ` +
       `For "concept", use a specific private teacher-only strategy/concept label only when one clearly applies, such as Assumption, Total unchanged, Difference unchanged, Guess and Check, or Working Backwards; otherwise leave it empty. Do not use the generic label "Model Method".\n` +
+      `If the exam question is MULTIPLE-CHOICE, extract the answer options exactly as written and work out which one is correct. If it is not multiple-choice, return an empty options array and correctOption -1.\n` +
       `Read the question carefully and return ONLY valid JSON in this exact shape. Escape any line breaks inside string values as \\n and do not include markdown fences:\n` +
       `{"title":"<short title>","level":"<e.g. P5 or Sec 1>","topics":["<e.g. Fractions>","<optional second topic>"],"concept":"<teacher-only concept or strategy label, or empty string>",` +
       `"questionText":"<the full question text, cleaned up>","expected":"<the correct final answer, with units>",` +
-      `"markingGuide":"<concise worked solution / what to look for in the working>","hasDiagram":<true if the question relies on a figure/diagram, else false>}`;
+      `"markingGuide":"<concise worked solution / what to look for in the working>","hasDiagram":<true if the question relies on a figure/diagram, else false>,` +
+      `"options":["<option A>","<option B>", ...] (empty array if not multiple-choice),"correctOption":<0-based index of the correct option, or -1 if not multiple-choice>}`;
     const raw = await askGeminiVision(prompt, [{ mimeType: source.mimeType, data: source.data }], { maxOutputTokens: 2200, json: true });
     const data = parseAIJson(raw);
     populateEditorFromAi(data);
@@ -4195,6 +4308,13 @@ function populateEditorFromAi(d) {
   $("qGuideInput").value = d.markingGuide || "";
   $("qVideoInput").value = "";
   setAnswerKeyImage("");
+  // MCQ: seed the option editor if the AI extracted choices.
+  const aiOpts = Array.isArray(d.options) ? d.options.map(o => String(o == null ? "" : o).trim()).filter(Boolean) : [];
+  if (aiOpts.length >= 2) {
+    let ci = Number(d.correctOption);
+    if (!Number.isInteger(ci) || ci < 0 || ci >= aiOpts.length) ci = 0;
+    setEditorOptions(aiOpts, ci);
+  } else setEditorOptions([]);
   $("createHeading").textContent = "Create Question";
   $("saveQBtn").textContent = "💾 Save to Question Bank";
   $("cancelEditBtn").style.display = "none";
@@ -4242,6 +4362,10 @@ async function regenerateQuestionVariant(difficulty = "same") {
   if (!aiReady()) { toast("AI isn't ready yet — please wait a moment", "error"); return; }
   const diff = (difficulty === "easier" || difficulty === "harder") ? difficulty : "same";
   const q = collectQuestion();
+  // If the source is multiple-choice, the variant should be too — regenerate
+  // fresh options + a correct index that match the new numbers.
+  const srcMcq = collectEditorOptions();
+  const isMcq = srcMcq.options.length >= 2;
   // The original this variant derives from (its root if the source is itself a
   // variant), recorded on the saved variant so practice can link them.
   const variantRootId = currentEditingId ? (q.variantOf || q.id) : "";
@@ -4276,10 +4400,16 @@ async function regenerateQuestionVariant(difficulty = "same") {
       (fixNote
         ? `A previous attempt was REJECTED by an independent checker for: ${fixNote}. Produce a corrected variant that specifically fixes this — above all make sure every number works out cleanly.\n`
         : ``) +
+      (isMcq
+        ? `This is a MULTIPLE-CHOICE question (original options: ${srcMcq.options.map((o, i) => `${String.fromCharCode(65 + i)}. ${o}`).join("; ")}). ` +
+          `Produce ${srcMcq.options.length} fresh answer options for the NEW numbers — one unambiguously correct, the rest plausible distractors (e.g. common mistakes) — and give the 0-based index of the correct one in "correctOption". The "expected" answer must equal the correct option.\n`
+        : ``) +
       `Return ONLY valid JSON in this exact shape, with line breaks inside strings escaped as \\n and no markdown fences:\n` +
       `{"ok":<true|false>,"issues":"<empty if ok, else what is wrong>","title":"<short title for the variant>",` +
       `"questionText":"<full new question text>","expected":"<the correct final answer, with units>",` +
-      `"markingGuide":"<full worked solution and what to look for in the working — this is the answer key>"}`;
+      `"markingGuide":"<full worked solution and what to look for in the working — this is the answer key>"` +
+      (isMcq ? `,"options":["<option A>","<option B>", ...],"correctOption":<0-based index of the correct option>` : ``) +
+      `}`;
     let media = [];
     if (diagramUrl) {
       try { const m = await imageUrlToInlineMedia(diagramUrl); if (m) media = [m]; }
@@ -4310,6 +4440,8 @@ async function regenerateQuestionVariant(difficulty = "same") {
         questionText: genText,
         expected: String((sane && check.expected) || gen.expected || check.expected || "").trim(),
         markingGuide: String((sane && check.markingGuide) || gen.markingGuide || check.markingGuide || "").trim(),
+        options: isMcq && Array.isArray(gen.options) ? gen.options.map(o => String(o == null ? "" : o).trim()).filter(Boolean) : [],
+        correctOption: isMcq && Number.isInteger(gen.correctOption) ? gen.correctOption : 0,
       };
       if (sane) { verified = true; lastIssues = ""; break; }
       lastIssues = String(check.issues || "").trim() || "the numbers didn't check out";
@@ -4337,6 +4469,12 @@ async function regenerateQuestionVariant(difficulty = "same") {
     if (chosen.title) $("qTitleInput").value = chosen.title;
     $("qExpectedInput").value = chosen.expected;
     $("qGuideInput").value = chosen.markingGuide;
+    // Refresh the MCQ options to match the new numbers (when the AI returned a valid set).
+    if (isMcq && chosen.options && chosen.options.length >= 2) {
+      let ci = Number(chosen.correctOption);
+      if (!Number.isInteger(ci) || ci < 0 || ci >= chosen.options.length) ci = 0;
+      setEditorOptions(chosen.options, ci);
+    }
     // The old worked answer key image and solution video describe the previous numbers, so they no longer apply.
     setAnswerKeyImage("");
     $("qVideoInput").value = "";
@@ -5325,6 +5463,15 @@ async function exportWorkingPng() {
 function stripHtml(s) { const d = document.createElement("div"); d.innerHTML = s || ""; return (d.textContent || "").trim(); }
 function questionText(q) { return (q.blocks || []).filter(b => b.type === "text").map(b => stripHtml(b.content)).join(" "); }
 let previewPrintQuestions = [];
+// MCQ options as a static list (for previews / printouts). showCorrect marks the
+// answer with a ✓ (admin views only — never in the student-facing preview).
+function mcqOptionsPreviewHtml(q, showCorrect = false) {
+  if (!Array.isArray(q.options) || q.options.length < 2) return "";
+  const rows = q.options.map((o, i) =>
+    `<div class="mcq-preview-opt${showCorrect && i === q.correctOption ? " is-correct" : ""}"><span class="l">${String.fromCharCode(65 + i)}.</span><span>${escapeHtml(o)}${showCorrect && i === q.correctOption ? " ✓" : ""}</span></div>`
+  ).join("");
+  return `<div class="mcq-preview" style="margin-top:10px;">${rows}</div>`;
+}
 function questionPreviewHtml(q, numberLabel = "", qrSvg = "") {
   const meta = [q.level, studentTopicsLabel(q)].filter(Boolean).join(" - ");
   const qr = qrSvg ? `<div class="q-qr">${qrSvg}<div class="q-qr-cap">📱 Scan to AI-mark<br>&amp; watch the solution</div></div>` : "";
@@ -5332,6 +5479,7 @@ function questionPreviewHtml(q, numberLabel = "", qrSvg = "") {
     ${qr}
     <div class="preview-title">${numberLabel ? escapeHtml(numberLabel) + " - " : ""}${escapeHtml(q.title || "Question")}${meta ? ` (${escapeHtml(meta)})` : ""}</div>
     <div class="q-body">${renderQuestionBlocksHtml(q.blocks || [])}</div>
+    ${mcqOptionsPreviewHtml(q)}
     <div class="worksheet-working-label preview-working">Working</div>
   </section>`;
 }
@@ -5351,6 +5499,7 @@ function practicePreviewHtml(q) {
         <div class="worksheet-question">
           <div class="section-label">Question</div>
           <div class="q-body">${renderQuestionBlocksHtml(q.blocks || [])}</div>
+          ${mcqOptionsPreviewHtml(q)}
         </div>
         <div class="worksheet-working-label">Working</div>
       </div>
@@ -5385,6 +5534,7 @@ function openQuestionShare(q) {
   $("questionShareBody").innerHTML =
     `${metaBits ? `<div class="qshare-meta">${escapeHtml(metaBits)}</div>` : ""}
      <div class="qshare-question q-body">${renderQuestionBlocksHtml(q.blocks || [])}</div>
+     ${mcqOptionsPreviewHtml(q)}
      <div class="qshare-actions">
        <button class="btn btn-primary" type="button" id="qshareMarkBtn">📸 AI-mark my answer</button>
        <button class="btn btn-ghost" type="button" id="qsharePracticeBtn">✍️ Do it on screen</button>
@@ -5402,7 +5552,9 @@ function renderShareAdminSection(q) {
   const ans = String(q.expected || "").trim();
   const guide = String(q.markingGuide || "").trim();
   const akImg = q.answerKeyImageUrl ? `<img class="qshare-akimg" src="${escapeHtml(q.answerKeyImageUrl)}" alt="Answer key">` : "";
-  const keyBody = (ans ? `<div><b>Answer:</b> ${escapeHtml(ans)}</div>` : "") +
+  const mcq = (Array.isArray(q.options) && q.options.length >= 2)
+    ? `<div><b>Options:</b></div>${mcqOptionsPreviewHtml(q, true)}` : "";
+  const keyBody = (ans ? `<div><b>Answer:</b> ${escapeHtml(ans)}</div>` : "") + mcq +
     (guide ? `<div class="qshare-guide">${escapeHtml(guide)}</div>` : "") + akImg;
   const video = q.videoExplanationUrl ? aiMarkVideoHtml(q.videoExplanationUrl) : "";
   return `<div class="qshare-admin">
@@ -5704,6 +5856,42 @@ function toggleVideoOnlyFilter() {
   }
   renderQuestion();
 }
+// ---- Student MCQ (clickable options) ----
+let mcqSelected = null;                  // index the student tapped, or null
+function questionIsMcq(q) { return !!q && Array.isArray(q.options) && q.options.length >= 2; }
+function renderMcqArea(q) {
+  const card = $("questionCard"), area = $("mcqArea"), opts = $("mcqOptions");
+  mcqSelected = null;
+  if (!questionIsMcq(q)) {
+    card.classList.remove("mcq-active", "mcq-show-working");
+    if (area) area.style.display = "none";
+    if (opts) opts.innerHTML = "";
+    $("submitLabel").innerHTML = "📸 Submit for AI marking";
+    return;
+  }
+  card.classList.add("mcq-active"); card.classList.remove("mcq-show-working");
+  area.style.display = "";
+  opts.innerHTML = q.options.map((o, i) =>
+    '<button type="button" class="mcq-option" data-i="' + i + '"><span class="mcq-letter">' + String.fromCharCode(65 + i) + '</span><span class="mcq-text">' + escapeHtml(o) + '</span></button>'
+  ).join("");
+  opts.querySelectorAll(".mcq-option").forEach(btn => btn.addEventListener("click", () => {
+    if (btn.disabled) return;
+    mcqSelected = Number(btn.dataset.i);
+    opts.querySelectorAll(".mcq-option").forEach(x => x.classList.toggle("selected", x === btn));
+  }));
+  $("submitLabel").innerHTML = "✓ Check answer";
+}
+// After marking, reveal which option was right/wrong and lock the choices.
+function showMcqResult(selectedIdx, correctIdx) {
+  const opts = $("mcqOptions"); if (!opts) return;
+  opts.querySelectorAll(".mcq-option").forEach(btn => {
+    const i = Number(btn.dataset.i);
+    btn.disabled = true;
+    btn.classList.remove("selected");
+    if (typeof correctIdx === "number" && i === correctIdx) btn.classList.add("correct");
+    else if (i === selectedIdx) btn.classList.add("wrong");
+  });
+}
 function renderQuestion() {
   renderLearningProfile();
   renderVideoOnlyBtn();
@@ -5742,6 +5930,7 @@ function renderQuestion() {
   if (aiPracticeActive) renderAiPracticeBar();
   $("qBody").innerHTML = renderQuestionBlocksHtml(q.blocks || []);
   $("qBody").querySelectorAll("img").forEach(img => img.addEventListener("load", setupCanvasSize, { once: true }));
+  renderMcqArea(q);
   $("finalAnswer").value = "";
   $("typedWorking").value = "";
   clearSolutionPhoto({ silent: true });
@@ -6017,10 +6206,18 @@ function showResult(v, png, reviewPlan = "", usedPhoto = false) {
   if (akImg) { $("fbAnswerKeyImage").src = akImg; $("answerKeyImageBlock").style.display = "block"; }
   else { $("fbAnswerKeyImage").removeAttribute("src"); $("answerKeyImageBlock").style.display = "none"; }
   renderVideoExplanation(questionBank[qIndex] || {});
-  $("capturedImg").src = png;
-  $("capturedCap").textContent = usedPhoto
-    ? "The AI marked this worksheet screenshot together with your attached photo answer."
-    : "This screenshot of your question, annotations, and working is what the AI marked.";
+  const capWrap = $("capturedImg").closest(".captured");
+  if (png) {
+    if (capWrap) capWrap.style.display = "";
+    $("capturedImg").src = png;
+    $("capturedCap").textContent = usedPhoto
+      ? "The AI marked this worksheet screenshot together with your attached photo answer."
+      : "This screenshot of your question, annotations, and working is what the AI marked.";
+  } else {
+    // MCQ quick-check with no working captured — nothing to show.
+    if (capWrap) capWrap.style.display = "none";
+    $("capturedImg").removeAttribute("src");
+  }
   resetAskAi();
   resultEl.classList.add("show");
   resultEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -6054,6 +6251,9 @@ async function clientMarkVerdict(q, { media = [], typedWorking = "", finalAnswer
     submissionNote +
     markingPreamble(q && q.markingGuide) + "\n\n" +
     `QUESTION: "${questionText(q)}"\n` +
+    (Array.isArray(q.options) && q.options.length >= 2
+      ? `MULTIPLE-CHOICE OPTIONS: ${q.options.map((o, i) => `${String.fromCharCode(65 + i)}. ${o}`).join("; ")}\n`
+      : "") +
     (hasKey
       ? `CORRECT ANSWER: "${q.expected || "(use the marking guide)"}"\n`
       : "No official answer key is available on this device, so solve the question yourself and mark the student against your own correct solution.\n") +
@@ -6257,26 +6457,38 @@ $("askAiInput").addEventListener("keydown", e => {
 $("submitBtn").addEventListener("click", async () => {
   if (!currentUser) { toast("Sign in to submit work for marking", "error"); return; }
   if (!questionBank.length) return;
-  const typedWorking = $("typedWorking").value.trim();
-  if (!strokes.length && !textBoxes.length && !typedWorking && !$("finalAnswer").value.trim() && !solutionPhotoDataUrl) { toast("Write, type, take a photo, or enter an answer first", "error"); return; }
   const q = questionBank[qIndex];
-  const png = await exportWorkingPng();
-  const b64 = png.split(",")[1];
-  const btn = $("submitBtn"); btn.disabled = true; $("submitLabel").innerHTML = '<span class="spinner"></span> Marking your worksheet…';
+  const isMcq = questionIsMcq(q);
+  const typedWorking = $("typedWorking").value.trim();
+  const hasWorking = !!(strokes.length || textBoxes.length || typedWorking || solutionPhotoDataUrl);
+  if (isMcq) {
+    if (mcqSelected === null || mcqSelected === undefined) { toast("Tap an option (A–D) to answer", "error"); return; }
+  } else if (!hasWorking && !$("finalAnswer").value.trim()) {
+    toast("Write, type, take a photo, or enter an answer first", "error"); return;
+  }
+  // MCQ with no shown working → skip the worksheet screenshot for a fast,
+  // deterministic option check; otherwise capture the worksheet for the AI.
+  const sendWorksheet = !isMcq || hasWorking;
+  const png = sendWorksheet ? await exportWorkingPng() : "";
+  const b64 = png ? png.split(",")[1] : "";
+  const submitIdle = isMcq ? "✓ Check answer" : "📸 Submit for AI marking";
+  const btn = $("submitBtn"); btn.disabled = true; $("submitLabel").innerHTML = '<span class="spinner"></span> ' + (isMcq && !hasWorking ? "Checking…" : "Marking your worksheet…");
   try {
-    // Marking happens in the markAttempt Cloud Function: it reads the
-    // private answer key, calls Gemini, and writes the attempt + XP with
-    // the Admin SDK. The browser never sees the key and can't grade itself.
+    // Marking happens in the markAttempt Cloud Function: it reads the private
+    // answer key (incl. the correct MCQ option), grades, and writes the attempt
+    // + XP with the Admin SDK. The browser never sees the key.
     const solutionMedia = solutionPhotoInlineMedia();
-    const res = await markAttemptCall({
+    const payload = {
       questionId: q.id,
       source: questionSource(q),
       typedWorking,
-      finalAnswer: $("finalAnswer").value.trim(),
+      finalAnswer: isMcq ? "" : $("finalAnswer").value.trim(),
       worksheetPng: b64,
       solutionPhoto: solutionMedia,
       practiceMode: aiPracticeActive
-    });
+    };
+    if (isMcq) payload.selectedOption = mcqSelected;
+    const res = await markAttemptCall(payload);
     const out = res.data || {};
     const v = out.verdict || {};
     if (out.videoExplanationUrl) q.videoExplanationUrl = out.videoExplanationUrl; // revealed only after marking
@@ -6284,6 +6496,7 @@ $("submitBtn").addEventListener("click", async () => {
     const reviewPlan = await recordLearningAttempt(q, v, out.progress);
     try { rpgOnMarked(q, v, { server: out }); } catch (err) { console.warn("rpg reward", err); }
     showResult(v, png, reviewPlan, !!solutionMedia);
+    if (isMcq) showMcqResult(mcqSelected, typeof out.correctOption === "number" ? out.correctOption : undefined);
     if (!maybeServePrerequisiteOnMiss(q, v) && !maybeServeEasierOnMiss(q, v)) maybeServeVariantOnMiss(q, v);
     const verdict = (v.verdict || "").toLowerCase();
     let markMsg = verdict === "correct" ? "Great work! 🎉" : "Marked — see the feedback";
@@ -6296,22 +6509,29 @@ $("submitBtn").addEventListener("click", async () => {
     if (!markUnreachable(e)) { console.error(e); toast("AI mark error: " + serverErrorMessage(e), "error"); }
     else {
       // Server marking unreachable (e.g. functions not deployed) — mark in
-      // the browser so practice still works.
+      // the browser so practice still works. For MCQ the device doesn't hold the
+      // correct option, so the AI marks best-effort by solving it itself.
       try {
         const solutionMedia = solutionPhotoInlineMedia();
-        const worksheetMedia = [{ mimeType: "image/png", data: b64 }];
+        const worksheetMedia = b64 ? [{ mimeType: "image/png", data: b64 }] : [];
         if (solutionMedia) worksheetMedia.push(solutionMedia);
-        const v = await clientMarkVerdict(q, { media: worksheetMedia, typedWorking, finalAnswer: $("finalAnswer").value.trim() });
+        const v = await clientMarkVerdict(q, { media: worksheetMedia, typedWorking, finalAnswer: isMcq ? (q.options[mcqSelected] || "") : $("finalAnswer").value.trim() });
         const reviewPlan = await recordLearningAttempt(q, v);
         try { rpgOnMarked(q, v, {}); } catch (err) { console.warn("rpg reward", err); }
         showResult(v, png, reviewPlan, !!solutionMedia);
+        if (isMcq) showMcqResult(mcqSelected, (v.verdict || "").toLowerCase() === "correct" ? mcqSelected : undefined);
         if (!maybeServePrerequisiteOnMiss(q, v) && !maybeServeEasierOnMiss(q, v)) maybeServeVariantOnMiss(q, v);
         const verdict = (v.verdict || "").toLowerCase();
         toast((verdict === "correct" ? "Great work! 🎉" : "Marked — see the feedback") + " · marked on this device", verdict === "correct" ? "success" : "");
       } catch (e2) { console.error(e, e2); toast("AI mark error: " + serverErrorMessage(e2), "error"); }
     }
   }
-  finally { btn.disabled = false; $("submitLabel").innerHTML = "📸 Submit for AI marking"; }
+  finally { btn.disabled = false; $("submitLabel").innerHTML = submitIdle; }
+});
+$("mcqWorkingToggle").addEventListener("click", () => {
+  const card = $("questionCard");
+  card.classList.toggle("mcq-show-working");
+  if (card.classList.contains("mcq-show-working")) { requestAnimationFrame(setupCanvasSize); $("typedWorking").focus(); }
 });
 
 // =====================================================================
