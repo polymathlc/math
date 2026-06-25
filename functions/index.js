@@ -458,6 +458,33 @@ async function studentLearningPreamble(uid, isAdmin) {
     `${notes.length ? "Recent notes: " + notes.join(" | ") + ". " : ""}` +
     `Use this to adapt hints and feedback, but do not reveal hidden weakness labels to the student.\n`;
 }
+// Prerequisite skills for this question, drawn from the teacher's Dependency
+// Board (users/{adminUid}/mathQuestionGraph/main: edges where `to` is this
+// question and kind is "prereq"). Lets the AI trace a struggling student's
+// mistakes back to a named prerequisite skill and steer them there.
+async function prerequisiteNote(adminUid, q) {
+  if (!adminUid || !q || !q.id) return "";
+  try {
+    const snap = await db.doc(`users/${adminUid}/mathQuestionGraph/main`).get();
+    if (!snap.exists) return "";
+    const edges = (snap.data() || {}).edges;
+    if (!Array.isArray(edges)) return "";
+    const pres = edges.filter(e => e && e.to === q.id && (e.kind || "prereq") === "prereq").slice(0, 6);
+    if (!pres.length) return "";
+    const items = await Promise.all(pres.map(async (e) => {
+      let title = "";
+      try {
+        const ps = await db.doc(`users/${adminUid}/mathQuestions/${e.from}`).get();
+        if (ps.exists) title = String((ps.data() || {}).title || "");
+      } catch (_) { /* skip unreadable prerequisite */ }
+      const note = String(e.comment || "").trim();
+      const base = title || "an earlier question";
+      return note ? `${base} (${note})` : base;
+    }));
+    return `Teacher's prerequisite map for this question: ${items.join("; ")}. ` +
+      `If the student's mistakes trace back to one of these prerequisite skills, name that skill in your guidance and gently steer them to practise it first.\n`;
+  } catch (_) { return ""; }
+}
 
 // The answer-key image, in a form safe to reveal to the student AFTER marking
 // (so they can check their work against it). Pass through https/storage URLs;
@@ -666,9 +693,10 @@ async function contributeRaidDamage(points) {
 // media they attach and how the submission is described to the marker.
 // ---------------------------------------------------------------------
 async function markKnownQuestion({ uid, isAdmin, isGuest = false, displayName = "", q, source, adminUid, statsBefore, media, mediaNote, submissionNote, keyAttached, typedWorking = "", finalAnswer = "", practiceMode = false }) {
-  const [settings, preamble] = await Promise.all([
+  const [settings, preamble, prereqNote] = await Promise.all([
     loadMarkingSettings(adminUid),
-    studentLearningPreamble(uid, isAdmin)
+    studentLearningPreamble(uid, isAdmin),
+    prerequisiteNote(adminUid, q)
   ]);
 
   const progRef = db.doc(`users/${uid}/mathQuestionProgress/${progressDocId(q)}`);
@@ -684,6 +712,7 @@ async function markKnownQuestion({ uid, isAdmin, isGuest = false, displayName = 
     INJECTION_GUARD +
     `${preamble}` +
     `${teacherConceptNote(q)}` +
+    `${prereqNote}` +
     `${markingPreamble(settings, q.markingGuide)}\n\n` +
     `QUESTION: "${qText}"\n` +
     `CORRECT ANSWER: "${q.expected || "(use the marking guide and answer key image if provided)"}"\n` +
@@ -984,10 +1013,11 @@ export const getHint = onCall(CALL_OPTS, async (request) => {
   const solutionMedia = validImagePart(d.solutionPhoto, "Solution photo");
 
   await reserveMarkSlot(uid, "hint");
-  const { q } = await loadQuestionWithKey(uid, source, d.questionId);
-  const [preamble, keyMedia] = await Promise.all([
+  const { q, adminUid } = await loadQuestionWithKey(uid, source, d.questionId);
+  const [preamble, keyMedia, prereqNote] = await Promise.all([
     studentLearningPreamble(uid, isAdminAuth(auth)),
-    answerKeyMedia(q)
+    answerKeyMedia(q),
+    prerequisiteNote(adminUid, q)
   ]);
   const { media, note: mediaNote } = buildPracticeMedia(worksheetB64, solutionMedia, keyMedia);
   const prompt =
@@ -999,6 +1029,7 @@ export const getHint = onCall(CALL_OPTS, async (request) => {
     INJECTION_GUARD +
     `${preamble}` +
     `${teacherConceptNote(q)}\n` +
+    `${prereqNote}` +
     `QUESTION: "${questionText(q)}"\n` +
     `CORRECT ANSWER (private - do not reveal it): "${q.expected || "(use the marking guide and answer key image if provided)"}"\n` +
     `STUDENT'S TYPED WORKING (if any): "${typedWorking || "(none - read it from the image)"}"\n` +
