@@ -145,8 +145,6 @@ a { color: var(--primary); }
 
 .page { display: none; padding: 22px; max-width: 1180px; margin: 0 auto; }
 .page.active { display: block; }
-.page.embed { padding: 0; max-width: none; margin: 0; }
-.embed-frame { width: 100%; border: 0; display: block; background: #fff; }
 .page-head { margin-bottom: 18px; }
 .page-head h3 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; }
 .page-head p { color: var(--text-muted); font-size: 0.92rem; }
@@ -172,6 +170,233 @@ a { color: var(--primary); }
 .btn-block { width: 100%; }
 .btn-lg { padding: 14px 18px; font-size: 1rem; }
 .btn-sm { padding: 7px 11px; font-size: 0.82rem; }
+.btn-orange { background: var(--accent-orange); color: #fff; }
+.btn-orange:hover { background: #bf7622; }
+.btn-blue { background: var(--accent-blue); color: #fff; }
+.btn-blue:hover { background: #3f5f8e; }
+
+/* A count pill on a sidebar item (e.g. how many questions are waiting in Vetting). */
+.nav-count {
+  margin-left: auto;
+  min-width: 20px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--accent-orange);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* ===================================================================
+   RAPID ADD — the paste pad. Click once, then keep pasting screenshots;
+   each paste fires a background job and lands in Vetting.
+   =================================================================== */
+.rapid-pad {
+  border: 2.5px dashed var(--primary);
+  border-radius: var(--radius-lg);
+  background: var(--primary-light);
+  padding: 34px 26px;
+  text-align: center;
+  outline: none;
+  cursor: text;
+  transition: all var(--transition);
+}
+.rapid-pad:focus, .rapid-pad.dragover { background: #dcebe0; border-color: var(--primary-hover); }
+.rapid-pad-icon { font-size: 2.4rem; line-height: 1; margin-bottom: 10px; }
+.rapid-pad-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 8px; }
+.rapid-pad-sub { font-size: 0.86rem; color: var(--text-muted); line-height: 1.6; max-width: 420px; margin: 0 auto; }
+.rapid-counts {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 20px;
+}
+.rapid-count {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 20px;
+  min-width: 128px;
+}
+.rapid-count b { display: block; font-size: 1.5rem; line-height: 1.2; color: var(--primary); }
+.rapid-count span { font-size: 0.76rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.rapid-status { margin-top: 16px; font-size: 0.86rem; color: var(--text-muted); min-height: 20px; line-height: 1.6; }
+
+/* ===================================================================
+   VETTING — the holding pen between "AI read it" and "students see it".
+   =================================================================== */
+.vet-grid { display: grid; gap: 16px; }
+.vet-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  box-shadow: var(--shadow-sm);
+}
+.vet-card.is-new { border-color: var(--primary); }
+.vet-card.is-error { border-color: var(--accent-red); background: var(--accent-red-light); }
+.vet-card.is-busy { border-color: var(--primary); }
+.vet-card-head { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.vet-card-head h4 { font-size: 1rem; font-weight: 700; margin: 0; flex: 1; min-width: 180px; line-height: 1.4; }
+.vet-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.vet-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--primary-light);
+  color: var(--primary);
+}
+.vet-badge.warn { background: var(--accent-orange-light); color: var(--accent-orange); }
+.vet-badge.dup { background: #fff4d6; color: #a3651a; }
+.vet-preview {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  line-height: 1.65;
+  border-left: 3px solid var(--border);
+  padding-left: 12px;
+  margin-bottom: 14px;
+  max-height: 190px;
+  overflow: hidden;
+}
+.vet-preview img { max-width: 220px; height: auto; border: 1px solid var(--border); border-radius: 6px; display: block; margin: 8px 0; }
+.vet-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ===================================================================
+   CREATE WORKSHEET — pick questions, add extras, print / save.
+   =================================================================== */
+.ws-title-input {
+  width: 100%;
+  padding: 14px 16px;
+  font-family: inherit;
+  font-size: 1.05rem;
+  font-weight: 600;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  margin-bottom: 18px;
+}
+.ws-title-input:focus { outline: none; border-color: var(--border-focus); }
+.ws-filter-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+.ws-filter-bar select, .ws-filter-bar input {
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 9px 11px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+}
+.ws-filter-bar input { flex: 1; min-width: 180px; }
+.ws-filter-bar select:focus, .ws-filter-bar input:focus { outline: none; border-color: var(--border-focus); }
+.ws-select-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.ws-selected-count { font-size: 0.85rem; font-weight: 600; color: var(--primary); }
+.ws-question-grid { display: grid; gap: 12px; margin-bottom: 20px; }
+.ws-q-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.ws-q-card:hover { border-color: var(--text-light); }
+.ws-q-card.selected { border-color: var(--primary); background: var(--primary-light); }
+.ws-q-top { display: flex; align-items: flex-start; gap: 12px; }
+.ws-q-top input[type="checkbox"] { width: 17px; height: 17px; flex: 0 0 auto; margin-top: 2px; accent-color: var(--primary); }
+.ws-q-info { flex: 1; min-width: 0; }
+.ws-q-title { font-size: 0.94rem; font-weight: 600; line-height: 1.45; margin-bottom: 6px; }
+.ws-q-meta { display: flex; gap: 6px; flex-wrap: wrap; }
+.ws-q-order {
+  flex: 0 0 auto;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--primary);
+  border-radius: 999px;
+  min-width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+}
+.ws-q-expand {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.ws-q-preview { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 0.88rem; line-height: 1.65; }
+.ws-q-preview.open { display: block; }
+.ws-q-preview img { max-width: 260px; height: auto; border: 1px solid var(--border); border-radius: 6px; display: block; margin: 8px 0; }
+.ws-extras {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 26px;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 18px;
+  padding: 18px 24px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  max-width: 760px;
+}
+.ws-extras-label { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.ws-extras label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.88rem; font-weight: 500; }
+.ws-extras input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--primary); }
+.ws-actions-bar { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; padding-bottom: 10px; }
+
+/* My Worksheets */
+.ws-saved-grid { display: grid; gap: 16px; }
+.ws-saved-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px 22px;
+  box-shadow: var(--shadow-sm);
+}
+.ws-saved-card h4 { font-size: 1.05rem; font-weight: 700; margin: 0 0 8px; line-height: 1.4; }
+.ws-saved-meta { display: flex; gap: 8px; flex-wrap: wrap; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 16px; }
+.ws-saved-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.mw-print-options {
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  padding: 18px 22px;
+  margin-bottom: 20px;
+}
+.mw-print-options-title { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px; }
+.mw-print-options label { display: flex; align-items: center; gap: 9px; cursor: pointer; font-size: 0.88rem; font-weight: 500; padding: 5px 0; }
+.mw-print-options input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--primary); }
+
+/* The worksheet editor drawer: change which questions a SAVED worksheet holds. */
+.wse-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 720px) { .wse-cols { grid-template-columns: 1fr; } }
+.wse-col-head { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; }
+.wse-list { display: grid; gap: 8px; max-height: 420px; overflow-y: auto; padding-right: 4px; }
+.wse-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  background: var(--surface);
+}
+.wse-row.missing { border-color: var(--accent-red); background: var(--accent-red-light); }
+.wse-row-main { flex: 1; min-width: 0; }
+.wse-row-title { font-size: 0.87rem; font-weight: 600; line-height: 1.45; }
+.wse-row-meta { font-size: 0.76rem; color: var(--text-muted); margin-top: 3px; }
+.wse-row-tools { display: flex; gap: 4px; flex: 0 0 auto; }
 
 /* ========== QUESTION (student practice) ========== */
 .q-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex: 1; }
@@ -556,7 +781,10 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 #toast.error { background: var(--accent-red); }
 #toast.success { background: var(--primary); }
-.spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+/* inline-block on purpose: a bare inline <span> ignores width/height, so a
+   spinner outside a flex container (a status line, a card heading) would
+   render as nothing at all. */
+.spinner { display: inline-block; vertical-align: -3px; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
 .spinner.dark { border-color: rgba(0,0,0,0.15); border-top-color: var(--primary); }
 @keyframes spin { to { transform: rotate(360deg); } }
 .hidden { display: none !important; }
@@ -1083,10 +1311,12 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
       <div class="nav-item" id="rpgHideToggle" style="display:none;"><span class="ico">🙈</span> Hide game</div>
       <div class="nav-section admin-only">Admin</div>
       <div class="nav-item admin-only" data-page="create"><span class="ico">➕</span> Create Question</div>
+      <div class="nav-item admin-only" data-page="vetting" title="Questions read in by Rapid add / the paper import, waiting for you to check them before they go live"><span class="ico">📋</span> Vetting <span class="nav-count" id="navVettingCount" style="display:none;"></span></div>
       <div class="nav-item admin-only" data-page="bank"><span class="ico">📚</span> Question Bank</div>
       <div class="nav-item admin-only" data-page="graph" title="Map prerequisite links between questions — the AI reads this when guiding practice"><span class="ico">🕸️</span> Dependency Board</div>
       <div class="nav-item admin-only" data-page="students"><span class="ico">🎓</span> Student Results</div>
-      <div class="nav-item admin-only" data-page="worksheet" title="Math Worksheet Creator — build, export and load worksheets"><span class="ico">📝</span> Worksheet Creator</div>
+      <div class="nav-item admin-only" data-page="worksheet" title="Pick questions, add a cover, then print or save the worksheet"><span class="ico">📝</span> Create Worksheet</div>
+      <div class="nav-item" data-page="myworksheets" title="Your saved worksheets — reprint, practise or delete"><span class="ico">📄</span> My Worksheets</div>
       <div class="nav-item admin-only" id="navMarking"><span class="ico">⚖️</span> AI Marking Guide</div>
       <div class="nav-item admin-only" id="navGen"><span class="ico">✨</span> AI Generation Guide</div>
     </nav>
@@ -1255,9 +1485,13 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
     <!-- ================= CREATE PAGE (admin) ================= -->
     <div class="page" id="page-create">
       <div class="page-head" style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;">
-        <div style="flex:1;"><h3 id="createHeading">Create Question</h3><p>Add a math question for your students. They'll see it on the practice pad.</p></div>
+        <!-- flex-basis, not a bare flex:1 — with six buttons beside it a
+             shrink-to-nothing text column crushes the heading to one word a line. -->
+        <div style="flex:1 1 280px;min-width:240px;"><h3 id="createHeading">Create Question</h3><p>Add a math question for your students. They'll see it on the practice pad.</p></div>
         <button class="btn btn-ghost" id="previewCreateBtn">👁️ Preview in practice</button>
         <button class="btn btn-ghost" id="aiBuildBtn">✨ Build with AI</button>
+        <button class="btn btn-ghost" id="aiAnswerBtn" title="Read the whole question in the editor — text, diagrams and options — and let AI write the correct answer and the marking guide. Review both before saving.">✨ AI answer &amp; guide</button>
+        <button class="btn btn-orange" id="rapidAddBtn" title="Open a paste pad, then paste screenshots one after another (Ctrl/⌘+V). Each one is read by AI in the background and dropped straight into your Vetting list — no editor stop. Shortcut: Ctrl/⌘+Shift+V from anywhere.">⚡ Rapid add</button>
         <span class="regen-split">
           <button class="btn btn-ghost" id="regenQBtn" title="Make a fresh variant of the question in the editor — different names, objects and numbers — then a second AI pass checks the numbers make sense and writes the verified answer key"><span id="regenQLabel">🔄 Regenerate variant</span></button>
           <button class="btn btn-ghost regen-caret" id="regenQCaret" type="button" title="Choose difficulty: same level, easier, or harder" aria-haspopup="true">▾</button>
@@ -1334,6 +1568,21 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
         <input id="bankSearch" type="search" class="bank-search" autocomplete="off"
           placeholder="Search questions by title, level, topic, concept, answer or text…">
         <div id="bankList"></div>
+      </div>
+    </div>
+
+    <!-- ================= VETTING PAGE (admin) =================
+         The holding pen between "AI read a screenshot" and "students see it".
+         Rapid add and the paper import both drop questions here; nothing in
+         this list is served to a student until it is approved into the bank. -->
+    <div class="page" id="page-vetting">
+      <div class="page-head" style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;">
+        <div style="flex:1;"><h3>📋 Vetting</h3><p>Questions the AI has read but nobody has checked yet. Students never see these — approve one into the bank when it looks right. <span id="vettingCount"></span></p></div>
+        <button class="btn btn-orange" id="vettingRapidBtn">⚡ Rapid add</button>
+        <button class="btn btn-ghost" id="vettingApproveAllBtn" title="Send every question in this list to the question bank">✅ Approve all</button>
+      </div>
+      <div class="card card-pad">
+        <div class="vet-grid" id="vettingList"></div>
       </div>
     </div>
 
@@ -1433,9 +1682,74 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
       </div>
     </div>
 
-    <!-- ================= WORKSHEET CREATOR PAGE (admin) ================= -->
-    <div class="page embed" id="page-worksheet">
-      <iframe id="worksheetFrame" class="embed-frame" title="Math Worksheet Creator"></iframe>
+    <!-- ================= CREATE WORKSHEET PAGE (admin) =================
+         A worksheet is nothing but an ORDERED list of question ids. Pick the
+         questions here; the cover, the printed sheet, the answer key, the
+         saved copy and the on-screen practice queue are all derived from that
+         one list, so they can never drift apart. -->
+    <div class="page" id="page-worksheet">
+      <div class="page-head"><h3>📝 Create Worksheet</h3><p>Pick the questions, choose your extras, then print, save or practise. Selection order is the order they print in.</p></div>
+      <div class="card card-pad">
+        <input type="text" id="wsTitle" class="ws-title-input" placeholder="Worksheet title (e.g. P5 Fractions — Practice 1)">
+
+        <div class="ws-filter-bar">
+          <select id="wsFilterLevel"><option value="">All levels</option></select>
+          <select id="wsFilterTopic"><option value="">All topics</option></select>
+          <select id="wsFilterConcept"><option value="">All concepts</option></select>
+          <select id="wsFilterFormat">
+            <option value="">All formats</option>
+            <option value="mcq">MCQ only</option>
+            <option value="written">Open-ended only</option>
+          </select>
+          <input type="text" id="wsSearch" placeholder="Search questions…" autocomplete="off">
+        </div>
+
+        <div class="ws-select-row">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.86rem;font-weight:500;">
+            <input type="checkbox" id="wsSelectAll" style="width:16px;height:16px;accent-color:var(--primary);">
+            Select all shown
+          </label>
+          <span class="ws-selected-count" id="wsSelectedCount">0 selected</span>
+        </div>
+
+        <div class="ws-question-grid" id="wsQuestionGrid"></div>
+
+        <div class="ws-extras">
+          <span class="ws-extras-label">Extras</span>
+          <label title="Add a Polymath cover page carrying the worksheet title and the student's name / date as page 1">
+            <input type="checkbox" id="wsIncludeCover"> 📄 Cover page
+          </label>
+          <label title="Print the blank Name / Date / Class lines. Turn it off for a clean sheet with no student fields at all.">
+            <input type="checkbox" id="wsIncludeFields" checked> ✍️ Name / Date / Class
+          </label>
+          <label title="Print the answer key on its own page at the back. Don't hand this copy to the class.">
+            <input type="checkbox" id="wsIncludeAnswers"> 🔑 Answer key page
+          </label>
+          <label title="Print a QR code beside each question so a student can scan it, AI-mark their paper working and watch the solution">
+            <input type="checkbox" id="wsIncludeQr" checked> 📱 QR per question
+          </label>
+        </div>
+
+        <div class="ws-actions-bar">
+          <button class="btn btn-ghost" id="wsPreviewBtn" title="See the sheet before you commit paper to it">👁️ Preview</button>
+          <button class="btn btn-ghost" id="wsSaveBtn" title="Save this worksheet so you (and your students) can reprint or practise it later">💾 Save worksheet</button>
+          <button class="btn btn-primary" id="wsPrintBtn">🖨️ Print / Save PDF</button>
+          <button class="btn btn-blue" id="wsPracticeBtn" title="Practise these questions on screen, in this order">✍️ Practise</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= MY WORKSHEETS PAGE ================= -->
+    <div class="page" id="page-myworksheets">
+      <div class="page-head"><h3>📄 My Worksheets</h3><p>Every worksheet you've saved. Reprint it, practise it on screen, or change which questions are on it. <span id="mwCount"></span></p></div>
+      <div class="mw-print-options">
+        <div class="mw-print-options-title">Printing options</div>
+        <label title="Print a Polymath cover page in front of the questions"><input type="checkbox" id="mwIncludeCover"> 📄 Cover page when reprinting</label>
+        <label title="Print the blank Name / Date / Class lines at the top of the sheet"><input type="checkbox" id="mwIncludeFields" checked> ✍️ Name / Date / Class fields</label>
+        <label class="admin-only" title="Print the answer key on its own page at the back"><input type="checkbox" id="mwIncludeAnswers"> 🔑 Answer key page</label>
+        <label title="Print a QR code beside each question for AI marking"><input type="checkbox" id="mwIncludeQr" checked> 📱 QR per question</label>
+      </div>
+      <div class="ws-saved-grid" id="savedWsGrid"></div>
     </div>
 
     <!-- ================= DEPENDENCY BOARD PAGE (admin) ================= -->
@@ -1521,6 +1835,68 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
       <input id="aiBuildFile" type="file" accept="image/*,application/pdf" class="hidden">
       <div id="aiBuildStatus" style="margin-top:14px;font-size:0.88rem;color:var(--text-muted);"></div>
     </div>
+  </div>
+</div>
+
+<!-- RAPID ADD — click once, then keep pasting. Each paste fires a background
+     job (AI reads the question, the diagram is cropped out of the screenshot)
+     and the result lands in Vetting. The pad stays armed for the next paste,
+     so a stack of 30 screenshots is 30 keystrokes and no editor stops. -->
+<div class="overlay" id="rapidAddOverlay">
+  <div class="overlay-card">
+    <div class="overlay-head"><h3>⚡ Rapid add</h3><button class="close" data-close="rapidAddOverlay">×</button></div>
+    <div class="overlay-body">
+      <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:16px;line-height:1.65;">Copy a screenshot of an exam question, then paste it here (Ctrl/⌘+V) — and keep pasting. Each one is read by AI in the background and dropped straight into your <b>Vetting</b> list. Nothing stops to open the editor, and nothing reaches your students until you approve it.</p>
+      <div class="rapid-pad" id="rapidPasteZone" tabindex="0">
+        <div class="rapid-pad-icon">📋</div>
+        <div class="rapid-pad-title">Paste a screenshot (Ctrl/⌘+V)</div>
+        <div class="rapid-pad-sub">…or drop image files here. Keep going — every paste queues its own job, and you can close this window while they finish.</div>
+      </div>
+      <div class="rapid-counts">
+        <div class="rapid-count"><b id="rapidProcCount">0</b><span>Reading now</span></div>
+        <div class="rapid-count"><b id="rapidAddedCount">0</b><span>Added to vetting</span></div>
+      </div>
+      <div class="rapid-status" id="rapidStatus"></div>
+      <div style="margin-top:22px;padding-top:20px;border-top:1px solid var(--border);">
+        <div style="font-size:0.74rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px;">Or import a whole paper</div>
+        <p style="color:var(--text-muted);font-size:0.86rem;margin-bottom:14px;line-height:1.65;">Give it a PDF of a complete paper and the AI reads every question on it in one pass — each becomes its own entry in Vetting. Diagrams are not cropped on this route (the pages are read as a run, not as screenshots), so attach those as you check each question.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+          <button class="btn btn-ghost" id="bulkPaperBtn">📄 Choose a paper (PDF or image)</button>
+          <input id="bulkPaperFile" type="file" accept="image/*,application/pdf" class="hidden">
+          <span id="bulkPaperStatus" style="font-size:0.85rem;color:var(--text-muted);"></span>
+        </div>
+      </div>
+    </div>
+    <div class="overlay-foot"><button class="btn btn-ghost" data-close="rapidAddOverlay">Done</button><button class="btn btn-primary" id="rapidGoVettingBtn">📋 Open vetting</button></div>
+  </div>
+</div>
+
+<!-- Change which questions a SAVED worksheet holds. A worksheet is an ordered
+     list of question ids, so this edits that list — it never touches the
+     question bank itself. Every change persists as it is made. -->
+<div class="overlay" id="wsEditOverlay">
+  <div class="overlay-card wide">
+    <div class="overlay-head"><h3>✎ Worksheet questions</h3><button class="close" data-close="wsEditOverlay">×</button></div>
+    <div class="overlay-body">
+      <p style="color:var(--text-muted);font-size:0.88rem;margin-bottom:6px;line-height:1.65;" id="wseSubtitle"></p>
+      <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:18px;line-height:1.6;">Adding and removing here only changes what is <em>on this sheet</em> — the questions themselves stay in your bank exactly as they are. Every change saves straight away.</p>
+      <div class="wse-cols">
+        <div>
+          <div class="wse-col-head">On this worksheet (<span id="wseOnCount">0</span>)</div>
+          <div class="wse-list" id="wseOnList"></div>
+        </div>
+        <div>
+          <div class="wse-col-head">Add from the bank</div>
+          <div class="ws-filter-bar" style="margin-bottom:10px;">
+            <select id="wseFilterLevel"><option value="">All levels</option></select>
+            <select id="wseFilterTopic"><option value="">All topics</option></select>
+            <input type="text" id="wseSearch" placeholder="Search…" autocomplete="off">
+          </div>
+          <div class="wse-list" id="wseBankList"></div>
+        </div>
+      </div>
+    </div>
+    <div class="overlay-foot"><button class="btn btn-primary" data-close="wsEditOverlay">Done</button></div>
   </div>
 </div>
 
@@ -3094,6 +3470,22 @@ let currentUser = null;          // { uid, email, name, role }
 let adminUid = null;             // for students: whose bank to load
 let questionBank = [];           // the active practice questions
 let bankSearchTerm = "";         // Question Bank search filter
+// ---- Vetting + Rapid add (admin) ----------------------------------------
+// Nothing in `vettingList` is ever served to a student: it is the holding pen
+// between "the AI read a screenshot" and "this question is live".
+let vettingList = [];
+let rapidJobs = [];              // in-flight paste jobs, newest first
+let _rapidSeq = 0;
+let _rapidAddedCount = 0;        // this session's tally, for the pad's counter
+let _rapidJustAdded = new Set();  // ids added this session — flagged as new in the list
+// ---- Worksheets ---------------------------------------------------------
+// A worksheet is an ORDERED list of bank ids. wsSelectedIds is a Set for the
+// membership test; wsOrder is what actually decides the printed order, because
+// a Set gives no promise about insertion order once ids are removed and re-added.
+let wsSelectedIds = new Set();
+let wsOrder = [];
+let savedWorksheets = [];
+let _wseId = null;               // the saved worksheet open in the editor drawer
 let studentGeneratedQuestions = [];
 let qIndex = 0;
 let editorBlocks = [];           // editor block list
@@ -3250,8 +3642,10 @@ async function enterApp(user) {
     await loadMarkingSettings(user.uid);
     await loadGenSettings(user.uid);
     await loadBank(user.uid);
+    await loadVettingList(user.uid);
     await loadQuestionGraph(user.uid);
     await loadFlagNotifications();
+    await loadSavedWorksheets();
     navigateTo("create");
   } else {
     // students discover the admin and load their bank (the marking rubric
@@ -3266,6 +3660,7 @@ async function enterApp(user) {
     if (!currentUser.isGuest) { saveStudentRosterSummary(); recordLoginEvent(); }
     await loadStudentGeneratedQuestions(user.uid);
     await loadEmailSubscription();
+    await loadSavedWorksheets();
     prioritizeReviewQuestions();
     navigateTo("practice");
   }
@@ -3466,7 +3861,9 @@ async function notifyQuestionSubscribers(q) {
 // NAVIGATION
 // =====================================================================
 function navigateTo(page) {
-  if (["create", "bank", "worksheet", "students", "graph"].includes(page) && !canManageQuestions()) {
+  // My Worksheets is deliberately NOT on this list: a student's own saved
+  // worksheets are their own documents, and reprinting one is the whole point.
+  if (["create", "bank", "worksheet", "vetting", "students", "graph"].includes(page) && !canManageQuestions()) {
     page = "practice";
     toast("Student accounts can practise questions only", "error");
   }
@@ -3476,7 +3873,7 @@ function navigateTo(page) {
   const nav = document.querySelector(`.nav-item[data-page="${page}"]`); if (nav) nav.classList.add("active");
   if ((page === "character" || page === "leaderboard" || page === "adventure") && rpgGameHidden()) page = "practice";
   if (page !== "adventure") advAbandon();
-  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", graph: "Dependency Board", worksheet: "Worksheet Creator", students: "Student Results", character: "Character", leaderboard: "Leaderboard", adventure: "Dungeon" };
+  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", vetting: "Vetting", graph: "Dependency Board", worksheet: "Create Worksheet", myworksheets: "My Worksheets", students: "Student Results", character: "Character", leaderboard: "Leaderboard", adventure: "Dungeon" };
   $("topbarTitle").textContent = titles[page] || "";
   $("sidebar").classList.remove("open");
   if (page === "character") rpgRenderCharacterPage();
@@ -3486,16 +3883,9 @@ function navigateTo(page) {
   if (page === "graph") renderGraphPage();
   if (page === "students") loadStudentRoster();
   if (page === "practice") { renderQuestion(); setupCanvasSize(); }
-  if (page === "worksheet") {
-    const f = $("worksheetFrame");
-    if (f && !f.getAttribute("src")) f.setAttribute("src", "math-worksheet.html");
-    sizeWorksheetFrame();
-  }
-}
-function sizeWorksheetFrame() {
-  const f = $("worksheetFrame"); if (!f) return;
-  const tb = document.querySelector(".topbar");
-  f.style.height = (window.innerHeight - (tb ? tb.offsetHeight : 50)) + "px";
+  if (page === "vetting") renderVettingList();
+  if (page === "worksheet") { wsPopulateFilters(); renderWsQuestions(); }
+  if (page === "myworksheets") renderSavedWorksheets();
 }
 // Keep the sticky battle strip pinned right under the (also-sticky) topbar,
 // whatever the topbar's real height ends up being on this viewport.
@@ -3506,11 +3896,7 @@ function syncTopbarHeight() {
 syncTopbarHeight();
 window.addEventListener("load", syncTopbarHeight);
 window.addEventListener("orientationchange", () => setTimeout(syncTopbarHeight, 250));
-window.addEventListener("resize", () => {
-  syncTopbarHeight();
-  const p = $("page-worksheet");
-  if (p && p.classList.contains("active")) sizeWorksheetFrame();
-});
+window.addEventListener("resize", syncTopbarHeight);
 document.querySelectorAll(".nav-item[data-page]").forEach(n => n.addEventListener("click", () => navigateTo(n.dataset.page)));
 $("menuToggle").addEventListener("click", () => $("sidebar").classList.toggle("open"));
 $("navMarking").addEventListener("click", openMarking);
@@ -3830,6 +4216,10 @@ function renderEditorBlocks() {
     const ed = wrap.querySelector(`.block-edit[data-block="${btn.dataset.blockImprove}"]`);
     if (ed) aiRunImprove(ed, btn);
   }));
+  wrap.querySelectorAll("[data-block-shorten]").forEach(btn => btn.addEventListener("click", () => {
+    const ed = wrap.querySelector(`.block-edit[data-block="${btn.dataset.blockShorten}"]`);
+    if (ed) aiRunShorten(ed, btn);
+  }));
   // wire image url + paste/drop
   wrap.querySelectorAll("[data-imgurl]").forEach(inp => inp.addEventListener("input", () => {
     const val = inp.value.trim();
@@ -3864,6 +4254,7 @@ function textBlockHtml(b) {
     <div class="ai-text-tools">
       <button type="button" class="ai-tool-btn ai-dictate-btn" data-block-dictate="${b.id}" title="Dictate with AI">🎤 Dictate</button>
       <button type="button" class="ai-tool-btn ai-improve-btn" data-block-improve="${b.id}" title="Improve the wording with AI (keeps the meaning)">✨ Improve</button>
+      <button type="button" class="ai-tool-btn ai-improve-btn" data-block-shorten="${b.id}" title="Shorten with AI — trims the words but keeps every number, unit and the exact meaning">✂️ Shorten</button>
     </div>`;
 }
 function imgBlockHtml(b) {
@@ -4118,6 +4509,7 @@ $("addImageBtn").addEventListener("click", () => addBlock("image"));
 function resetEditor() {
   currentEditingId = null;
   pendingVariantOf = null;
+  _vetPendingPromote = null;   // abandoning the edit leaves the vetting entry alone
   graphPendingSpawn = null;
   imgChoices.clear();
   editorBlocks = [{ id: genBlockId(), type: "text", content: "" }];
@@ -4139,7 +4531,14 @@ $("mcqAddOptionBtn").addEventListener("click", mcqAddOption);
 function editQuestion(id) {
   if (!canManageQuestions()) { toast("Only admin accounts can edit questions", "error"); navigateTo("practice"); return; }
   const q = questionBank.find(x => x.id === id); if (!q) return;
-  currentEditingId = id;
+  loadQuestionIntoEditor(q);
+}
+// Load a question object into the editor. Split out of editQuestion so a
+// question that is NOT in the bank yet — a vetting entry — can be edited
+// without being written into `questionBank` first: cancelling the edit then
+// leaves nothing behind for the bank page to show.
+function loadQuestionIntoEditor(q) {
+  currentEditingId = q.id;
   pendingVariantOf = null;
   imgChoices.clear();
   editorBlocks = JSON.parse(JSON.stringify(q.blocks || []));
@@ -4199,6 +4598,9 @@ $("saveQBtn").addEventListener("click", async () => {
     await saveQuestionDoc(q);
     const i = questionBank.findIndex(x => x.id === q.id);
     if (i >= 0) questionBank[i] = q; else questionBank.push(q);
+    // A question opened out of Vetting has now reached the bank, so its
+    // vetting doc has done its job. Only after the bank write succeeded.
+    await vetClearPromoted(q.id);
     graphOnQuestionSaved(q, isNewQuestion);
     if (isNewQuestion) await notifyQuestionSubscribers(q);
     toast(currentEditingId ? "Question updated" : "Question added to bank", "success");
@@ -4266,21 +4668,32 @@ function aiBuildFailureText(e) {
     ? "Upload interrupted: " + aiErrorMessage(e) + "."
     : "Couldn't read that — try a clearer image. (" + aiErrorMessage(e) + ")";
 }
+// The one prompt that turns a picture of an exam question into a question.
+// Build-with-AI and Rapid add both use it, so a wording fix reaches both
+// instead of drifting between two near-identical copies.
+// `withBox` asks for the diagram's rectangle as well; only Rapid add uses it,
+// because only Rapid add has the screenshot to crop out of afterwards.
+function aiQuestionReadPrompt(isPdf, withBox = false) {
+  return `You are helping a Singapore primary-school math teacher turn an exam question (in the attached ${isPdf ? "PDF" : "image"}) into a practice question. ` +
+    genPreamble() +
+    `For "topics", use one or more specific content topics students can safely see, such as Fractions, Ratio, Percentage, Geometry, Speed, or Algebra. ` +
+    `Always choose the specific content topic — never the generic label "Problem Solving". ` +
+    `Do not put solution strategies or concepts that would give away the method inside "topics". ` +
+    `For "concept", use a specific private teacher-only strategy/concept label only when one clearly applies, such as Assumption, Total unchanged, Difference unchanged, Guess and Check, or Working Backwards; otherwise leave it empty. Do not use the generic label "Model Method".\n` +
+    `If the exam question is MULTIPLE-CHOICE, extract the answer options exactly as written and work out which one is correct. If it is not multiple-choice, return an empty options array and correctOption -1.\n` +
+    (withBox
+      ? `If the question relies on a figure, diagram, table or graph, set "hasDiagram" to true and give "diagramBox" as [ymin,xmin,ymax,xmax] — integers 0-1000 measured on the attached image — the tight rectangle around that figure ONLY. Include the figure's own labels, axis titles, units and a short caption like "Diagram 1"; EXCLUDE full sentences of question text. If there is no figure, set hasDiagram false and diagramBox null.\n`
+      : ``) +
+    `Read the question carefully and return ONLY valid JSON in this exact shape. Escape any line breaks inside string values as \\n and do not include markdown fences:\n` +
+    `{"title":"<short title>","level":"<e.g. P5 or Sec 1>","topics":["<e.g. Fractions>","<optional second topic>"],"concept":"<teacher-only concept or strategy label, or empty string>",` +
+    `"questionText":"<the full question text, cleaned up>","expected":"<the correct final answer, with units>",` +
+    `"markingGuide":"<concise worked solution / what to look for in the working>","hasDiagram":<true if the question relies on a figure/diagram, else false>,` +
+    (withBox ? `"diagramBox":[<ymin>,<xmin>,<ymax>,<xmax>] or null,` : ``) +
+    `"options":["<option A>","<option B>", ...] (empty array if not multiple-choice),"correctOption":<0-based index of the correct option, or -1 if not multiple-choice>}`;
+}
 async function runAiBuildFromMedia(source) {
   try {
-    const prompt =
-      `You are helping a Singapore primary-school math teacher turn an exam question (in the attached ${source.isPdf ? "PDF" : "image"}) into a practice question. ` +
-      genPreamble() +
-      `For "topics", use one or more specific content topics students can safely see, such as Fractions, Ratio, Percentage, Geometry, Speed, or Algebra. ` +
-      `Always choose the specific content topic — never the generic label "Problem Solving". ` +
-      `Do not put solution strategies or concepts that would give away the method inside "topics". ` +
-      `For "concept", use a specific private teacher-only strategy/concept label only when one clearly applies, such as Assumption, Total unchanged, Difference unchanged, Guess and Check, or Working Backwards; otherwise leave it empty. Do not use the generic label "Model Method".\n` +
-      `If the exam question is MULTIPLE-CHOICE, extract the answer options exactly as written and work out which one is correct. If it is not multiple-choice, return an empty options array and correctOption -1.\n` +
-      `Read the question carefully and return ONLY valid JSON in this exact shape. Escape any line breaks inside string values as \\n and do not include markdown fences:\n` +
-      `{"title":"<short title>","level":"<e.g. P5 or Sec 1>","topics":["<e.g. Fractions>","<optional second topic>"],"concept":"<teacher-only concept or strategy label, or empty string>",` +
-      `"questionText":"<the full question text, cleaned up>","expected":"<the correct final answer, with units>",` +
-      `"markingGuide":"<concise worked solution / what to look for in the working>","hasDiagram":<true if the question relies on a figure/diagram, else false>,` +
-      `"options":["<option A>","<option B>", ...] (empty array if not multiple-choice),"correctOption":<0-based index of the correct option, or -1 if not multiple-choice>}`;
+    const prompt = aiQuestionReadPrompt(source.isPdf);
     const raw = await askGeminiVision(prompt, [{ mimeType: source.mimeType, data: source.data }], { maxOutputTokens: 2200, json: true });
     const data = parseAIJson(raw);
     populateEditorFromAi(data);
@@ -4320,6 +4733,528 @@ function populateEditorFromAi(d) {
   $("cancelEditBtn").style.display = "none";
   renderEditorBlocks();
 }
+
+// =====================================================================
+// AI ANSWER & MARKING GUIDE
+// Read whatever is in the editor right now — the text blocks, the diagrams
+// and the MCQ options — and write the correct answer and the marking guide.
+// The diagrams matter: half of a primary math question lives in the figure,
+// so a text-only pass would confidently answer a question it hasn't seen.
+// An image that can't be fetched (CORS, a dead URL) degrades to text-only
+// rather than failing the whole call.
+// =====================================================================
+async function editorImageMedia(max = 3) {
+  const out = [];
+  for (const b of editorBlocks) {
+    if (b.type !== "image" || out.length >= max) continue;
+    // A picture the admin has pasted but not pressed "Use" on yet is still on
+    // screen and still part of the question, so it counts. It is already inline
+    // base64, so it needs no fetch.
+    const pending = imgChoices.get(b.id);
+    const inline = pending && (pending.view === "enhanced" && pending.enhanced ? pending.enhanced : pending.original);
+    if (inline && inline.data) { out.push({ mimeType: inline.mimeType || "image/png", data: inline.data }); continue; }
+    const url = (b.url || "").trim();
+    if (!url) continue;
+    try { const m = await imageUrlToInlineMedia(url); if (m) out.push(m); }
+    catch (e) { console.warn("editor image unavailable for AI", url, e); }
+  }
+  return out;
+}
+async function aiAnswerAndGuide() {
+  if (!canManageQuestions()) { toast("Only admin accounts can do this", "error"); return; }
+  if (!aiReady()) { toast("AI isn't ready yet — please wait a moment", "error"); return; }
+  const text = editorBlocks.filter(b => b.type === "text").map(b => (b.content || "").trim()).filter(Boolean).join("\n\n");
+  const imgCount = editorBlocks.filter(b => b.type === "image" && ((b.url || "").trim() || imgChoices.has(b.id))).length;
+  if (!text && !imgCount) { toast("Write the question first — there's nothing to answer yet", "error"); return; }
+  const btn = $("aiAnswerBtn"), orig = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = '<span class="spinner dark"></span> Solving…';
+  try {
+    const media = await editorImageMedia();
+    if (imgCount && !media.length) toast("Couldn't load the diagram — answering from the text only", "error");
+    const opts = collectEditorOptions();
+    const optionLines = opts.options.length >= 2
+      ? `\nThis is a MULTIPLE-CHOICE question. The options are:\n${opts.options.map((o, i) => `${String.fromCharCode(65 + i)}. ${o}`).join("\n")}\nSay which option letter is correct in "expected", and give the reasoning in "markingGuide".\n`
+      : ``;
+    const prompt =
+      `You are a Singapore primary-school math teacher writing the answer key for the question below. ` +
+      (media.length ? `${media.length} attached image${media.length > 1 ? "s are" : " is"} the question's diagram(s) — read them; the numbers and relationships you need are often only in the figure. ` : ``) +
+      `Solve it carefully and completely. If the question cannot be solved as written (missing information, inconsistent numbers), say so plainly in "markingGuide" and leave "expected" empty rather than inventing an answer.\n` +
+      optionLines +
+      `Return ONLY valid JSON, no markdown fences, line breaks inside strings escaped as \\n:\n` +
+      `{"expected":"<the correct final answer, with units>","markingGuide":"<the worked solution, step by step, plus what to look for in a student's working>"}\n\n` +
+      `QUESTION:\n<<<\n${text || "(the question is entirely in the attached image)"}\n>>>`;
+    const d = parseAIJson(await askGeminiVision(prompt, media, { maxOutputTokens: 2200, json: true }));
+    const expected = String(d.expected || "").trim();
+    const guide = String(d.markingGuide || "").trim();
+    if (!expected && !guide) throw new Error("the AI returned nothing usable");
+    if (expected) $("qExpectedInput").value = expected;
+    if (guide) $("qGuideInput").value = guide;
+    toast(expected ? "Answer and guide written — check them before saving" : "The AI couldn't answer it — read its note in the marking guide", expected ? "success" : "");
+  } catch (e) {
+    console.error(e);
+    toast("Couldn't write the answer: " + aiErrorMessage(e), "error");
+  } finally { btn.disabled = false; btn.innerHTML = orig; }
+}
+
+// =====================================================================
+// VETTING — the holding pen. Rapid add and the paper import write here;
+// nothing in it is served to a student until it is approved into the bank.
+// It is its own collection, so an unchecked question can never be picked up
+// by practice, the worksheet builder or the dependency board by accident.
+// =====================================================================
+function _vetCol(uid) { return collection(db, "users", uid, "mathVetting"); }
+async function loadVettingList(uid) {
+  vettingList = [];
+  try {
+    const snap = await getDocs(_vetCol(uid));
+    snap.forEach(d => vettingList.push(d.data()));
+    vettingList.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+  } catch (e) { console.warn("vetting load", e); }
+  updateVettingBadge();
+}
+async function saveVettingDoc(q) {
+  if (!canManageQuestions()) throw new Error("Only admin accounts can save questions");
+  await setDoc(doc(db, "users", currentUser.uid, "mathVetting", q.id), q);
+}
+async function deleteVettingDoc(id) {
+  if (!canManageQuestions()) return;
+  await deleteDoc(doc(db, "users", currentUser.uid, "mathVetting", id)).catch(e => console.warn("vetting delete", e));
+}
+function updateVettingBadge() {
+  const el = $("navVettingCount");
+  if (el) {
+    const n = vettingList.length + rapidJobs.length;
+    el.textContent = n > 99 ? "99+" : String(n);
+    el.style.display = n ? "" : "none";
+  }
+  const c = $("vettingCount");
+  if (c) c.textContent = vettingList.length ? `${vettingList.length} waiting.` : "";
+}
+// Flag a freshly-read question that looks like one already in the bank. It is a
+// prompt to look, never a verdict — the card still saves and still approves.
+function _vetTagDuplicate(q) {
+  const mine = _vetTokens(q);
+  if (mine.size < 4) return q;
+  let best = null, bestSim = 0;
+  for (const other of questionBank) {
+    const sim = _vetSim(mine, _vetTokens(other));
+    if (sim > bestSim) { bestSim = sim; best = other; }
+  }
+  if (best && bestSim >= 0.66) q.duplicateOf = { id: best.id, title: best.title || "Untitled", sim: Math.round(bestSim * 100) };
+  return q;
+}
+function _vetTokens(q) {
+  return new Set(String(questionText(q) || "").toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(w => w.length > 2));
+}
+function _vetSim(a, b) {
+  if (!a.size || !b.size) return 0;
+  let shared = 0;
+  a.forEach(w => { if (b.has(w)) shared++; });
+  return shared / Math.min(a.size, b.size);
+}
+function vetPreviewHtml(q) {
+  const blocks = (q.blocks || []).map(b => b.type === "image"
+    ? (b.url ? `<img src="${escapeHtml(b.url)}" alt="Question diagram">` : `<div style="color:var(--accent-orange);">🖼 Diagram slot — nothing attached yet</div>`)
+    : `<div>${escapeHtml(stripHtml(b.content))}</div>`).join("");
+  const opts = (Array.isArray(q.options) && q.options.length >= 2)
+    ? `<div style="margin-top:6px;">${q.options.map((o, i) => `<div>${String.fromCharCode(65 + i)}. ${escapeHtml(o)}${i === q.correctOption ? " ✓" : ""}</div>`).join("")}</div>` : "";
+  const ans = String(q.expected || "").trim();
+  return blocks + opts + (ans ? `<div style="margin-top:8px;"><b>Answer:</b> ${escapeHtml(ans)}</div>` : `<div style="margin-top:8px;color:var(--accent-orange);">No answer yet</div>`);
+}
+function renderVettingList() {
+  const list = $("vettingList");
+  if (!list) return;
+  updateVettingBadge();
+  const jobs = rapidJobs.map(rapidJobCardHtml).join("");
+  if (!vettingList.length && !rapidJobs.length) {
+    list.innerHTML = `<div class="empty-note">Nothing waiting. Use <b>⚡ Rapid add</b> to paste screenshots straight in here ✦</div>`;
+    return;
+  }
+  list.innerHTML = jobs + vettingList.map(q => {
+    const dup = q.duplicateOf
+      ? `<span class="vet-badge dup" title="Looks like “${escapeHtml(q.duplicateOf.title)}” which is already in your bank">⚠ Possible duplicate (${q.duplicateOf.sim}%)</span>` : "";
+    const noAns = (!String(q.expected || "").trim() && !String(q.markingGuide || "").trim())
+      ? `<span class="vet-badge warn">No answer key</span>` : "";
+    const gap = (q.blocks || []).some(b => b.type === "image" && !(b.url || "").trim())
+      ? `<span class="vet-badge warn">Diagram missing</span>` : "";
+    return `<div class="vet-card${_rapidJustAdded.has(q.id) ? " is-new" : ""}">
+      <div class="vet-card-head"><h4>${escapeHtml(q.title || "Untitled question")}</h4></div>
+      <div class="vet-meta">
+        <span class="vet-badge">${escapeHtml(q.level || "no level")}</span>
+        <span class="vet-badge">${escapeHtml(adminTopicsLabel(q))}</span>
+        ${noAns}${gap}${dup}
+      </div>
+      <div class="vet-preview">${vetPreviewHtml(q)}</div>
+      <div class="vet-actions">
+        <button class="btn btn-primary btn-sm" data-vet-approve="${escapeHtml(q.id)}" title="Send this question to the question bank — students can practise it from then on">✅ Approve to bank</button>
+        <button class="btn btn-ghost btn-sm" data-vet-edit="${escapeHtml(q.id)}" title="Open it in the editor to fix the wording or attach the diagram">✎ Edit</button>
+        <button class="btn btn-danger btn-sm" data-vet-del="${escapeHtml(q.id)}">🗑 Discard</button>
+      </div>
+    </div>`;
+  }).join("");
+  list.querySelectorAll("[data-vet-approve]").forEach(b => b.addEventListener("click", () => vetApprove(b.dataset.vetApprove)));
+  list.querySelectorAll("[data-vet-edit]").forEach(b => b.addEventListener("click", () => vetEdit(b.dataset.vetEdit)));
+  list.querySelectorAll("[data-vet-del]").forEach(b => b.addEventListener("click", () => vetDiscard(b.dataset.vetDel)));
+  list.querySelectorAll("[data-rapid-dismiss]").forEach(b => b.addEventListener("click", () => dismissRapidJob(b.dataset.rapidDismiss)));
+}
+// Approve = move, not copy: the vetting doc goes away only AFTER the bank write
+// succeeds, so a failed save leaves the question exactly where it was rather
+// than dropping it on the floor.
+async function vetApprove(id, opts = {}) {
+  const q = vettingList.find(x => x.id === id);
+  if (!q) return;
+  const clean = Object.assign({}, q);
+  delete clean.duplicateOf;
+  try {
+    await saveQuestionDoc(clean);
+    const i = questionBank.findIndex(x => x.id === clean.id);
+    if (i >= 0) questionBank[i] = clean; else questionBank.push(clean);
+    await deleteVettingDoc(id);
+    vettingList = vettingList.filter(x => x.id !== id);
+    _rapidJustAdded.delete(id);
+    if (!opts.quiet) { renderVettingList(); toast("Approved — it's in the bank", "success"); }
+  } catch (e) {
+    console.error(e);
+    if (!opts.quiet) toast("Approve failed: " + e.message, "error");
+    throw e;
+  }
+}
+async function vetApproveAll() {
+  if (!vettingList.length) { toast("Nothing to approve", "error"); return; }
+  if (!confirm(`Send all ${vettingList.length} question(s) to the question bank? Students will be able to practise them straight away.`)) return;
+  const ids = vettingList.map(q => q.id);
+  let ok = 0, failed = 0;
+  for (const id of ids) {
+    try { await vetApprove(id, { quiet: true }); ok++; } catch (e) { failed++; }
+  }
+  renderVettingList();
+  toast(failed ? `${ok} approved, ${failed} failed — the failures are still in the list` : `${ok} question(s) approved`, failed ? "error" : "success");
+}
+// Editing a vetting entry hands it to the ordinary editor, and saving there
+// writes it to the BANK — so the vetting copy is dropped at that point. The
+// editor is the same one everything else uses; there is no second one to keep
+// in step.
+function vetEdit(id) {
+  const q = vettingList.find(x => x.id === id);
+  if (!q) return;
+  if (!canManageQuestions()) { toast("Only admin accounts can edit questions", "error"); return; }
+  const stash = Object.assign({}, q);
+  delete stash.duplicateOf;
+  // Loaded straight into the editor — NOT into questionBank, so cancelling the
+  // edit leaves the bank exactly as it was. `_vetPendingPromote` is what tells
+  // the save handler to clear the vetting doc once the bank write succeeds.
+  _vetPendingPromote = stash.id;
+  loadQuestionIntoEditor(stash);
+  toast("Saving from the editor sends it to the bank and clears it from vetting", "");
+}
+let _vetPendingPromote = null;
+// Called from the editor's save handler: a question that came out of vetting
+// has now been written to the bank, so its vetting doc is done.
+async function vetClearPromoted(id) {
+  if (!_vetPendingPromote || _vetPendingPromote !== id) return;
+  _vetPendingPromote = null;
+  await deleteVettingDoc(id);
+  vettingList = vettingList.filter(x => x.id !== id);
+  _rapidJustAdded.delete(id);
+  updateVettingBadge();
+}
+async function vetDiscard(id) {
+  const q = vettingList.find(x => x.id === id);
+  if (!q) return;
+  if (!confirm(`Discard “${q.title || "this question"}”? It is not in your bank, so this cannot be undone.`)) return;
+  await deleteVettingDoc(id);
+  vettingList = vettingList.filter(x => x.id !== id);
+  _rapidJustAdded.delete(id);
+  renderVettingList();
+  toast("Discarded", "success");
+}
+
+// =====================================================================
+// RAPID ADD — paste screenshots straight into Vetting, in the background.
+// Click the button once, then just paste (Ctrl/⌘+V) screenshot after
+// screenshot. Each paste fires its own job: AI reads the question into a
+// draft, the diagram rectangle it selected is cropped out of the screenshot,
+// and the result lands in Vetting. The editor is never opened, so a stack of
+// thirty screenshots is thirty keystrokes.
+// =====================================================================
+function openRapidAdd() {
+  if (!canManageQuestions()) { toast("Only admin accounts can add questions", "error"); return; }
+  if (!aiReady()) { toast("AI isn't ready yet — please wait a moment", "error"); return; }
+  closeOverlay("aiBuildOverlay");
+  $("rapidAddOverlay").classList.add("show");
+  updateRapidCounts();
+  setTimeout(() => { const z = $("rapidPasteZone"); if (z) z.focus(); }, 60);
+}
+function rapidPaste(e) {
+  const items = (e.clipboardData && e.clipboardData.items) || [];
+  let found = 0;
+  for (const it of items) {
+    if (it.type && it.type.startsWith("image/")) {
+      e.preventDefault();
+      const f = it.getAsFile();
+      if (f) { startRapidJob(f); found++; }
+    }
+  }
+  if (found) {
+    setRapidStatus(`Queued ${found} screenshot${found > 1 ? "s" : ""} — paste the next one…`);
+    setTimeout(() => { const z = $("rapidPasteZone"); if (z) z.focus(); }, 30); // stay armed
+  } else {
+    setRapidStatus("That paste had no image in it — copy a screenshot and try again.");
+  }
+}
+function rapidDrop(e) {
+  e.preventDefault();
+  const z = $("rapidPasteZone"); if (z) z.classList.remove("dragover");
+  let found = 0;
+  for (const f of (e.dataTransfer && e.dataTransfer.files) || []) {
+    if (f.type && f.type.startsWith("image/")) { startRapidJob(f); found++; }
+  }
+  if (!found) toast("Please drop an image — use “Choose a paper” below for a PDF", "error");
+  else setRapidStatus(`Queued ${found} image${found > 1 ? "s" : ""}.`);
+}
+function startRapidJob(file) {
+  if (file.size > 25 * 1024 * 1024) { toast("That image is too large (max 25 MB)", "error"); return; }
+  const jobId = "rapid_" + (++_rapidSeq);
+  rapidJobs.unshift({ id: jobId, status: "processing", title: "Reading screenshot…", sub: "AI is reading the question…" });
+  updateRapidCounts();
+  renderVettingList();          // the placeholder card shows immediately
+  processRapidJob(jobId, file);  // fire-and-forget; runs in the background
+}
+async function processRapidJob(jobId, file) {
+  try {
+    const media = await imageFileToInlineMedia(file);
+    const parsed = parseAIJson(await askGeminiVision(
+      aiQuestionReadPrompt(false, true), [media], { maxOutputTokens: 2400, json: true }));
+    const q = questionFromAiData(parsed);
+
+    // The diagram: crop the rectangle the AI drew out of the screenshot. If it
+    // gave no usable rectangle, attach the WHOLE screenshot instead — the
+    // figure is never silently lost, it just needs cropping by hand.
+    const imgBlock = q.blocks.find(b => b.type === "image");
+    if (imgBlock) {
+      setRapidJobState(jobId, { title: q.title || "Question", sub: "Cutting the diagram out of the screenshot…" });
+      renderVettingList();
+      const full = `data:${media.mimeType};base64,${media.data}`;
+      let dataUrl = null;
+      try { dataUrl = await cropBox2dFromImage(full, parsed.diagramBox || parsed.box_2d); }
+      catch (e) { console.warn("rapid diagram crop failed", e); }
+      try { imgBlock.url = await uploadDataUrlToStorage(dataUrl || full, "mathImages"); }
+      catch (e) { console.warn("rapid diagram upload failed", e); }
+    }
+
+    _vetTagDuplicate(q);
+    removeRapidJob(jobId);
+    vettingList.unshift(q);
+    _rapidJustAdded.add(q.id);
+    _rapidAddedCount++;
+    updateRapidCounts();
+    renderVettingList();
+    saveVettingDoc(q).catch(e => { console.warn("vetting save", e); toast("Read it, but couldn't save it to vetting: " + e.message, "error"); });
+    setRapidStatus(`✓ Added “${q.title || "question"}” to vetting.`);
+  } catch (err) {
+    console.error("rapid job failed:", err);
+    // A failure must always leave a card behind. If the job was already removed
+    // from the list before the throw, put it back — a screenshot that silently
+    // vanished would be read as "that one worked".
+    const patch = { status: "error", title: "Couldn't read this screenshot", error: (err && err.message) ? err.message : String(err) };
+    const job = rapidJobs.find(j => j.id === jobId);
+    if (job) Object.assign(job, patch);
+    else rapidJobs.unshift(Object.assign({ id: jobId }, patch));
+    updateRapidCounts();
+    renderVettingList();
+    setRapidStatus("⚠ One screenshot could not be read — see the red card in vetting.");
+    toast("A screenshot could not be read — see the red card in vetting", "error");
+  }
+}
+// Turn one AI reading into a question object, without touching the editor.
+// Shares its field mapping with populateEditorFromAi so a Rapid-add question
+// and a Build-with-AI question come out the same shape.
+function questionFromAiData(d) {
+  const topics = parseTopics(d.topics && d.topics.length ? d.topics : d.topic);
+  const blocks = [{ id: genBlockId(), type: "text", content: String(d.questionText || "").trim() }];
+  if (d.hasDiagram) blocks.push({ id: genBlockId(), type: "image", url: "", scale: 1 });
+  const q = {
+    id: "mq_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
+    title: String(d.title || "").trim() || "Untitled",
+    level: String(d.level || "").trim(),
+    topic: topics.join(", "),
+    topics,
+    concept: String(d.concept || "").trim(),
+    blocks,
+    expected: String(d.expected || "").trim(),
+    markingGuide: String(d.markingGuide || "").trim(),
+    videoExplanationUrl: "",
+    answerKeyImageUrl: "",
+    createdAt: new Date().toISOString(),
+    createdBy: currentUser ? currentUser.name : "Admin"
+  };
+  const opts = Array.isArray(d.options) ? d.options.map(o => String(o == null ? "" : o).trim()).filter(Boolean) : [];
+  if (opts.length >= 2) {
+    let ci = Number(d.correctOption);
+    if (!Number.isInteger(ci) || ci < 0 || ci >= opts.length) ci = 0;
+    q.options = opts;
+    q.correctOption = ci;
+  }
+  return q;
+}
+// Crop a box_2d rectangle (integers 0-1000, [ymin,xmin,ymax,xmax]) out of an
+// image and re-render it on a white frame, upscaling small crops. Returns null
+// — never a wrong crop — when the rectangle is missing, tiny, or so big it is
+// really "the whole page", which means the selection failed.
+async function cropBox2dFromImage(dataUrl, box) {
+  if (!Array.isArray(box) || box.length !== 4) return null;
+  const [ymin, xmin, ymax, xmax] = box.map(Number);
+  if (![ymin, xmin, ymax, xmax].every(v => Number.isFinite(v) && v >= 0 && v <= 1000)) return null;
+  if (ymax - ymin < 25 || xmax - xmin < 25) return null;                       // too small to be a real figure
+  if ((ymax - ymin) > 920 && (xmax - xmin) > 920) return null;                 // ≈ the whole page → selection failed
+  const img = await loadImage(dataUrl);
+  const W = img.naturalWidth || img.width, H = img.naturalHeight || img.height;
+  if (!W || !H) return null;
+  const mx = W * 0.02, my = H * 0.018;   // a hair of margin so labels aren't clipped
+  const x = Math.max(0, xmin / 1000 * W - mx);
+  const y = Math.max(0, ymin / 1000 * H - my);
+  const w = Math.min(W - x, (xmax - xmin) / 1000 * W + mx * 2);
+  const h = Math.min(H - y, (ymax - ymin) / 1000 * H + my * 2);
+  if (w < 24 || h < 24) return null;
+  const scale = Math.max(1, Math.min(2, 1600 / Math.max(w, h)));  // upscale small crops, ≤2×
+  const pad = Math.round(Math.max(16, Math.max(w, h) * scale * 0.035));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(w * scale) + pad * 2;
+  canvas.height = Math.round(h * scale) + pad * 2;
+  const ctx = canvas.getContext("2d");
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, x, y, w, h, pad, pad, Math.round(w * scale), Math.round(h * scale));
+  // PNG keeps diagram lines and small print crisp, which is the whole point of
+  // cropping the figure out. But Storage refuses anything over 7 MB, so a crop
+  // that big drops to JPEG rather than failing the upload and losing the figure.
+  const png = canvas.toDataURL("image/png");
+  return png.length > 6 * 1024 * 1024 ? canvas.toDataURL("image/jpeg", 0.92) : png;
+}
+function setRapidJobState(jobId, patch) {
+  const job = rapidJobs.find(j => j.id === jobId);
+  if (job) Object.assign(job, patch);
+}
+function removeRapidJob(jobId) { rapidJobs = rapidJobs.filter(j => j.id !== jobId); }
+function dismissRapidJob(jobId) { removeRapidJob(jobId); updateRapidCounts(); renderVettingList(); }
+function setRapidStatus(msg) { const el = $("rapidStatus"); if (el) el.textContent = msg; }
+function updateRapidCounts() {
+  const proc = rapidJobs.filter(j => j.status === "processing").length;
+  const p = $("rapidProcCount"); if (p) p.textContent = String(proc);
+  const a = $("rapidAddedCount"); if (a) a.textContent = String(_rapidAddedCount);
+  updateVettingBadge();
+}
+// One placeholder card in the vetting list per screenshot still being read
+// (or one that failed, with a dismiss button).
+function rapidJobCardHtml(job) {
+  if (job.status === "error") {
+    return `<div class="vet-card is-error">
+      <div class="vet-card-head"><h4 style="color:var(--accent-red);">⚠ ${escapeHtml(job.title || "Couldn't read screenshot")}</h4></div>
+      <div class="vet-preview">${escapeHtml(job.error || "The AI could not read this image.")} — try a clearer screenshot, or use ✨ Build with AI.</div>
+      <div class="vet-actions"><button class="btn btn-ghost btn-sm" data-rapid-dismiss="${escapeHtml(job.id)}">Dismiss</button></div>
+    </div>`;
+  }
+  return `<div class="vet-card is-busy">
+    <div class="vet-card-head"><h4><span class="spinner dark"></span> ${escapeHtml(job.title || "Processing…")}</h4></div>
+    <div class="vet-preview">${escapeHtml(job.sub || "AI is reading the question…")}</div>
+  </div>`;
+}
+
+// =====================================================================
+// WHOLE-PAPER IMPORT — one PDF in, every question on it out, each as its own
+// entry in Vetting. Read as one pass over the whole file so a question that
+// runs from the foot of one page to the top of the next comes back as ONE
+// question, which page-at-a-time reading cannot do.
+// =====================================================================
+const BULK_MAX_QUESTIONS = 40;
+async function handleBulkPaper(file) {
+  if (!canManageQuestions()) { toast("Only admin accounts can import questions", "error"); return; }
+  if (!aiReady()) { toast("AI isn't ready yet — please wait a moment", "error"); return; }
+  const isPdf = file.type === "application/pdf";
+  if (!isPdf && !file.type.startsWith("image/")) { toast("Please use a PDF or an image", "error"); return; }
+  if (isPdf && file.size > 14 * 1024 * 1024) { toast("PDF too large (max 14 MB) — try splitting the paper", "error"); return; }
+  const status = $("bulkPaperStatus");
+  const btn = $("bulkPaperBtn"); const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = "Reading…";
+  if (status) status.innerHTML = '<span class="spinner dark"></span> Reading every question on the paper…';
+  try {
+    const media = isPdf
+      ? { mimeType: file.type, data: await _fileToBase64(file) }
+      : await imageFileToInlineMedia(file);
+    const prompt =
+      `The attached ${isPdf ? "PDF" : "image"} is a complete Singapore primary-school math paper. Read EVERY question on it. ` +
+      genPreamble() +
+      `Treat a question that runs from the bottom of one page to the top of the next as ONE question. Skip cover pages, instructions and blank pages. ` +
+      `A lettered part — 8(a), 8(b) — is its own question. ` +
+      `Solve each question and give its answer. For "topics" use specific content topics students may see (Fractions, Ratio, Percentage, Geometry, Speed, Algebra…) and never the generic label "Problem Solving". For "concept" use a private teacher-only strategy label only when one clearly applies, else "".\n` +
+      `If a question is multiple-choice, extract its options exactly and say which is correct; otherwise return an empty options array and correctOption -1. ` +
+      `Set "hasDiagram" true when a question relies on a figure — the figure itself is not extracted on this route, so the teacher will attach it.\n` +
+      `Return at most ${BULK_MAX_QUESTIONS} questions. Return ONLY valid JSON, no markdown fences, line breaks inside strings escaped as \\n:\n` +
+      `{"questions":[{"number":"<the paper's question number, e.g. 12 or 8(a)>","title":"<short title>","level":"<e.g. P5>","topics":["<topic>"],"concept":"<or empty>",` +
+      `"questionText":"<the full question text>","expected":"<the correct final answer with units>","markingGuide":"<worked solution>","hasDiagram":<true|false>,` +
+      `"options":[],"correctOption":-1}]}`;
+    const parsed = parseAIJson(await askGeminiVision(prompt, [media], { maxOutputTokens: 8192, json: true }));
+    const rows = Array.isArray(parsed && parsed.questions) ? parsed.questions.slice(0, BULK_MAX_QUESTIONS) : [];
+    if (!rows.length) throw new Error("no questions were found on that paper");
+    let added = 0;
+    for (const row of rows) {
+      const q = questionFromAiData(row);
+      if (!String(row.questionText || "").trim()) continue;
+      // The paper's own number is worth keeping as a title prefix — it is how
+      // the teacher will find the question against the printed paper — but it
+      // is never part of the question text a student reads.
+      const num = String(row.number || "").trim();
+      if (num) q.title = `Q${num.replace(/^q\s*/i, "")} — ${q.title}`;
+      _vetTagDuplicate(q);
+      vettingList.unshift(q);
+      _rapidJustAdded.add(q.id);
+      added++;
+      saveVettingDoc(q).catch(e => console.warn("vetting save", e));
+    }
+    _rapidAddedCount += added;
+    updateRapidCounts();
+    renderVettingList();
+    if (status) status.textContent = `✓ ${added} question(s) added to vetting.`;
+    toast(`${added} question(s) added to vetting — check them before approving`, "success");
+  } catch (e) {
+    console.error(e);
+    if (status) status.textContent = "Couldn't read that paper: " + aiErrorMessage(e);
+    toast("Paper import failed: " + aiErrorMessage(e), "error");
+  } finally { btn.disabled = false; btn.textContent = orig; }
+}
+
+// ---- Rapid add / vetting wiring -----------------------------------------
+$("rapidAddBtn").addEventListener("click", openRapidAdd);
+$("vettingRapidBtn").addEventListener("click", openRapidAdd);
+$("vettingApproveAllBtn").addEventListener("click", vetApproveAll);
+$("aiAnswerBtn").addEventListener("click", aiAnswerAndGuide);
+$("rapidGoVettingBtn").addEventListener("click", () => { closeOverlay("rapidAddOverlay"); navigateTo("vetting"); });
+$("rapidPasteZone").addEventListener("paste", rapidPaste);
+$("rapidPasteZone").addEventListener("dragover", e => { e.preventDefault(); $("rapidPasteZone").classList.add("dragover"); });
+$("rapidPasteZone").addEventListener("dragleave", () => $("rapidPasteZone").classList.remove("dragover"));
+$("rapidPasteZone").addEventListener("drop", rapidDrop);
+enableHoverPaste($("rapidPasteZone"), rapidPaste);
+$("bulkPaperBtn").addEventListener("click", () => $("bulkPaperFile").click());
+$("bulkPaperFile").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) handleBulkPaper(f); });
+// Ctrl/⌘+Shift+V opens the pad from anywhere, so a stack of screenshots never
+// needs a trip through the menu.
+document.addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "V" || e.key === "v")) {
+    if (!canManageQuestions()) return;
+    e.preventDefault();
+    openRapidAdd();
+  }
+});
+// The one way a pasted question really is lost is the tab closing while its
+// job is still in flight — the document never leaves the browser.
+window.addEventListener("beforeunload", e => {
+  if (!rapidJobs.some(j => j.status === "processing")) return;
+  e.preventDefault();
+  e.returnValue = "";
+  return "";
+});
 
 // Regenerate a fresh variant of whatever question is currently in the editor:
 // same concept/structure/difficulty, but different names, objects and numbers
@@ -4703,17 +5638,41 @@ async function aiImproveValue(text) {
   return aiToolsCleanText(await askGeminiVision(prompt, [], { maxOutputTokens: 2048, json: false }));
 }
 async function aiRunImprove(el, btn) {
+  await aiRunRewrite(el, btn, aiImproveValue, "Improved — review the wording", "Improve");
+}
+
+// ---- ✂️ Shorten: fewer words, same numbers and same meaning ----
+// Not the same job as Improve, and the distinction matters on a worksheet: a
+// question that runs three lines longer than it needs to costs a whole extra
+// ruled line on every printed copy.
+async function aiShortenValue(text) {
+  const t = String(text || "").trim();
+  if (!t) return "";
+  const prompt =
+    "You are a careful copy-editor for a teacher's math materials. " +
+    "Rewrite the text between <<< and >>> so it says the same thing in FEWER words. " +
+    "Every number, unit, name, quantity, mathematical relationship and instruction must survive exactly — do not round, merge, drop or invent any of them, and do not solve anything. " +
+    "Cut only padding: repeated phrasing, filler, redundant clauses. Keep the same language. Return ONLY the shortened text — no quotes, labels or commentary.\n\n" +
+    "<<<\n" + t + "\n>>>";
+  return aiToolsCleanText(await askGeminiVision(prompt, [], { maxOutputTokens: 2048, json: false }));
+}
+// The shared body of Improve and Shorten: identical guard rails, identical
+// busy-button handling, one AI call each.
+async function aiRunRewrite(el, btn, worker, okMsg, label) {
   if (!canManageQuestions()) { toast("Only admin accounts can use this", "error"); return; }
   const text = aiFieldRead(el).trim();
-  if (!text) { toast("Write something first, then improve it", "error"); return; }
+  if (!text) { toast(`Write something first, then ${label.toLowerCase()} it`, "error"); return; }
   if (!aiReady()) { toast("AI isn't ready yet — please wait a moment", "error"); return; }
   const orig = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<span class="spinner dark"></span>';
   try {
-    const improved = await aiImproveValue(text);
-    if (improved && improved !== text) { aiFieldWrite(el, improved); toast("Improved — review the wording", "success"); }
+    const out = await worker(text);
+    if (out && out !== text) { aiFieldWrite(el, out); toast(okMsg, "success"); }
     else toast("Looks good already — no changes suggested", "");
-  } catch (e) { console.error(e); toast("Improve failed: " + aiErrorMessage(e), "error"); }
+  } catch (e) { console.error(e); toast(`${label} failed: ` + aiErrorMessage(e), "error"); }
   finally { btn.disabled = false; btn.innerHTML = orig; }
+}
+async function aiRunShorten(el, btn) {
+  await aiRunRewrite(el, btn, aiShortenValue, "Shortened — check nothing was lost", "Shorten");
 }
 
 // ---- 🎤 Dictate: record the mic, transcribe with Gemini ----
@@ -4820,7 +5779,7 @@ function aiMakeToolBtn(cls, html, title) {
   if (title) b.title = title;
   return b;
 }
-function aiToolbarFor(el, { dictate = true, improve = true } = {}) {
+function aiToolbarFor(el, { dictate = true, improve = true, shorten = null } = {}) {
   const bar = document.createElement("div");
   bar.className = "ai-text-tools";
   if (dictate) {
@@ -4832,6 +5791,13 @@ function aiToolbarFor(el, { dictate = true, improve = true } = {}) {
     const i = aiMakeToolBtn("ai-improve-btn", "✨ Improve", "Improve the wording with AI (keeps the meaning)");
     i.addEventListener("click", () => aiRunImprove(el, i));
     bar.appendChild(i);
+  }
+  // Shorten follows Improve unless it is switched off explicitly — the two go
+  // together on prose, and on a printed sheet a shorter question is a shorter sheet.
+  if (shorten === null ? improve : shorten) {
+    const s = aiMakeToolBtn("ai-improve-btn", "✂️ Shorten", "Shorten with AI — trims the words but keeps every number, unit and the exact meaning");
+    s.addEventListener("click", () => aiRunShorten(el, s));
+    bar.appendChild(s);
   }
   return bar;
 }
@@ -5715,6 +6681,652 @@ function openPrintOverlay() {
   renderPrintQuestionList();
   $("printOverlay").classList.add("show");
 }
+
+// =====================================================================
+// WORKSHEETS
+//
+// A worksheet is nothing but an ORDERED LIST OF QUESTION IDS. Everything else
+// about it — the printed sheet, the cover, the answer key, the on-screen
+// practice queue, the saved copy — is derived from that list, so those five
+// surfaces cannot drift apart. The builder edits the list; nobody else holds
+// their own copy of the questions.
+//
+// The printed sheet flows: each question is a chunk that refuses to break
+// across a page (`break-inside: avoid`), and the browser paginates. That is
+// denser than a measured page-packer and, unlike one, it can never lay two
+// questions on top of each other.
+// =====================================================================
+const WS_COVER_LOGO = "https://dl.dropboxusercontent.com/scl/fi/h40yjlyg8ldefwfaa3dib/polymath-logo-sticker.png?rlkey=o1ra4taqy79gt9t8u096v82zj";
+const WS_LOGO_FALLBACK = "data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2264%22 height=%2264%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2212%22 fill=%22%234a7c59%22/%3E%3Ctext x=%2232%22 y=%2245%22 font-family=%22Arial,sans-serif%22 font-size=%2238%22 font-weight=%22700%22 fill=%22white%22 text-anchor=%22middle%22%3EP%3C/text%3E%3C/svg%3E";
+
+function wsHasMcq(q) { return Array.isArray(q && q.options) && q.options.length >= 2; }
+function wsHasWritten(q) { return !wsHasMcq(q); }
+// The bank a worksheet may draw from. A student's own AI-generated practice
+// questions are excluded: they are personal to that student, so a worksheet
+// referencing one would resolve to nothing for anybody else.
+function wsBank() {
+  return canManageQuestions() ? questionBank : questionBank.filter(q => questionSource(q) !== "generated");
+}
+function wsQuestionById(id) {
+  return questionBank.find(q => q.id === id)
+    || (Array.isArray(studentGeneratedQuestions) ? studentGeneratedQuestions.find(q => q.id === id) : null)
+    || null;
+}
+// The selected questions IN ORDER. wsOrder is the record of order; the Set is
+// only the membership test, and a Set gives no promise about order once ids
+// have been removed and re-added.
+function wsSelectedQuestions() {
+  return wsOrder.map(wsQuestionById).filter(Boolean);
+}
+
+// ---- The builder page ----------------------------------------------------
+function wsPopulateFilters() {
+  const bank = wsBank();
+  const fill = (id, values, allLabel) => {
+    const sel = $(id); if (!sel) return;
+    const keep = sel.value;
+    sel.innerHTML = `<option value="">${allLabel}</option>` +
+      [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b))
+        .map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+    if ([...sel.options].some(o => o.value === keep)) sel.value = keep;
+  };
+  fill("wsFilterLevel", bank.map(q => String(q.level || "").trim()), "All levels");
+  fill("wsFilterTopic", bank.flatMap(questionTopics), "All topics");
+  fill("wsFilterConcept", bank.map(conceptLabel), "All concepts");
+}
+function wsFilteredQuestions() {
+  const level = ($("wsFilterLevel") || {}).value || "";
+  const topic = ($("wsFilterTopic") || {}).value || "";
+  const concept = ($("wsFilterConcept") || {}).value || "";
+  const format = ($("wsFilterFormat") || {}).value || "";
+  const term = (($("wsSearch") || {}).value || "").trim().toLowerCase();
+  return wsBank().filter(q => {
+    if (level && String(q.level || "").trim() !== level) return false;
+    if (topic && !questionTopics(q).includes(topic)) return false;
+    if (concept && conceptLabel(q) !== concept) return false;
+    if (format === "mcq" && !wsHasMcq(q)) return false;
+    if (format === "written" && !wsHasWritten(q)) return false;
+    if (term && !bankSearchHaystack(q).includes(term)) return false;
+    return true;
+  });
+}
+function renderWsQuestions() {
+  const grid = $("wsQuestionGrid");
+  if (!grid) return;
+  const list = wsFilteredQuestions();
+  if (!list.length) {
+    grid.innerHTML = `<div class="empty-note">No questions match these filters.</div>`;
+    updateWsCount();
+    return;
+  }
+  grid.innerHTML = list.map(q => {
+    const on = wsSelectedIds.has(q.id);
+    const pos = on ? wsOrder.indexOf(q.id) + 1 : 0;
+    return `<div class="ws-q-card${on ? " selected" : ""}" data-ws-card="${escapeHtml(q.id)}">
+      <div class="ws-q-top">
+        <input type="checkbox" ${on ? "checked" : ""} data-ws-check="${escapeHtml(q.id)}">
+        ${pos ? `<span class="ws-q-order" title="Question ${pos} on the sheet">${pos}</span>` : ""}
+        <div class="ws-q-info">
+          <div class="ws-q-title">${escapeHtml(q.title || "Untitled")}</div>
+          <div class="ws-q-meta">
+            <span class="chip">${escapeHtml(q.level || "—")}</span>
+            <span class="chip topic">${escapeHtml(adminTopicsLabel(q))}</span>
+            ${wsHasMcq(q) ? `<span class="chip">MCQ</span>` : ""}
+            ${conceptLabel(q) ? `<span class="chip">${escapeHtml(conceptLabel(q))}</span>` : ""}
+          </div>
+        </div>
+        <button class="ws-q-expand" type="button" data-ws-expand="${escapeHtml(q.id)}" title="Preview this question">▾</button>
+      </div>
+      <div class="ws-q-preview" data-ws-preview="${escapeHtml(q.id)}"></div>
+    </div>`;
+  }).join("");
+  // The card is the click target, so the checkbox must not double-fire it.
+  grid.querySelectorAll("[data-ws-check]").forEach(cb => cb.addEventListener("click", e => {
+    e.stopPropagation();
+    toggleWsQuestion(cb.dataset.wsCheck, cb.checked);
+  }));
+  grid.querySelectorAll("[data-ws-expand]").forEach(b => b.addEventListener("click", e => { e.stopPropagation(); toggleWsPreview(b.dataset.wsExpand, b); }));
+  // The whole card selects, so a click INSIDE an open preview must not — a
+  // teacher reading the question would otherwise toggle it off by accident.
+  grid.querySelectorAll("[data-ws-preview]").forEach(p => p.addEventListener("click", e => e.stopPropagation()));
+  grid.querySelectorAll("[data-ws-card]").forEach(card => card.addEventListener("click", () => {
+    const id = card.dataset.wsCard;
+    toggleWsQuestion(id, !wsSelectedIds.has(id));
+  }));
+  updateWsCount();
+}
+function toggleWsPreview(id, btn) {
+  const el = $("wsQuestionGrid").querySelector(`[data-ws-preview="${id}"]`);
+  if (!el) return;
+  if (el.classList.contains("open")) { el.classList.remove("open"); btn.textContent = "▾"; return; }
+  if (!el.dataset.rendered) {
+    const q = wsQuestionById(id);
+    el.innerHTML = q
+      ? renderQuestionBlocksHtml(q.blocks || []) + mcqOptionsPreviewHtml(q, canManageQuestions())
+      : "<div>That question is no longer in the bank.</div>";
+    el.dataset.rendered = "1";
+  }
+  el.classList.add("open");
+  btn.textContent = "▴";
+}
+// Selecting appends to wsOrder; de-selecting removes from it. Order is the
+// order the teacher picked them, which is the order they print in.
+function toggleWsQuestion(id, on) {
+  if (on) {
+    if (!wsSelectedIds.has(id)) { wsSelectedIds.add(id); wsOrder.push(id); }
+  } else {
+    wsSelectedIds.delete(id);
+    wsOrder = wsOrder.filter(x => x !== id);
+  }
+  renderWsQuestions();
+}
+function toggleWsSelectAll(on) {
+  wsFilteredQuestions().forEach(q => {
+    if (on) { if (!wsSelectedIds.has(q.id)) { wsSelectedIds.add(q.id); wsOrder.push(q.id); } }
+    else { wsSelectedIds.delete(q.id); wsOrder = wsOrder.filter(x => x !== q.id); }
+  });
+  renderWsQuestions();
+}
+function updateWsCount() {
+  const el = $("wsSelectedCount");
+  if (el) el.textContent = `${wsSelectedIds.size} selected`;
+  const all = $("wsSelectAll");
+  if (all) {
+    const shown = wsFilteredQuestions();
+    all.checked = shown.length > 0 && shown.every(q => wsSelectedIds.has(q.id));
+  }
+}
+function wsCurrentOptions() {
+  return {
+    cover: !!($("wsIncludeCover") || {}).checked,
+    fields: !!($("wsIncludeFields") || {}).checked,
+    withAnswers: !!($("wsIncludeAnswers") || {}).checked,
+    withQr: !!($("wsIncludeQr") || {}).checked
+  };
+}
+function wsCurrentTitle() {
+  return (($("wsTitle") || {}).value || "").trim() || "Math Worksheet";
+}
+
+// ---- The printed sheet ---------------------------------------------------
+// The cover is its own page: title, the class's own name/date lines and the
+// Polymath mark. Deliberately generous with space — it is the first thing a
+// parent sees.
+function wsCoverHtml(title, sub, noFields) {
+  return `<section class="ws-page ws-cover">
+    <div class="ws-cover-inner">
+      <img class="ws-cover-logo" src="${WS_COVER_LOGO}" alt="Polymath" onerror="this.onerror=null;this.src='${WS_LOGO_FALLBACK}';">
+      <div class="ws-cover-org">Polymath Learning Centre</div>
+      <h1 class="ws-cover-title">${escapeHtml(title)}</h1>
+      ${sub ? `<div class="ws-cover-sub">${escapeHtml(sub)}</div>` : ""}
+      ${noFields ? "" : `<div class="ws-cover-fields">
+        <div><span>Name</span><i></i></div>
+        <div><span>Class</span><i></i></div>
+        <div><span>Date</span><i></i></div>
+      </div>`}
+    </div>
+  </section>`;
+}
+function wsHeaderHtml(title, noFields) {
+  return `<div class="ws-head">
+    <img class="ws-head-logo" src="${WS_COVER_LOGO}" alt="Polymath" onerror="this.onerror=null;this.src='${WS_LOGO_FALLBACK}';">
+    <div class="ws-head-text"><h1>${escapeHtml(title)}</h1><p>Polymath Learning Centre</p></div>
+  </div>
+  ${noFields ? "" : `<div class="ws-head-fields"><span>Name: ______________________</span><span>Class: ____________</span><span>Date: ____________</span></div>`}`;
+}
+// How many ruled lines to give a question's answer. Sized from the MODEL
+// ANSWER, because a one-number answer and a five-step working need very
+// different amounts of paper. An MCQ needs none — it needs its options.
+const WS_LINES_MIN = 3, WS_LINES_MAX = 14, WS_LINE_CHARS = 46, WS_HAND_ALLOWANCE = 1.2;
+function wsAnswerLines(q) {
+  if (wsHasMcq(q)) return 0;
+  const plain = String(q.markingGuide || q.expected || "").replace(/\s+/g, " ").trim();
+  if (!plain) return WS_LINES_MIN + 2;
+  const need = Math.ceil((plain.length * WS_HAND_ALLOWANCE) / WS_LINE_CHARS);
+  return Math.max(WS_LINES_MIN, Math.min(WS_LINES_MAX, need));
+}
+function wsQuestionChunkHtml(q, n, qrSvg) {
+  const lines = wsAnswerLines(q);
+  const meta = [q.level, studentTopicsLabel(q)].filter(Boolean).join(" · ");
+  const qr = qrSvg ? `<div class="ws-qr">${qrSvg}<div class="ws-qr-cap">📱 Scan to AI-mark<br>&amp; watch the solution</div></div>` : "";
+  const opts = wsHasMcq(q)
+    // A / B / C / D, the same lettering the on-screen practice pad and every
+    // other preview in this app uses — a printed sheet numbered differently
+    // from the screen is a sheet the class answers in the wrong notation.
+    ? `<div class="ws-mcq">${q.options.map((o, i) => `<div class="ws-mcq-opt"><span class="l">${String.fromCharCode(65 + i)}.</span><span>${escapeHtml(o)}</span></div>`).join("")}<div class="ws-mcq-answer">Answer: <span class="ws-mcq-box"></span></div></div>`
+    : `<div class="ws-answer-box">${Array.from({ length: lines }, () => `<div class="ws-rule"></div>`).join("")}</div>`;
+  return `<section class="ws-chunk">
+    ${qr}
+    <div class="ws-q-no">${n}.${meta ? ` <span class="ws-q-metatext">${escapeHtml(meta)}</span>` : ""}</div>
+    <div class="ws-q-body">${renderQuestionBlocksHtml(q.blocks || [])}</div>
+    ${opts}
+  </section>`;
+}
+function wsAnswerKeyHtml(questions) {
+  const rows = questions.map((q, i) => {
+    const ans = String(q.expected || "").trim();
+    const guide = String(q.markingGuide || "").trim();
+    const mcq = wsHasMcq(q) && Number.isInteger(q.correctOption)
+      ? `<div class="ws-ak-ans"><b>Answer:</b> ${String.fromCharCode(65 + q.correctOption)}. ${escapeHtml(q.options[q.correctOption] || "")}</div>` : "";
+    const img = q.answerKeyImageUrl ? `<img class="ws-ak-img" src="${escapeHtml(q.answerKeyImageUrl)}" alt="Answer key for question ${i + 1}">` : "";
+    const body = mcq + (ans && !mcq ? `<div class="ws-ak-ans"><b>Answer:</b> ${escapeHtml(ans)}</div>` : "") +
+      (guide ? `<div class="ws-ak-guide">${escapeHtml(guide)}</div>` : "") + img;
+    return `<div class="ws-ak-item"><div class="ws-ak-q">${i + 1}. ${escapeHtml(q.title || "Question")}</div>${body || `<div class="ws-ak-none">No answer key on this question.</div>`}</div>`;
+  }).join("");
+  return `<section class="ws-page ws-ak"><h2>🔑 Answer key</h2><p class="ws-ak-warn">Teacher's copy — do not hand this page to the class.</p>${rows}</section>`;
+}
+function wsPrintCss() {
+  return `
+    * { box-sizing: border-box; }
+    @page { size: A4; margin: 14mm 13mm; }
+    body { margin: 0; color: #2c2a27; font-family: Arial, Helvetica, sans-serif; background: #fff; font-size: 12pt; }
+    /* The cover and the answer key are whole pages of their own. */
+    .ws-page { page-break-after: always; break-after: page; }
+    .ws-page:last-child { page-break-after: auto; break-after: auto; }
+    .ws-cover { display: flex; align-items: center; justify-content: center; min-height: 250mm; text-align: center; }
+    .ws-cover-inner { max-width: 130mm; }
+    .ws-cover-logo { width: 26mm; height: auto; margin: 0 auto 10mm; display: block; }
+    .ws-cover-org { font-size: 10pt; letter-spacing: 0.22em; text-transform: uppercase; color: #7a756d; margin-bottom: 8mm; }
+    .ws-cover-title { font-size: 26pt; font-weight: 700; line-height: 1.3; margin: 0 0 6mm; }
+    .ws-cover-sub { font-size: 11pt; color: #7a756d; margin-bottom: 16mm; }
+    .ws-cover-fields { display: grid; gap: 9mm; text-align: left; margin-top: 14mm; }
+    .ws-cover-fields div { display: flex; align-items: baseline; gap: 4mm; }
+    .ws-cover-fields span { font-size: 10.5pt; color: #7a756d; min-width: 18mm; }
+    .ws-cover-fields i { flex: 1; border-bottom: 1px solid #b9b3a9; height: 6mm; }
+    /* Sheet header */
+    .ws-head { display: flex; align-items: center; gap: 5mm; padding-bottom: 4mm; border-bottom: 2px solid #4a7c59; margin-bottom: 4mm; }
+    .ws-head-logo { width: 14mm; height: auto; }
+    .ws-head-text h1 { font-size: 15pt; margin: 0 0 1mm; font-weight: 700; }
+    .ws-head-text p { font-size: 8.5pt; margin: 0; color: #7a756d; letter-spacing: 0.14em; text-transform: uppercase; }
+    .ws-head-fields { display: flex; gap: 8mm; flex-wrap: wrap; font-size: 10pt; color: #514d47; margin-bottom: 7mm; }
+    /* One question. It refuses to break across a page; the browser paginates
+       around it, so two questions can never end up on top of each other. */
+    .ws-chunk { break-inside: avoid; page-break-inside: avoid; margin-bottom: 9mm; }
+    .ws-q-no { font-size: 12pt; font-weight: 700; margin-bottom: 2.5mm; }
+    .ws-q-metatext { font-size: 8.5pt; font-weight: 400; color: #8d887f; }
+    .ws-q-body { font-size: 12pt; line-height: 1.55; }
+    .ws-q-body p { margin: 0 0 2mm; }
+    /* A picture is capped so a question with a diagram AND a chart still fits
+       one sheet. Never remove the max-height. */
+    .ws-q-body img { display: block; max-width: 100%; max-height: 92mm; height: auto; object-fit: contain; margin: 3mm 0; }
+    /* An author-scaled picture keeps its size, but max-width still caps it at
+       the column — the +/- control exists to make a picture smaller, not to
+       push it off the page. */
+    .question-image { width: var(--question-image-width, 100%); }
+    .math-frac { display: inline-block; vertical-align: middle; line-height: 0.98; margin: 0 0.1em; font-size: 0.92em; text-align: center; white-space: nowrap; }
+    .math-frac .num { display: block; border-bottom: 1.2pt solid currentColor; padding: 0 0.24em 0.06em; min-width: 1.1em; }
+    .math-frac .den { display: block; padding: 0.06em 0.24em 0; min-width: 1.1em; }
+    .math-sqrt { display: inline-flex; align-items: flex-start; vertical-align: -0.1em; margin: 0 0.08em; }
+    .math-sqrt .root { font-size: 1.1em; line-height: 1; }
+    .math-sqrt .radicand { border-top: 1.2pt solid currentColor; padding: 0.02em 0.18em 0; }
+    /* Ruled working space, sized from the model answer. */
+    .ws-answer-box { margin-top: 3mm; }
+    .ws-rule { border-bottom: 0.7pt solid #c9c3b8; height: 8.5mm; }
+    /* MCQ: the options ARE the answer space. */
+    .ws-mcq { margin-top: 3mm; }
+    .ws-mcq-opt { display: flex; gap: 3mm; font-size: 11.5pt; line-height: 1.5; margin-bottom: 1.6mm; }
+    .ws-mcq-opt .l { font-weight: 700; min-width: 8mm; }
+    .ws-mcq-answer { margin-top: 3mm; font-size: 11pt; display: flex; align-items: center; gap: 3mm; }
+    .ws-mcq-box { display: inline-block; width: 14mm; height: 8mm; border: 1pt solid #514d47; }
+    /* QR beside the question */
+    .ws-qr { float: right; width: 26mm; text-align: center; margin: 0 0 3mm 4mm; }
+    .ws-qr svg { width: 23mm !important; height: 23mm !important; display: block; margin: 0 auto; }
+    .ws-qr-cap { font-size: 5.6pt; color: #8d887f; line-height: 1.3; margin-top: 1mm; }
+    /* Answer key */
+    .ws-ak h2 { font-size: 16pt; margin: 0 0 2mm; }
+    .ws-ak-warn { font-size: 9pt; color: #d94f4f; margin: 0 0 6mm; }
+    .ws-ak-item { break-inside: avoid; page-break-inside: avoid; margin-bottom: 5mm; padding-bottom: 4mm; border-bottom: 0.7pt solid #e2ddd5; }
+    .ws-ak-item:last-child { border-bottom: 0; }
+    .ws-ak-q { font-weight: 700; font-size: 11pt; margin-bottom: 1.5mm; }
+    .ws-ak-ans { font-size: 11pt; margin-bottom: 1.5mm; }
+    .ws-ak-guide { font-size: 10pt; color: #4a453f; white-space: pre-wrap; line-height: 1.5; }
+    .ws-ak-img { display: block; max-width: 100%; max-height: 80mm; margin-top: 2mm; }
+    .ws-ak-none { font-size: 10pt; color: #a09a91; }
+    /* On-screen preview only: show the paper edges, and mark where each page
+       break will fall so the preview is readable as pages, not one long strip. */
+    @media screen {
+      body { background: #f4f1ec; padding: 20px 20px 40px; }
+      .ws-sheet { background: #fff; width: 210mm; max-width: 100%; margin: 0 auto 20px; padding: 14mm 13mm; box-shadow: 0 4px 20px rgba(0,0,0,0.12); }
+      .ws-page { border-bottom: 1px dashed #cfc8bc; padding-bottom: 12mm; margin-bottom: 12mm; }
+      .ws-page:last-child { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+      .ws-printbar { position: fixed; top: 14px; right: 18px; z-index: 9; display: flex; gap: 8px; }
+      .ws-printbar button { font: 600 0.9rem/1 Arial, sans-serif; padding: 11px 16px; border-radius: 10px; border: 0; background: #4a7c59; color: #fff; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.18); }
+      .ws-printbar button.ghost { background: #fff; color: #2c2a27; border: 1.5px solid #e2ddd5; }
+    }
+    @media print {
+      .ws-sheet { width: auto; padding: 0; box-shadow: none; margin: 0; }
+      .ws-noprint { display: none !important; }
+    }`;
+}
+async function wsBuildDocumentHtml(questions, title, opts) {
+  let qrMap = {};
+  if (opts.withQr) { try { qrMap = await buildQrMap(questions); } catch (e) { console.warn("qr map failed", e); } }
+  const body =
+    (opts.cover ? wsCoverHtml(title, `${questions.length} question${questions.length > 1 ? "s" : ""}`, !opts.fields) : "") +
+    `<section class="ws-page">${wsHeaderHtml(title, !opts.fields)}${questions.map((q, i) => wsQuestionChunkHtml(q, i + 1, qrMap[q.id] || "")).join("")}</section>` +
+    (opts.withAnswers ? wsAnswerKeyHtml(questions) : "");
+  // The floating bar is `ws-noprint`, so the printed sheet never carries it.
+  const bar = `<div class="ws-printbar ws-noprint"><button class="ghost" onclick="window.close()">Close</button><button onclick="window.print()">🖨️ Print / Save PDF</button></div>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
+    <style>${wsPrintCss()}</style></head>
+    <body>${bar}<div class="ws-sheet">${body}</div>${opts.autoPrint ? `<script>window.addEventListener("load",()=>setTimeout(()=>{window.focus();window.print();},350));<\/script>` : ""}</body></html>`;
+}
+// Print and Preview are the SAME document — the only difference is whether the
+// print dialog opens by itself. A preview that rendered differently from the
+// printout would be worse than no preview.
+async function wsOpenDocument(questions, title, opts) {
+  const list = (questions || []).filter(q => q && (q.blocks || []).length);
+  if (!list.length) { toast("Choose at least one question first", "error"); return; }
+  const w = window.open("", "_blank");
+  if (!w) { toast("Please allow pop-ups so the worksheet can open", "error"); return; }
+  w.document.write('<!doctype html><meta charset="utf-8"><title>Preparing…</title><body style="font-family:Arial,sans-serif;padding:28px;color:#555;">Preparing your worksheet…</body>');
+  const html = await wsBuildDocumentHtml(list, title, opts);
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+}
+async function printCurrentWorksheet(autoPrint) {
+  const questions = wsSelectedQuestions();
+  if (!questions.length) { toast("Select some questions first", "error"); return; }
+  await wsOpenDocument(questions, wsCurrentTitle(), Object.assign(wsCurrentOptions(), { autoPrint }));
+}
+
+// ---- Saved worksheets ----------------------------------------------------
+// A worksheet doc lives under its OWNER's uid, so anyone may save and reprint
+// their own. It stores the ordered id list and the printing choices — never a
+// copy of the questions, which would go stale the moment one was edited.
+function _wsCol(uid) { return collection(db, "users", uid, "mathWorksheets"); }
+// The worksheet doc carries only an id list and printing choices — no answers —
+// so a student may READ the teacher's sheets (that is how a worksheet gets
+// assigned) while only ever WRITING their own. `wsMine` is what the UI uses to
+// decide whether the edit and delete buttons appear at all.
+function wsMine(ws) { return !!(currentUser && ws && ws.ownerUid === currentUser.uid); }
+async function loadSavedWorksheets() {
+  savedWorksheets = [];
+  if (!currentUser) return;
+  const seen = new Set();
+  const pull = async (uid) => {
+    if (!uid || seen.has(uid)) return;
+    seen.add(uid);
+    try {
+      const snap = await getDocs(_wsCol(uid));
+      snap.forEach(d => {
+        const ws = d.data();
+        // Older docs predate ownerUid; the subtree they came out of IS the owner.
+        if (!ws.ownerUid) ws.ownerUid = uid;
+        savedWorksheets.push(ws);
+      });
+    } catch (e) { console.warn("worksheet load", uid, e); }
+  };
+  await pull(currentUser.uid);
+  if (!canManageQuestions()) await pull(adminUid);   // the teacher's assigned sheets
+  savedWorksheets.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+}
+async function persistWorksheet(ws) {
+  if (!currentUser) throw new Error("not signed in");
+  ws.updatedAt = new Date().toISOString();
+  await setDoc(doc(db, "users", currentUser.uid, "mathWorksheets", ws.id), ws);
+}
+async function saveCurrentWorksheet() {
+  const ids = wsOrder.filter(id => wsSelectedIds.has(id));
+  if (!ids.length) { toast("Select some questions first", "error"); return; }
+  const btn = $("wsSaveBtn"); const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = "Saving…";
+  const opts = wsCurrentOptions();
+  const ws = {
+    id: makeDocId("ws"),
+    title: wsCurrentTitle(),
+    questionIds: ids,
+    includeCover: opts.cover,
+    includeFields: opts.fields,
+    includeAnswers: opts.withAnswers,
+    includeQr: opts.withQr,
+    ownerUid: currentUser.uid,
+    ownerName: currentUser.name || "",
+    createdAt: new Date().toISOString()
+  };
+  try {
+    await persistWorksheet(ws);
+    savedWorksheets.unshift(ws);
+    toast(`Saved “${ws.title}” — find it under My Worksheets`, "success");
+    renderSavedWorksheets();
+  } catch (e) {
+    console.error(e);
+    toast("Save failed: " + e.message, "error");
+  } finally { btn.disabled = false; btn.textContent = orig; }
+}
+function wsFind(id) { return savedWorksheets.find(w => w.id === id) || null; }
+// The questions a saved worksheet actually resolves to, in its own order. An id
+// whose question has since been deleted simply isn't here — the editor is where
+// that shows up as a row saying so.
+function wsSavedQuestions(ws) {
+  return (ws.questionIds || []).map(wsQuestionById).filter(Boolean);
+}
+function renderSavedWorksheets() {
+  const grid = $("savedWsGrid");
+  if (!grid) return;
+  const c = $("mwCount");
+  if (c) c.textContent = savedWorksheets.length ? `${savedWorksheets.length} saved.` : "";
+  if (!savedWorksheets.length) {
+    grid.innerHTML = `<div class="empty-note">No saved worksheets yet.${canManageQuestions() ? " Build one on the <b>Create Worksheet</b> page ✦" : ""}</div>`;
+    return;
+  }
+  grid.innerHTML = savedWorksheets.map(ws => {
+    const total = (ws.questionIds || []).length;
+    const found = wsSavedQuestions(ws).length;
+    const missing = total - found;
+    const when = ws.createdAt ? new Date(ws.createdAt).toLocaleDateString() : "";
+    return `<div class="ws-saved-card">
+      <h4>${escapeHtml(ws.title || "Untitled worksheet")}</h4>
+      <div class="ws-saved-meta">
+        <span>${total} question${total === 1 ? "" : "s"}</span>
+        ${missing ? `<span style="color:var(--accent-red);">${missing} no longer in the bank</span>` : ""}
+        ${when ? `<span>Saved ${escapeHtml(when)}</span>` : ""}
+        ${ws.ownerName && canManageQuestions() ? `<span>by ${escapeHtml(ws.ownerName)}</span>` : ""}
+      </div>
+      <div class="ws-saved-actions">
+        <button class="btn btn-primary btn-sm" data-ws-print="${escapeHtml(ws.id)}">🖨️ Print / PDF</button>
+        <button class="btn btn-ghost btn-sm" data-ws-preview="${escapeHtml(ws.id)}">👁️ Preview</button>
+        <button class="btn btn-blue btn-sm" data-ws-practise="${escapeHtml(ws.id)}">✍️ Practise</button>
+        ${wsMine(ws) ? `<button class="btn btn-ghost btn-sm" data-ws-edit="${escapeHtml(ws.id)}" title="Change which questions are on this sheet">✎ Questions</button>
+        <button class="btn btn-danger btn-sm" data-ws-del="${escapeHtml(ws.id)}">🗑 Delete</button>` : `<span class="ws-saved-meta" style="margin:0;align-self:center;">Set by your teacher</span>`}
+      </div>
+    </div>`;
+  }).join("");
+  grid.querySelectorAll("[data-ws-print]").forEach(b => b.addEventListener("click", () => openSavedWorksheet(b.dataset.wsPrint, true)));
+  grid.querySelectorAll("[data-ws-preview]").forEach(b => b.addEventListener("click", () => openSavedWorksheet(b.dataset.wsPreview, false)));
+  grid.querySelectorAll("[data-ws-practise]").forEach(b => b.addEventListener("click", () => practiseWorksheet(b.dataset.wsPractise)));
+  grid.querySelectorAll("[data-ws-edit]").forEach(b => b.addEventListener("click", () => wseOpen(b.dataset.wsEdit)));
+  grid.querySelectorAll("[data-ws-del]").forEach(b => b.addEventListener("click", () => deleteSavedWorksheet(b.dataset.wsDel)));
+}
+// Reprinting reads the checkboxes on the My Worksheets page, not the ones the
+// sheet was saved with — the teacher reprinting it decides whether THIS copy
+// gets a cover or the answer key.
+function mwPrintOptions() {
+  return {
+    cover: !!($("mwIncludeCover") || {}).checked,
+    fields: !!($("mwIncludeFields") || {}).checked,
+    withAnswers: !!($("mwIncludeAnswers") || {}).checked && canManageQuestions(),
+    withQr: !!($("mwIncludeQr") || {}).checked
+  };
+}
+async function openSavedWorksheet(id, autoPrint) {
+  const ws = wsFind(id);
+  if (!ws) return;
+  const questions = wsSavedQuestions(ws);
+  if (!questions.length) { toast("None of this worksheet's questions are in the bank any more", "error"); return; }
+  const missing = (ws.questionIds || []).length - questions.length;
+  if (missing) toast(`${missing} question(s) are no longer in the bank — printing the rest`, "");
+  await wsOpenDocument(questions, ws.title || "Math Worksheet", Object.assign(mwPrintOptions(), { autoPrint }));
+}
+// Practise a worksheet on screen: the practice queue becomes this worksheet's
+// questions, in its own order. `prioritizeReviewQuestions` is deliberately not
+// re-run afterwards — the teacher chose this order.
+function practiseWorksheet(id) {
+  const ws = wsFind(id);
+  if (!ws) return;
+  const questions = wsSavedQuestions(ws);
+  if (!questions.length) { toast("None of this worksheet's questions are in the bank any more", "error"); return; }
+  const rest = questionBank.filter(q => !ws.questionIds.includes(q.id));
+  questionBank = questions.concat(rest);
+  qIndex = 0;
+  navigateTo("practice");
+  renderQuestion();
+  toast(`Practising “${ws.title || "worksheet"}” — ${questions.length} question(s)`, "success");
+}
+function practiseCurrentWorksheet() {
+  const questions = wsSelectedQuestions();
+  if (!questions.length) { toast("Select some questions first", "error"); return; }
+  const ids = new Set(questions.map(q => q.id));
+  questionBank = questions.concat(questionBank.filter(q => !ids.has(q.id)));
+  qIndex = 0;
+  navigateTo("practice");
+  renderQuestion();
+}
+async function deleteSavedWorksheet(id) {
+  const ws = wsFind(id);
+  if (!ws) return;
+  if (!wsMine(ws)) { toast("That worksheet belongs to your teacher — you can print it, but not delete it", "error"); return; }
+  if (!confirm(`Delete “${ws.title || "this worksheet"}”? The questions stay in your bank — only the worksheet goes.`)) return;
+  try {
+    await deleteDoc(doc(db, "users", currentUser.uid, "mathWorksheets", id));
+    savedWorksheets = savedWorksheets.filter(w => w.id !== id);
+    if (_wseId === id) { _wseId = null; closeOverlay("wsEditOverlay"); }
+    renderSavedWorksheets();
+    toast("Worksheet deleted", "success");
+  } catch (e) { toast("Delete failed: " + e.message, "error"); }
+}
+
+// ---- The saved-worksheet question editor --------------------------------
+// A saved worksheet is an ordered list of ids, so this edits that list: what is
+// on the sheet on the left, the bank to draw from on the right. It never
+// touches the question bank — only which questions this sheet references.
+// Every change persists as it is made: a list of ids is a tiny write, and an
+// edit the teacher believes is saved and is not is far worse than a chatty
+// connection.
+function wseOpen(id) {
+  const ws = wsFind(id);
+  if (!ws) return;
+  if (!wsMine(ws)) { toast("That worksheet belongs to your teacher — you can print or practise it, but not change it", "error"); return; }
+  _wseId = id;
+  $("wseSubtitle").textContent = `“${ws.title || "Untitled worksheet"}” — ${(ws.questionIds || []).length} question(s) on the sheet.`;
+  wsePopulateFilters();
+  wseRender();
+  $("wsEditOverlay").classList.add("show");
+}
+function wseWs() { return _wseId ? wsFind(_wseId) : null; }
+function wsePopulateFilters() {
+  const bank = wsBank();
+  const fill = (id, values, allLabel) => {
+    const sel = $(id); if (!sel) return;
+    const keep = sel.value;
+    sel.innerHTML = `<option value="">${allLabel}</option>` +
+      [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b))
+        .map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+    if ([...sel.options].some(o => o.value === keep)) sel.value = keep;
+  };
+  fill("wseFilterLevel", bank.map(q => String(q.level || "").trim()), "All levels");
+  fill("wseFilterTopic", bank.flatMap(questionTopics), "All topics");
+}
+// One place fans a change out: persist → redraw the drawer → redraw the
+// My Worksheets card so its count can't disagree with the sheet.
+async function wseCommit(ws, msg) {
+  try {
+    await persistWorksheet(ws);
+    wseRender();
+    renderSavedWorksheets();
+    if (msg) toast(msg, "success");
+  } catch (e) {
+    console.error(e);
+    toast("Couldn't save the change: " + e.message, "error");
+  }
+}
+function wseAdd(qid) {
+  const ws = wseWs(); if (!ws) return;
+  ws.questionIds = ws.questionIds || [];
+  if (ws.questionIds.includes(qid)) { toast("Already on this worksheet", ""); return; }
+  ws.questionIds.push(qid);
+  wseCommit(ws, "Added to the worksheet");
+}
+// Takes the worksheet BY ID rather than reading the open drawer, so it works
+// from anywhere the sheet is on show.
+function wseRemoveFrom(wsId, qid) {
+  const ws = wsFind(wsId); if (!ws) return;
+  ws.questionIds = (ws.questionIds || []).filter(x => x !== qid);
+  wseCommit(ws, "Removed from the worksheet");
+}
+function wseMove(qid, dir) {
+  const ws = wseWs(); if (!ws) return;
+  const ids = ws.questionIds || [];
+  const i = ids.indexOf(qid); if (i < 0) return;
+  const j = i + dir; if (j < 0 || j >= ids.length) return;
+  [ids[i], ids[j]] = [ids[j], ids[i]];
+  wseCommit(ws, "");
+}
+function wseRender() {
+  const ws = wseWs();
+  if (!ws) return;
+  const ids = ws.questionIds || [];
+  $("wseOnCount").textContent = String(ids.length);
+  $("wseSubtitle").textContent = `“${ws.title || "Untitled worksheet"}” — ${ids.length} question(s) on the sheet.`;
+  const on = $("wseOnList");
+  on.innerHTML = ids.length ? ids.map((id, i) => {
+    const q = wsQuestionById(id);
+    if (!q) {
+      // Deliberately shown rather than silently dropped: this is the only place
+      // a stale reference is visible at all.
+      return `<div class="wse-row missing">
+        <div class="wse-row-main"><div class="wse-row-title">Question no longer in the bank</div><div class="wse-row-meta">id ${escapeHtml(id)} — it was deleted after this worksheet was saved</div></div>
+        <div class="wse-row-tools"><button class="btn btn-danger btn-sm" data-wse-rm="${escapeHtml(id)}" title="Drop it from this sheet">✕</button></div>
+      </div>`;
+    }
+    return `<div class="wse-row">
+      <div class="wse-row-main"><div class="wse-row-title">${i + 1}. ${escapeHtml(q.title || "Untitled")}</div><div class="wse-row-meta">${escapeHtml([q.level, adminTopicsLabel(q)].filter(Boolean).join(" · "))}</div></div>
+      <div class="wse-row-tools">
+        <button class="mini-btn" data-wse-up="${escapeHtml(id)}" title="Move up"${i === 0 ? " disabled" : ""}>↑</button>
+        <button class="mini-btn" data-wse-down="${escapeHtml(id)}" title="Move down"${i === ids.length - 1 ? " disabled" : ""}>↓</button>
+        <button class="mini-btn" data-wse-rm="${escapeHtml(id)}" title="Remove from this worksheet">✕</button>
+      </div>
+    </div>`;
+  }).join("") : `<div class="empty-note">Nothing on this sheet yet — add questions from the bank on the right.</div>`;
+
+  const level = ($("wseFilterLevel") || {}).value || "";
+  const topic = ($("wseFilterTopic") || {}).value || "";
+  const term = (($("wseSearch") || {}).value || "").trim().toLowerCase();
+  const pool = wsBank().filter(q => {
+    if (ids.includes(q.id)) return false;
+    if (level && String(q.level || "").trim() !== level) return false;
+    if (topic && !questionTopics(q).includes(topic)) return false;
+    if (term && !bankSearchHaystack(q).includes(term)) return false;
+    return true;
+  });
+  const bankList = $("wseBankList");
+  bankList.innerHTML = pool.length ? pool.slice(0, 200).map(q => `<div class="wse-row">
+      <div class="wse-row-main"><div class="wse-row-title">${escapeHtml(q.title || "Untitled")}</div><div class="wse-row-meta">${escapeHtml([q.level, adminTopicsLabel(q)].filter(Boolean).join(" · "))}</div></div>
+      <div class="wse-row-tools"><button class="btn btn-ghost btn-sm" data-wse-add="${escapeHtml(q.id)}">＋ Add</button></div>
+    </div>`).join("") + (pool.length > 200 ? `<div class="empty-note">${pool.length - 200} more — narrow the filters to see them.</div>` : "")
+    : `<div class="empty-note">No other questions match these filters.</div>`;
+
+  on.querySelectorAll("[data-wse-up]").forEach(b => b.addEventListener("click", () => wseMove(b.dataset.wseUp, -1)));
+  on.querySelectorAll("[data-wse-down]").forEach(b => b.addEventListener("click", () => wseMove(b.dataset.wseDown, 1)));
+  on.querySelectorAll("[data-wse-rm]").forEach(b => b.addEventListener("click", () => wseRemoveFrom(_wseId, b.dataset.wseRm)));
+  bankList.querySelectorAll("[data-wse-add]").forEach(b => b.addEventListener("click", () => wseAdd(b.dataset.wseAdd)));
+}
+
+// ---- Worksheet wiring ---------------------------------------------------
+["wsFilterLevel", "wsFilterTopic", "wsFilterConcept", "wsFilterFormat"].forEach(id => {
+  const el = $(id); if (el) el.addEventListener("change", renderWsQuestions);
+});
+$("wsSearch").addEventListener("input", renderWsQuestions);
+$("wsSelectAll").addEventListener("change", e => toggleWsSelectAll(e.target.checked));
+$("wsPreviewBtn").addEventListener("click", () => printCurrentWorksheet(false));
+$("wsPrintBtn").addEventListener("click", () => printCurrentWorksheet(true));
+$("wsSaveBtn").addEventListener("click", saveCurrentWorksheet);
+$("wsPracticeBtn").addEventListener("click", practiseCurrentWorksheet);
+["wseFilterLevel", "wseFilterTopic"].forEach(id => {
+  const el = $(id); if (el) el.addEventListener("change", wseRender);
+});
+$("wseSearch").addEventListener("input", wseRender);
 async function imageUrlToInlineMedia(url) {
   const clean = String(url || "").trim();
   if (!clean) return null;
@@ -10670,7 +12282,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.2.4 · 2026-06-23";
+const APP_VERSION = "v1.3.0 · 2026-08-07";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
