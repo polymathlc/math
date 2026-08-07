@@ -324,7 +324,79 @@ async function loadQuestionWithKey(uid, source, questionId) {
   // Merge order matters: prefer the private key doc, fall back to legacy
   // answer fields still sitting on the public doc (pre-migration banks).
   const q = Object.assign({ id: qid }, pubSnap.data(), keySnap.exists ? keySnap.data() : {});
-  return { q, adminUid };
+  return { q: mergeBlockAnswers(q), adminUid };
+}
+
+// ---------------------------------------------------------------------
+// ANNOTATION QUESTIONS
+//
+// An image block with `annotate` is a diagram the student draws and labels ON.
+// Its answer is a picture — the same diagram with the correct annotations
+// already on it — so it lives in the PRIVATE key doc under
+// key.blockAnswers = { <blockId>: { answerImg, answerKey } }, because `blocks`
+// itself stays in the student-readable half of the question.
+//
+// Fold it back onto the blocks here, so everything downstream (the marking
+// prompt, the post-marking reveal) can just read block.answerImg. Legacy
+// questions that still carry it inline on the public block keep working: the
+// merge only fills what is missing.
+// ---------------------------------------------------------------------
+function mergeBlockAnswers(q) {
+  const map = q && q.blockAnswers;
+  if (map && Array.isArray(q.blocks)) {
+    q.blocks.forEach(b => {
+      const held = b && map[String(b.id)];
+      if (!held) return;
+      if (held.answerImg && !b.answerImg) b.answerImg = held.answerImg;
+      if (held.answerKey && !b.answerKey) b.answerKey = held.answerKey;
+    });
+  }
+  if (q) delete q.blockAnswers;
+  return q;
+}
+// The annotating diagrams of a question, in order.
+function annotationBlocks(q) {
+  return ((q && q.blocks) || []).filter(b => b && b.type === "image" && b.annotate && String(b.url || "").trim());
+}
+function isAnnotationQuestion(q) { return annotationBlocks(q).length > 0; }
+// What the student is shown once their work is in: the correctly annotated
+// diagram and the words. Private before that, so it is returned on the marking
+// response rather than sitting in a doc they can read.
+function annotationReveal(q) {
+  return annotationBlocks(q)
+    .map(b => ({ answerImg: String(b.answerImg || "").trim(), answerKey: String(b.answerKey || "").trim() }))
+    .filter(r => r.answerImg || r.answerKey);
+}
+// Each annotating diagram's answer picture as Gemini inline data, capped so a
+// question with several diagrams cannot blow the request size.
+async function annotationAnswerMedia(q, max = 2) {
+  const out = [];
+  for (const b of annotationBlocks(q)) {
+    if (out.length >= max) break;
+    const part = await inlineImageFromUrl(b.answerImg, "annotation answer");
+    if (part) out.push(part);
+  }
+  return out;
+}
+// How to mark a DRAWING. Marking one against a sentence describing it is the
+// unreliable way round; when the teacher supplied the correctly annotated
+// diagram it is attached and the marker is told to compare the two pictures.
+// The words are still passed on, because they say what actually earns the mark.
+function annotationMarkingNote(q, answerPicsAttached = 0) {
+  if (!isAnnotationQuestion(q)) return "";
+  const words = annotationBlocks(q)
+    .map(b => String(b.answerKey || "").trim())
+    .filter(Boolean)
+    .map((w, i) => `Diagram ${i + 1} — a correct annotation must show: "${w.replace(/\s+/g, " ").slice(0, 700)}"`)
+    .join(" ");
+  return `THIS IS AN ANNOTATION QUESTION. The student was asked to answer ON the diagram — ticking, circling, drawing arrows or lines with a pen, and typing labels straight onto the picture. ` +
+    `The worksheet screenshot therefore shows the diagram WITH the student's marks on top of it: look carefully at WHERE each tick, circle, arrow or line is placed and read every label, then judge each against what was asked. ` +
+    `Marks are earned by what is drawn and labelled in the right place, not by written working — do not deduct for there being little or no working underneath. ` +
+    (answerPicsAttached
+      ? `The LAST ${answerPicsAttached === 1 ? "attached picture is" : `${answerPicsAttached} attached pictures are`} the CORRECT answer: the same diagram with the correct annotations already on it. Compare the student's picture against it and mark the differences. `
+      : ``) +
+    (words ? `${words}. ` : ``) +
+    `If the diagram carries no visible annotation at all, that is 0 marks and say so plainly.\n`;
 }
 
 // ---------------------------------------------------------------------
@@ -527,13 +599,18 @@ async function answerKeyMedia(q) {
     return [];
   }
 }
-function buildPracticeMedia(worksheetB64, solutionMedia, keyMedia) {
+// `annotMedia` (annotation questions) is appended LAST and labelled for what it
+// is — the correctly annotated diagram, which the marker compares against.
+// annotationMarkingNote tells the model the last pictures are the answer, so the
+// order here and the wording there have to stay in step.
+function buildPracticeMedia(worksheetB64, solutionMedia, keyMedia, annotMedia = []) {
   const media = [{ mimeType: "image/png", data: worksheetB64 }];
   if (solutionMedia) media.push(solutionMedia);
-  media.push(...keyMedia);
+  media.push(...keyMedia, ...annotMedia);
   const labels = ["1) worksheet screenshot"];
   if (solutionMedia) labels.push(`${labels.length + 1}) student's photographed paper solution`);
   if (keyMedia.length) labels.push(`${labels.length + 1}) teacher's private answer key/worked solution`);
+  if (annotMedia.length) labels.push(`${labels.length + 1}) the CORRECT annotated diagram${annotMedia.length > 1 ? "s" : ""} (the answer)`);
   return { media, note: `Attached images: ${labels.join("; ")}.\n` };
 }
 
@@ -727,7 +804,7 @@ function synthMcqVerdict(q, selectedOption, correctOption) {
     learningNote: isCorrect ? "" : `Revisit ${topic}.`
   };
 }
-async function markKnownQuestion({ uid, isAdmin, isGuest = false, displayName = "", q, source, adminUid, statsBefore, media, mediaNote, submissionNote, keyAttached, typedWorking = "", finalAnswer = "", practiceMode = false, selectedOption = undefined, studentWorkPresent = true }) {
+async function markKnownQuestion({ uid, isAdmin, isGuest = false, displayName = "", q, source, adminUid, statsBefore, media, mediaNote, submissionNote, keyAttached, typedWorking = "", finalAnswer = "", practiceMode = false, selectedOption = undefined, studentWorkPresent = true, annotAnswerPics = 0 }) {
   const [settings, preamble, prereqNote] = await Promise.all([
     loadMarkingSettings(adminUid),
     studentLearningPreamble(uid, isAdmin),
@@ -772,6 +849,7 @@ async function markKnownQuestion({ uid, isAdmin, isGuest = false, displayName = 
       `CORRECT ANSWER: "${q.expected || "(use the marking guide and answer key image if provided)"}"\n` +
       `STUDENT'S TYPED WORKING (if any): "${typedWorking || "(none — read it from the image)"}"\n` +
       `STUDENT'S TYPED FINAL ANSWER: "${finalAnswer || "(none typed — read it from the working)"}"\n\n` +
+      `${annotationMarkingNote(q, annotAnswerPics)}` +
       `Read the question and the student's annotations, handwriting, and typed text carefully; follow the working step by step and decide if the method and final answer are right. ` +
       `Use the correct-answer text, teacher marking guide, and answer-key image as the authority for the intended solution. ` +
       `Generate a full worked answer key from that guidance, including the main method steps and final answer, so the student can learn after submitting. ` +
@@ -920,6 +998,9 @@ async function markKnownQuestion({ uid, isAdmin, isGuest = false, displayName = 
     totals,
     videoExplanationUrl: cleanText(q.videoExplanationUrl, 800),
     answerKeyImageUrl: publicAnswerKeyImageUrl(q),
+    // Annotation questions: the correctly annotated diagram, released only now
+    // that the student's work is in. It is never in a doc they can read.
+    annotationAnswers: annotationReveal(q),
     correctOption: isMcq ? correctOption : undefined
   };
 }
@@ -963,20 +1044,26 @@ export const markAttempt = onCall(CALL_OPTS, async (request) => {
   // optional photographed paper solution and the private key follow.
   const settingsAdminUid = adminUid || (source === "generated" || source === "starter" ? await getAdminUid().catch(() => null) : null);
   const keyMedia = await answerKeyMedia(q);
+  // Annotation question: the correctly annotated diagram goes in as a reference
+  // picture, so the marker compares two diagrams instead of comparing a drawing
+  // against a sentence describing one. Appended LAST, which is what
+  // annotationMarkingNote tells the model.
+  const annotMedia = await annotationAnswerMedia(q);
   // Only assemble image media when there's a worksheet to mark (a bare MCQ tap
   // is graded deterministically against the private correct option — no AI).
   let media = [], mediaNote = "";
-  if (worksheetB64) ({ media, note: mediaNote } = buildPracticeMedia(worksheetB64, solutionMedia, keyMedia));
+  if (worksheetB64) ({ media, note: mediaNote } = buildPracticeMedia(worksheetB64, solutionMedia, keyMedia, annotMedia));
   const studentWorkPresent = !!worksheetB64 || !!typedWorking || !!solutionMedia;
-  const submissionNote =
-    `The worksheet screenshot includes the question, any underlining or annotations, handwriting, typed text, or both. ` +
-    `${solutionMedia ? "The photographed paper solution may contain extra student working that is not on the worksheet screenshot; read both as one complete submission.\n" : "\n"}`;
+  const submissionNote = isAnnotationQuestion(q)
+    ? `The worksheet screenshot is the diagram WITH the student's own annotations drawn and typed on top of it, plus any working underneath.\n`
+    : `The worksheet screenshot includes the question, any underlining or annotations, handwriting, typed text, or both. ` +
+      `${solutionMedia ? "The photographed paper solution may contain extra student working that is not on the worksheet screenshot; read both as one complete submission.\n" : "\n"}`;
 
   return await markKnownQuestion({
     uid, isAdmin, isGuest: isGuestAuth(auth), displayName: displayNameFromAuth(auth), q, source, adminUid: settingsAdminUid, statsBefore,
     media, mediaNote, submissionNote, keyAttached: keyMedia.length > 0,
     typedWorking, finalAnswer, practiceMode,
-    selectedOption, studentWorkPresent
+    selectedOption, studentWorkPresent, annotAnswerPics: annotMedia.length
   });
 });
 
@@ -1036,13 +1123,18 @@ export const markFromPhoto = onCall(CALL_OPTS, async (request) => {
   const { q, adminUid } = await loadQuestionWithKey(uid, source, qid);
   const settingsAdminUid = adminUid || await getAdminUid().catch(() => null);
   const keyMedia = await answerKeyMedia(q);
+  // A printed annotation question comes back annotated in pen on paper, so the
+  // reference picture helps here for exactly the same reason it does on screen.
+  const annotMedia = await annotationAnswerMedia(q);
 
-  const media = pages.concat(keyMedia);
+  const media = pages.concat(keyMedia, annotMedia);
   const pageLabel = pages.length > 1
     ? `1–${pages.length}) the student's photographed/scanned worksheet pages`
     : "1) the student's photographed or scanned worksheet";
+  // The pages occupy 1..pages.length, so number what follows from there.
   const labels = [pageLabel];
   if (keyMedia.length) labels.push(`${pages.length + 1}) teacher's private answer key/worked solution`);
+  if (annotMedia.length) labels.push(`${pages.length + keyMedia.length + 1}) the CORRECT annotated diagram${annotMedia.length > 1 ? "s" : ""} (the answer)`);
   const mediaNote = `Attached images: ${labels.join("; ")}.\n`;
   const submissionNote =
     `The attached image(s) are a photo or scan of a printed worksheet the student has already answered by hand. ` +
@@ -1052,7 +1144,7 @@ export const markFromPhoto = onCall(CALL_OPTS, async (request) => {
   const result = await markKnownQuestion({
     uid, isAdmin, isGuest: isGuestAuth(auth), displayName: displayNameFromAuth(auth), q, source, adminUid: settingsAdminUid, statsBefore,
     media, mediaNote, submissionNote, keyAttached: keyMedia.length > 0,
-    typedWorking: "", finalAnswer: "", practiceMode: false
+    typedWorking: "", finalAnswer: "", practiceMode: false, annotAnswerPics: annotMedia.length
   });
 
   return Object.assign({

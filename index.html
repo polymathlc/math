@@ -170,6 +170,74 @@ a { color: var(--primary); }
 .btn-block { width: 100%; }
 .btn-lg { padding: 14px 18px; font-size: 1rem; }
 .btn-sm { padding: 7px 11px; font-size: 0.82rem; }
+/* ===================================================================
+   ANNOTATION QUESTIONS — the student draws and labels ON the diagram.
+   =================================================================== */
+.annot-q-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 10px;
+  padding: 11px 13px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-alt);
+  cursor: pointer;
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+.annot-q-toggle.on { border-color: var(--accent-blue); background: var(--accent-blue-light); }
+.annot-q-toggle input[type="checkbox"] { width: 17px; height: 17px; flex: 0 0 auto; margin-top: 2px; accent-color: var(--accent-blue); }
+.annot-q-toggle b { font-weight: 700; }
+.annot-q-toggle span { color: var(--text-muted); }
+
+/* The author's answer screenshot for an annotation diagram. */
+.annot-ans {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1.5px solid var(--primary);
+  border-radius: var(--radius-md);
+  background: var(--primary-light);
+}
+.annot-ans-h { font-size: 0.82rem; font-weight: 700; color: var(--primary); margin-bottom: 10px; line-height: 1.55; }
+.annot-ans-h span { font-weight: 400; color: var(--text-muted); }
+.annot-ans-drop {
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 15px;
+  text-align: center;
+  font-size: 0.84rem;
+  color: var(--text-muted);
+  background: var(--surface);
+  cursor: pointer;
+  outline: none;
+}
+.annot-ans-drop:focus, .annot-ans-drop.over { border-color: var(--primary); color: var(--primary); }
+.annot-ans-body { margin-top: 11px; }
+.annot-ans-body img { display: block; max-width: 100%; max-height: 260px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+.annot-ans-tools { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.annot-ans-words { width: 100%; box-sizing: border-box; margin-top: 10px; padding: 9px 11px; font-family: inherit; font-size: 0.86rem; line-height: 1.55; border: 1.5px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); resize: vertical; }
+.annot-ans-words:focus { outline: none; border-color: var(--border-focus); }
+.annot-ans-status { font-size: 0.78rem; color: var(--text-muted); margin-top: 8px; min-height: 1em; }
+
+/* The student's "annotate the diagram" banner, above the worksheet. */
+.annot-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  margin-bottom: 14px;
+  padding: 13px 16px;
+  border: 1.5px solid var(--accent-blue);
+  border-radius: var(--radius-md);
+  background: var(--accent-blue-light);
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+.annot-banner-icon { font-size: 1.3rem; line-height: 1.2; flex: 0 0 auto; }
+.annot-banner b { font-weight: 700; }
+/* The model answer revealed under the result, for an annotation question. */
+.annot-model img { display: block; max-width: 100%; border: 1px solid var(--border); border-radius: var(--radius-sm); background: #fff; margin-top: 8px; }
+
 /* The Science app's outline button, used by the ported image-tool overlays. */
 .btn-outline { background: transparent; color: var(--primary); border-color: var(--primary); }
 .btn-outline:hover { background: var(--primary-light); }
@@ -1370,7 +1438,13 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
           </div>
           <div class="ai-practice-bar student-only" id="aiPracticeBar" style="display:none;"></div>
 
-          <div class="pad-head"><h2>✍️ Worksheet</h2><span class="pad-hint">Write, or tap 🅣 then the page to add a text box</span></div>
+          <!-- Annotation questions: shown instead of the plain "Worksheet" head,
+               because what the student is being asked to do is different. -->
+          <div class="annot-banner" id="annotBanner" style="display:none;">
+            <span class="annot-banner-icon">✍️</span>
+            <span><b>Annotate the diagram itself.</b> Use <b>✏️</b> to tick, circle or draw straight onto the picture, and <b>🅣</b> to drop a label on it. Then submit — the AI marks what you drew against the correct annotated diagram.</span>
+          </div>
+          <div class="pad-head"><h2 id="padHeadTitle">✍️ Worksheet</h2><span class="pad-hint" id="padHeadHint">Write, or tap 🅣 then the page to add a text box</span></div>
           <div class="toolbar">
             <div class="tool-group">
               <button class="tool-btn active" id="toolPen" title="Pen">✏️</button>
@@ -1394,7 +1468,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
                 <div class="section-label">Question</div>
                 <div class="q-body" id="qBody"></div>
               </div>
-              <div class="worksheet-working-label">Working</div>
+              <div class="worksheet-working-label" id="workingLabel">Working</div>
             </div>
             <canvas id="padCanvas"></canvas>
             <div class="canvas-empty" id="canvasEmpty">Underline the question or start your working here ✦</div>
@@ -1463,6 +1537,9 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
             <div class="feedback-block" id="reviewPlanBlock" style="display:none;"><h4>🗓️ Review plan</h4><p id="fbReviewPlan"></p></div>
             <div class="feedback-block" id="answerKeyBlock" style="display:none;"><h4>🧾 Full answer key</h4><p class="answer-key-text" id="fbAnswerKey"></p></div>
             <div class="feedback-block" id="answerKeyImageBlock" style="display:none;"><h4>🖼️ Answer key</h4><img class="answer-key-image" id="fbAnswerKeyImage" alt="Teacher's answer key"></div>
+            <!-- Annotation questions: the correctly annotated diagram(s), sent
+                 back by the marking function only now that the work is in. -->
+            <div class="feedback-block annot-model" id="annotModelBlock" style="display:none;"><h4>✍️ Correctly annotated diagram</h4><div id="annotModelBody"></div></div>
             <div class="feedback-block" id="askAiBlock">
               <h4>🧑‍🏫 Ask AI Polymath</h4>
               <p class="ask-ai-help">Now you've seen the answer, ask Polymath anything about this question — a tricky step, what a word means, or why a method works (e.g. “Why do we assume they're all correct first?”). Off-topic questions won't be answered.</p>
@@ -4096,10 +4173,41 @@ document.querySelectorAll(".overlay").forEach(o => o.addEventListener("click", e
 // Answers live in a separate, admin-only doc (mathQuestionKeys) so the
 // student-readable question doc never contains anything worth peeking at.
 const QUESTION_KEY_FIELDS = ["expected", "markingGuide", "answerKeyImageUrl", "videoExplanationUrl"];
+// Per-block answers (annotation questions) live on the BLOCKS, and `blocks`
+// stays in the student-readable half — so they have to be lifted out block by
+// block, or every student who reads the bank can read the answer. They come
+// back as key.blockAnswers = { <blockId>: { answerImg, answerKey } }, which is
+// what loadBank merges back for the author and what the marking function reads.
+const BLOCK_KEY_FIELDS = ["answerImg", "answerKey"];
+// The inverse, for the author: fold key.blockAnswers back onto the blocks so
+// the editor shows the answer screenshot, and drop the flat field so it never
+// gets written back into the public doc as a duplicate.
+function mergeBlockAnswers(q) {
+  const map = q && q.blockAnswers;
+  if (!map || !Array.isArray(q.blocks)) { if (q) delete q.blockAnswers; return q; }
+  q.blocks.forEach(b => {
+    const held = b && map[String(b.id)];
+    if (held) BLOCK_KEY_FIELDS.forEach(f => { if (held[f]) b[f] = held[f]; });
+  });
+  delete q.blockAnswers;
+  return q;
+}
 function splitQuestionDoc(q) {
   const pub = Object.assign({}, q);
   const key = { id: q.id };
   QUESTION_KEY_FIELDS.forEach(f => { if (pub[f]) key[f] = pub[f]; delete pub[f]; });
+  if (Array.isArray(pub.blocks)) {
+    const blockAnswers = {};
+    pub.blocks = pub.blocks.map(b => {
+      if (!b || !BLOCK_KEY_FIELDS.some(f => b[f])) return b;
+      const clean = Object.assign({}, b);
+      const held = {};
+      BLOCK_KEY_FIELDS.forEach(f => { if (clean[f]) held[f] = clean[f]; delete clean[f]; });
+      blockAnswers[String(b.id)] = held;
+      return clean;
+    });
+    if (Object.keys(blockAnswers).length) key.blockAnswers = blockAnswers;
+  }
   // MCQ: the option texts are student-readable (they tap one), but WHICH option
   // is correct stays in the admin-only key doc. Handle it explicitly because a
   // valid index can be 0 (falsy), which the generic loop above would drop.
@@ -4117,7 +4225,12 @@ async function loadBank(uid) {
     const snap = await getDocs(collection(db, "users", uid, "mathQuestions"));
     snap.forEach(d => {
       const q = d.data();
-      if (canManageQuestions() && !clientAdminFallback && QUESTION_KEY_FIELDS.some(f => q[f])) needsSplit.push(q.id);
+      // A public doc still holding an answer needs re-saving through
+      // splitQuestionDoc — including a BLOCK-level annotation answer, which is
+      // how a question authored before the split gets migrated out of student
+      // reach on the next admin load.
+      const leaksBlockAnswer = Array.isArray(q.blocks) && q.blocks.some(b => b && BLOCK_KEY_FIELDS.some(f => b[f]));
+      if (canManageQuestions() && !clientAdminFallback && (QUESTION_KEY_FIELDS.some(f => q[f]) || leaksBlockAnswer)) needsSplit.push(q.id);
       questionBank.push(q);
     });
     if (canManageQuestions()) {
@@ -4130,7 +4243,10 @@ async function loadBank(uid) {
         const keys = await getDocs(collection(db, "users", uid, "mathQuestionKeys"));
         const byId = {};
         keys.forEach(d => { byId[d.id] = d.data(); });
-        questionBank.forEach(q => Object.assign(q, byId[q.id] || {}));
+        questionBank.forEach(q => {
+          Object.assign(q, byId[q.id] || {});
+          mergeBlockAnswers(q);
+        });
       } catch (e) { console.warn("key load", e); }
       // Re-save docs that still carry answers in the public half (one-time
       // split migration) or whose public "has video" flag is out of sync, so
@@ -4199,11 +4315,18 @@ function renderBank() {
     const el = document.createElement("div");
     el.className = "bank-item";
     const answerKeyBadge = q.answerKeyImageUrl ? `<span>Answer key image</span>` : "";
+    // Flag an annotation question that has no answer screenshot yet — it will
+    // still mark, but against words alone, which is the unreliable way round.
+    const annotBadge = questionIsAnnotation(q)
+      ? (annotBlocksOf(q).some(b => String(b.answerImg || "").trim())
+        ? `<span title="Students annotate the diagram; the correct annotated diagram is attached">✍️ Annotate</span>`
+        : `<span title="Students annotate the diagram, but no answer screenshot is attached — add one so the AI can compare two diagrams">✍️ Annotate — no answer screenshot</span>`)
+      : "";
     const videoBadge = q.videoExplanationUrl ? `<span>Video explanation</span>` : "";
     const conceptBadge = conceptLabel(q) ? `<span>Concept: ${escapeHtml(conceptLabel(q))}</span>` : "";
     el.innerHTML =
       `<div class="bank-item-main"><h4>${escapeHtml(q.title || "Untitled")}</h4>
-        <div class="meta"><span class="chip">${escapeHtml(q.level || "—")}</span><span class="chip topic">${escapeHtml(adminTopicsLabel(q))}</span>${conceptBadge}${videoBadge}${answerKeyBadge}<span>${escapeHtml(preview)}</span></div></div>
+        <div class="meta"><span class="chip">${escapeHtml(q.level || "—")}</span><span class="chip topic">${escapeHtml(adminTopicsLabel(q))}</span>${conceptBadge}${annotBadge}${videoBadge}${answerKeyBadge}<span>${escapeHtml(preview)}</span></div></div>
        <div class="bank-item-actions">
         <button class="btn btn-ghost btn-sm" data-preview="${q.id}">Preview</button>
         <button class="btn btn-ghost btn-sm" data-share="${q.id}">🔗 Share / QR</button>
@@ -4382,6 +4505,13 @@ function renderEditorBlocks() {
   // The crop / touch-up / enhance bar. Re-rendered with the blocks because
   // renderEditorBlocks() replaces the whole list, taking the bar with it.
   editorBlocks.filter(b => b.type === "image").forEach(b => renderImgEnhanceBar(b.id));
+  // Annotation questions: the "students annotate this" toggle, and the answer
+  // screenshot editor it reveals.
+  wrap.querySelectorAll("[data-annot-on]").forEach(cb => cb.addEventListener("change", () => {
+    setBlockField(cb.dataset.annotOn, "annotate", cb.checked);
+    annotRerenderAnswer(cb.dataset.annotOn);
+  }));
+  annotWireAnswer(wrap);
   // nav buttons
   wrap.querySelectorAll("[data-up]").forEach(b => b.addEventListener("click", () => moveBlock(b.dataset.up, -1)));
   wrap.querySelectorAll("[data-down]").forEach(b => b.addEventListener("click", () => moveBlock(b.dataset.down, 1)));
@@ -4435,7 +4565,155 @@ function imgBlockHtml(b) {
          Filled by renderImgEnhanceBar() whenever this block has a url — so the
          tools are there for a question loaded back out of the bank, not only
          for one just pasted. -->
-    <div class="img-enhance-bar" id="imgEnhance_${b.id}"></div>`;
+    <div class="img-enhance-bar" id="imgEnhance_${b.id}"></div>
+    ${annotToggleHtml(b)}
+    <div id="annotAnsWrap_${b.id}">${b.annotate ? annotAnswerEditorHtml(b) : ""}</div>`;
+}
+// =====================================================================
+// ANNOTATION QUESTIONS — ticking and labelling ON the diagram.
+//
+// A question is an annotation question when one of its image blocks carries
+// `annotate`. The student then draws and labels straight onto that diagram
+// with the pen and 🅣 text-box tools they already have, and the worksheet
+// screenshot the marker receives IS the annotated diagram — the canvas
+// already sits over the question, so there is no second drawing surface.
+//
+// What makes marking a DRAWING work is the answer being a drawing too:
+// `block.answerImg` is a screenshot of the same diagram with the correct
+// annotations already on it, and `block.answerKey` is the same thing in
+// words. The marker is handed the picture and told to compare two diagrams,
+// which is far more reliable than comparing a drawing against a sentence.
+//
+// Both fields are ANSWERS, so they are split out of the student-readable
+// question doc exactly like `expected` and `markingGuide` — see
+// splitQuestionDoc / QUESTION_KEY_FIELDS.
+// =====================================================================
+function annotToggleHtml(b) {
+  return `<label class="annot-q-toggle${b.annotate ? " on" : ""}" title="The student ticks, circles and labels directly on this diagram instead of working underneath it">
+    <input type="checkbox" data-annot-on="${b.id}" ${b.annotate ? "checked" : ""}>
+    <span><b>✍️ Students annotate this diagram</b> <span>— they tick, circle, draw and drop labels straight onto the picture with the pen and 🅣 tools, and the AI marks what they drew.</span></span>
+  </label>`;
+}
+function annotAnswerEditorHtml(b) {
+  const cur = String(b.answerImg || "").trim();
+  return `<div class="annot-ans">
+    <div class="annot-ans-h">🔑 Answer screenshot <span>— the same diagram with the correct annotations on it. Students never see it until they have submitted.</span></div>
+    <div class="annot-ans-drop" data-annot-drop="${b.id}" tabindex="0" title="Click here then paste (Ctrl/⌘+V), or drop a picture">
+      📋 Click here, then paste the marked-up screenshot (Ctrl/⌘+V) — or drop an image
+    </div>
+    <div class="annot-ans-body" data-annot-body="${b.id}" style="${cur ? "" : "display:none;"}">
+      <img data-annot-img="${b.id}" alt="Answer screenshot" ${cur ? `src="${escapeHtml(cur)}"` : ""}>
+      <div class="annot-ans-tools">
+        <button type="button" class="btn btn-outline btn-sm" data-annot-writekey="${b.id}" title="Read the picture and write the answer key for this diagram from it">✨ Write the answer key from this picture</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-annot-clear="${b.id}">× Remove</button>
+      </div>
+    </div>
+    <textarea class="annot-ans-words" rows="2" data-annot-words="${b.id}"
+      placeholder="Answer key in words — what a correct annotation must show, e.g. “a tick beside the beaker on the left; the arrow labelled 'evaporation' pointing up from the water”">${escapeHtml(b.answerKey || "")}</textarea>
+    <div class="annot-ans-status" data-annot-status="${b.id}"></div>
+  </div>`;
+}
+// A question is an annotation question if any of its image blocks says so.
+function questionIsAnnotation(q) {
+  return (q && q.blocks || []).some(b => b && b.type === "image" && b.annotate && (b.url || "").trim());
+}
+function annotBlocksOf(q) {
+  return (q && q.blocks || []).filter(b => b && b.type === "image" && b.annotate && (b.url || "").trim());
+}
+function _annotStatus(id, msg) {
+  const el = $("blocksList").querySelector(`[data-annot-status="${id}"]`);
+  if (el) el.textContent = msg || "";
+}
+// Re-render only this block's annotation section. renderEditorBlocks() would
+// also work, but it rebuilds every block — and would take the caret out of
+// whatever field the author is typing in.
+function annotRerenderAnswer(id) {
+  const wrap = $("annotAnsWrap_" + id);
+  const b = editorBlocks.find(x => x.id === id);
+  if (!wrap || !b) return;
+  wrap.innerHTML = b.annotate ? annotAnswerEditorHtml(b) : "";
+  annotWireAnswer(wrap);
+  const toggle = $("blocksList").querySelector(`[data-annot-on="${id}"]`);
+  if (toggle) toggle.closest(".annot-q-toggle").classList.toggle("on", !!b.annotate);
+}
+async function annotStoreAnswerImg(id, dataUrl) {
+  const b = editorBlocks.find(x => x.id === id);
+  if (!b) return;
+  _annotStatus(id, "⏳ Uploading…");
+  try {
+    b.answerImg = await uploadDataUrlToStorage(dataUrl, "mathImages");
+    annotRerenderAnswer(id);
+    _annotStatus(id, "Saved ✓ — now press ✨ to write the answer key in words from it");
+  } catch (e) {
+    console.warn("annotation answer upload failed", e);
+    _annotStatus(id, "Upload failed — try a smaller picture");
+    toast("Upload failed: " + (e.message || e), "error");
+  }
+}
+// Read the marked-up screenshot and write the answer key in words from it. The
+// words are what a printed answer key and a text-only marking pass can use, so
+// they are worth having even though the picture is the better reference.
+async function annotWriteKeyFromImage(id) {
+  const b = editorBlocks.find(x => x.id === id);
+  if (!b || !String(b.answerImg || "").trim()) { toast("Add the answer screenshot first", "error"); return; }
+  if (!aiReady()) { toast("AI isn't ready yet — please wait a moment", "error"); return; }
+  _annotStatus(id, "🤖 Reading the picture…");
+  try {
+    const media = await imageUrlToInlineMedia(b.answerImg);
+    if (!media) throw new Error("could not read the answer screenshot");
+    const stem = editorBlocks.filter(x => x.type === "text").map(x => (x.content || "").trim()).filter(Boolean).join(" ").slice(0, 700);
+    const prompt =
+      `The attached picture is a Singapore primary-school math diagram WITH the correct annotations already drawn on it — the teacher's answer to a "tick and label" question. ` +
+      (stem ? `The question reads: "${stem}". ` : ``) +
+      `Describe exactly what a correct annotation must show, so another teacher could mark a student's attempt from your description alone: where each tick, cross, circle, arrow or line goes, and what every label says. ` +
+      `Describe only what is actually drawn — do not add anything you cannot see, and do not solve anything further. ` +
+      `Reply with the description only: no preamble, no bullet characters, no markdown.`;
+    const words = aiToolsCleanText(await askGeminiVision(prompt, [media], { maxOutputTokens: 700, json: false }));
+    if (!words) throw new Error("the AI returned nothing usable");
+    b.answerKey = words;
+    annotRerenderAnswer(id);
+    _annotStatus(id, "Answer key written ✓ — check it reads the way you would mark it");
+  } catch (e) {
+    console.warn("annotation answer key failed", e);
+    _annotStatus(id, "Couldn't read it: " + aiErrorMessage(e));
+  }
+}
+// Wire the annotation controls inside `root` (the whole block list on a full
+// render, or one block's wrapper on a partial one).
+function annotWireAnswer(root) {
+  root.querySelectorAll("[data-annot-drop]").forEach(z => {
+    const id = z.dataset.annotDrop;
+    const onPaste = e => {
+      for (const it of (e.clipboardData || {}).items || []) {
+        if (it.type && it.type.startsWith("image/")) {
+          e.preventDefault();
+          const f = it.getAsFile();
+          if (f) blobToDataUrl(f).then(d => annotStoreAnswerImg(id, d));
+          return;
+        }
+      }
+      _annotStatus(id, "That paste had no image in it — copy a screenshot and try again.");
+    };
+    z.addEventListener("click", () => z.focus());
+    z.addEventListener("paste", onPaste);
+    enableHoverPaste(z, onPaste);
+    z.addEventListener("dragover", e => { e.preventDefault(); z.classList.add("over"); });
+    z.addEventListener("dragleave", () => z.classList.remove("over"));
+    z.addEventListener("drop", e => {
+      e.preventDefault();
+      z.classList.remove("over");
+      const f = (e.dataTransfer.files || [])[0];
+      if (f && f.type.startsWith("image/")) blobToDataUrl(f).then(d => annotStoreAnswerImg(id, d));
+      else _annotStatus(id, "Please drop an image.");
+    });
+  });
+  root.querySelectorAll("[data-annot-writekey]").forEach(btn => btn.addEventListener("click", () => annotWriteKeyFromImage(btn.dataset.annotWritekey)));
+  root.querySelectorAll("[data-annot-clear]").forEach(btn => btn.addEventListener("click", () => {
+    const id = btn.dataset.annotClear;
+    const b = editorBlocks.find(x => x.id === id);
+    if (b) { b.answerImg = ""; annotRerenderAnswer(id); _annotStatus(id, "Removed."); }
+  }));
+  root.querySelectorAll("[data-annot-words]").forEach(t => t.addEventListener("input", () => setBlockField(t.dataset.annotWords, "answerKey", t.value)));
 }
 function syncImgPreview(id, url) {
   const img = $("blocksList").querySelector(`[data-imgprev="${id}"]`);
@@ -6727,7 +7005,21 @@ function loadQuestionIntoEditor(q) {
 function collectQuestion() {
   const topics = parseTopics($("qTopicInput").value);
   const blocks = editorBlocks
-    .map(b => b.type === "image" ? { id: b.id, type: "image", url: (b.url || "").trim(), scale: normalizeImageScale(b.scale) } : { id: b.id, type: "text", content: (b.content || "").trim() })
+    .map(b => {
+      if (b.type !== "image") return { id: b.id, type: "text", content: (b.content || "").trim() };
+      const img = { id: b.id, type: "image", url: (b.url || "").trim(), scale: normalizeImageScale(b.scale) };
+      // Annotation question: this diagram is the answer surface, and it carries
+      // its own answer (a picture of the correct annotations, plus the words).
+      // splitQuestionDoc lifts both out of the student-readable doc.
+      if (b.annotate) {
+        img.annotate = true;
+        const ansImg = String(b.answerImg || "").trim();
+        const ansKey = String(b.answerKey || "").trim();
+        if (ansImg) img.answerImg = ansImg;
+        if (ansKey) img.answerKey = ansKey;
+      }
+      return img;
+    })
     .filter(b => (b.type === "image" ? b.url : b.content));
   const existing = currentEditingId ? (questionBank.find(q => q.id === currentEditingId) || {}) : {};
   // Keep the variant link: from a fresh Regenerate (pendingVariantOf), or carry
@@ -9061,8 +9353,13 @@ function wsQuestionChunkHtml(q, n, qrSvg) {
     // other preview in this app uses — a printed sheet numbered differently
     // from the screen is a sheet the class answers in the wrong notation.
     ? `<div class="ws-mcq">${q.options.map((o, i) => `<div class="ws-mcq-opt"><span class="l">${String.fromCharCode(65 + i)}.</span><span>${escapeHtml(o)}</span></div>`).join("")}<div class="ws-mcq-answer">Answer: <span class="ws-mcq-box"></span></div></div>`
+    // An annotation question is answered ON the diagram, so ruled lines are
+    // both wrong and a waste of the sheet — the picture printed above IS the
+    // answer space. It gets a bigger cap for the same reason.
+    : questionIsAnnotation(q)
+    ? `<div class="ws-annot-note">✍️ Write and draw your answer directly on the diagram above.</div>`
     : `<div class="ws-answer-box">${Array.from({ length: lines }, () => `<div class="ws-rule"></div>`).join("")}</div>`;
-  return `<section class="ws-chunk">
+  return `<section class="ws-chunk${questionIsAnnotation(q) ? " ws-chunk-annot" : ""}">
     ${qr}
     <div class="ws-q-no">${n}.${meta ? ` <span class="ws-q-metatext">${escapeHtml(meta)}</span>` : ""}</div>
     <div class="ws-q-body">${renderQuestionBlocksHtml(q.blocks || [])}</div>
@@ -9076,8 +9373,18 @@ function wsAnswerKeyHtml(questions) {
     const mcq = wsHasMcq(q) && Number.isInteger(q.correctOption)
       ? `<div class="ws-ak-ans"><b>Answer:</b> ${String.fromCharCode(65 + q.correctOption)}. ${escapeHtml(q.options[q.correctOption] || "")}</div>` : "";
     const img = q.answerKeyImageUrl ? `<img class="ws-ak-img" src="${escapeHtml(q.answerKeyImageUrl)}" alt="Answer key for question ${i + 1}">` : "";
+    // The answer to "draw and label this" is a picture, so print the picture.
+    // Each annotating diagram carries its own answer, so a question with two of
+    // them gets both — one per row, in the order they appear in the question.
+    const annot = annotBlocksOf(q).map(b => {
+      const bi = String(b.answerImg || "").trim();
+      const bk = String(b.answerKey || "").trim();
+      if (!bi && !bk) return "";
+      return (bi ? `<img class="ws-ak-img" src="${escapeHtml(bi)}" alt="Correctly annotated diagram">` : "")
+        + (bk ? `<div class="ws-ak-guide">${escapeHtml(bk)}</div>` : "");
+    }).join("");
     const body = mcq + (ans && !mcq ? `<div class="ws-ak-ans"><b>Answer:</b> ${escapeHtml(ans)}</div>` : "") +
-      (guide ? `<div class="ws-ak-guide">${escapeHtml(guide)}</div>` : "") + img;
+      (guide ? `<div class="ws-ak-guide">${escapeHtml(guide)}</div>` : "") + annot + img;
     return `<div class="ws-ak-item"><div class="ws-ak-q">${i + 1}. ${escapeHtml(q.title || "Question")}</div>${body || `<div class="ws-ak-none">No answer key on this question.</div>`}</div>`;
   }).join("");
   return `<section class="ws-page ws-ak"><h2>🔑 Answer key</h2><p class="ws-ak-warn">Teacher's copy — do not hand this page to the class.</p>${rows}</section>`;
@@ -9126,6 +9433,10 @@ function wsPrintCss() {
     .math-sqrt { display: inline-flex; align-items: flex-start; vertical-align: -0.1em; margin: 0 0.08em; }
     .math-sqrt .root { font-size: 1.1em; line-height: 1; }
     .math-sqrt .radicand { border-top: 1.2pt solid currentColor; padding: 0.02em 0.18em 0; }
+    /* An annotation question is answered ON the diagram, so it gets no ruled
+       lines and a taller picture — the figure IS the answer space. */
+    .ws-chunk-annot .ws-q-body img { max-height: 150mm; }
+    .ws-annot-note { margin-top: 3mm; font-size: 10pt; font-style: italic; color: #514d47; }
     /* Ruled working space, sized from the model answer. */
     .ws-answer-box { margin-top: 3mm; }
     .ws-rule { border-bottom: 0.7pt solid #c9c3b8; height: 8.5mm; }
@@ -9660,6 +9971,49 @@ function renderMcqArea(q) {
   }));
   $("submitLabel").innerHTML = "✓ Check answer";
 }
+// The answer to "draw and label this" is a picture, so show the picture. The
+// annotated diagram and its words are private until the work is submitted, so
+// they arrive on the marking response — never from the question doc a student
+// can read. They are stashed onto the in-memory question the same way the
+// answer-key image and video URL already are.
+function renderAnnotationModel(q) {
+  const block = $("annotModelBlock"), body = $("annotModelBody");
+  if (!block || !body) return;
+  const rows = Array.isArray(q.annotationAnswers) ? q.annotationAnswers : [];
+  const usable = rows.filter(r => r && (String(r.answerImg || "").trim() || String(r.answerKey || "").trim()));
+  if (!usable.length) { block.style.display = "none"; body.innerHTML = ""; return; }
+  body.innerHTML = usable.map(r => {
+    const img = String(r.answerImg || "").trim();
+    const words = String(r.answerKey || "").trim();
+    return (img ? `<img src="${escapeHtml(img)}" alt="Correctly annotated diagram">` : "")
+      + (words ? `<p style="margin-top:8px;">${escapeHtml(words)}</p>` : "");
+  }).join("");
+  block.style.display = "block";
+}
+// Switch the practice surface into (or out of) annotation mode. The canvas
+// already sits over the question, so the student can draw on the diagram
+// without any new machinery — what changes is what they are TOLD to do, and
+// that the pen is ready for it. Called after renderMcqArea, which also owns
+// the submit label.
+function applyAnnotationMode(q) {
+  const on = questionIsAnnotation(q);
+  const banner = $("annotBanner");
+  if (banner) banner.style.display = on ? "" : "none";
+  const title = $("padHeadTitle"), hint = $("padHeadHint"), working = $("workingLabel");
+  if (title) title.textContent = on ? "✍️ Annotate the diagram" : "✍️ Worksheet";
+  if (hint) hint.textContent = on
+    ? "Draw straight on the picture — tap 🅣 then the diagram to add a label"
+    : "Write, or tap 🅣 then the page to add a text box";
+  // "Working" is the wrong word for a diagram they annotate in place, and the
+  // strip sits under the question where the annotations are.
+  if (working) working.textContent = on ? "Extra working (optional)" : "Working";
+  if (on) {
+    // An MCQ that also asks for an annotation keeps the MCQ label: the option
+    // is still what decides the mark.
+    if (!questionIsMcq(q)) $("submitLabel").innerHTML = "✓ Check my annotations";
+    setTool("pen");   // the first thing they need is the pen, on the diagram
+  }
+}
 // After marking, reveal which option was right/wrong and lock the choices.
 function showMcqResult(selectedIdx, correctIdx) {
   const opts = $("mcqOptions"); if (!opts) return;
@@ -9710,6 +10064,7 @@ function renderQuestion() {
   $("qBody").innerHTML = renderQuestionBlocksHtml(q.blocks || []);
   $("qBody").querySelectorAll("img").forEach(img => img.addEventListener("load", setupCanvasSize, { once: true }));
   renderMcqArea(q);
+  applyAnnotationMode(q);   // after renderMcqArea — it also sets the submit label
   $("finalAnswer").value = "";
   $("typedWorking").value = "";
   clearSolutionPhoto({ silent: true });
@@ -9984,6 +10339,7 @@ function showResult(v, png, reviewPlan = "", usedPhoto = false) {
   const akImg = String((questionBank[qIndex] || {}).answerKeyImageUrl || "").trim();
   if (akImg) { $("fbAnswerKeyImage").src = akImg; $("answerKeyImageBlock").style.display = "block"; }
   else { $("fbAnswerKeyImage").removeAttribute("src"); $("answerKeyImageBlock").style.display = "none"; }
+  renderAnnotationModel(questionBank[qIndex] || {});
   renderVideoExplanation(questionBank[qIndex] || {});
   const capWrap = $("capturedImg").closest(".captured");
   if (png) {
@@ -10243,7 +10599,10 @@ $("submitBtn").addEventListener("click", async () => {
   if (isMcq) {
     if (mcqSelected === null || mcqSelected === undefined) { toast("Tap an option (A–D) to answer", "error"); return; }
   } else if (!hasWorking && !$("finalAnswer").value.trim()) {
-    toast("Write, type, take a photo, or enter an answer first", "error"); return;
+    toast(questionIsAnnotation(q)
+      ? "Draw or label on the diagram first — use ✏️ or 🅣"
+      : "Write, type, take a photo, or enter an answer first", "error");
+    return;
   }
   // MCQ with no shown working → skip the worksheet screenshot for a fast,
   // deterministic option check; otherwise capture the worksheet for the AI.
@@ -10272,6 +10631,9 @@ $("submitBtn").addEventListener("click", async () => {
     const v = out.verdict || {};
     if (out.videoExplanationUrl) q.videoExplanationUrl = out.videoExplanationUrl; // revealed only after marking
     if (out.answerKeyImageUrl) q.answerKeyImageUrl = out.answerKeyImageUrl; // answer-key image, revealed only after marking
+    // The correctly annotated diagram(s) — private until now, so they come back
+    // on the response rather than from the question doc the student can read.
+    q.annotationAnswers = Array.isArray(out.annotationAnswers) ? out.annotationAnswers : [];
     const reviewPlan = await recordLearningAttempt(q, v, out.progress);
     try { rpgOnMarked(q, v, { server: out }); } catch (err) { console.warn("rpg reward", err); }
     showResult(v, png, reviewPlan, !!solutionMedia);
@@ -10484,6 +10846,20 @@ function aiMarkVideoHtml(rawUrl) {
     : `<div class="video-explanation-frame"><iframe src="${src}" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen title="Video explanation"></iframe></div>`;
   return `<div class="feedback-block"><h4>🎬 Video explanation</h4>${frame}</div>`;
 }
+// An annotation question marked from a photo: show the correctly annotated
+// diagram, the same reveal the on-screen result panel gives. It arrives on the
+// marking response, so it is only ever seen after the work has been submitted.
+function aiMarkAnnotationHtml(rows) {
+  const usable = (Array.isArray(rows) ? rows : []).filter(r => r && (String(r.answerImg || "").trim() || String(r.answerKey || "").trim()));
+  if (!usable.length) return "";
+  const body = usable.map(r => {
+    const img = String(r.answerImg || "").trim();
+    const words = String(r.answerKey || "").trim();
+    return (/^(https?:\/\/|data:image\/)/i.test(img) ? `<img class="answer-key-image" src="${escapeHtml(img)}" alt="Correctly annotated diagram">` : "")
+      + (words ? `<p>${escapeHtml(words)}</p>` : "");
+  }).join("");
+  return `<div class="feedback-block"><h4>✍️ Correctly annotated diagram</h4>${body}</div>`;
+}
 function aiMarkAnswerKeyImageHtml(rawUrl) {
   const url = String(rawUrl || "").trim();
   if (!/^(https?:\/\/|data:image\/)/i.test(url)) return "";
@@ -10523,6 +10899,7 @@ function aiMarkRenderResult(out, reviewPlan) {
   if (reviewPlan) html += `<div class="feedback-block"><h4>🗓️ Review plan</h4><p>${escapeHtml(reviewPlan)}</p></div>`;
   if (fullAnswerKey) html += `<div class="feedback-block"><h4>🧾 Full answer key</h4><p class="answer-key-text">${escapeHtml(fullAnswerKey)}</p></div>`;
   html += aiMarkAnswerKeyImageHtml(out.answerKeyImageUrl);
+  html += aiMarkAnnotationHtml(out.annotationAnswers);
   html += aiMarkVideoHtml(out.videoExplanationUrl);
   if (aiMarkMedia && !aiMarkMedia.isPdf && aiMarkMedia.previewUrl) {
     html += `<div class="feedback-block"><h4>📸 What you submitted</h4><div class="captured"><img src="${aiMarkMedia.previewUrl}" alt="Your worksheet photo"></div></div>`;
@@ -14449,7 +14826,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.4.0 · 2026-08-07";
+const APP_VERSION = "v1.5.0 · 2026-08-07";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
