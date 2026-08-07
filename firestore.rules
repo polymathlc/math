@@ -102,6 +102,25 @@ service cloud.firestore {
         allow read, write: if isAdmin() && isOwner(uid);
       }
 
+      // Vetting: questions the AI has read (Rapid add / whole-paper import)
+      // that nobody has checked yet. These carry the full answer key, and
+      // nothing in here is served to a student — so it is admin-only on BOTH
+      // read and write, like mathQuestionKeys above.
+      match /mathVetting/{qid} {
+        allow read, write: if isAdmin() && isOwner(uid);
+      }
+
+      // Saved worksheets. A worksheet doc is only a title, an ORDERED LIST OF
+      // QUESTION IDS and the printing choices — never the questions themselves
+      // and never an answer — so any signed-in user may read one. That read is
+      // what lets a student open the sheet their teacher built. Writes stay
+      // with the owner, so a student can save and delete their own and cannot
+      // touch the teacher's.
+      match /mathWorksheets/{wsId} {
+        allow read: if signedIn();
+        allow write: if isOwner(uid) || isAdmin();
+      }
+
       // Student-generated AI practice questions (the student saw the answer
       // at generation time, so these stay client-readable).
       match /generatedPracticeQuestions/{qid} {
