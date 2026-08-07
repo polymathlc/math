@@ -170,6 +170,9 @@ a { color: var(--primary); }
 .btn-block { width: 100%; }
 .btn-lg { padding: 14px 18px; font-size: 1rem; }
 .btn-sm { padding: 7px 11px; font-size: 0.82rem; }
+/* The Science app's outline button, used by the ported image-tool overlays. */
+.btn-outline { background: transparent; color: var(--primary); border-color: var(--primary); }
+.btn-outline:hover { background: var(--primary-light); }
 .btn-orange { background: var(--accent-orange); color: #fff; }
 .btn-orange:hover { background: #bf7622; }
 .btn-blue { background: var(--accent-blue); color: #fff; }
@@ -1897,6 +1900,134 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
       </div>
     </div>
     <div class="overlay-foot"><button class="btn btn-primary" data-close="wsEditOverlay">Done</button></div>
+  </div>
+</div>
+
+<!-- ==================== IMAGE TOOLS ====================
+     Crop & reposition, and Touch up & label. Ported from the Science
+     app (polymathlc/cer) together with the JS that drives them. -->
+<div class="overlay" id="cropOverlay">
+  <div class="overlay-card" style="max-width:94vw;width:auto;">
+    <div class="overlay-head"><h3>✂️ Crop &amp; reposition</h3><button class="close" onclick="closeCropTool()" type="button">×</button></div>
+    <div class="overlay-body" style="text-align:center;">
+      <div id="cropStage">
+        <img id="cropImg" alt="">
+        <div id="cropBox">
+          <span class="crop-h" data-h="nw"></span><span class="crop-h" data-h="n"></span><span class="crop-h" data-h="ne"></span>
+          <span class="crop-h" data-h="w"></span><span class="crop-h" data-h="e"></span>
+          <span class="crop-h" data-h="sw"></span><span class="crop-h" data-h="s"></span><span class="crop-h" data-h="se"></span>
+        </div>
+      </div>
+      <p class="hint" style="margin-top:10px;">Drag the box to move it; drag a handle to resize. Then tap Apply crop.</p>
+    </div>
+    <div class="overlay-foot">
+      <button class="btn btn-ghost" onclick="closeCropTool()" type="button">Cancel</button>
+      <button class="btn btn-outline" onclick="cropToolReset()" type="button">⤢ Whole image</button>
+      <button class="btn btn-primary" onclick="applyCropTool()" type="button">✂️ Apply crop</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== IMAGE TOUCH-UP & LABELS ==================== -->
+<div class="overlay" id="annotOverlay">
+  <div class="overlay-card" style="max-width:96vw;width:auto;">
+    <div class="overlay-head"><h3>✏️ Touch up &amp; label</h3><button class="close" onclick="closeAnnotTool()" type="button">×</button></div>
+    <div class="overlay-body" style="text-align:center;">
+      <div class="annot-tools">
+        <button type="button" class="annot-tool" data-atool="erase" title="Paint white over words to erase them — Photoshop style: click a point then Shift-click another to join them with a straight line; Shift-drag locks to horizontal / vertical">🩹 Erase</button>
+        <button type="button" class="annot-tool" data-atool="paint" title="Paint over with the chosen colour — Photoshop style: click a point then Shift-click another to join them with a straight line; Shift-drag locks to horizontal / vertical">🖌️ Paint</button>
+        <button type="button" class="annot-tool" data-atool="fill" title="Paint bucket (G) — click inside a shape or area to flood it with the chosen colour. The strip at the bottom of the bucket is the colour that will be poured.">
+          <svg class="annot-bucket" viewBox="0 0 24 26" aria-hidden="true">
+            <g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+              <path d="M11.2 4.2 4.4 11a1.7 1.7 0 0 0 0 2.4l4.9 4.9a1.7 1.7 0 0 0 2.4 0l6.8-6.8z"/>
+              <path d="M8.9 6.5 6.4 4"/>
+            </g>
+            <path d="M20.6 12.6s1.9 2.5 1.9 3.8a1.9 1.9 0 1 1-3.8 0c0-1.3 1.9-3.8 1.9-3.8z" class="annot-bucket-paint"/>
+            <rect x="2" y="22.2" width="20" height="3.4" rx="1.7" class="annot-bucket-paint"/>
+          </svg> Fill</button>
+        <button type="button" class="annot-tool" data-atool="clone" title="Clone stamp (S): click to set a source point, then drag to copy that part of the picture elsewhere. Alt+click to re-set the source.">🧬 Clone</button>
+        <button type="button" class="annot-tool" data-atool="history" title="History brush (Y) — brush the ORIGINAL picture back wherever you drag, undoing your edits by hand, one stroke at a time">🕘 History</button>
+        <button type="button" class="annot-tool" data-atool="select" title="Rectangle select (M): drag a box around an area, then fill it, move it, or use AI content-aware fill">⬚ Select</button>
+        <button type="button" class="annot-tool" data-atool="lasso" title="Lasso select (L): draw freehand around an area, then fill it, move it, or use AI content-aware fill">➰ Lasso</button>
+        <button type="button" class="annot-tool" data-atool="wand" title="Magic wand (W): click a colour to select every pixel like it. Alt+click selects that colour across the WHOLE picture, not just the patch you clicked. Use the ± slider to widen or tighten what counts as the same colour.">🪄 Wand</button>
+        <button type="button" class="annot-tool" data-atool="move" title="Move (V): drag inside a selection to cut it out and drop it anywhere — hold Alt to copy instead of cut. Also drags text labels around.">✥ Move</button>
+        <button type="button" class="annot-tool" data-atool="rotate" title="Rotate (R): drag on the image to turn it — hold Shift to snap to 15°. With an area selected it turns just that object; with nothing selected it straightens the whole picture. Use 📐 Straighten to trace a crooked edge and level it automatically.">🔄 Rotate</button>
+        <button type="button" class="annot-tool" data-atool="scale" title="Resize / free transform (F): drag the handles round the box to make the selected object bigger or smaller — corners resize both ways, edges one way, and the opposite corner stays put. Drag inside the box to move it. Shift swaps between keeping the shape and stretching it freely. With nothing selected it resizes the whole picture.">⤢ Resize</button>
+        <button type="button" class="annot-tool" data-atool="skew" title="Skew (K): drag sideways to slant sideways, up/down to slant up/down — for objects photographed at an angle. Works on the selected area, or the whole picture if nothing is selected.">▱ Skew</button>
+        <button type="button" class="annot-tool" data-atool="line" title="Drag to draw a straight label line (U) — hold Shift to snap to 45° angles">📏 Line</button>
+        <button type="button" class="annot-tool" data-atool="text" title="Click to drop a text label (T)">🔤 Text</button>
+        <label style="font-size:0.8rem;display:inline-flex;align-items:center;gap:5px;">Colour <input type="color" id="annotColor" value="#e23c3c" oninput="_annotSyncControls()" style="width:34px;height:28px;padding:0;border:1px solid var(--border);border-radius:6px;"></label>
+        <label style="font-size:0.8rem;display:inline-flex;align-items:center;gap:5px;" title="Brush size in image pixels — set to 1 to paint a single pixel. [ and ] change it, and you can scroll your mouse wheel over the slider.">Brush <input type="range" id="annotSize" min="1" max="60" value="6" oninput="_annotSyncControls()"><span id="annotSizeVal" style="min-width:30px;font-variant-numeric:tabular-nums;">6&nbsp;px</span></label>
+        <label style="font-size:0.8rem;display:inline-flex;align-items:center;gap:5px;" title="How close a colour has to be to count as the same one — used by the magic wand and the paint bucket. Scroll your mouse wheel over the slider to change it.">Match ± <input type="range" id="annotTol" min="0" max="120" value="32" oninput="_annotSyncControls()"><span id="annotTolVal" style="min-width:26px;font-variant-numeric:tabular-nums;">32</span></label>
+        <span style="width:1px;height:20px;background:var(--border);"></span>
+        <button type="button" class="annot-tool" onclick="annotZoomStep(1/1.3)" title="Zoom out">➖</button>
+        <span id="annotZoomVal" style="font-size:0.78rem;min-width:44px;text-align:center;font-variant-numeric:tabular-nums;">100%</span>
+        <button type="button" class="annot-tool" onclick="annotZoomStep(1.3)" title="Zoom in">➕</button>
+        <button type="button" class="annot-tool" onclick="annotZoomFit()" title="Fit the whole image in view">⤢ Fit</button>
+        <button type="button" class="btn btn-outline" style="padding:5px 10px;font-size:0.8rem;" onclick="annotUndo()">↶ Undo</button>
+      </div>
+      <div id="annotSelBar" style="display:none;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;margin:0 auto 12px;padding:8px 14px;border:1.5px solid var(--primary,#0b6b4f);background:var(--primary-light,#e8f3ec);border-radius:10px;max-width:820px;">
+        <span style="font-size:0.8rem;font-weight:700;color:var(--primary,#0b6b4f);">Selection:</span>
+        <button type="button" class="annot-tool" onclick="annotSelFillColour()" title="Fill the selected area with the chosen colour">🎨 Fill colour</button>
+        <button type="button" class="annot-tool" onclick="annotSelPatchFill()" title="Fill the selected area by extending the surrounding pixels inwards (fast, no AI)">🧵 Fill from surroundings</button>
+        <button type="button" class="annot-tool" onclick="annotSelAiFill()" title="AI content-aware fill: the AI removes what is selected and seamlessly reconstructs the background / surrounding texture">✨ AI content-aware fill</button>
+        <button type="button" class="annot-tool" data-atool="move" title="Move (V) — drag inside the selection to cut it out and drop it anywhere; hold Alt to copy instead">✥ Move it</button>
+        <button type="button" class="annot-tool" data-atool="scale" title="Resize (F) — lift this object out and drag the handles to make it bigger or smaller; drag inside the box to move it">⤢ Resize it</button>
+        <button type="button" class="annot-tool" data-atool="rotate" title="Rotate (R) — lift this object out and turn it; drag on the image or use the sliders">🔄 Turn it</button>
+        <button type="button" class="annot-tool" data-atool="skew" title="Skew (K) — lift this object out and slant it, for something photographed at an angle">▱ Slant it</button>
+        <button type="button" class="annot-tool" onclick="annotSelClear()" title="Deselect (Esc)">✕ Deselect</button>
+      </div>
+
+      <!-- Rotate / skew panel: appears while a transform is open, disappears on Apply or Cancel. -->
+      <div id="annotXformBar" style="display:none;flex-wrap:wrap;gap:10px 14px;align-items:center;justify-content:center;margin:0 auto 12px;padding:12px 18px;border:1.5px solid #b45309;background:#fdf4e3;border-radius:12px;max-width:880px;">
+        <span style="font-size:0.8rem;font-weight:700;color:#92400e;">Transforming <span id="annotXformScope">the whole picture</span>:</span>
+        <label style="font-size:0.8rem;display:inline-flex;align-items:center;gap:6px;" title="Width, as a percentage of the original. Drag the handles round the box for the same thing.">W
+          <input type="number" id="annotXformSxNum" min="5" max="800" step="1" value="100" onchange="annotXformSetScale('sx', this.value)" style="width:64px;padding:3px 6px;border:1px solid var(--border);border-radius:6px;font-size:0.78rem;font-variant-numeric:tabular-nums;">%
+        </label>
+        <label style="font-size:0.8rem;display:inline-flex;align-items:center;gap:6px;" title="Height, as a percentage of the original.">H
+          <input type="number" id="annotXformSyNum" min="5" max="800" step="1" value="100" onchange="annotXformSetScale('sy', this.value)" style="width:64px;padding:3px 6px;border:1px solid var(--border);border-radius:6px;font-size:0.78rem;font-variant-numeric:tabular-nums;">%
+        </label>
+        <label style="font-size:0.8rem;display:inline-flex;align-items:center;gap:6px;" title="On: width and height stay in step, so the object keeps its shape. Off: stretch it freely. Holding Shift while you drag a handle swaps between the two.">
+          <input type="checkbox" id="annotXformLock" checked onchange="annotXformSetLock(this.checked)" style="width:15px;height:15px;cursor:pointer;"> Keep shape
+        </label>
+        <span id="annotXformSizePx" style="font-size:0.75rem;color:#92400e;font-variant-numeric:tabular-nums;min-width:86px;">&nbsp;</span>
+        <button type="button" class="annot-tool" onclick="annotXformFlip('x')" title="Mirror left-to-right">⇄ Flip</button>
+        <button type="button" class="annot-tool" onclick="annotXformFlip('y')" title="Mirror top-to-bottom">⇅ Flip</button>
+        <span style="width:1px;height:20px;background:#e0c9a0;"></span>
+        <label style="font-size:0.8rem;display:inline-flex;align-items:center;gap:6px;" title="Turn the object. Drag on the image for the same thing — hold Shift there to snap to 15°. Scroll your mouse wheel over the slider for fine steps.">Turn
+          <input type="range" id="annotXformAngle" min="-180" max="180" step="0.5" value="0" oninput="annotXformSet('angle', this.value)" style="width:150px;">
+          <input type="number" id="annotXformAngleNum" min="-180" max="180" step="0.1" value="0" onchange="annotXformSet('angle', this.value)" style="width:66px;padding:3px 6px;border:1px solid var(--border);border-radius:6px;font-size:0.78rem;font-variant-numeric:tabular-nums;">°
+        </label>
+        <label style="font-size:0.8rem;display:inline-flex;align-items:center;gap:6px;" title="Slant sideways — the top leans one way, the bottom the other. This is what fixes a diagram photographed from the side.">Slant&nbsp;↔
+          <input type="range" id="annotXformSkewX" min="-60" max="60" step="0.5" value="0" oninput="annotXformSet('skewX', this.value)" style="width:110px;">
+          <span id="annotXformSkewXVal" style="min-width:34px;font-variant-numeric:tabular-nums;">0°</span>
+        </label>
+        <label style="font-size:0.8rem;display:inline-flex;align-items:center;gap:6px;" title="Slant up and down — the left edge leans one way, the right edge the other.">Slant&nbsp;↕
+          <input type="range" id="annotXformSkewY" min="-60" max="60" step="0.5" value="0" oninput="annotXformSet('skewY', this.value)" style="width:110px;">
+          <span id="annotXformSkewYVal" style="min-width:34px;font-variant-numeric:tabular-nums;">0°</span>
+        </label>
+        <span style="width:1px;height:20px;background:#e0c9a0;"></span>
+        <button type="button" class="annot-tool" onclick="annotXformNudge(-90)" title="Turn a quarter turn anticlockwise">↺ 90°</button>
+        <button type="button" class="annot-tool" onclick="annotXformNudge(90)" title="Turn a quarter turn clockwise">↻ 90°</button>
+        <button type="button" class="annot-tool" id="annotXformStraightenBtn" onclick="annotXformStraightenStart()" title="Straighten: click this, then drag a line along an edge that should be level (a table rule, the base of a diagram, a line of print) — the picture turns to make it so.">📐 Straighten…</button>
+        <label id="annotXformGrowWrap" style="font-size:0.8rem;display:inline-flex;align-items:center;gap:6px;" title="On: the canvas grows so a turned page keeps all four corners, with white filling the gaps. Off: the picture stays exactly the same size and the corners are cut off.">
+          <input type="checkbox" id="annotXformGrow" checked onchange="annotXformSetGrow(this.checked)" style="width:15px;height:15px;cursor:pointer;"> Grow to fit
+        </label>
+        <span style="width:1px;height:20px;background:#e0c9a0;"></span>
+        <span style="display:inline-flex;align-items:center;gap:8px;">
+          <button type="button" class="annot-tool" onclick="annotXformReset()" title="Back to the original size and 0° — nothing resized, turned or slanted">⟲ Reset</button>
+          <button type="button" class="btn btn-primary" style="padding:5px 14px;font-size:0.8rem;" onclick="annotXformApply()" title="Burn the resize / turn into the picture (Enter)">✓ Apply</button>
+          <button type="button" class="btn btn-ghost" style="padding:5px 12px;font-size:0.8rem;" onclick="annotXformCancel()" title="Put the picture back as it was (Esc)">✕ Cancel</button>
+        </span>
+      </div>
+      <div id="annotStage"><canvas id="annotCanvas"></canvas><canvas id="annotSelCanvas"></canvas></div>
+      <p class="hint" style="margin-top:10px;">Erase / Paint: drag over the image — <b>click then Shift-click</b> joins the two points with a straight line (Photoshop style), and <b>Shift-drag</b> locks the stroke to horizontal / vertical. <b>Fill</b>: click inside a shape to flood it with colour. <b>Clone</b>: click to set the source, then drag to stamp that area elsewhere (Alt+click re-sets the source). <b>History</b>: brush the original picture back by hand. <b>Select / Lasso / Wand</b>: mark out an area, then fill it, move it, or use AI content-aware fill (Esc deselects). <b>Move</b>: drag inside a selection to cut it out and drop it anywhere (Alt to copy), or drag a text label to reposition it. <b>Resize</b>: drag the handles round the box to make the selected object bigger or smaller — corners resize both ways, edges one way, and the corner opposite the one you drag stays exactly where it is. Drag inside the box to move it, hold <b>Shift</b> to swap between keeping the shape and stretching it freely, or type a width / height percentage in the panel. <b>Rotate / Skew</b>: turn or slant the selected object — or, with nothing selected, the whole picture, which is how you straighten a page that went into the scanner crooked. Drag on the image (Shift snaps to 15°) or use the sliders, and <b>📐 Straighten</b> lets you trace a line along a crooked edge to level it in one go. Enter applies the turn, Esc cancels it. Line: drag from start to end. Text: click, type, then Enter.<br><b>Scroll</b> over the image to zoom (down to single pixels); <b>hold Space</b> (or the middle mouse button) and drag to pan; <b>scroll over either slider</b> to change it. Set the brush to <b>1&nbsp;px</b> for pixel-perfect edits.
+        <br><b>Keys:</b> <kbd>E</kbd> erase · <kbd>B</kbd> paint · <kbd>G</kbd> fill · <kbd>S</kbd> clone · <kbd>Y</kbd> history · <kbd>M</kbd> select · <kbd>L</kbd> lasso · <kbd>W</kbd> wand · <kbd>V</kbd> move · <kbd>R</kbd> rotate · <kbd>K</kbd> skew · <kbd>F</kbd> resize · <kbd>U</kbd> line · <kbd>T</kbd> text · <kbd>[</kbd> <kbd>]</kbd> brush size · <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo · <kbd>+</kbd> <kbd>−</kbd> zoom · <kbd>0</kbd> fit · <kbd>Esc</kbd> deselect / cancel the transform · <kbd>Enter</kbd> apply</p>
+    </div>
+    <div class="overlay-foot">
+      <button class="btn btn-ghost" onclick="closeAnnotTool()" type="button">Cancel</button>
+      <button class="btn btn-primary" onclick="applyAnnotTool()" type="button">Apply</button>
+    </div>
   </div>
 </div>
 
@@ -4226,6 +4357,10 @@ function renderEditorBlocks() {
     setBlockField(inp.dataset.imgurl, "url", val);
     if (val) { imgChoices.delete(inp.dataset.imgurl); renderImgChoice(inp.dataset.imgurl); }
     syncImgPreview(inp.dataset.imgurl, val);
+    // A pasted URL is a new picture: drop any edit history for this block (it
+    // belonged to the old one) and put the tools up for the new one.
+    delete _imgEnhanceState[inp.dataset.imgurl];
+    renderImgEnhanceBar(inp.dataset.imgurl);
   }));
   wrap.querySelectorAll("[data-imgzone]").forEach(z => {
     z.addEventListener("click", () => { const f = $("blocksList").querySelector(`[data-imgfile="${z.dataset.imgzone}"]`); if (f) f.click(); });
@@ -4244,6 +4379,9 @@ function renderEditorBlocks() {
   wrap.querySelectorAll("[data-imgsize-up]").forEach(b => b.addEventListener("click", () => setImageScale(b.dataset.imgsizeUp, IMAGE_SCALE_STEP)));
   editorBlocks.filter(b => b.type === "image").forEach(b => renderImgChoice(b.id));
   editorBlocks.filter(b => b.type === "image").forEach(b => syncImageScaleUi(b.id));
+  // The crop / touch-up / enhance bar. Re-rendered with the blocks because
+  // renderEditorBlocks() replaces the whole list, taking the bar with it.
+  editorBlocks.filter(b => b.type === "image").forEach(b => renderImgEnhanceBar(b.id));
   // nav buttons
   wrap.querySelectorAll("[data-up]").forEach(b => b.addEventListener("click", () => moveBlock(b.dataset.up, -1)));
   wrap.querySelectorAll("[data-down]").forEach(b => b.addEventListener("click", () => moveBlock(b.dataset.down, 1)));
@@ -4262,7 +4400,7 @@ function imgBlockHtml(b) {
   const scale = normalizeImageScale(b.scale);
   return `<div class="img-zone" data-imgzone="${b.id}" tabindex="0">📎 Hover &amp; paste, drop, or click to add an image / diagram</div>
     <input type="file" accept="image/*" class="hidden" data-imgfile="${b.id}">
-    <input type="text" data-imgurl="${b.id}" value="${escapeHtml(b.url || "")}" placeholder="…or paste an image URL" style="width:100%;margin-top:8px;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:0.85rem;">
+    <input type="text" id="imgUrlInput_${b.id}" data-imgurl="${b.id}" value="${escapeHtml(b.url || "")}" placeholder="…or paste an image URL" style="width:100%;margin-top:8px;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:0.85rem;">
     <div class="img-size-row">
       <span class="hint" style="margin:0;">Image size</span>
       <button class="mini-btn" data-imgsize-down="${b.id}" type="button" title="Make image smaller">-</button>
@@ -4292,7 +4430,12 @@ function imgBlockHtml(b) {
         <div class="img-choice-status" data-imgchoice-status="${b.id}"></div>
       </div>
     </div>
-    <img class="img-preview" data-imgprev="${b.id}" src="${escapeHtml(b.url || "")}" style="display:${has};--question-image-width:${imageWidthStyle(scale)};">`;
+    <img class="img-preview" id="imgPreview_${b.id}" data-imgprev="${b.id}" src="${escapeHtml(b.url || "")}" style="display:${has};--question-image-width:${imageWidthStyle(scale)};">
+    <!-- ✂️ Crop · ✏️ Touch up & label · ✨ Enhance / 🎨 Colour · ↩ Use original.
+         Filled by renderImgEnhanceBar() whenever this block has a url — so the
+         tools are there for a question loaded back out of the bank, not only
+         for one just pasted. -->
+    <div class="img-enhance-bar" id="imgEnhance_${b.id}"></div>`;
 }
 function syncImgPreview(id, url) {
   const img = $("blocksList").querySelector(`[data-imgprev="${id}"]`);
@@ -4427,6 +4570,11 @@ async function useImgChoice(id, kind = "original") {
     syncImgPreview(id, url);
     imgChoices.delete(id);
     renderImgChoice(id);
+    // Seed the edit session with the bytes we already have in memory, so Crop /
+    // Touch up / Enhance start instantly instead of re-fetching the image we
+    // just uploaded — and work even if the host later refuses a CORS fetch.
+    _imgEnhanceState[id] = { originalDataUrl: selected.dataUrl, originalUrl: url, currentDataUrl: selected.dataUrl };
+    renderImgEnhanceBar(id);
     toast(selected.enhanced ? "Enhanced image added" : "Image added", "success");
   } catch (e) {
     console.warn(e);
@@ -4502,6 +4650,2025 @@ $("answerKeyZone").addEventListener("drop", e => { e.preventDefault(); const f =
 $("answerKeyFile").addEventListener("change", e => { const f = e.target.files[0]; if (f) uploadAnswerKeyFile(f); e.target.value = ""; });
 $("answerKeyUrlInput").addEventListener("input", e => setAnswerKeyImage(e.target.value));
 $("clearAnswerKeyBtn").addEventListener("click", () => setAnswerKeyImage(""));
+
+
+// =====================================================================
+// IMAGE TOOLS — Crop, Touch up & label, and AI enhance / regenerate
+//
+// Ported from the Science app (polymathlc/cer, app.js) so a scanned exam
+// diagram can be fixed here instead of in an external editor: crop it,
+// paint out a stray mark, drop a label on it, or have the AI redraw it as
+// clean line-work. The bar appears under ANY image block that has a url —
+// including a question loaded back out of the bank, which is the case that
+// matters most, since that is when a bad scan is usually noticed.
+//
+// The blocks below are kept as close to the Science app's source as
+// possible so a fix there can be re-applied here mechanically. Everything
+// they expect from their old home is provided by this shim rather than
+// rewritten inline.
+// =====================================================================
+
+// Science-app helper names, expressed in this app's terms.
+const _imgEnhanceState = {}; // blockId -> { originalDataUrl, originalUrl, currentDataUrl, remark }
+function showToast(msg, type) { toast(msg, type === 'info' ? '' : (type || '')); }
+function saveBlockContent(id, field, value) { setBlockField(id, field, value); }
+function previewImage(blockId, url) { syncImgPreview(blockId, url); }
+async function uploadImageDataUrl(dataUrl) { return uploadDataUrlToStorage(dataUrl, 'mathImages'); }
+// The Science app rewrites Dropbox share links here. Every image in this app is
+// a Firebase Storage download URL already, so there is nothing to rewrite —
+// but keep the seam, or a future host-specific fix has nowhere to go.
+function transformImageUrl(url) { return String(url || ''); }
+function handleImgError(img) { if (img) img.style.display = 'none'; }
+function _loadImageEl(src) { return loadImage(src); }
+// Returns null rather than throwing (dataUrlInfo throws) — every caller here
+// tests the result.
+function _parseImageDataUrl(dataUrl) {
+  const m = String(dataUrl || '').match(/^data:([^;,]+)[^,]*,(.*)$/);
+  return m ? { mime: m[1] || 'image/png', data: m[2] } : null;
+}
+// Remember what the picture looked like BEFORE the first destructive edit, so
+// "↩ Use original" has somewhere to go back to.
+//
+// This is the one behavioural addition on top of the ported code. In the
+// Science app an image nearly always arrives with its session state already
+// seeded (pasted, or cropped out of a screenshot by the AI builder), so the
+// original was recorded as a side effect. Here the case that matters most is a
+// question loaded back OUT OF THE BANK — url and nothing else — and for that
+// one `prev.originalUrl` was undefined, so the first crop or enhance recorded
+// the *edited* image as the original and the revert button never appeared.
+// Called at the top of all three destructive tools; a no-op once set.
+function _imgSeedOriginal(blockId) {
+  const block = editorBlocks.find(b => b.id === blockId);
+  if (!block || !block.url) return;
+  const st = (_imgEnhanceState[blockId] = _imgEnhanceState[blockId] || {});
+  if (!st.originalUrl) st.originalUrl = block.url;
+}
+// One image in, one image out, as a data: URL. askGeminiImageEdit already walks
+// the image models and pulls the inline image out of the response.
+async function generateEnhancedImageDataUrl(prompt, media) {
+  const m = Array.isArray(media) ? media[0] : media;
+  if (!m || !m.data) throw new Error('no image to enhance');
+  const img = await askGeminiImageEdit(prompt, { mimeType: m.mimeType, data: m.data });
+  return 'data:' + (img.mimeType || 'image/png') + ';base64,' + img.data;
+}
+
+const SCAN_SOURCE_PROMPT =
+  'SOURCE — READ FIRST: this picture was scanned, photocopied or photographed from a printed exam paper, so it almost certainly carries scanning damage rather than being clean artwork. Expect some of: faint, broken, patchy or grey lines where the toner was weak; lines that are meant to be straight but bow, wobble or slant because the page was curved or the scan was skewed; an arrow-head, tick, bracket, box or letter that has partly faded, dropped out or been cut off; speckle, dust and dirty-photocopy noise; JPEG mush and moire; a grey, yellowed or unevenly lit background instead of white; shadows or dark bands along the page edge; faint show-through of print from the back of the sheet; staple holes, punch holes, creases and folds; and slightly blurred or double-struck text. ' +
+  'TREAT ALL OF THAT AS DAMAGE, NOT AS PART OF THE DIAGRAM. Darken faint strokes to a solid, even line; straighten what is meant to be straight, make circles round and boxes square; close small gaps and rejoin broken strokes; complete an arrow-head, tick or letter that has obviously faded out; remove the speckle, dirt, shadows, show-through and staple or punch marks; de-skew the figure; and set it on a clean white background. ' +
+  'BUT DO NOT INVENT ANYTHING. Only restore marks that are clearly the SAME feature the paper already shows. Never add a label, number, unit, axis value, arrow or shape that is not there. Never guess at text you cannot read — reproduce the characters as they appear rather than substituting plausible ones. If an element is missing or genuinely unreadable, leave it out rather than making one up. The diagram itself — every shape, label, proportion and position — stays exactly as the paper has it.';
+
+
+
+async function _urlToDataUrl(url) {
+  // cache:'no-store' matters: if the page already showed this URL in a plain
+  // <img>, the cached response has no CORS headers and a cache hit here would
+  // fail the fetch (and taint any canvas the fallback image is drawn onto).
+  const resp = await fetch(url, { mode: 'cors', cache: 'no-store' });
+  if (!resp.ok) throw new Error('could not load the image');
+  const blob = await resp.blob();
+  return await new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = () => rej(new Error('could not read the image'));
+    r.readAsDataURL(blob);
+  });
+}
+
+// _urlToDataUrl with fallbacks. A plain fetch() can die with a bare
+// "Failed to fetch" (CORS preflight/cache quirks, blockers) even though the
+// very same URL displays fine in an <img>. Ladder: direct fetch → reload via
+// a CORS-enabled <img> re-encoded through a canvas → the wsrv.nl image proxy,
+// which serves any public image WITH CORS headers.
+async function _urlToDataUrlRobust(url) {
+  try { return await _urlToDataUrl(url); }
+  catch (e) { if (/^(data|blob):/i.test(url || '')) throw e; console.warn('image fetch failed, trying fallbacks', e); }
+  try {
+    const im = await new Promise((res, rej) => {
+      const i = new Image();
+      i.crossOrigin = 'anonymous';
+      i.onload = () => res(i);
+      i.onerror = () => rej(new Error('cors img load'));
+      i.src = url + (url.includes('?') ? '&' : '?') + 'corscb=' + Date.now();
+    });
+    const cv = document.createElement('canvas');
+    cv.width = im.naturalWidth || im.width || 1;
+    cv.height = im.naturalHeight || im.height || 1;
+    cv.getContext('2d').drawImage(im, 0, 0);
+    return cv.toDataURL('image/png');
+  } catch (e2) { console.warn('CORS <img> fallback failed, trying proxy', e2); }
+  try { return await _urlToDataUrl('https://wsrv.nl/?url=' + encodeURIComponent(url)); }
+  catch (e3) { throw new Error('could not load the image (the host blocked the request) — try re-uploading it'); }
+}
+
+// Get the source image (as base64 inlineData) to enhance for a block.
+async function _blockImageToInline(blockId) {
+  const st = _imgEnhanceState[blockId];
+  let dataUrl = st && (st.currentDataUrl || st.originalDataUrl);
+  if (!dataUrl) {
+    const block = editorBlocks.find(b => b.id === blockId);
+    if (!block || !block.url) throw new Error('no image to enhance');
+    dataUrl = await _urlToDataUrlRobust(transformImageUrl(block.url));
+  }
+  const parsed = _parseImageDataUrl(dataUrl);
+  if (!parsed) throw new Error('could not read the image');
+  return { mimeType: parsed.mime, data: dataUrl.split(',')[1] || '' };
+}
+
+
+// Render the [Use original] [Enhance] [Enhance with colour] bar under an image.
+function renderImgEnhanceBar(blockId) {
+  const bar = document.getElementById('imgEnhance_' + blockId);
+  if (!bar) return;
+  const block = editorBlocks.find(b => b.id === blockId);
+  if (!block || !block.url) { bar.innerHTML = ''; return; }
+  const st = _imgEnhanceState[blockId];
+  const showOriginal = st && st.originalUrl && st.originalUrl !== block.url;
+  // While there's an edited version, show the single preview as a side-by-side
+  // comparison instead, so the teacher can judge if the original changed too much.
+  const previewEl = document.getElementById('imgPreview_' + blockId);
+  // 'block', not '' — this app's .img-preview is display:none in CSS and is
+  // revealed by an inline style, so clearing the inline style (which is what
+  // the Science app does, where the rule is visible by default) hides the
+  // picture altogether the moment the toolbar renders.
+  if (previewEl) previewEl.style.display = showOriginal ? 'none' : 'block';
+  const compare = showOriginal ? `
+    <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;align-items:flex-start;">
+      <div style="flex:1;min-width:140px;text-align:center;">
+        <div style="font-size:0.72rem;font-weight:600;color:var(--text-muted);margin-bottom:4px;">Original</div>
+        <img src="${escapeHtml(transformImageUrl(st.originalUrl))}" onerror="handleImgError(this)" loading="lazy" decoding="async" style="max-width:100%;max-height:240px;border:1px solid var(--border);border-radius:8px;background:#fff;">
+      </div>
+      <div style="flex:1;min-width:140px;text-align:center;">
+        <div style="font-size:0.72rem;font-weight:700;color:var(--primary);margin-bottom:4px;">In use ✓</div>
+        <img src="${escapeHtml(transformImageUrl(block.url))}" onerror="handleImgError(this)" loading="lazy" decoding="async" style="max-width:100%;max-height:240px;border:2px solid var(--primary);border-radius:8px;background:#fff;">
+      </div>
+    </div>
+    <div style="font-size:0.72rem;color:var(--text-muted);margin:4px 0 2px;text-align:center;">Compare the two — if the edited one changed too much, tap “↩ Use original”.</div>` : '';
+  bar.innerHTML = compare + `
+    <input type="text" id="imgEnhanceRemark_${blockId}" value="${escapeHtml((st && st.remark) || '')}"
+           oninput="_setEnhanceRemark('${blockId}', this.value)"
+           placeholder="Optional extra instructions (e.g. colour the heart red, keep all labels)"
+           title="The AI is already told these pictures are scans of printed exam papers, so it repairs faint or broken lines, wobble, speckle and grey photocopy background on its own. Only add a note here for something specific to this picture."
+           style="width:100%;box-sizing:border-box;font-size:0.78rem;padding:6px 9px;margin-top:8px;border:1px solid var(--border);border-radius:6px;">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;">
+      <span style="font-size:0.78rem;color:var(--text-muted);">Image:</span>
+      <button type="button" class="btn btn-outline" style="padding:4px 10px;font-size:0.78rem;" data-crop-open="${blockId}">✂️ Crop / reposition</button>
+      <button type="button" class="btn btn-outline" style="padding:4px 10px;font-size:0.78rem;" data-annot-open="${blockId}">✏️ Touch up &amp; label</button>
+      ${showOriginal ? `<button type="button" class="btn btn-outline" style="padding:4px 10px;font-size:0.78rem;" data-use-original="${blockId}">↩ Use original</button>` : ''}
+      <button type="button" class="btn btn-outline" style="padding:4px 10px;font-size:0.78rem;" data-enhance="${blockId}" data-colour="0">✨ Enhance image</button>
+      <button type="button" class="btn btn-outline" style="padding:4px 10px;font-size:0.78rem;" data-enhance="${blockId}" data-colour="1">🎨 Enhance with colour</button>
+    </div>`;
+}
+
+// Delegated handler so the enhance buttons work regardless of inline-handler
+// scoping (the app runs in a module). Attached once.
+document.addEventListener('click', function (e) {
+  const enh = e.target.closest && e.target.closest('[data-enhance]');
+  if (enh) { e.preventDefault(); enhanceBlockImage(enh.getAttribute('data-enhance'), enh.getAttribute('data-colour') === '1'); return; }
+  const uo = e.target.closest && e.target.closest('[data-use-original]');
+  if (uo) { e.preventDefault(); useOriginalImage(uo.getAttribute('data-use-original')); return; }
+  const cr = e.target.closest && e.target.closest('[data-crop-open]');
+  if (cr) { e.preventDefault(); openCropTool(cr.getAttribute('data-crop-open')); return; }
+  const an = e.target.closest && e.target.closest('[data-annot-open]');
+  if (an) { e.preventDefault(); openAnnotTool(an.getAttribute('data-annot-open')); }
+});
+
+// =====================================================================
+// VOICE INPUT — record from the mic, transcribe with Gemini, insert into a
+// field. Used for AI marking guides and open-ended answers (admin + students).
+
+function _setEnhanceRemark(blockId, val) { (_imgEnhanceState[blockId] = _imgEnhanceState[blockId] || {}).remark = val; }
+async function enhanceBlockImage(blockId, colour) {
+  // Read the optional teacher remark BEFORE the bar is replaced by the spinner.
+  const _remarkEl = document.getElementById('imgEnhanceRemark_' + blockId);
+  const remark = String(_remarkEl ? _remarkEl.value : ((_imgEnhanceState[blockId] || {}).remark || '')).trim();
+  (_imgEnhanceState[blockId] = _imgEnhanceState[blockId] || {}).remark = remark; // persist across re-renders
+  _imgSeedOriginal(blockId);   // so "↩ Use original" can get back here
+  console.log('[enhance] clicked', { blockId, colour, remark, imageAiReady: imageAiReady(), models: AI_IMAGE_MODELS });
+  // Immediate, unmissable feedback so it's clear the click registered.
+  showToast(colour ? '🎨 Colourising image with AI…' : '✨ Enhancing image with AI…', 'info');
+  const bar = document.getElementById('imgEnhance_' + blockId);
+  if (bar) bar.innerHTML = `<div style="margin-top:8px;font-size:0.82rem;color:var(--primary);display:flex;align-items:center;gap:8px;"><span class="spinner" style="border-color:rgba(74,124,89,.3);border-top-color:var(--primary);"></span>${colour ? 'Colourising' : 'Enhancing'} image with AI… (can take 10–25s)</div>`;
+  if (!imageAiReady()) {
+    showToast('Image AI model is not available in this project (check AI_IMAGE_MODELS / Firebase AI image access)', 'error');
+    renderImgEnhanceBar(blockId);
+    return;
+  }
+  try {
+    const media = await _blockImageToInline(blockId);
+    // Both prompts open with SCAN_SOURCE_PROMPT so the model repairs the scan
+    // instead of faithfully redrawing its defects. "Same diagram", not "same
+    // pixels" — the wording has to leave room for that repair.
+    let prompt = SCAN_SOURCE_PROMPT + ' ' + (colour
+      ? 'TASK: add colour to this diagram. Keep the SAME line drawing — identical shapes, labels, text, proportions and positions — repair the scanning damage described above, then fill the existing shapes with flat, natural colours like a clean textbook illustration. Do NOT make it photo-realistic, do NOT add shading, gradients, 3D rendering, textures or a new style, and do NOT restyle, rearrange, add or remove anything. Output only the image, same aspect ratio.'
+      : 'TASK: clean this up into a sharp BLACK-AND-WHITE line diagram — crisp black line-work and clearly legible black text on a clean white background, like a freshly printed textbook figure rather than a photocopy. Keep the SAME diagram: every shape, label, text, proportion and position stays where it is, with the scanning damage described above repaired. Do NOT make it photo-realistic, do NOT add shading, gradients, rendering, textures, colour or a new style, and do NOT restyle, rearrange, add or remove anything. Output only the image, same aspect ratio.');
+    if (remark) prompt += ' IMPORTANT — also follow these specific instructions from the teacher for this regeneration (apply them even where they relax the rules above, but still keep it the SAME diagram and the same aspect ratio, and output only the image): ' + remark;
+    const dataUrl = await generateEnhancedImageDataUrl(prompt, [media]);
+    previewImage(blockId, dataUrl); // show immediately
+    const url = await uploadImageDataUrl(dataUrl);
+    saveBlockContent(blockId, 'url', url);
+    const input = document.getElementById('imgUrlInput_' + blockId);
+    if (input) input.value = url;
+    previewImage(blockId, url);
+    // The enhanced/colourised image is now the current image; keep the first
+    // image as the "original" so "Use original" can revert.
+    const prevE = _imgEnhanceState[blockId] || {};
+    _imgEnhanceState[blockId] = { originalDataUrl: prevE.originalDataUrl || dataUrl, originalUrl: prevE.originalUrl || url, currentDataUrl: dataUrl };
+    renderImgEnhanceBar(blockId);
+    showToast(colour ? 'Colourised image ready ✓' : 'Enhanced image ready ✓', 'success');
+  } catch (err) {
+    console.error('Image enhance failed:', err);
+    showToast('Enhance failed: ' + (err && err.message ? err.message : err), 'error');
+    renderImgEnhanceBar(blockId);
+  }
+}
+
+function useOriginalImage(blockId) {
+  const st = _imgEnhanceState[blockId];
+  if (!st || !st.originalUrl) return;
+  st.currentDataUrl = st.originalDataUrl; // the current image is the original again
+  saveBlockContent(blockId, 'url', st.originalUrl);
+  const input = document.getElementById('imgUrlInput_' + blockId);
+  if (input) input.value = st.originalUrl;
+  previewImage(blockId, st.originalUrl);
+  renderImgEnhanceBar(blockId);
+  showToast('Reverted to the original image', 'info');
+}
+
+
+// image block; for AI-built questions it crops the FULL original screenshot, so
+// an imperfect auto-crop can be fixed by hand without losing anything.
+// =====================================================================
+(function injectCropStyles() {
+  const css = `
+  #cropStage { position:relative; display:inline-block; max-width:100%; line-height:0; touch-action:none; user-select:none; -webkit-user-select:none; overflow:hidden; }
+  #cropImg { display:block; max-width:82vw; max-height:60vh; }
+  #cropBox { position:absolute; box-sizing:border-box; border:2px solid var(--primary,#0b6b4f); box-shadow:0 0 0 9999px rgba(0,0,0,0.5); cursor:move; }
+  .crop-h { position:absolute; width:16px; height:16px; background:#fff; border:2px solid var(--primary,#0b6b4f); border-radius:3px; box-shadow:0 1px 3px rgba(0,0,0,.4); }
+  .crop-h[data-h="nw"]{left:-9px;top:-9px;cursor:nwse-resize;} .crop-h[data-h="ne"]{right:-9px;top:-9px;cursor:nesw-resize;}
+  .crop-h[data-h="sw"]{left:-9px;bottom:-9px;cursor:nesw-resize;} .crop-h[data-h="se"]{right:-9px;bottom:-9px;cursor:nwse-resize;}
+  .crop-h[data-h="n"]{left:calc(50% - 8px);top:-9px;cursor:ns-resize;} .crop-h[data-h="s"]{left:calc(50% - 8px);bottom:-9px;cursor:ns-resize;}
+  .crop-h[data-h="w"]{left:-9px;top:calc(50% - 8px);cursor:ew-resize;} .crop-h[data-h="e"]{right:-9px;top:calc(50% - 8px);cursor:ew-resize;}`;
+  const s = document.createElement('style'); s.textContent = css; document.head.appendChild(s);
+})();
+
+let _cropper = null;
+
+function openCropTool(blockId) {
+  _imgSeedOriginal(blockId);   // so "↩ Use original" can get back here
+  const st = _imgEnhanceState[blockId] || {};
+  const block = editorBlocks.find(b => b.id === blockId);
+  // Crop the image currently shown in the block (the enhanced one), not a stale source.
+  const srcP = st.currentDataUrl ? Promise.resolve(st.currentDataUrl)
+    : st.originalDataUrl ? Promise.resolve(st.originalDataUrl)
+    : (block && block.url) ? _urlToDataUrlRobust(transformImageUrl(block.url))
+    : Promise.reject(new Error('no image to crop'));
+  srcP.then(srcUrl => {
+    const overlay = document.getElementById('cropOverlay');
+    const imgEl = document.getElementById('cropImg');
+    overlay.classList.add('show');
+    imgEl.onload = () => requestAnimationFrame(() => {
+      const dispW = imgEl.clientWidth, dispH = imgEl.clientHeight;
+      if (!dispW || !dispH) return;
+      const box = { x: dispW * 0.08, y: dispH * 0.08, w: dispW * 0.84, h: dispH * 0.84 };
+      _cropper = { blockId, srcUrl, natW: imgEl.naturalWidth, natH: imgEl.naturalHeight, dispW, dispH, box, mode: null, handle: null };
+      _cropRender();
+    });
+    imgEl.src = srcUrl;
+  }).catch(e => { console.warn('open cropper', e); showToast('Could not open the cropper for this image', 'error'); });
+}
+function _cropRender() {
+  if (!_cropper) return;
+  const el = document.getElementById('cropBox'); if (!el) return;
+  const b = _cropper.box;
+  el.style.left = Math.round(b.x) + 'px'; el.style.top = Math.round(b.y) + 'px';
+  el.style.width = Math.round(b.w) + 'px'; el.style.height = Math.round(b.h) + 'px';
+}
+function _cropDown(e) {
+  if (!_cropper) return;
+  const h = e.target && e.target.getAttribute && e.target.getAttribute('data-h');
+  if (!(h || (e.target && e.target.id === 'cropBox'))) return;
+  e.preventDefault();
+  _cropper.mode = h ? 'resize' : 'move';
+  _cropper.handle = h || null;
+  _cropper.sx = e.clientX; _cropper.sy = e.clientY;
+  _cropper.start = Object.assign({}, _cropper.box);
+}
+function _cropMove(e) {
+  if (!_cropper || !_cropper.mode) return;
+  e.preventDefault();
+  const dx = e.clientX - _cropper.sx, dy = e.clientY - _cropper.sy;
+  const s = _cropper.start, DW = _cropper.dispW, DH = _cropper.dispH, MIN = 24;
+  let { x, y, w, h } = s;
+  if (_cropper.mode === 'move') {
+    x = Math.max(0, Math.min(DW - s.w, s.x + dx));
+    y = Math.max(0, Math.min(DH - s.h, s.y + dy));
+  } else {
+    const H = _cropper.handle;
+    if (H.includes('e')) w = Math.max(MIN, Math.min(DW - s.x, s.w + dx));
+    if (H.includes('s')) h = Math.max(MIN, Math.min(DH - s.y, s.h + dy));
+    if (H.includes('w')) { const nx = Math.max(0, Math.min(s.x + s.w - MIN, s.x + dx)); w = s.x + s.w - nx; x = nx; }
+    if (H.includes('n')) { const ny = Math.max(0, Math.min(s.y + s.h - MIN, s.y + dy)); h = s.y + s.h - ny; y = ny; }
+  }
+  _cropper.box = { x, y, w, h };
+  _cropRender();
+}
+function _cropUp() { if (_cropper) { _cropper.mode = null; _cropper.handle = null; } }
+document.addEventListener('pointermove', _cropMove);
+document.addEventListener('pointerup', _cropUp);
+document.addEventListener('pointerdown', function (e) {
+  const stage = document.getElementById('cropStage');
+  if (_cropper && stage && stage.contains(e.target)) _cropDown(e);
+});
+
+function cropToolReset() {
+  if (!_cropper) return;
+  _cropper.box = { x: 0, y: 0, w: _cropper.dispW, h: _cropper.dispH };
+  _cropRender();
+}
+function closeCropTool() {
+  const o = document.getElementById('cropOverlay'); if (o) o.classList.remove('show');
+  const img = document.getElementById('cropImg'); if (img) img.removeAttribute('src'); // so reopening refires onload
+  _cropper = null;
+}
+async function applyCropTool() {
+  if (!_cropper) return;
+  const { blockId, srcUrl, box, dispW, dispH, natW, natH } = _cropper;
+  const sx = Math.round(box.x / dispW * natW), sy = Math.round(box.y / dispH * natH);
+  const sw = Math.max(1, Math.round(box.w / dispW * natW)), sh = Math.max(1, Math.round(box.h / dispH * natH));
+  closeCropTool();
+  showToast('✂️ Cropping…', 'info');
+  try {
+    const img = await _loadImageEl(srcUrl);
+    const canvas = document.createElement('canvas');
+    canvas.width = sw; canvas.height = sh;
+    canvas.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+    const cropDataUrl = canvas.toDataURL('image/png');
+    const url = await uploadImageDataUrl(cropDataUrl);
+    const block = editorBlocks.find(b => b.id === blockId);
+    if (!block) return;
+    saveBlockContent(blockId, 'url', url);
+    const input = document.getElementById('imgUrlInput_' + blockId);
+    if (input) input.value = url;
+    previewImage(blockId, url);
+    // The crop is now the current image (crop / enhance / colour / touch-up all
+    // chain on it); keep the first image as the "original" for revert.
+    const prev = _imgEnhanceState[blockId] || {};
+    _imgEnhanceState[blockId] = { originalDataUrl: prev.originalDataUrl || cropDataUrl, originalUrl: prev.originalUrl || url, currentDataUrl: cropDataUrl };
+    renderImgEnhanceBar(blockId);
+    showToast('Cropped ✓', 'success');
+  } catch (e) { console.warn('crop apply failed', e); showToast('Crop failed: ' + (e && e.message ? e.message : e), 'error'); }
+}
+
+// =====================================================================
+// IMAGE TOUCH-UP & LABELS — erase (paint white) or paint over words, draw
+// straight label lines, and drop text labels onto an image block; then flatten
+// the canvas and re-upload. Works on the image currently in the block.
+// =====================================================================
+(function injectAnnotStyles() {
+  const css = `
+  .annot-tools { display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:center; margin-bottom:12px; }
+  .annot-tool { padding:6px 12px; border:1.5px solid var(--border,#e3e6e4); background:#fff; border-radius:8px; cursor:pointer; font-size:0.82rem; }
+  .annot-tool:hover { border-color:var(--primary,#0b6b4f); }
+  .annot-tool.active { border-color:var(--primary,#0b6b4f); background:var(--primary-light,#e8f3ec); color:var(--primary,#0b6b4f); font-weight:700; }
+  /* The paint bucket shows what it will pour: the strip along its base (and the
+     drip) are the exact colour currently chosen, updated live with the picker. */
+  .annot-bucket { width:17px; height:18px; vertical-align:-4px; margin-right:2px; overflow:visible; }
+  .annot-bucket-paint { fill:var(--annot-paint,#e23c3c); stroke:rgba(0,0,0,0.28); stroke-width:0.7; }
+  .annot-tools kbd, .hint kbd { font-family:'Space Mono',monospace; font-size:0.72em; padding:1px 5px; border:1px solid var(--border,#e3e6e4);
+    border-bottom-width:2px; border-radius:4px; background:var(--surface,#fff); white-space:nowrap; }
+  #annotStage.moving #annotCanvas { cursor:move; }
+  #annotStage { position:relative; display:block; margin:0 auto; width:86vw; max-width:1080px; height:56vh; overflow:hidden; line-height:0; background:#eef0ee; border:1px solid var(--border,#e3e6e4); border-radius:6px; touch-action:none; }
+  #annotCanvas { position:absolute; top:0; left:0; transform-origin:0 0; touch-action:none; cursor:crosshair; image-rendering:auto; }
+  #annotSelCanvas { position:absolute; top:0; left:0; transform-origin:0 0; pointer-events:none; z-index:4; }
+  #annotCanvas.pixelated { image-rendering:pixelated; image-rendering:crisp-edges; }
+  #annotStage.panning, #annotStage.panning #annotCanvas { cursor:grabbing; }
+  #annotStage.canpan #annotCanvas { cursor:grab; }
+  .annot-textbox { position:absolute; z-index:5; }
+  /* With the Move tool active the whole label is a drag target, not just its
+     handle — that is what "move" means, and hunting for a 6px tab is not it. */
+  .annot-textbox.movable .annot-textbox-input { cursor:move; }
+  .annot-textbox-input { border:1px dashed var(--primary,#0b6b4f); background:rgba(255,255,255,0.92); border-radius:4px; outline:none; font-family:'DM Sans',sans-serif; font-weight:600; padding:1px 4px; line-height:1.3; min-width:60px; color:inherit; }
+  .annot-textbox-handle { position:absolute; top:-19px; left:-1px; cursor:move; user-select:none; touch-action:none; background:var(--primary,#0b6b4f); color:#fff; font-size:11px; line-height:1; padding:3px 6px; border-radius:4px 4px 0 0; white-space:nowrap; }
+  #annotCloneSrc { position:absolute; z-index:6; width:16px; height:16px; margin:-8px 0 0 -8px; border-radius:50%; border:2px solid #2d6ca8; background:rgba(37,99,235,0.18); box-shadow:0 0 0 1px rgba(255,255,255,0.8); pointer-events:none; }
+  #annotCloneSrc::before, #annotCloneSrc::after { content:''; position:absolute; background:#2d6ca8; }
+  #annotCloneSrc::before { left:6px; top:1px; width:2px; height:12px; }
+  #annotCloneSrc::after { top:6px; left:1px; height:2px; width:12px; }`;
+  const s = document.createElement('style'); s.textContent = css; document.head.appendChild(s);
+})();
+
+let _annot = null;
+
+function openAnnotTool(blockId) {
+  const block = editorBlocks.find(b => b.id === blockId);
+  if (!block || !block.url) { showToast('Add an image first, then touch it up', 'info'); return; }
+  _imgSeedOriginal(blockId);   // so "↩ Use original" can get back here
+  const st = _imgEnhanceState[blockId] || {};
+  // Use the stored data URL of the current image (avoids a CORS-blocked fetch);
+  // only fall back to fetching the hosted URL if we have nothing cached.
+  const srcP = st.currentDataUrl ? Promise.resolve(st.currentDataUrl)
+    : st.originalDataUrl ? Promise.resolve(st.originalDataUrl)
+    : _urlToDataUrlRobust(transformImageUrl(block.url));
+  srcP.then(_loadImageEl).then(img => {
+    const canvas = document.getElementById('annotCanvas');
+    const cap = 1600; // keep the working canvas (and undo snapshots) sane
+    const scale = Math.min(1, cap / Math.max(img.naturalWidth || 1, img.naturalHeight || 1));
+    canvas.width = Math.max(1, Math.round((img.naturalWidth || 1) * scale));
+    canvas.height = Math.max(1, Math.round((img.naturalHeight || 1) * scale));
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const selCanvas = document.getElementById('annotSelCanvas');
+    if (selCanvas) { selCanvas.width = canvas.width; selCanvas.height = canvas.height; }
+    // The picture exactly as it was opened, kept for the history brush to paint
+    // back from. It is never written to, so "the original" stays the original
+    // however many edits are stacked on top.
+    const orig = document.createElement('canvas');
+    orig.width = canvas.width; orig.height = canvas.height;
+    orig.getContext('2d').drawImage(canvas, 0, 0);
+    _annot = { blockId, canvas, ctx, tool: 'erase', color: '#e23c3c', size: 6, tol: 32, drawing: false, history: [], start: null, snap: null,
+      zoom: 1, fit: 1, panX: 0, panY: 0, space: false, panning: false, cloneSrc: null, cloneSnap: null, cloneOff: null,
+      anchor: null, sel: null, selPts: null, selCanvas, aiFillBusy: false, origSnap: orig, float: null, xform: null, xfStart: null };
+    _annotSelSyncBar();
+    if (!_annotAntsRunning) _annotAntsLoop();
+    _annotSyncControls();
+    _annotBindSliderWheel();
+    _annotSetTool('erase');
+    document.getElementById('annotOverlay').classList.add('show');
+    // Fit the image after the overlay is visible so the stage has real dimensions.
+    requestAnimationFrame(() => { annotZoomFit(); });
+    _annotBindZoomListeners();
+  }).catch(e => { console.warn('open annot', e); showToast('Could not open touch-up for this image', 'error'); });
+}
+function _annotSyncControls() {
+  const col = document.getElementById('annotColor'), sz = document.getElementById('annotSize'), tl = document.getElementById('annotTol');
+  if (_annot) {
+    if (col) _annot.color = col.value || _annot.color;
+    if (sz) _annot.size = parseInt(sz.value, 10) || _annot.size;
+    if (tl) { const t = parseInt(tl.value, 10); _annot.tol = isNaN(t) ? _annot.tol : t; }
+    const lbl = document.getElementById('annotSizeVal');
+    if (lbl) lbl.innerHTML = _annot.size + '&nbsp;px';
+    const tlbl = document.getElementById('annotTolVal');
+    if (tlbl) tlbl.textContent = _annot.tol;
+  }
+  // The bucket icon always shows the colour it would pour, open tool or not.
+  const bucket = document.querySelector('.annot-tool[data-atool="fill"]');
+  if (bucket && col) bucket.style.setProperty('--annot-paint', col.value || '#e23c3c');
+}
+// Nudge the brush size from a key or the mouse wheel, keeping the slider,
+// the label and _annot in step.
+function _annotStepSize(delta) {
+  const sz = document.getElementById('annotSize');
+  if (!sz) return;
+  const min = parseInt(sz.min, 10) || 1, max = parseInt(sz.max, 10) || 60;
+  sz.value = String(Math.min(max, Math.max(min, (parseInt(sz.value, 10) || 1) + delta)));
+  _annotSyncControls();
+}
+function _annotStepTol(delta) {
+  const tl = document.getElementById('annotTol');
+  if (!tl) return;
+  const min = parseInt(tl.min, 10) || 0, max = parseInt(tl.max, 10) || 120;
+  tl.value = String(Math.min(max, Math.max(min, (parseInt(tl.value, 10) || 0) + delta)));
+  _annotSyncControls();
+}
+// Scroll over either slider to change it — the wheel is the natural gesture for
+// a value you are adjusting by feel, and the page must not scroll underneath.
+function _annotBindSliderWheel() {
+  const xstep = field => d => { const x = _annot && _annot.xform; if (x) annotXformSet(field, (x[field] || 0) + d); };
+  // The size boxes step in percent, so a wheel over them resizes by feel too.
+  const sstep = field => d => {
+    const x = _annot && _annot.xform; if (!x) return;
+    const cur = Math.abs(field === 'sx' ? _annotXformSx(x) : _annotXformSy(x)) * 100;
+    annotXformSetScale(field, cur + d);
+  };
+  [['annotSize', _annotStepSize, 1], ['annotTol', _annotStepTol, 4],
+   ['annotXformAngle', xstep('angle'), 1], ['annotXformSkewX', xstep('skewX'), 1], ['annotXformSkewY', xstep('skewY'), 1],
+   ['annotXformSxNum', sstep('sx'), 1], ['annotXformSyNum', sstep('sy'), 1]
+  ].forEach(([id, step, mult]) => {
+    const el = document.getElementById(id);
+    if (!el || el._wheelBound) return;
+    el._wheelBound = true;
+    el.addEventListener('wheel', e => {
+      e.preventDefault(); e.stopPropagation();
+      step((e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? mult * 5 : mult));
+    }, { passive: false });
+  });
+}
+// ---- Zoom & pan (Photoshop-style): the canvas is transformed inside a fixed
+// viewport; scroll zooms toward the cursor, Space/middle-drag pans. ----
+const ANNOT_MAX_DISPLAY = 40;   // up to 40 screen px per image pixel — see individual pixels
+function _annotDisplayScale() { return _annot ? _annot.fit * _annot.zoom : 1; }
+function _annotUpdateTransform() {
+  if (!_annot) return;
+  const c = _annot.canvas, s = _annotDisplayScale();
+  c.style.transform = 'translate(' + _annot.panX + 'px,' + _annot.panY + 'px) scale(' + s + ')';
+  c.classList.toggle('pixelated', s >= 3);   // crisp pixels once magnified
+  if (_annot.selCanvas) _annot.selCanvas.style.transform = c.style.transform;   // marching ants ride along
+  const zl = document.getElementById('annotZoomVal');
+  if (zl) zl.textContent = Math.round(s * 100) + '%';
+  _annotUpdateCloneMarker();   // the source pin rides along with zoom / pan
+}
+// A small pin marking the clone-stamp source point, kept aligned under zoom/pan.
+function _annotUpdateCloneMarker() {
+  const st = document.getElementById('annotStage'); if (!st) return;
+  let m = document.getElementById('annotCloneSrc');
+  const show = _annot && _annot.tool === 'clone' && _annot.cloneSrc;
+  if (!show) { if (m) m.style.display = 'none'; return; }
+  if (!m) { m = document.createElement('div'); m.id = 'annotCloneSrc'; st.appendChild(m); }
+  const s = _annotDisplayScale();
+  m.style.display = 'block';
+  m.style.left = (_annot.panX + _annot.cloneSrc.x * s) + 'px';
+  m.style.top = (_annot.panY + _annot.cloneSrc.y * s) + 'px';
+}
+// hex → [r,g,b]
+function _annotHexToRgb(hex) {
+  hex = String(hex || '').replace('#', '');
+  if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+  const n = parseInt(hex || '000000', 16) || 0;
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+// Paint-bucket flood fill: from the clicked pixel, recolour every connected
+// pixel whose colour is within tolerance of it — fills enclosed shapes/regions.
+function _annotFloodFill(sx, sy) {
+  const cv = _annot.canvas, ctx = _annot.ctx, W = cv.width, H = cv.height;
+  sx = Math.floor(sx); sy = Math.floor(sy);
+  if (sx < 0 || sy < 0 || sx >= W || sy >= H) return;
+  const img = ctx.getImageData(0, 0, W, H), out = img.data;
+  const src = new Uint8ClampedArray(out);   // stable copy for matching
+  const at = (x, y) => (y * W + x) * 4;
+  const s0 = at(sx, sy);
+  const tr = src[s0], tg = src[s0 + 1], tb = src[s0 + 2], ta = src[s0 + 3];
+  const fill = _annot.tool === 'erase' ? [255, 255, 255] : _annotHexToRgb(_annot.color);
+  const fr = fill[0], fg = fill[1], fb = fill[2];
+  if (Math.abs(tr - fr) < 2 && Math.abs(tg - fg) < 2 && Math.abs(tb - fb) < 2 && ta === 255) return; // already that colour
+  const t = Math.max(1, _annot.tol || 32);
+  const TOL = t * t * 3;   // squared colour distance a pixel may differ and still count
+  const match = i => { const dr = src[i] - tr, dg = src[i + 1] - tg, db = src[i + 2] - tb, da = src[i + 3] - ta; return dr * dr + dg * dg + db * db + da * da <= TOL; };
+  const seen = new Uint8Array(W * H);
+  const stack = [[sx, sy]];
+  while (stack.length) {
+    let [x, y] = stack.pop();
+    while (x > 0 && match(at(x - 1, y))) x--;   // walk to the left edge of this span
+    let up = false, dn = false;
+    for (; x < W && match(at(x, y)); x++) {
+      const k = y * W + x; if (seen[k]) continue; seen[k] = 1;
+      const i = k * 4; out[i] = fr; out[i + 1] = fg; out[i + 2] = fb; out[i + 3] = 255;
+      if (y > 0) { const mu = match(at(x, y - 1)); if (mu && !up && !seen[k - W]) stack.push([x, y - 1]); up = mu; }
+      if (y < H - 1) { const md = match(at(x, y + 1)); if (md && !dn && !seen[k + W]) stack.push([x, y + 1]); dn = md; }
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+}
+// ---- MOVE: lift the selection off the picture and drop it anywhere ---------
+// Photoshop's Move tool. Dragging inside a selection cuts those pixels out onto
+// a floating layer that follows the pointer; the hole they left is painted
+// white (the same white Erase uses, which is what a scanned page wants). Hold
+// Alt to copy instead of cut, leaving the original where it was. The float is
+// only burned in on release, so nothing is committed until you let go.
+function _annotSelLift(copy) {
+  const m = _annotSelMask(); if (!m) return null;
+  const cv = _annot.canvas, ctx = _annot.ctx;
+  const layer = document.createElement('canvas');
+  layer.width = m.w; layer.height = m.h;
+  const lx = layer.getContext('2d');
+  const src = ctx.getImageData(m.x, m.y, m.w, m.h);
+  const cut = lx.createImageData(m.w, m.h);
+  for (let k = 0; k < m.mask.length; k++) {
+    if (!m.mask[k]) continue;
+    const i = k * 4;
+    cut.data[i] = src.data[i]; cut.data[i + 1] = src.data[i + 1];
+    cut.data[i + 2] = src.data[i + 2]; cut.data[i + 3] = src.data[i + 3];
+  }
+  lx.putImageData(cut, 0, 0);
+  if (!copy) {
+    for (let k = 0; k < m.mask.length; k++) {
+      if (!m.mask[k]) continue;
+      const i = k * 4;
+      src.data[i] = 255; src.data[i + 1] = 255; src.data[i + 2] = 255; src.data[i + 3] = 255;
+    }
+    ctx.putImageData(src, m.x, m.y);
+  }
+  // The picture with the hole in it, so each drag frame redraws from a clean base.
+  const base = document.createElement('canvas');
+  base.width = cv.width; base.height = cv.height;
+  base.getContext('2d').drawImage(cv, 0, 0);
+  return { layer, base, mask: m, dx: 0, dy: 0 };
+}
+function _annotFloatDraw() {
+  const f = _annot && _annot.float; if (!f) return;
+  const ctx = _annot.ctx;
+  ctx.putImageData(f.base.getContext('2d').getImageData(0, 0, f.base.width, f.base.height), 0, 0);
+  ctx.drawImage(f.layer, f.mask.x + f.dx, f.mask.y + f.dy);
+}
+// Drop it: the float becomes part of the picture and the selection travels with
+// it, so it can be moved again, filled, or nudged further.
+function _annotFloatCommit() {
+  const f = _annot && _annot.float; if (!f) return;
+  _annotFloatDraw();
+  const m = f.mask;
+  _annot.sel = { x: m.x + f.dx, y: m.y + f.dy, w: m.w, h: m.h, mask: m.mask };
+  _annot.sel.outline = _annotMaskOutline(_annot.sel);
+  _annot.float = null;
+  _annotSelSyncBar();
+}
+
+// ---- ROTATE & SKEW (free transform) ---------------------------------------
+// Turning and slanting, for the two things that actually go wrong with a
+// scanned science paper: the whole page went in crooked, or one object inside
+// it (an arrow, a label, a pasted diagram) sits at the wrong angle.
+//
+// With a selection live the selected pixels are lifted onto their own layer —
+// the hole behind them is painted white, exactly like Move does — so the object
+// turns on its own. With nothing selected the WHOLE picture is the object, and
+// the canvas grows so no corner is ever cut off.
+//
+// Nothing is committed while you drag: the preview redraws from the untouched
+// layer every frame, so turning 30° and back to 0° leaves the pixels as sharp
+// as they started. Only Apply burns it in.
+const ANNOT_XFORM_MAX_PX = 4000;   // never let "grow to fit" run away with memory
+const ANNOT_SCALE_MIN = 0.05;      // 5% — small enough to shrink a stamp, big enough to still grab
+const ANNOT_SCALE_MAX = 8;
+const _annotRad = d => (d || 0) * Math.PI / 180;
+function _annotWrapDeg(d) { d = ((d + 180) % 360 + 360) % 360 - 180; return Math.abs(d) < 1e-9 ? 0 : d; }
+function _annotClampNum(v, lo, hi) { return Math.min(hi, Math.max(lo, isNaN(v) ? 0 : v)); }
+function _annotXformSx(x) { return (x && typeof x.sx === 'number' && x.sx) ? x.sx : 1; }
+function _annotXformSy(x) { return (x && typeof x.sy === 'number' && x.sy) ? x.sy : 1; }
+function _annotXformIsIdentity(x) {
+  return !x || (!x.angle && !x.skewX && !x.skewY && _annotXformSx(x) === 1 && _annotXformSy(x) === 1 && !x.moved);
+}
+
+// Start a transform session. Snapshots history once, up front, so Cancel (and
+// Ctrl+Z afterwards) puts the picture back exactly as it was.
+function _annotXformBegin() {
+  if (!_annot || _annot.xform) return;
+  // Burn any label still being typed: a whole-picture turn resizes the canvas
+  // underneath it, and a floating label would be left pointing at nothing.
+  document.querySelectorAll('#annotStage .annot-textbox-input').forEach(i => i.blur());
+  _annotPushHistory();
+  const cv = _annot.canvas;
+  let layer, ox, oy, base, scope;
+  const prevSel = _annot.sel;
+  if (_annot.sel) {
+    const lift = _annotSelLift(false);   // cut the object out; the hole goes white
+    if (!lift) { showToast('That selection is empty — nothing to turn', 'info'); _annot.history.pop(); return; }
+    layer = lift.layer; ox = lift.mask.x; oy = lift.mask.y; base = lift.base; scope = 'sel';
+    _annot.sel = null; _annotSelSyncBar();   // the old outline no longer describes anything
+  } else {
+    layer = document.createElement('canvas');
+    layer.width = cv.width; layer.height = cv.height;
+    layer.getContext('2d').drawImage(cv, 0, 0);
+    ox = 0; oy = 0; base = null; scope = 'image';
+  }
+  _annot.xform = {
+    scope, layer, base, ox, oy,
+    cx: ox + layer.width / 2, cy: oy + layer.height / 2,
+    angle: 0, skewX: 0, skewY: 0,
+    sx: 1, sy: 1, lock: true, moved: false,
+    grow: scope === 'image',
+    baseW: cv.width, baseH: cv.height,
+    straighten: false, strLine: null, prevSel
+  };
+  _annotXformSyncBar();
+  _annotXformPreview();
+}
+// Scale first, then skew, then rotate — the same order the canvas applies them
+// below, so the corner maths and the render can never drift apart. (u, v) are
+// layer pixels measured from the pivot, BEFORE scaling.
+function _annotXformMapper(x) {
+  const a = _annotRad(x.angle), cos = Math.cos(a), sin = Math.sin(a);
+  const tx = Math.tan(_annotRad(x.skewX)), ty = Math.tan(_annotRad(x.skewY));
+  const sx = _annotXformSx(x), sy = _annotXformSy(x);
+  return (u, v) => {
+    const zu = u * sx, zv = v * sy;
+    const su = zu + tx * zv, sv = ty * zu + zv;
+    return { x: x.cx + su * cos - sv * sin, y: x.cy + su * sin + sv * cos };
+  };
+}
+// The other direction, for turning a pointer position back into the object's
+// own coordinates while a handle is being dragged. Two stops on the way back:
+// the M-FRAME (rotation and slant undone, scaling still applied) is what the
+// resize maths works in, and layer coordinates are one divide further.
+function _annotXformMFrameVec(x, vx, vy) {
+  const a = -_annotRad(x.angle), cos = Math.cos(a), sin = Math.sin(a);
+  const rx = vx * cos - vy * sin, ry = vx * sin + vy * cos;
+  const tx = Math.tan(_annotRad(x.skewX)), ty = Math.tan(_annotRad(x.skewY));
+  const det = (1 - tx * ty) || 1e-6;
+  return { x: (rx - tx * ry) / det, y: (ry - ty * rx) / det };
+}
+function _annotXformMFrame(x, px, py) { return _annotXformMFrameVec(x, px - x.cx, py - x.cy); }
+function _annotXformUnmapVec(x, vx, vy) {
+  const m = _annotXformMFrameVec(x, vx, vy);
+  return { x: m.x / (_annotXformSx(x) || 1e-6), y: m.y / (_annotXformSy(x) || 1e-6) };
+}
+function _annotXformCorners(x) {
+  const map = _annotXformMapper(x);
+  const u0 = x.ox - x.cx, v0 = x.oy - x.cy;
+  const u1 = u0 + x.layer.width, v1 = v0 + x.layer.height;
+  return [map(u0, v0), map(u1, v0), map(u1, v1), map(u0, v1)];
+}
+function _annotXformDrawInto(ctx, x, offX, offY) {
+  ctx.save();
+  ctx.imageSmoothingEnabled = true;
+  try { ctx.imageSmoothingQuality = 'high'; } catch (_) {}
+  ctx.translate(x.cx + offX, x.cy + offY);
+  ctx.rotate(_annotRad(x.angle));
+  ctx.transform(1, Math.tan(_annotRad(x.skewY)), Math.tan(_annotRad(x.skewX)), 1, 0, 0);
+  ctx.scale(_annotXformSx(x), _annotXformSy(x));
+  ctx.drawImage(x.layer, x.ox - x.cx, x.oy - x.cy);
+  ctx.restore();
+}
+// Redraw the canvas for the current angle/slant. Whole-picture transforms
+// recompute the canvas size each frame so you see the real result, corners and
+// all, and the view re-fits so the picture doesn't wander off the stage.
+function _annotXformPreview() {
+  const x = _annot && _annot.xform; if (!x) return;
+  const cv = _annot.canvas;
+  let W = x.baseW, H = x.baseH, offX = 0, offY = 0, refit = false;
+  if (x.scope === 'image' && x.grow) {
+    const c = _annotXformCorners(x);
+    const minX = Math.min(...c.map(p => p.x)), maxX = Math.max(...c.map(p => p.x));
+    const minY = Math.min(...c.map(p => p.y)), maxY = Math.max(...c.map(p => p.y));
+    W = _annotClampNum(Math.ceil(maxX - minX), 1, ANNOT_XFORM_MAX_PX);
+    H = _annotClampNum(Math.ceil(maxY - minY), 1, ANNOT_XFORM_MAX_PX);
+    offX = -minX; offY = -minY;
+  }
+  if (cv.width !== W || cv.height !== H) { _annotResizeCanvas(W, H); refit = true; }
+  const ctx = _annot.ctx;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, W, H);
+  if (x.base) ctx.drawImage(x.base, offX, offY);
+  _annotXformDrawInto(ctx, x, offX, offY);
+  x.offX = offX; x.offY = offY;
+  if (refit) annotZoomFit();
+}
+// ---- Free transform: the eight handles round the box ----------------------
+// Corners resize both ways at once, edge handles one way, and the corner
+// opposite the one you drag stays exactly where it is — the thing everybody
+// expects of a resize box and the reason the maths below anchors rather than
+// just multiplying a scale.
+const ANNOT_HANDLES = [
+  { id: 'nw', hx: 0, hy: 0, cur: 'nwse-resize' }, { id: 'n', hx: 0.5, hy: 0, cur: 'ns-resize' },
+  { id: 'ne', hx: 1, hy: 0, cur: 'nesw-resize' }, { id: 'e', hx: 1, hy: 0.5, cur: 'ew-resize' },
+  { id: 'se', hx: 1, hy: 1, cur: 'nwse-resize' }, { id: 's', hx: 0.5, hy: 1, cur: 'ns-resize' },
+  { id: 'sw', hx: 0, hy: 1, cur: 'nesw-resize' }, { id: 'w', hx: 0, hy: 0.5, cur: 'ew-resize' },
+];
+function _annotXformHandles(x) {
+  const map = _annotXformMapper(x);
+  const W = x.layer.width, H = x.layer.height;
+  const d = { x: x.ox - x.cx, y: x.oy - x.cy };
+  return ANNOT_HANDLES.map(h => Object.assign({}, h, {
+    pt: map(d.x + h.hx * W, d.y + h.hy * H),
+    pD: { x: h.hx * W, y: h.hy * H },            // the handle, in layer pixels
+    pA: { x: (1 - h.hx) * W, y: (1 - h.hy) * H },// the point it pivots against
+  }));
+}
+// Which handle is under the pointer, judged in SCREEN pixels so it stays
+// grabbable at any zoom.
+function _annotXformHandleAt(p) {
+  const x = _annot && _annot.xform; if (!x) return null;
+  const s = _annotDisplayScale() || 1;
+  const q = _annotXformUnoffset(x, p);
+  let best = null, bestD = 11 / s;
+  _annotXformHandles(x).forEach(h => {
+    const d = Math.hypot(q.x - h.pt.x, q.y - h.pt.y);
+    if (d <= bestD) { bestD = d; best = h; }
+  });
+  return best;
+}
+// A pointer position arrives in CANVAS coordinates; the transform maths lives
+// in the frame the object is composed in, which a growing canvas shifts by
+// (offX, offY). Everything that compares the two has to go through here.
+function _annotXformUnoffset(x, p) { return { x: p.x - (x.offX || 0), y: p.y - (x.offY || 0) }; }
+// Is the pointer inside the transform box? (Point-in-quad by winding.) That is
+// what makes dragging the middle of the box move the object.
+function _annotXformInside(p) {
+  const x = _annot && _annot.xform; if (!x) return false;
+  const c = _annotXformCorners(x);
+  p = _annotXformUnoffset(x, p);
+  let sign = 0;
+  for (let i = 0; i < 4; i++) {
+    const a = c[i], b = c[(i + 1) % 4];
+    const cross = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+    if (Math.abs(cross) < 1e-9) continue;
+    const s = cross > 0 ? 1 : -1;
+    if (!sign) sign = s; else if (s !== sign) return false;
+  }
+  return true;
+}
+// Put the pivot back in the middle of the box without moving a single pixel:
+// the shift is taken straight back out of the layer's own offset. Run after a
+// resize or a move, so a turn afterwards spins about the object's centre.
+function _annotXformRecentre(x) {
+  const W = x.layer.width, H = x.layer.height;
+  const d = { x: x.ox - x.cx, y: x.oy - x.cy };
+  const c = _annotXformMapper(x)(d.x + W / 2, d.y + H / 2);
+  const shift = _annotXformUnmapVec(x, x.cx - c.x, x.cy - c.y);
+  x.cx = c.x; x.cy = c.y;
+  x.ox = c.x + d.x + shift.x;
+  x.oy = c.y + d.y + shift.y;
+}
+// Begin a handle drag: everything the move needs is frozen here, so each frame
+// is computed from the state at mouse-down and can never drift.
+function _annotXformScaleStart(h) {
+  const x = _annot.xform;
+  const d = { x: x.ox - x.cx, y: x.oy - x.cy };
+  const sx = _annotXformSx(x), sy = _annotXformSy(x);
+  _annot.xfScale = {
+    h, sx0: sx, sy0: sy,
+    // The anchor's position in the M-frame — the one point the drag holds still.
+    Ua: (d.x + h.pA.x) * sx, Va: (d.y + h.pA.y) * sy,
+    spanX: h.pD.x - h.pA.x, spanY: h.pD.y - h.pA.y,
+  };
+}
+function _annotXformScaleDrag(p, shift) {
+  const x = _annot && _annot.xform, st = _annot && _annot.xfScale;
+  if (!x || !st) return;
+  const q = _annotXformUnoffset(x, p);
+  const m = _annotXformMFrame(x, q.x, q.y);
+  let sx = st.sx0, sy = st.sy0;
+  if (Math.abs(st.spanX) > 0.5) sx = (m.x - st.Ua) / st.spanX;
+  if (Math.abs(st.spanY) > 0.5) sy = (m.y - st.Va) / st.spanY;
+  // Locked (or Shift held): one factor drives both axes, so the object keeps
+  // its shape. The bigger of the two moves wins, and each axis keeps its own
+  // sign — dragging a handle past the anchor still flips the object.
+  const keep = x.lock !== (!!shift);          // Shift is a momentary override
+  if (keep) {
+    // Only the axes this handle actually drives get a vote: an edge handle
+    // leaves its other axis at 1x, and letting that count would out-vote the
+    // shrink the drag is asking for.
+    const fx = Math.abs(st.spanX) > 0.5 ? sx / (st.sx0 || 1) : null;
+    const fy = Math.abs(st.spanY) > 0.5 ? sy / (st.sy0 || 1) : null;
+    const f = Math.max(fx === null ? 0 : Math.abs(fx), fy === null ? 0 : Math.abs(fy)) || 1;
+    sx = Math.sign(fx === null ? 1 : (fx || 1)) * f * st.sx0;
+    sy = Math.sign(fy === null ? 1 : (fy || 1)) * f * st.sy0;
+  }
+  sx = _annotXformClampScale(x, sx, x.layer.width);
+  sy = _annotXformClampScale(x, sy, x.layer.height);
+  // Hold the anchor: the layer offset is whatever puts it back where it was.
+  x.sx = sx; x.sy = sy;
+  x.ox = x.cx + st.Ua / sx - st.h.pA.x;
+  x.oy = x.cy + st.Va / sy - st.h.pA.y;
+  _annotXformSyncBar();
+  _annotXformPreview();
+}
+// A scale factor has to keep the object visible, keep it under the canvas
+// ceiling, and never be zero — a zero would collapse the object with no way
+// back, because the offset maths divides by it.
+function _annotXformClampScale(x, s, sidePx) {
+  const sign = s < 0 ? -1 : 1;
+  let mag = Math.abs(s);
+  if (!isFinite(mag) || mag < ANNOT_SCALE_MIN) mag = ANNOT_SCALE_MIN;
+  const roomy = Math.max(ANNOT_SCALE_MIN, ANNOT_XFORM_MAX_PX / Math.max(1, sidePx));
+  mag = Math.min(mag, ANNOT_SCALE_MAX, roomy);
+  return sign * mag;
+}
+// Drag the middle of the box to reposition the object. The pivot travels with
+// it, so the object keeps turning about its own centre.
+function _annotXformMoveTo(dx, dy) {
+  const x = _annot && _annot.xform; if (!x) return;
+  x.cx += dx; x.cy += dy; x.ox += dx; x.oy += dy;
+  x.moved = true;
+  _annotXformPreview();
+}
+// The % boxes and the flip buttons scale about the pivot, which _after a
+// recentre_ is the middle of the box — so the object grows evenly both ways
+// instead of creeping off to one side.
+function annotXformSetScale(field, val) {
+  const x = _annot && _annot.xform; if (!x) return;
+  const side = field === 'sx' ? x.layer.width : x.layer.height;
+  const was = field === 'sx' ? _annotXformSx(x) : _annotXformSy(x);
+  const want = _annotXformClampScale(x, (parseFloat(val) || 0) / 100 * (was < 0 ? -1 : 1), side);
+  const f = want / (was || 1);
+  x[field] = want;
+  if (x.lock) {
+    const other = field === 'sx' ? 'sy' : 'sx';
+    const oside = field === 'sx' ? x.layer.height : x.layer.width;
+    x[other] = _annotXformClampScale(x, (field === 'sx' ? _annotXformSy(x) : _annotXformSx(x)) * f, oside);
+  }
+  _annotXformSyncBar();
+  _annotXformPreview();
+}
+function annotXformSetLock(on) {
+  const x = _annot && _annot.xform; if (!x) return;
+  x.lock = !!on;
+  _annotXformSyncBar();
+}
+function annotXformFlip(axis) {
+  const x = _annot && _annot.xform; if (!x) return;
+  if (axis === 'y') x.sy = -_annotXformSy(x); else x.sx = -_annotXformSx(x);
+  _annotXformSyncBar();
+  _annotXformPreview();
+}
+function annotXformScaleNudge(f) {
+  const x = _annot && _annot.xform; if (!x) return;
+  x.sx = _annotXformClampScale(x, _annotXformSx(x) * f, x.layer.width);
+  x.sy = _annotXformClampScale(x, _annotXformSy(x) * f, x.layer.height);
+  _annotXformSyncBar();
+  _annotXformPreview();
+}
+
+// The transformed object becomes the new selection, so it can be turned again,
+// nudged with Move, or filled — the mask comes straight from its alpha.
+function _annotXformSelFromLayer() {
+  const x = _annot.xform, cv = _annot.canvas;
+  const sc = document.createElement('canvas');
+  sc.width = cv.width; sc.height = cv.height;
+  _annotXformDrawInto(sc.getContext('2d'), x, x.offX || 0, x.offY || 0);
+  const d = sc.getContext('2d').getImageData(0, 0, sc.width, sc.height).data;
+  let x0 = sc.width, y0 = sc.height, x1 = -1, y1 = -1;
+  for (let y = 0; y < sc.height; y++) for (let px = 0; px < sc.width; px++) {
+    if (d[(y * sc.width + px) * 4 + 3] < 128) continue;
+    if (px < x0) x0 = px; if (px > x1) x1 = px;
+    if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  if (x1 < 0) return null;
+  const w = x1 - x0 + 1, h = y1 - y0 + 1;
+  const mask = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) for (let px = 0; px < w; px++) {
+    mask[y * w + px] = d[((y + y0) * sc.width + (px + x0)) * 4 + 3] >= 128 ? 1 : 0;
+  }
+  const sel = { x: x0, y: y0, w, h, mask };
+  sel.outline = _annotMaskOutline(sel);
+  return sel;
+}
+function _annotXformEnd() {
+  if (!_annot) return;
+  _annot.xform = null;
+  _annot.xfScale = null; _annot.xfMove = false;
+  _annotXformSyncBar();
+  _annotSelSyncBar();
+}
+// Burn the transform in. An untouched session just melts away — no history
+// step is spent on a turn of 0°.
+function annotXformApply(quiet) {
+  const x = _annot && _annot.xform; if (!x) return;
+  if (_annotXformIsIdentity(x)) { annotXformCancel(true); return; }
+  _annotXformPreview();
+  const sel = x.scope === 'sel' ? _annotXformSelFromLayer() : null;
+  const what = x.scope === 'sel' ? 'Object' : 'Picture';
+  const bits = [];
+  const sx = _annotXformSx(x), sy = _annotXformSy(x);
+  const pct = v => Math.round(Math.abs(v) * 1000) / 10 + '%';
+  if (Math.abs(sx) !== 1 || Math.abs(sy) !== 1) bits.push('resized to ' + pct(sx) + ' × ' + pct(sy));
+  if (sx < 0 && sy < 0) bits.push('flipped both ways');
+  else if (sx < 0) bits.push('flipped ↔');
+  else if (sy < 0) bits.push('flipped ↕');
+  if (x.angle) bits.push('turned ' + (Math.round(x.angle * 10) / 10) + '°');
+  if (x.skewX) bits.push('slanted ' + (Math.round(x.skewX * 10) / 10) + '° ↔');
+  if (x.skewY) bits.push('slanted ' + (Math.round(x.skewY * 10) / 10) + '° ↕');
+  if (x.moved && !bits.length) bits.push('moved');
+  else if (x.moved) bits.push('moved');
+  _annotXformEnd();
+  if (sel) { _annot.sel = sel; _annotSelSyncBar(); }
+  if (!quiet) showToast(what + ' ' + (bits.join(', ') || 'transformed') + ' ✓ (Undo puts it back)', 'success');
+}
+// Throw the session away and restore the snapshot taken when it started. The
+// selection that was lifted comes back too, so cancelling costs nothing.
+function annotXformCancel(quiet) {
+  if (!_annot || !_annot.xform) return;
+  const prevSel = _annot.xform.prevSel || null;
+  _annotXformEnd();
+  annotUndo();
+  _annot.sel = prevSel;
+  _annotSelSyncBar();
+  if (!quiet) showToast('Turn cancelled — picture put back', 'info');
+}
+function annotXformReset() {
+  const x = _annot && _annot.xform; if (!x) return;
+  x.angle = 0; x.skewX = 0; x.skewY = 0; x.strLine = null;
+  x.sx = 1; x.sy = 1;
+  _annotXformSyncBar(); _annotXformPreview();
+}
+function annotXformSet(field, val) {
+  const x = _annot && _annot.xform; if (!x) return;
+  const lim = field === 'angle' ? 180 : 60;
+  x[field] = _annotClampNum(parseFloat(val), -lim, lim);
+  _annotXformSyncBar(); _annotXformPreview();
+}
+function annotXformNudge(deg) {
+  const x = _annot && _annot.xform; if (!x) return;
+  x.angle = _annotWrapDeg(x.angle + deg);
+  _annotXformSyncBar(); _annotXformPreview();
+}
+function annotXformSetGrow(on) {
+  const x = _annot && _annot.xform; if (!x) return;
+  x.grow = !!on;
+  _annotXformPreview();
+}
+// Straighten: drag a line along something that ought to be level (a table rule,
+// the base of a diagram, a line of print) and the picture turns to make it so.
+function annotXformStraightenStart() {
+  const x = _annot && _annot.xform; if (!x) return;
+  x.straighten = true; x.strLine = null;
+  _annotXformSyncBar();
+  showToast('📐 Now drag a line along an edge that should be straight', 'info');
+}
+function _annotXformStraightenFinish() {
+  const x = _annot && _annot.xform; if (!x || !x.strLine) return;
+  const { from, to } = x.strLine;
+  const dx = to.x - from.x, dy = to.y - from.y;
+  x.strLine = null;
+  // A stray click leaves Straighten armed — you meant to trace, not to click.
+  if (Math.hypot(dx, dy) < 20) { showToast('Drag a longer line along the edge you want level', 'info'); _annotXformSyncBar(); return; }
+  x.straighten = false;
+  let deg = Math.atan2(dy, dx) * 180 / Math.PI;
+  if (deg > 90) deg -= 180; else if (deg < -90) deg += 180;
+  if (Math.abs(deg) > 45) deg -= Math.sign(deg) * 90;   // they traced a vertical edge
+  x.angle = _annotWrapDeg(x.angle - deg);
+  _annotXformSyncBar();
+  _annotXformPreview();
+  showToast('Straightened by ' + (Math.round(-deg * 10) / 10) + '° — fine-tune with the Turn slider', 'success');
+}
+function _annotXformSyncBar() {
+  const bar = document.getElementById('annotXformBar');
+  const x = _annot && _annot.xform;
+  if (bar) bar.style.display = x ? 'flex' : 'none';
+  if (!x) return;
+  const set = (id, v) => { const el = document.getElementById(id); if (el && document.activeElement !== el) el.value = v; };
+  set('annotXformAngle', x.angle); set('annotXformAngleNum', Math.round(x.angle * 10) / 10);
+  set('annotXformSkewX', x.skewX); set('annotXformSkewY', x.skewY);
+  const lbl = (id, v, unit) => { const el = document.getElementById(id); if (el) el.textContent = (Math.round(v * 10) / 10) + (unit || '°'); };
+  lbl('annotXformSkewXVal', x.skewX); lbl('annotXformSkewYVal', x.skewY);
+  // Size is shown as a percentage, and in real pixels beside it, because "how
+  // big will this actually be" is the question a resize is asked to answer.
+  const sx = _annotXformSx(x), sy = _annotXformSy(x);
+  set('annotXformSxNum', Math.round(Math.abs(sx) * 1000) / 10);
+  set('annotXformSyNum', Math.round(Math.abs(sy) * 1000) / 10);
+  const lock = document.getElementById('annotXformLock');
+  if (lock) lock.checked = x.lock !== false;
+  const px = document.getElementById('annotXformSizePx');
+  if (px) px.textContent = Math.round(Math.abs(sx) * x.layer.width) + ' × ' + Math.round(Math.abs(sy) * x.layer.height) + ' px';
+  const scope = document.getElementById('annotXformScope');
+  if (scope) scope.textContent = x.scope === 'sel' ? 'the selected object' : 'the whole picture';
+  const growWrap = document.getElementById('annotXformGrowWrap');
+  if (growWrap) growWrap.style.display = x.scope === 'image' ? 'inline-flex' : 'none';
+  const grow = document.getElementById('annotXformGrow');
+  if (grow) grow.checked = !!x.grow;
+  const str = document.getElementById('annotXformStraightenBtn');
+  if (str) str.classList.toggle('active', !!x.straighten);
+}
+
+// History brush: paint the ORIGINAL picture back, one dab at a time.
+function _annotHistoryDab(x, y) {
+  if (!_annot.origSnap) return;
+  const ctx = _annot.ctx, r = Math.max(1, Math.round(_annot.size)) / 2;
+  ctx.save();
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.clip();
+  ctx.drawImage(_annot.origSnap, 0, 0);
+  ctx.restore();
+}
+function _annotHistoryStroke(from, to) {
+  const r = Math.max(1, Math.round(_annot.size)) / 2;
+  const dx = to.x - from.x, dy = to.y - from.y, dist = Math.hypot(dx, dy);
+  const step = Math.max(1, r / 2), n = Math.max(1, Math.ceil(dist / step));
+  for (let i = 1; i <= n; i++) _annotHistoryDab(from.x + dx * (i / n), from.y + dy * (i / n));
+}
+
+// Clone stamp: copy a circular patch from the frozen source snapshot, offset so
+// the source point tracks the brush as you drag.
+function _annotCloneDab(ctx, x, y) {
+  if (!_annot.cloneSnap || !_annot.cloneOff) return;
+  const r = Math.max(1, Math.round(_annot.size)) / 2;
+  ctx.save();
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.clip();
+  ctx.drawImage(_annot.cloneSnap, _annot.cloneOff.x, _annot.cloneOff.y);
+  ctx.restore();
+}
+function _annotCloneStroke(from, to) {
+  const ctx = _annot.ctx, r = Math.max(1, Math.round(_annot.size)) / 2;
+  const dx = to.x - from.x, dy = to.y - from.y, dist = Math.hypot(dx, dy);
+  const step = Math.max(1, r / 2), n = Math.max(1, Math.ceil(dist / step));
+  for (let i = 1; i <= n; i++) _annotCloneDab(ctx, from.x + dx * (i / n), from.y + dy * (i / n));
+}
+function _annotStageBox() {
+  const st = document.getElementById('annotStage');
+  return st ? st.getBoundingClientRect() : { left: 0, top: 0, width: 1, height: 1 };
+}
+// Keep the image from being dragged fully out of the viewport.
+function _annotClampPan() {
+  if (!_annot) return;
+  const box = _annotStageBox(), s = _annotDisplayScale();
+  const w = _annot.canvas.width * s, h = _annot.canvas.height * s;
+  const margin = 40; // always keep at least this many px of image reachable
+  _annot.panX = Math.min(box.width - margin, Math.max(margin - w, _annot.panX));
+  _annot.panY = Math.min(box.height - margin, Math.max(margin - h, _annot.panY));
+}
+function annotZoomFit() {
+  if (!_annot) return;
+  const box = _annotStageBox();
+  _annot.fit = Math.min(box.width / _annot.canvas.width, box.height / _annot.canvas.height) || 1;
+  _annot.zoom = 1;
+  const s = _annotDisplayScale();
+  _annot.panX = (box.width - _annot.canvas.width * s) / 2;
+  _annot.panY = (box.height - _annot.canvas.height * s) / 2;
+  _annotUpdateTransform();
+}
+// Zoom about a viewport point (px relative to the stage). Keeps that point fixed.
+function _annotZoomAt(factor, vx, vy) {
+  if (!_annot) return;
+  const box = _annotStageBox();
+  if (vx == null) { vx = box.width / 2; vy = box.height / 2; }
+  const oldS = _annotDisplayScale();
+  const minZoom = 1, maxZoom = ANNOT_MAX_DISPLAY / (_annot.fit || 1);
+  const newZoom = Math.min(maxZoom, Math.max(minZoom, _annot.zoom * factor));
+  if (newZoom === _annot.zoom) return;
+  const newS = _annot.fit * newZoom;
+  // canvas-space point under the cursor stays put
+  const cx = (vx - _annot.panX) / oldS, cy = (vy - _annot.panY) / oldS;
+  _annot.zoom = newZoom;
+  _annot.panX = vx - cx * newS;
+  _annot.panY = vy - cy * newS;
+  _annotClampPan();
+  _annotUpdateTransform();
+}
+function annotZoomStep(factor) {
+  const box = _annotStageBox();
+  _annotZoomAt(factor, box.width / 2, box.height / 2);
+}
+function _annotWheel(e) {
+  if (!_annot) return;
+  e.preventDefault();   // never let the page/browser scroll or zoom
+  const box = _annotStageBox();
+  const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+  _annotZoomAt(factor, e.clientX - box.left, e.clientY - box.top);
+}
+function _annotTypingInField(e) {
+  const el = (e && e.target) || document.activeElement;
+  return !!(el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable));
+}
+function _annotKeyDown(e) {
+  if (!_annot) return;
+  if (e.code === 'Space' && !_annotTypingInField(e)) { _annot.space = true; const st = document.getElementById('annotStage'); if (st) st.classList.add('canpan'); e.preventDefault(); }
+  // Escape backs out of the open transform first, then out of a selection.
+  if (e.key === 'Escape' && !_annotTypingInField(e) && _annot.xform) { e.preventDefault(); _annot.drawing = false; annotXformCancel(); return; }
+  if (e.key === 'Escape' && !_annotTypingInField(e) && (_annot.sel || _annot.selPts)) { _annot.selPts = null; _annot.drawing = false; annotSelClear(); }
+  // Ctrl/Cmd+Z works even from a text label; everything else needs the canvas.
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); annotUndo(); return; }
+  if (_annotTypingInField(e) || e.ctrlKey || e.metaKey || e.altKey) return;
+  const k = e.key;
+  // [ and ] step the brush the way every paint program does. Shift jumps by 5.
+  if (k === '[' || k === '{') { e.preventDefault(); _annotStepSize(k === '{' ? -5 : -1); return; }
+  if (k === ']' || k === '}') { e.preventDefault(); _annotStepSize(k === '}' ? 5 : 1); return; }
+  if (k === '+' || k === '=') { e.preventDefault(); annotZoomStep(1.3); return; }
+  if (k === '-' || k === '_') { e.preventDefault(); annotZoomStep(1 / 1.3); return; }
+  if (k === '0') { e.preventDefault(); annotZoomFit(); return; }
+  // Enter commits an open transform (Photoshop's habit); otherwise it saves.
+  if (k === 'Enter') { e.preventDefault(); if (_annot.xform) annotXformApply(); else applyAnnotTool(); return; }
+  const tool = ANNOT_KEYS[String(k).toLowerCase()];
+  if (tool) { e.preventDefault(); _annotSetTool(tool); }
+}
+function _annotKeyUp(e) { if (_annot && e.code === 'Space') { _annot.space = false; const st = document.getElementById('annotStage'); if (st) st.classList.remove('canpan'); } }
+function _annotBindZoomListeners() {
+  const st = document.getElementById('annotStage');
+  if (st && !st._zoomBound) { st.addEventListener('wheel', _annotWheel, { passive: false }); st._zoomBound = true; }
+  window.addEventListener('keydown', _annotKeyDown);
+  window.addEventListener('keyup', _annotKeyUp);
+}
+function _annotUnbindZoomListeners() {
+  window.removeEventListener('keydown', _annotKeyDown);
+  window.removeEventListener('keyup', _annotKeyUp);
+  const st = document.getElementById('annotStage');
+  if (st) st.classList.remove('canpan', 'panning');
+}
+const ANNOT_CURSORS = { text: 'text', fill: 'cell', wand: 'cell', move: 'move', rotate: 'grab', skew: 'ew-resize', scale: 'move' };
+function _annotSetTool(t) {
+  // Leaving Rotate/Skew/Resize settles the open transform: a real change is
+  // kept, an untouched one is dropped. Nothing is ever left half-applied.
+  if (_annot && _annot.xform && t !== 'rotate' && t !== 'skew' && t !== 'scale') {
+    if (_annotXformIsIdentity(_annot.xform)) annotXformCancel(true); else annotXformApply();
+  }
+  if (_annot) _annot.tool = t;
+  document.querySelectorAll('.annot-tool').forEach(b => b.classList.toggle('active', b.getAttribute('data-atool') === t));
+  const c = document.getElementById('annotCanvas');
+  if (c) c.style.cursor = ANNOT_CURSORS[t] || 'crosshair';
+  // With Move active a whole text label is draggable, not just its little handle.
+  document.querySelectorAll('#annotStage .annot-textbox').forEach(b => b.classList.toggle('movable', t === 'move'));
+  _annotUpdateCloneMarker();   // show the clone-source pin only while the Clone tool is active
+  // Picking Rotate, Skew or Resize opens the transform straight away, so the
+  // handles and sliders are there to use — you shouldn't have to drag once to
+  // discover the panel.
+  if (_annot && (t === 'rotate' || t === 'skew' || t === 'scale') && !_annot.xform) _annotXformBegin();
+  _annotXformSyncBar();
+}
+// Single-key tool switching, Photoshop's letters where they exist.
+const ANNOT_KEYS = { e: 'erase', b: 'paint', g: 'fill', s: 'clone', y: 'history', m: 'select', l: 'lasso', w: 'wand', v: 'move', u: 'line', t: 'text', r: 'rotate', k: 'skew', f: 'scale' };
+// A history step remembers the canvas SIZE as well as its pixels: rotating the
+// whole picture grows the canvas, and undoing that has to shrink it back.
+function _annotPushHistory() {
+  if (!_annot) return;
+  try {
+    _annot.history.push({ img: _annot.ctx.getImageData(0, 0, _annot.canvas.width, _annot.canvas.height), w: _annot.canvas.width, h: _annot.canvas.height });
+    if (_annot.history.length > 10) _annot.history.shift();
+  } catch (_) {}
+}
+function annotUndo() {
+  if (!_annot) return;
+  // While a rotate/skew is open, undo means "abandon this turn" — stepping the
+  // canvas back underneath a live session would leave the two out of step.
+  // (Cancel clears the session first, so this never recurses.)
+  if (_annot.xform) { annotXformCancel(); return; }
+  if (!_annot.history.length) return;
+  const step = _annot.history.pop();
+  if (_annot.canvas.width !== step.w || _annot.canvas.height !== step.h) {
+    _annotResizeCanvas(step.w, step.h);
+    annotZoomFit();
+  }
+  _annot.ctx.putImageData(step.img, 0, 0);
+}
+// Resize the working canvas (and the marching-ants overlay that rides on it).
+function _annotResizeCanvas(w, h) {
+  if (!_annot) return;
+  _annot.canvas.width = w; _annot.canvas.height = h;
+  if (_annot.selCanvas) { _annot.selCanvas.width = w; _annot.selCanvas.height = h; }
+}
+function _annotPt(e) {
+  const c = _annot.canvas, r = c.getBoundingClientRect();
+  const scale = c.width / r.width;
+  return { x: (e.clientX - r.left) * scale, y: (e.clientY - r.top) * (c.height / r.height), dispX: e.clientX - r.left, dispY: e.clientY - r.top, clientX: e.clientX, clientY: e.clientY, scale };
+}
+// Plot a crisp 1px line between two points (Bresenham) — no anti-aliasing, so a
+// 1px brush drags as clean single pixels, like a Photoshop pencil.
+function _annotPlotLine(ctx, x0, y0, x1, y1) {
+  x0 = Math.floor(x0); y0 = Math.floor(y0); x1 = Math.floor(x1); y1 = Math.floor(y1);
+  const dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0);
+  const sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+  let err = dx - dy;
+  for (;;) {
+    ctx.fillRect(x0, y0, 1, 1);
+    if (x0 === x1 && y0 === y1) break;
+    const e2 = 2 * err;
+    if (e2 > -dy) { err -= dy; x0 += sx; }
+    if (e2 < dx) { err += dx; y0 += sy; }
+  }
+}
+// Snap the end point to the nearest 45° from the start (PowerPoint-style).
+function _annotSnap45(s, p) {
+  const dx = p.x - s.x, dy = p.y - s.y;
+  const ang = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * (Math.PI / 4);
+  const len = Math.hypot(dx, dy);
+  return { x: s.x + Math.cos(ang) * len, y: s.y + Math.sin(ang) * len };
+}
+// Lock to the horizontal or vertical axis (whichever is dominant) — the
+// Photoshop Shift-drag brush constraint.
+function _annotSnapAxis(s, p) {
+  const dx = p.x - s.x, dy = p.y - s.y;
+  return Math.abs(dx) >= Math.abs(dy) ? { x: p.x, y: s.y } : { x: s.x, y: p.y };
+}
+// Constrain a rectangle drag to a square (Shift held while rect-selecting).
+function _annotSquarePt(s, p) {
+  const dx = p.x - s.x, dy = p.y - s.y;
+  const m = Math.max(Math.abs(dx), Math.abs(dy));
+  return { x: s.x + (dx < 0 ? -m : m), y: s.y + (dy < 0 ? -m : m) };
+}
+// One straight brush stroke between two points with the current tool settings
+// (used by the Photoshop click-then-Shift-click line).
+function _annotBrushLine(a, b) {
+  const ctx = _annot.ctx, lw = Math.max(1, Math.round(_annot.size));
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.strokeStyle = _annot.tool === 'erase' ? '#ffffff' : _annot.color;
+  ctx.fillStyle = ctx.strokeStyle;
+  ctx.lineWidth = lw;
+  if (lw <= 1) { _annotPlotLine(ctx, a.x, a.y, b.x, b.y); }
+  else { ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+}
+// ---- SELECTION (rectangle / lasso) with marching ants, then fill the area
+// with a flat colour, the surrounding texture, or AI content-aware fill. ----
+function _annotSelPath(pts) {
+  const path = new Path2D();
+  if (!pts || pts.length < 2) return path;
+  path.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) path.lineTo(pts[i].x, pts[i].y);
+  path.closePath();
+  return path;
+}
+function _annotSelSyncBar() {
+  const bar = document.getElementById('annotSelBar');
+  if (bar) bar.style.display = (_annot && _annot.sel) ? 'flex' : 'none';
+}
+function annotSelClear() {
+  if (!_annot) return;
+  _annot.sel = null; _annot.selPts = null;
+  _annotSelSyncBar();
+}
+
+// ---- MAGIC WAND -----------------------------------------------------------
+// Click a colour and every pixel like it becomes the selection. Contiguous by
+// default (the patch you clicked); Alt+click takes that colour across the whole
+// picture, which is how you grab, say, every bit of a printed grey watermark in
+// one go. "Like it" is the ± slider: squared RGB distance, same yardstick the
+// paint bucket uses, so the two tools behave consistently.
+//
+// The result is a per-pixel MASK, not a polygon — a wand selection can be full
+// of holes and islands that no outline could describe. Every selection
+// operation below therefore works from a mask, and the polygon tools simply
+// rasterise into one.
+function _annotMagicWand(sx, sy, global) {
+  const cv = _annot.canvas, W = cv.width, H = cv.height;
+  sx = Math.floor(sx); sy = Math.floor(sy);
+  if (sx < 0 || sy < 0 || sx >= W || sy >= H) return null;
+  const d = _annot.ctx.getImageData(0, 0, W, H).data;
+  const at = (x, y) => (y * W + x) * 4;
+  const s0 = at(sx, sy);
+  const tr = d[s0], tg = d[s0 + 1], tb = d[s0 + 2];
+  const t = Math.max(1, _annot.tol || 32), TOL = t * t * 3;
+  const near = i => { const dr = d[i] - tr, dg = d[i + 1] - tg, db = d[i + 2] - tb; return dr * dr + dg * dg + db * db <= TOL; };
+  const mask = new Uint8Array(W * H);
+  if (global) {
+    for (let k = 0; k < mask.length; k++) if (near(k * 4)) mask[k] = 1;
+  } else {
+    const stack = [sy * W + sx];
+    mask[sy * W + sx] = 1;
+    while (stack.length) {
+      const k = stack.pop(), x = k % W, y = (k / W) | 0;
+      if (x > 0 && !mask[k - 1] && near(at(x - 1, y))) { mask[k - 1] = 1; stack.push(k - 1); }
+      if (x < W - 1 && !mask[k + 1] && near(at(x + 1, y))) { mask[k + 1] = 1; stack.push(k + 1); }
+      if (y > 0 && !mask[k - W] && near(at(x, y - 1))) { mask[k - W] = 1; stack.push(k - W); }
+      if (y < H - 1 && !mask[k + W] && near(at(x, y + 1))) { mask[k + W] = 1; stack.push(k + W); }
+    }
+  }
+  // Crop to the pixels actually hit so every later pass works on a small box.
+  let x0 = W, y0 = H, x1 = -1, y1 = -1, n = 0;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (!mask[y * W + x]) continue;
+    n++;
+    if (x < x0) x0 = x; if (x > x1) x1 = x;
+    if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  if (!n) return null;
+  const w = x1 - x0 + 1, h = y1 - y0 + 1;
+  const out = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) out[y * w + x] = mask[(y + y0) * W + (x + x0)];
+  return { x: x0, y: y0, w, h, mask: out, count: n };
+}
+
+// The outline of a mask, as edge segments between a selected and an unselected
+// pixel. Marching ants ride this exactly like they ride a lasso path.
+function _annotMaskOutline(m) {
+  const path = new Path2D();
+  const on = (x, y) => (x < 0 || y < 0 || x >= m.w || y >= m.h) ? 0 : m.mask[y * m.w + x];
+  for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
+    if (!on(x, y)) continue;
+    const px = m.x + x, py = m.y + y;
+    if (!on(x, y - 1)) { path.moveTo(px, py); path.lineTo(px + 1, py); }
+    if (!on(x, y + 1)) { path.moveTo(px, py + 1); path.lineTo(px + 1, py + 1); }
+    if (!on(x - 1, y)) { path.moveTo(px, py); path.lineTo(px, py + 1); }
+    if (!on(x + 1, y)) { path.moveTo(px + 1, py); path.lineTo(px + 1, py + 1); }
+  }
+  return path;
+}
+// Marching-ants animation: redraw the selection outline on the overlay canvas
+// while the tool is open. Dash length is in screen pixels regardless of zoom.
+let _annotAntsRunning = false;
+function _annotAntsLoop() {
+  if (!_annot || !_annot.selCanvas) { _annotAntsRunning = false; return; }
+  _annotAntsRunning = true;
+  const sc = _annot.selCanvas, sctx = sc.getContext('2d');
+  sctx.clearRect(0, 0, sc.width, sc.height);
+  const pts = (_annot.drawing && _annot.selPts) ? _annot.selPts : (_annot.sel && _annot.sel.pts ? _annot.sel.pts : null);
+  let path = null;
+  if (pts && pts.length > 1) path = _annotSelPath(pts);
+  else if (_annot.sel && _annot.sel.outline) path = _annot.sel.outline;
+  if (path) {
+    const s = _annotDisplayScale() || 1;
+    const phase = (performance.now() / 90) % 16;
+    sctx.lineWidth = Math.max(1 / s, 0.5);
+    sctx.setLineDash([6 / s, 6 / s]);
+    sctx.strokeStyle = '#ffffff'; sctx.lineDashOffset = -phase / s; sctx.stroke(path);
+    sctx.strokeStyle = '#111111'; sctx.lineDashOffset = -(phase + 6) / s; sctx.stroke(path);
+  }
+  // The transform box rides the same overlay: the object's real outline while
+  // it is being turned, slanted or resized, with grab handles on it while the
+  // Resize tool is the one in hand.
+  const xf = _annot.xform;
+  if (xf && xf.layer) {
+    const s = _annotDisplayScale() || 1;
+    const c = _annotXformCorners(xf);
+    const off = { x: xf.offX || 0, y: xf.offY || 0 };
+    sctx.setLineDash([]);
+    sctx.beginPath();
+    c.forEach((p, i) => { const X = p.x + off.x, Y = p.y + off.y; i ? sctx.lineTo(X, Y) : sctx.moveTo(X, Y); });
+    sctx.closePath();
+    sctx.lineWidth = Math.max(1.4 / s, 0.5);
+    sctx.strokeStyle = 'rgba(255,255,255,0.95)'; sctx.stroke();
+    sctx.lineWidth = Math.max(0.7 / s, 0.25);
+    sctx.strokeStyle = '#b45309'; sctx.stroke();
+    if (_annot.tool === 'scale') {
+      const r = 5 / s;
+      _annotXformHandles(xf).forEach(h => {
+        const X = h.pt.x + off.x, Y = h.pt.y + off.y;
+        sctx.beginPath(); sctx.rect(X - r, Y - r, r * 2, r * 2);
+        sctx.fillStyle = '#ffffff'; sctx.fill();
+        sctx.lineWidth = Math.max(1 / s, 0.4);
+        sctx.strokeStyle = '#b45309'; sctx.stroke();
+      });
+    }
+  }
+  if (xf && xf.strLine) {
+    const s = _annotDisplayScale() || 1;
+    sctx.setLineDash([]);
+    sctx.lineCap = 'round';
+    sctx.lineWidth = Math.max(1.5 / s, 0.6);
+    sctx.beginPath();
+    sctx.moveTo(xf.strLine.from.x, xf.strLine.from.y);
+    sctx.lineTo(xf.strLine.to.x, xf.strLine.to.y);
+    sctx.strokeStyle = 'rgba(255,255,255,0.9)'; sctx.stroke();
+    sctx.lineWidth = Math.max(0.8 / s, 0.3);
+    sctx.strokeStyle = '#0b6b4f'; sctx.stroke();
+  }
+  requestAnimationFrame(_annotAntsLoop);
+}
+// Rasterise the selection into a bounding box + per-pixel mask (1 = selected).
+// A wand selection already IS a mask and is handed straight back.
+function _annotSelMask() {
+  const sel = _annot && _annot.sel; if (!sel) return null;
+  if (sel.mask) return sel;
+  const W = _annot.canvas.width, H = _annot.canvas.height;
+  let x0 = W, y0 = H, x1 = 0, y1 = 0;
+  sel.pts.forEach(p => { x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y); });
+  x0 = Math.max(0, Math.floor(x0)); y0 = Math.max(0, Math.floor(y0));
+  x1 = Math.min(W, Math.ceil(x1)); y1 = Math.min(H, Math.ceil(y1));
+  const w = x1 - x0, h = y1 - y0;
+  if (w < 1 || h < 1) return null;
+  const mc = document.createElement('canvas'); mc.width = w; mc.height = h;
+  const mx = mc.getContext('2d');
+  mx.translate(-x0, -y0);
+  mx.fillStyle = '#fff';
+  mx.fill(_annotSelPath(sel.pts));
+  const md = mx.getImageData(0, 0, w, h).data;
+  const mask = new Uint8Array(w * h);
+  for (let i = 0; i < mask.length; i++) mask[i] = md[i * 4 + 3] > 127 ? 1 : 0;
+  return { x: x0, y: y0, w, h, mask };
+}
+// Apply a callback clipped to the selection, whichever kind it is: a polygon
+// gets a real canvas clip (anti-aliased edges), a wand mask is composited
+// pixel-by-pixel. One helper so every selection action supports both.
+function _annotWithSelClip(fn) {
+  const sel = _annot && _annot.sel; if (!sel) return;
+  const ctx = _annot.ctx;
+  if (sel.pts) { ctx.save(); ctx.clip(_annotSelPath(sel.pts)); fn(ctx); ctx.restore(); return; }
+  const m = sel;
+  const scratch = document.createElement('canvas');
+  scratch.width = _annot.canvas.width; scratch.height = _annot.canvas.height;
+  const sx = scratch.getContext('2d');
+  fn(sx);
+  const before = ctx.getImageData(m.x, m.y, m.w, m.h);
+  const after = sx.getImageData(m.x, m.y, m.w, m.h);
+  for (let k = 0; k < m.mask.length; k++) {
+    if (!m.mask[k] || after.data[k * 4 + 3] === 0) continue;
+    const i = k * 4;
+    before.data[i] = after.data[i]; before.data[i + 1] = after.data[i + 1];
+    before.data[i + 2] = after.data[i + 2]; before.data[i + 3] = 255;
+  }
+  ctx.putImageData(before, m.x, m.y);
+}
+function annotSelFillColour() {
+  if (!_annot || !_annot.sel) return;
+  _annotSyncControls();
+  _annotPushHistory();
+  const sel = _annot.sel, colour = _annot.color;
+  _annotWithSelClip(c => {
+    c.fillStyle = colour;
+    if (sel.pts) c.fill(_annotSelPath(sel.pts));
+    else c.fillRect(sel.x, sel.y, sel.w, sel.h);
+  });
+  showToast('Selection filled ✓', 'success');
+}
+// "Fill from surroundings" — onion-peel inpainting: BFS inwards from the
+// selection edge, each unknown pixel takes the average of its already-known
+// neighbours. Fast, local, great for paper/flat backgrounds.
+function annotSelPatchFill() {
+  if (!_annot || !_annot.sel) return;
+  const m = _annotSelMask(); if (!m) return;
+  _annotPushHistory();
+  const ctx = _annot.ctx, W = _annot.canvas.width, H = _annot.canvas.height;
+  // Work on a box one pixel wider than the selection so the border ring is known.
+  const bx = Math.max(0, m.x - 1), by = Math.max(0, m.y - 1);
+  const bw = Math.min(W, m.x + m.w + 1) - bx, bh = Math.min(H, m.y + m.h + 1) - by;
+  const img = ctx.getImageData(bx, by, bw, bh), d = img.data;
+  const unknown = new Uint8Array(bw * bh);
+  for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
+    if (m.mask[y * m.w + x]) unknown[(y + m.y - by) * bw + (x + m.x - bx)] = 1;
+  }
+  const queue = [];
+  const edge = k => {   // unknown pixel touching at least one known pixel
+    const x = k % bw, y = (k / bw) | 0;
+    return (x > 0 && !unknown[k - 1]) || (x < bw - 1 && !unknown[k + 1]) || (y > 0 && !unknown[k - bw]) || (y < bh - 1 && !unknown[k + bw]);
+  };
+  for (let k = 0; k < unknown.length; k++) if (unknown[k] && edge(k)) queue.push(k);
+  let qi = 0;
+  while (qi < queue.length) {
+    const k = queue[qi++];
+    if (!unknown[k]) continue;
+    const x = k % bw, y = (k / bw) | 0;
+    let r = 0, g = 0, b = 0, n = 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      if (!dx && !dy) continue;
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= bw || ny >= bh) continue;
+      const nk = ny * bw + nx;
+      if (unknown[nk]) continue;
+      const i = nk * 4; r += d[i]; g += d[i + 1]; b += d[i + 2]; n++;
+    }
+    if (!n) continue;   // no known neighbour (selection spans the whole image edge) — leave as-is
+    const i = k * 4;
+    d[i] = r / n; d[i + 1] = g / n; d[i + 2] = b / n; d[i + 3] = 255;
+    unknown[k] = 0;
+    // enqueue unknown 4-neighbours
+    if (x > 0 && unknown[k - 1]) queue.push(k - 1);
+    if (x < bw - 1 && unknown[k + 1]) queue.push(k + 1);
+    if (y > 0 && unknown[k - bw]) queue.push(k - bw);
+    if (y < bh - 1 && unknown[k + bw]) queue.push(k + bw);
+  }
+  ctx.putImageData(img, bx, by);
+  showToast('Filled from the surrounding texture ✓', 'success');
+}
+// AI content-aware fill: paint the selection solid magenta on a copy, ask the
+// Gemini image model to reconstruct that region from its surroundings, then
+// composite the result back clipped to the selection — pixels outside the
+// selection are never touched.
+async function annotSelAiFill() {
+  if (!_annot || !_annot.sel) return;
+  if (_annot.aiFillBusy) { showToast('AI fill is already running…', 'info'); return; }
+  if (!imageAiReady()) { showToast('Image AI is not available — try "Fill from surroundings" instead', 'error'); return; }
+  const sel = _annot.sel, canvas = _annot.canvas;
+  _annot.aiFillBusy = true;
+  showToast('✨ AI content-aware fill…', 'info');
+  try {
+    const marked = document.createElement('canvas');
+    marked.width = canvas.width; marked.height = canvas.height;
+    const mx = marked.getContext('2d');
+    mx.drawImage(canvas, 0, 0);
+    mx.fillStyle = '#ff00ff';
+    if (sel.pts) {
+      mx.fill(_annotSelPath(sel.pts));
+    } else {
+      const md = mx.getImageData(sel.x, sel.y, sel.w, sel.h);
+      for (let k = 0; k < sel.mask.length; k++) {
+        if (!sel.mask[k]) continue;
+        const i = k * 4;
+        md.data[i] = 255; md.data[i + 1] = 0; md.data[i + 2] = 255; md.data[i + 3] = 255;
+      }
+      mx.putImageData(md, sel.x, sel.y);
+    }
+    const dataUrl = marked.toDataURL('image/png');
+    // Deliberately NOT SCAN_SOURCE_PROMPT: this patch has to disappear into
+    // surroundings that are still scanned, so it must copy the scan's grain
+    // and tone rather than clean it up.
+    const prompt = 'This image has one region painted solid magenta (#FF00FF). Reproduce the ENTIRE image exactly as it is — same size, same colours, same content — but replace the magenta region with a seamless, content-aware reconstruction of the background and surrounding texture, as if whatever was there had been removed. Continue any lines, shading or patterns that pass through the region naturally. ' +
+      'The picture is a scan, photocopy or photo of a printed exam paper, so the area around the region is probably speckled, greyish, unevenly lit, slightly blurred and a little skewed. MATCH that surrounding grain, tone and brightness exactly so the repair is invisible — do NOT clean it up, sharpen it, whiten it or straighten it, and do not let the patch look newer than the paper around it. ' +
+      'Do not change ANYTHING outside the magenta region. Do not add labels, watermarks or new objects.';
+    const outUrl = await generateEnhancedImageDataUrl(prompt, { mimeType: 'image/png', data: dataUrl.split(',')[1] || '' });
+    const img = await _loadImageEl(outUrl);
+    if (!_annot || _annot.canvas !== canvas) return;   // tool was closed meanwhile
+    _annotPushHistory();
+    // Only the selected area may change — clipped for a polygon, masked for a wand.
+    _annotWithSelClip(c => c.drawImage(img, 0, 0, canvas.width, canvas.height));
+    showToast('AI content-aware fill applied ✓ (Undo if it missed)', 'success');
+  } catch (e) {
+    console.warn('AI content-aware fill failed', e);
+    showToast('AI fill failed: ' + (e && e.message ? e.message : e), 'error');
+  } finally { if (_annot) _annot.aiFillBusy = false; }
+}
+function _annotDown(e) {
+  if (!_annot) return;
+  e.preventDefault();
+  _annotSyncControls();
+  const p = _annotPt(e), ctx = _annot.ctx;
+  if (_annot.tool === 'text') { _annotPlaceText(p); return; }
+  if (_annot.tool === 'fill') { _annotPushHistory(); _annotFloodFill(p.x, p.y); return; }
+  if (_annot.tool === 'wand') {
+    const m = _annotMagicWand(p.x, p.y, e.altKey);
+    if (!m) { showToast('Nothing matched there — try a bigger ±', 'info'); return; }
+    m.outline = _annotMaskOutline(m);
+    _annot.sel = m;
+    _annotSelSyncBar();
+    showToast(m.count.toLocaleString() + ' pixels selected' + (e.altKey ? ' across the whole picture' : '') +
+      ' — fill it, move it, or widen the ± slider', 'info');
+    return;
+  }
+  if (_annot.tool === 'scale') {
+    if (!_annot.xform) _annotXformBegin();
+    const x = _annot.xform; if (!x) return;
+    const h = _annotXformHandleAt(p);
+    if (h) { _annotXformScaleStart(h); _annot.start = p; _annot.drawing = true; return; }
+    // Not on a handle: dragging the middle of the box slides the object.
+    if (_annotXformInside(p)) { _annot.start = p; _annot.xfMove = true; _annot.drawing = true; return; }
+    showToast('Drag a corner or edge handle to resize — or inside the box to move it', 'info');
+    return;
+  }
+  if (_annot.tool === 'rotate' || _annot.tool === 'skew') {
+    if (!_annot.xform) _annotXformBegin();
+    const x = _annot.xform; if (!x) return;
+    if (x.straighten) { x.strLine = { from: p, to: p }; _annot.drawing = true; return; }
+    _annot.start = p;
+    _annot.xfStart = { angle: x.angle, skewX: x.skewX, skewY: x.skewY, ang0: Math.atan2(p.y - x.cy, p.x - x.cx) };
+    _annot.drawing = true;
+    return;
+  }
+  if (_annot.tool === 'move') {
+    if (!_annot.sel) { showToast('Select an area first (⬚, ➰ or 🪄), then drag it with Move', 'info'); return; }
+    _annotPushHistory();
+    _annot.float = _annotSelLift(e.altKey);
+    if (!_annot.float) return;
+    _annot.start = p;
+    _annot.drawing = true;
+    return;
+  }
+  if (_annot.tool === 'history') {
+    _annotPushHistory();
+    _annot.drawing = true;
+    _annot.last = p;
+    _annotHistoryDab(p.x, p.y);
+    return;
+  }
+  if (_annot.tool === 'select' || _annot.tool === 'lasso') {
+    _annot.sel = null; _annotSelSyncBar();
+    _annot.selPts = _annot.tool === 'select' ? [p, p, p, p] : [p];
+    _annot.start = p;
+    _annot.drawing = true;
+    return;
+  }
+  if (_annot.tool === 'clone') {
+    // First click (or Alt+click) sets the source; later drags stamp from it.
+    if (e.altKey || !_annot.cloneSrc) {
+      _annot.cloneSrc = { x: p.x, y: p.y };
+      _annotUpdateCloneMarker();
+      showToast('Clone source set — now drag to stamp that area elsewhere', 'info');
+      return;
+    }
+    _annotPushHistory();
+    const snap = document.createElement('canvas');
+    snap.width = _annot.canvas.width; snap.height = _annot.canvas.height;
+    snap.getContext('2d').drawImage(_annot.canvas, 0, 0);
+    _annot.cloneSnap = snap;
+    _annot.cloneOff = { x: p.x - _annot.cloneSrc.x, y: p.y - _annot.cloneSrc.y };
+    _annot.drawing = true;
+    _annot.last = p;
+    _annotCloneDab(ctx, p.x, p.y);
+    return;
+  }
+  _annotPushHistory();
+  if (_annot.tool === 'line') {
+    _annot.start = p;
+    _annot.snap = ctx.getImageData(0, 0, _annot.canvas.width, _annot.canvas.height);
+    _annot.drawing = true;
+    return;
+  }
+  // erase / paint brush
+  // Photoshop straight-line join: click once, then Shift-click somewhere else —
+  // the two points are connected with one straight stroke.
+  if (e.shiftKey && _annot.anchor) {
+    _annotBrushLine(_annot.anchor, p);
+    _annot.drawing = true;
+    _annot.last = p;
+    _annot.shiftSeg = null;
+    ctx.beginPath(); ctx.moveTo(p.x, p.y);
+    return;
+  }
+  _annot.drawing = true;
+  _annot.last = p;
+  _annot.shiftSeg = null; // Shift-straight segment state (start pt + snapshot)
+  // Brush size is measured in IMAGE pixels (Photoshop-style): size 1 = one pixel,
+  // independent of the current zoom, so precise edits are possible when zoomed in.
+  const lw = Math.max(1, Math.round(_annot.size));
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.strokeStyle = _annot.tool === 'erase' ? '#ffffff' : _annot.color;
+  ctx.fillStyle = ctx.strokeStyle;
+  ctx.lineWidth = lw;
+  if (lw <= 1) {
+    // A 1px brush paints a crisp single pixel (no anti-aliasing) — pixel-perfect.
+    ctx.fillRect(Math.floor(p.x), Math.floor(p.y), 1, 1);
+  } else {
+    ctx.beginPath(); ctx.arc(p.x, p.y, lw / 2, 0, Math.PI * 2); ctx.fill(); // a click paints a dot
+  }
+  ctx.beginPath(); ctx.moveTo(p.x, p.y);
+}
+function _annotMove(e) {
+  if (!_annot || !_annot.drawing) return;
+  e.preventDefault();
+  const p = _annotPt(e), ctx = _annot.ctx;
+  if (_annot.tool === 'scale') {
+    if (_annot.xfScale) { _annotXformScaleDrag(p, e.shiftKey); return; }
+    if (_annot.xfMove && _annot.start) {
+      let dx = p.x - _annot.start.x, dy = p.y - _annot.start.y;
+      if (e.shiftKey) { if (Math.abs(dx) >= Math.abs(dy)) dy = 0; else dx = 0; }   // Shift = straight
+      _annotXformMoveTo(dx, dy);
+      _annot.start = p;
+    }
+    return;
+  }
+  if (_annot.tool === 'rotate' || _annot.tool === 'skew') {
+    const x = _annot.xform; if (!x) return;
+    if (x.straighten) { if (x.strLine) x.strLine.to = p; return; }   // the guide is drawn by the ants loop
+    if (!_annot.xfStart) return;
+    if (_annot.tool === 'rotate') {
+      const a = Math.atan2(p.y - x.cy, p.x - x.cx);
+      let deg = _annot.xfStart.angle + (a - _annot.xfStart.ang0) * 180 / Math.PI;
+      if (e.shiftKey) deg = Math.round(deg / 15) * 15;   // Shift snaps to 15°, like every transform tool
+      x.angle = _annotWrapDeg(deg);
+    } else {
+      // Drag sideways to slant sideways, up/down to slant up/down. A drag across
+      // half the picture is 45° of slant; Shift locks to one axis.
+      let dx = p.x - _annot.start.x, dy = p.y - _annot.start.y;
+      if (e.shiftKey) { if (Math.abs(dx) >= Math.abs(dy)) dy = 0; else dx = 0; }
+      const spanX = Math.max(40, _annot.canvas.height / 2), spanY = Math.max(40, _annot.canvas.width / 2);
+      x.skewX = _annotClampNum(_annot.xfStart.skewX + dx / spanX * 45, -60, 60);
+      x.skewY = _annotClampNum(_annot.xfStart.skewY + dy / spanY * 45, -60, 60);
+    }
+    _annotXformSyncBar();
+    _annotXformPreview();
+    return;
+  }
+  if (_annot.tool === 'move') {
+    if (!_annot.float) return;
+    let dx = p.x - _annot.start.x, dy = p.y - _annot.start.y;
+    if (e.shiftKey) { if (Math.abs(dx) >= Math.abs(dy)) dy = 0; else dx = 0; }   // Shift = straight
+    _annot.float.dx = Math.round(dx); _annot.float.dy = Math.round(dy);
+    _annotFloatDraw();
+    return;
+  }
+  if (_annot.tool === 'history') { _annotHistoryStroke(_annot.last, p); _annot.last = p; return; }
+  if (_annot.tool === 'select' || _annot.tool === 'lasso') {
+    if (!_annot.selPts) return;
+    if (_annot.tool === 'select') {
+      const s = _annot.start, q = e.shiftKey ? _annotSquarePt(s, p) : p;   // Shift = square, like Photoshop
+      _annot.selPts = [s, { x: q.x, y: s.y }, q, { x: s.x, y: q.y }];
+    } else {
+      _annot.selPts.push(p);
+    }
+    return;
+  }
+  if (_annot.tool === 'clone') { _annotCloneStroke(_annot.last, p); _annot.last = p; return; }
+  if (_annot.tool === 'line') {
+    const end = e.shiftKey ? _annotSnap45(_annot.start, p) : p;
+    ctx.putImageData(_annot.snap, 0, 0);
+    ctx.strokeStyle = _annot.color; ctx.lineCap = 'round';
+    ctx.lineWidth = Math.max(1, Math.round(_annot.size));
+    ctx.beginPath(); ctx.moveTo(_annot.start.x, _annot.start.y); ctx.lineTo(end.x, end.y); ctx.stroke();
+    return;
+  }
+  // Hold Shift while erasing/painting: the stroke is locked to the horizontal
+  // or vertical axis (whichever is dominant), live-previewed by restoring the
+  // snapshot — just like Photoshop's Shift-drag brush.
+  if (e.shiftKey) {
+    if (!_annot.shiftSeg) {
+      _annot.shiftSeg = {
+        start: _annot.last,
+        snap: ctx.getImageData(0, 0, _annot.canvas.width, _annot.canvas.height)
+      };
+    }
+    const s = _annot.shiftSeg.start;
+    const q = _annotSnapAxis(s, p);
+    ctx.putImageData(_annot.shiftSeg.snap, 0, 0);
+    ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(q.x, q.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(q.x, q.y);
+    _annot.last = q;
+    return;
+  }
+  if (_annot.shiftSeg) {
+    // Shift released mid-stroke — the straight segment stays; carry on
+    // freehand from its end.
+    _annot.shiftSeg = null;
+    ctx.beginPath(); ctx.moveTo(_annot.last.x, _annot.last.y);
+  }
+  if (Math.max(1, Math.round(_annot.size)) <= 1) {
+    // Pixel-perfect 1px drag: plot crisp pixels between samples.
+    _annotPlotLine(ctx, _annot.last.x, _annot.last.y, p.x, p.y);
+  } else {
+    ctx.lineTo(p.x, p.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(p.x, p.y);
+  }
+  _annot.last = p;
+}
+function _annotUp() {
+  if (!_annot) return;
+  if (_annot.xform && _annot.tool === 'scale') {
+    // The box has moved or changed size, so the pivot goes back to its middle —
+    // otherwise a turn afterwards swings the object round a point off to one side.
+    if (_annot.xfScale || _annot.xfMove) _annotXformRecentre(_annot.xform);
+    _annot.xfScale = null; _annot.xfMove = false;
+    _annot.drawing = false; _annot.start = null;
+    _annotXformSyncBar();
+    return;
+  }
+  if (_annot.xform && (_annot.tool === 'rotate' || _annot.tool === 'skew')) {
+    if (_annot.xform.straighten && _annot.xform.strLine) _annotXformStraightenFinish();
+    _annot.drawing = false; _annot.start = null; _annot.xfStart = null;
+    return;
+  }
+  if (_annot.float) {
+    _annotFloatCommit();
+    _annot.drawing = false; _annot.start = null; _annot.last = null;
+    return;
+  }
+  if (_annot.drawing && _annot.selPts && (_annot.tool === 'select' || _annot.tool === 'lasso')) {
+    // Finalise the selection: keep it only if it has real area.
+    const pts = _annot.selPts;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    pts.forEach(q => { x0 = Math.min(x0, q.x); y0 = Math.min(y0, q.y); x1 = Math.max(x1, q.x); y1 = Math.max(y1, q.y); });
+    _annot.sel = (pts.length >= 3 && (x1 - x0) >= 3 && (y1 - y0) >= 3) ? { pts: pts.slice() } : null;
+    _annot.selPts = null;
+    _annotSelSyncBar();
+    if (_annot.sel) showToast('Area selected — pick a fill option above the image', 'info');
+  }
+  // Remember where the brush stroke ended — a later Shift-click continues from
+  // here with a straight line (Photoshop behaviour).
+  if ((_annot.tool === 'erase' || _annot.tool === 'paint') && _annot.last) _annot.anchor = _annot.last;
+  _annot.drawing = false; _annot.start = null; _annot.snap = null; _annot.shiftSeg = null; _annot.last = null; _annot.cloneSnap = null; _annot.cloneOff = null;
+}
+function _annotPlaceText(p) {
+  const stage = document.getElementById('annotStage');
+  if (!stage) return;
+  const fontNat = Math.max(14, _annot.size * 2.6);
+  // A draggable label: a wrapper holding a "move" handle + the text input. The
+  // teacher can reposition it freely, and it burns onto the canvas wherever the
+  // input ends up (not the original click point).
+  const box = document.createElement('div');
+  box.className = 'annot-textbox';
+  // Position relative to the stage viewport (the canvas is transformed within it).
+  const _sr = stage.getBoundingClientRect();
+  box.style.left = ((p.clientX != null ? p.clientX - _sr.left : p.dispX)) + 'px';
+  box.style.top = ((p.clientY != null ? p.clientY - _sr.top : p.dispY)) + 'px';
+  const handle = document.createElement('div');
+  handle.className = 'annot-textbox-handle';
+  handle.textContent = '✥ drag';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'annot-textbox-input';
+  input.style.color = _annot.color;
+  input.style.fontSize = Math.max(10, Math.round(fontNat / p.scale)) + 'px';
+  box.appendChild(handle);
+  box.appendChild(input);
+  if (_annot.tool === 'move') box.classList.add('movable');
+  stage.appendChild(box);
+  setTimeout(() => input.focus(), 0);
+
+  // --- drag to reposition ---
+  // The little handle always drags. With the Move tool active the body of the
+  // label drags too, so "Move" repositions text as well as pixels.
+  let drag = null;
+  const startDrag = (ev, el) => {
+    ev.preventDefault(); ev.stopPropagation();   // keep input focus; don't draw on the canvas
+    drag = { dx: ev.clientX - box.offsetLeft, dy: ev.clientY - box.offsetTop };
+    try { el.setPointerCapture(ev.pointerId); } catch (e) {}
+  };
+  const moveDrag = ev => {
+    if (!drag) return;
+    const sr = stage.getBoundingClientRect();
+    let nx = ev.clientX - drag.dx, ny = ev.clientY - drag.dy;
+    nx = Math.max(0, Math.min(sr.width - 10, nx));
+    ny = Math.max(19, Math.min(sr.height - 6, ny));   // keep the handle on-screen
+    box.style.left = nx + 'px'; box.style.top = ny + 'px';
+  };
+  const endDrag = (ev, el) => { drag = null; try { el.releasePointerCapture(ev.pointerId); } catch (e) {} input.focus(); };
+  handle.addEventListener('pointerdown', ev => startDrag(ev, handle));
+  handle.addEventListener('pointermove', moveDrag);
+  handle.addEventListener('pointerup', ev => endDrag(ev, handle));
+  input.addEventListener('pointerdown', ev => { if (_annot && _annot.tool === 'move') startDrag(ev, input); });
+  input.addEventListener('pointermove', moveDrag);
+  input.addEventListener('pointerup', ev => { if (drag) endDrag(ev, input); });
+
+  let done = false;
+  const commit = () => {
+    if (done) return; done = true;
+    const val = input.value.trim();
+    if (val) {
+      _annotPushHistory();
+      const c = _annot.canvas, cr = c.getBoundingClientRect(), ir = input.getBoundingClientRect();
+      const sx = c.width / cr.width, sy = c.height / cr.height;
+      // input's content start = border-box left/top + ~border+padding (1px+4px / 1px+1px)
+      const x = (ir.left - cr.left) * sx + 5 * sx;
+      const y = (ir.top - cr.top) * sy + 2 * sy;
+      const ctx = _annot.ctx;
+      ctx.fillStyle = _annot.color;
+      ctx.textBaseline = 'top';
+      ctx.font = `600 ${Math.round(fontNat)}px 'DM Sans', sans-serif`;
+      ctx.fillText(val, x, y);
+    }
+    if (box.parentNode) box.parentNode.removeChild(box);
+  };
+  input.addEventListener('keydown', ev => {
+    if (ev.key === 'Enter') { ev.preventDefault(); commit(); }
+    else if (ev.key === 'Escape') { done = true; if (box.parentNode) box.parentNode.removeChild(box); }
+  });
+  input.addEventListener('blur', () => { if (!drag) commit(); });   // don't commit while mid-drag
+}
+async function applyAnnotTool() {
+  if (!_annot) return;
+  // Settle an open rotate/skew so the turn isn't lost on the way out.
+  if (_annot.xform) annotXformApply(true);
+  // Burn any label that's still being edited so it isn't lost on Apply.
+  document.querySelectorAll('#annotStage .annot-textbox-input').forEach(i => i.blur());
+  const { blockId, canvas } = _annot;
+  const dataUrl = canvas.toDataURL('image/png');
+  closeAnnotTool();
+  showToast('✏️ Saving touch-ups…', 'info');
+  try {
+    const url = await uploadImageDataUrl(dataUrl);
+    const block = editorBlocks.find(b => b.id === blockId);
+    if (!block) return;
+    saveBlockContent(blockId, 'url', url);
+    const input = document.getElementById('imgUrlInput_' + blockId);
+    if (input) input.value = url;
+    previewImage(blockId, url);
+    // The touched-up image is now the current image for further crop / enhance /
+    // colour / touch-up; keep the first image as the "original" for revert.
+    const prev = _imgEnhanceState[blockId] || {};
+    _imgEnhanceState[blockId] = { originalDataUrl: prev.originalDataUrl || dataUrl, originalUrl: prev.originalUrl || url, currentDataUrl: dataUrl };
+    renderImgEnhanceBar(blockId);
+    showToast('Touch-ups applied ✓', 'success');
+  } catch (e) { console.warn('annot apply failed', e); showToast('Could not save touch-ups: ' + (e && e.message ? e.message : e), 'error'); }
+}
+function closeAnnotTool() {
+  const o = document.getElementById('annotOverlay'); if (o) o.classList.remove('show');
+  const s = document.getElementById('annotStage'); if (s) s.querySelectorAll('.annot-textbox').forEach(el => el.remove());
+  const cm = document.getElementById('annotCloneSrc'); if (cm) cm.remove();
+  const sc = document.getElementById('annotSelCanvas'); if (sc) sc.getContext('2d').clearRect(0, 0, sc.width, sc.height);
+  _annotUnbindZoomListeners();
+  _annot = null;
+  _annotSelSyncBar();
+  _annotXformSyncBar();
+}
+document.addEventListener('click', function (e) {
+  const t = e.target.closest && e.target.closest('[data-atool]');
+  if (t) { e.preventDefault(); _annotSetTool(t.getAttribute('data-atool')); }
+});
+// Pan when Space is held or the middle mouse button is used; otherwise draw.
+function _annotPanStart(e) {
+  _annot.panning = true;
+  _annot.panFrom = { x: e.clientX, y: e.clientY, panX: _annot.panX, panY: _annot.panY };
+  const st = document.getElementById('annotStage'); if (st) st.classList.add('panning');
+  try { e.target.setPointerCapture && e.target.setPointerCapture(e.pointerId); } catch (_) {}
+}
+function _annotPanMove(e) {
+  if (!_annot || !_annot.panning || !_annot.panFrom) return;
+  _annot.panX = _annot.panFrom.panX + (e.clientX - _annot.panFrom.x);
+  _annot.panY = _annot.panFrom.panY + (e.clientY - _annot.panFrom.y);
+  _annotClampPan();
+  _annotUpdateTransform();
+}
+function _annotPanEnd() {
+  if (_annot && _annot.panning) { _annot.panning = false; _annot.panFrom = null; const st = document.getElementById('annotStage'); if (st) st.classList.remove('panning'); }
+}
+document.addEventListener('pointerdown', function (e) {
+  const c = document.getElementById('annotCanvas');
+  if (!_annot || !c || e.target !== c) return;
+  if (_annot.space || e.button === 1) { e.preventDefault(); _annotPanStart(e); return; }
+  if (e.button === 0) _annotDown(e);
+});
+document.addEventListener('pointermove', function (e) {
+  if (!_annot) return;
+  if (_annot.panning) { _annotPanMove(e); return; }
+  if (_annot.drawing) { _annotMove(e); return; }
+  // Hovering the transform box: the pointer says what each handle will do, so
+  // a resize box behaves like one everywhere else does.
+  if (_annot.tool === 'scale' && _annot.xform) {
+    const c = document.getElementById('annotCanvas');
+    if (c && e.target === c) {
+      const p = _annotPt(e);
+      const h = _annotXformHandleAt(p);
+      c.style.cursor = h ? h.cur : (_annotXformInside(p) ? 'move' : 'default');
+    }
+  }
+});
+document.addEventListener('pointerup', function () { _annotPanEnd(); _annotUp(); });
+
+
+
+// The ported overlays use inline on* handlers, and this app is a module —
+// so every name they reference has to be reachable from window. That includes
+// handleImgError, which is referenced from an onerror the enhance bar WRITES
+// rather than from the static markup — easy to miss, and the symptom is a
+// console error every time a compared image fails to load.
+window.handleImgError = handleImgError;
+window.closeCropTool = closeCropTool;
+window.cropToolReset = cropToolReset;
+window.applyCropTool = applyCropTool;
+window.closeAnnotTool = closeAnnotTool;
+window.applyAnnotTool = applyAnnotTool;
+window.annotUndo = annotUndo;
+window.annotZoomStep = annotZoomStep;
+window.annotZoomFit = annotZoomFit;
+window._annotSyncControls = _annotSyncControls;
+window.annotSelFillColour = annotSelFillColour;
+window.annotSelPatchFill = annotSelPatchFill;
+window.annotSelAiFill = annotSelAiFill;
+window.annotSelClear = annotSelClear;
+window.annotXformApply = annotXformApply;
+window.annotXformCancel = annotXformCancel;
+window.annotXformReset = annotXformReset;
+window.annotXformSet = annotXformSet;
+window.annotXformSetScale = annotXformSetScale;
+window.annotXformSetLock = annotXformSetLock;
+window.annotXformSetGrow = annotXformSetGrow;
+window.annotXformFlip = annotXformFlip;
+window.annotXformNudge = annotXformNudge;
+window.annotXformStraightenStart = annotXformStraightenStart;
+window._setEnhanceRemark = _setEnhanceRemark;
+window.enhanceBlockImage = enhanceBlockImage;
+window.useOriginalImage = useOriginalImage;
+window.openCropTool = openCropTool;
+window.openAnnotTool = openAnnotTool;
+window.renderImgEnhanceBar = renderImgEnhanceBar;
 
 $("addTextBtn").addEventListener("click", () => addBlock("text"));
 $("addImageBtn").addEventListener("click", () => addBlock("image"));
@@ -12282,7 +14449,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.3.0 · 2026-08-07";
+const APP_VERSION = "v1.4.0 · 2026-08-07";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
