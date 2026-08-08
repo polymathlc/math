@@ -765,6 +765,79 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .check-ai-aspects .aspect.issue i { background: var(--accent-red); }
 
 .block-card { border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: 12px; background: var(--surface-alt); overflow: hidden; }
+
+/* ===================================================================
+   INSERT A BLOCK HERE — one of these sits between every pair of blocks
+   (and above the first, and below the last), so any position in the
+   question is one tap away. Collapsed it is a thin line with a faint ＋;
+   hovering or tapping opens the two choices.
+   =================================================================== */
+.block-insert {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 22px;
+  margin: -5px 0;
+  z-index: 2;
+}
+.block-insert.is-first { margin-top: 2px; }
+/* The rule the ＋ sits on. Invisible until wanted, so a long question does not
+   turn into a ladder of dividers. */
+.block-insert::before {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; top: 50%;
+  height: 2px;
+  background: var(--primary);
+  opacity: 0;
+  transition: opacity var(--transition);
+  pointer-events: none;
+}
+.block-insert:hover::before, .block-insert.open::before { opacity: 0.5; }
+.block-insert-plus {
+  position: relative;
+  width: 24px; height: 24px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1.5px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  font-family: inherit;
+  line-height: 1;
+  cursor: pointer;
+  /* Visible at rest, not just on hover: the whole problem this solves is not
+     being able to FIND a way to add a block in the middle of a question. */
+  opacity: 0.75;
+  transition: all var(--transition);
+}
+.block-insert:hover .block-insert-plus, .block-insert.open .block-insert-plus, .block-insert-plus:focus-visible {
+  opacity: 1;
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}
+.block-insert.open .block-insert-plus { transform: rotate(45deg); }
+/* The two choices. Hidden until the row is hovered or opened; `open` is what a
+   tap sets, since a touch screen has no hover. */
+.block-insert-menu {
+  position: relative;
+  display: none;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border);
+}
+.block-insert:hover .block-insert-menu, .block-insert.open .block-insert-menu { display: flex; }
+.block-insert-menu .btn { white-space: nowrap; padding: 5px 10px; font-size: 0.78rem; }
 .block-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #fff; border-bottom: 1px solid var(--border); }
 .block-badge { font-family: 'Space Mono', monospace; font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; background: var(--primary-light); color: var(--primary); font-weight: 700; }
 .block-badge.image { background: var(--accent-blue-light); color: var(--accent-blue); }
@@ -4361,9 +4434,34 @@ async function removeQuestion(id) {
 const genBlockId = () => "blk_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
 const imgChoices = new Map();
 
-function addBlock(type) {
-  editorBlocks.push(type === "image" ? { id: genBlockId(), type: "image", url: "", scale: 1 } : { id: genBlockId(), type: "text", content: "" });
+function newBlock(type) {
+  return type === "image"
+    ? { id: genBlockId(), type: "image", url: "", scale: 1 }
+    : { id: genBlockId(), type: "text", content: "" };
+}
+// `at` is the index to insert BEFORE; omit it to append. A question is read top
+// to bottom, so being able to put a block anywhere in it — not just on the end
+// and then walk it up with ↑ — is the difference between editing and fighting.
+function addBlock(type, at) {
+  const b = newBlock(type);
+  const i = Number.isInteger(at) ? Math.max(0, Math.min(editorBlocks.length, at)) : editorBlocks.length;
+  editorBlocks.splice(i, 0, b);
   renderEditorBlocks();
+  focusBlock(b.id);
+  return b;
+}
+// Put the caret in a freshly inserted text block, and bring an image block's
+// drop zone into view — otherwise inserting near the top of a long question
+// gives no sign that anything happened.
+function focusBlock(id) {
+  requestAnimationFrame(() => {
+    const wrap = $("blocksList");
+    if (!wrap) return;
+    const card = wrap.querySelector(`[data-block-card="${id}"]`);
+    if (card) card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    const ed = wrap.querySelector(`.block-edit[data-block="${id}"]`);
+    if (ed) ed.focus();
+  });
 }
 function removeBlockById(id) { imgChoices.delete(id); editorBlocks = editorBlocks.filter(b => b.id !== id); renderEditorBlocks(); }
 function moveBlock(id, dir) {
@@ -4439,13 +4537,48 @@ function collectEditorOptions() {
   return { options, correctOption };
 }
 
+// A slim "+" between two blocks: it inserts AT that point. One before the first
+// block and one after the last, so every position in the question is reachable
+// — including above a tall diagram, where the buttons at the bottom of the list
+// are a long scroll away.
+// The inserters are re-created on every render, so they are wired per render.
+// Tapping the ＋ opens that one's menu (and closes any other), which is what
+// makes this work on a touch screen where there is no hover.
+function wireBlockInserters(root) {
+  root.querySelectorAll("[data-insert-toggle]").forEach(btn => btn.addEventListener("click", e => {
+    e.stopPropagation();
+    const row = btn.closest(".block-insert");
+    const wasOpen = row.classList.contains("open");
+    root.querySelectorAll(".block-insert.open").forEach(r => r.classList.remove("open"));
+    row.classList.toggle("open", !wasOpen);
+  }));
+  root.querySelectorAll("[data-insert-text]").forEach(btn => btn.addEventListener("click", () => addBlock("text", Number(btn.dataset.insertText))));
+  root.querySelectorAll("[data-insert-image]").forEach(btn => btn.addEventListener("click", () => addBlock("image", Number(btn.dataset.insertImage))));
+}
+function blockInserterHtml(at, first) {
+  return `<div class="block-insert${first ? " is-first" : ""}" data-insert-at="${at}">
+    <button type="button" class="block-insert-plus" data-insert-toggle="${at}" title="Insert a block here" aria-label="Insert a block here">＋</button>
+    <div class="block-insert-menu">
+      <button type="button" class="btn btn-ghost btn-sm" data-insert-text="${at}">＋ Text</button>
+      <button type="button" class="btn btn-ghost btn-sm" data-insert-image="${at}">＋ Image / diagram</button>
+    </div>
+  </div>`;
+}
 function renderEditorBlocks() {
   const wrap = $("blocksList");
-  if (!editorBlocks.length) { wrap.innerHTML = `<div class="hint" style="margin-bottom:12px;">No content yet — add a text block or an image below.</div>`; return; }
+  if (!editorBlocks.length) {
+    // Even with nothing in it the list offers a way in, rather than pointing at
+    // buttons somewhere below.
+    wrap.innerHTML = `<div class="hint" style="margin-bottom:6px;">No content yet — add a text block or a diagram.</div>` + blockInserterHtml(0, true);
+    wireBlockInserters(wrap);
+    return;
+  }
   wrap.innerHTML = "";
-  editorBlocks.forEach(b => {
+  editorBlocks.forEach((b, idx) => {
+    wrap.insertAdjacentHTML("beforeend", blockInserterHtml(idx, idx === 0));
     const card = document.createElement("div");
     card.className = "block-card";
+    card.setAttribute("data-block-card", b.id);
     const isImg = b.type === "image";
     card.innerHTML = `
       <div class="block-head">
@@ -4459,6 +4592,8 @@ function renderEditorBlocks() {
       <div class="block-body">${isImg ? imgBlockHtml(b) : textBlockHtml(b)}</div>`;
     wrap.appendChild(card);
   });
+  wrap.insertAdjacentHTML("beforeend", blockInserterHtml(editorBlocks.length, false));
+  wireBlockInserters(wrap);
   // wire text editing
   wrap.querySelectorAll(".block-edit").forEach(ed => ed.addEventListener("input", () => setBlockField(ed.dataset.block, "content", ed.innerText)));
   // 🎤 Dictate / ✨ Improve on each text block
@@ -6948,8 +7083,16 @@ window.openCropTool = openCropTool;
 window.openAnnotTool = openAnnotTool;
 window.renderImgEnhanceBar = renderImgEnhanceBar;
 
+// The row at the bottom of the list still appends, which is what it looks like
+// it does. The ＋ between blocks is for everywhere else.
 $("addTextBtn").addEventListener("click", () => addBlock("text"));
 $("addImageBtn").addEventListener("click", () => addBlock("image"));
+// A tap-opened inserter menu closes when the next click lands anywhere else —
+// bound once, not per render, so re-rendering the list cannot pile these up.
+document.addEventListener("click", e => {
+  if (e.target.closest && e.target.closest(".block-insert")) return;
+  document.querySelectorAll(".block-insert.open").forEach(r => r.classList.remove("open"));
+});
 
 function resetEditor() {
   currentEditingId = null;
@@ -14826,7 +14969,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.5.0 · 2026-08-07";
+const APP_VERSION = "v1.6.0 · 2026-08-07";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
