@@ -98,6 +98,39 @@ is what lets a fix in one app be copied to the other. Only the *world* differs.
   slot. Add a destination by adding a branch in `applyAnnotTool`, never by forking
   the tool.
 
+## 📐 The syllabus map
+`MOE_SYLLABUS` is the **Content** column of the MOE Primary Mathematics Syllabus
+(Primary 1 to 6, 2021), read out of the published PDF: 6 levels → strands →
+sub-strands → topics → **240 learning objectives**. **Foundation is deliberately
+excluded** — this app serves the standard syllabus, so a Foundation objective in
+the tree would be one nobody here could ever fill.
+- **A question carries `q.los`**, an array of objective ids. An id is
+  `<level>.<sub-strand key>.<code>` — `P5.FR.2.6`. **Those ids live in the bank**,
+  so the level letters, the sub-strand keys (`WN FR MON DEC PCT RAT RS ALG MEA AV
+  GEO DRI DA`) and the codes are permanent: re-key or renumber anything and every
+  tag points at a different objective. Append, never renumber.
+- `SYL_LOS` / `SYL_LO_BY_ID` are built once at load and are what the page, both
+  pickers, the search and the AI prompt read — nothing else walks the tree.
+  `qLos(q)` drops a tag whose objective no longer exists at READ time rather than
+  deleting it, so a mistaken edit to the tree loses nothing.
+- **Two pickers, and they are not the same job.** `loPickerOverlay` picks the
+  OBJECTIVES for one question (in the editor; nothing is written until Apply).
+  `qTagOverlay` picks the QUESTIONS for one objective (on the Syllabus page; each
+  tick writes immediately, because a teacher filing thirty questions should not
+  have to remember to save).
+- **Tagging writes `los` and nothing else** (`sylSaveLos` → `setDoc(…, { los },
+  { merge: true })` on the public half). The answer key lives in its own document
+  and is never in hand on that page, so re-saving the whole question there could
+  only ever lose something. `los` is not in `QUESTION_KEY_FIELDS`, so it stays in
+  the student-readable doc — which is what lets a student browse the map.
+- **`var editorLos`, not `let`** — the syllabus block sits at the END of the
+  module and `resetEditor()` runs during module evaluation, so a `let` would still
+  be in its temporal dead zone and the whole app would fail to start.
+- ✨ **Suggest** sends the question plus the objectives for its own level (the
+  whole syllabus when it has no level) and reads the reply through
+  `_parseAIJson`, so a truncated response still parses. Ids the model invents are
+  dropped; the result is re-sorted into syllabus order.
+
 ## The game economy — every faucet is gated
 🪙 points buy booster packs, so **no repeatable button may ever pay**. Every faucet
 is behind one of: answering a question (`rpgAwardGameQuestion`, which has the

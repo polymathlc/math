@@ -3675,6 +3675,83 @@ body.lore-reading { overflow: hidden; }
 .ai-engine-opt > span { flex: 1 1 auto; }
 .ai-engine-opt .dim { color: var(--text-muted); }
 
+/* ==================== 📐 SYLLABUS MAP ====================
+   The MOE Primary Mathematics syllabus as a browsable tree, with every
+   question in the bank filed under the learning objective it assesses.
+   A learning objective is a ROW you click: it opens to show its questions. */
+.syl-wrap { max-width: 1000px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+.syl-cover { border: 1px solid var(--border); border-radius: 16px; background: var(--surface); padding: 24px 28px; box-shadow: 0 4px 16px rgba(15,23,42,0.05); }
+.syl-cover-nums { display: flex; gap: 34px; flex-wrap: wrap; align-items: flex-end; }
+.syl-cover-num { display: flex; flex-direction: column; gap: 5px; }
+.syl-cover-num b { font-family: 'Space Mono', ui-monospace, monospace; font-size: 1.5rem; line-height: 1; font-weight: 700; }
+.syl-cover-num span { font-size: 0.76rem; color: var(--text-muted); letter-spacing: 0.02em; }
+.syl-cover-bar { height: 10px; border-radius: 999px; background: var(--surface-alt); border: 1px solid var(--border); overflow: hidden; margin-top: 18px; }
+.syl-cover-bar > i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #4a7c59, #86c08f); transition: width 0.5s ease; }
+.syl-cover-note { font-size: 0.82rem; color: var(--text-muted); line-height: 1.65; margin-top: 14px; }
+
+.syl-controls { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; justify-content: center; }
+.syl-chip { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 8px 17px; font-size: 0.83rem; font-weight: 600; color: var(--text-muted); cursor: pointer; }
+.syl-chip:hover { border-color: var(--primary); color: var(--primary); }
+.syl-chip.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+.syl-search { flex: 1 1 240px; min-width: 200px; max-width: 340px; }
+.syl-toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 0.83rem; color: var(--text-muted); cursor: pointer; white-space: nowrap; }
+.syl-toggle input { appearance: auto; -webkit-appearance: auto; width: auto; margin: 0; }
+
+.syl-strand { margin-top: 6px; }
+.syl-strand-h { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-light); margin: 26px 0 12px; }
+.syl-sub { border: 1px solid var(--border); border-radius: 16px; background: var(--surface); overflow: hidden; margin-bottom: 16px; box-shadow: 0 2px 10px rgba(15,23,42,0.04); }
+.syl-sub-h { display: flex; align-items: center; gap: 12px; padding: 16px 22px; background: var(--surface-alt); border-bottom: 1px solid var(--border); font-weight: 700; font-size: 0.95rem; }
+.syl-sub-key { font-family: 'Space Mono', ui-monospace, monospace; font-size: 0.68rem; font-weight: 700; color: var(--text-muted); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; }
+.syl-sub-count { margin-left: auto; font-size: 0.76rem; font-weight: 600; color: var(--text-muted); }
+.syl-topic { padding: 8px 0 4px; }
+.syl-topic-h { font-size: 0.84rem; font-weight: 700; padding: 12px 22px 8px; color: var(--text); }
+
+.syl-lo { border-top: 1px solid var(--border); }
+.syl-lo:first-child { border-top: 0; }
+.syl-lo-row { display: flex; align-items: flex-start; gap: 14px; width: 100%; padding: 14px 22px; background: none; border: 0; font: inherit; color: var(--text); text-align: left; cursor: pointer; }
+.syl-lo-row:hover { background: var(--surface-alt); }
+.syl-lo-code { flex: 0 0 auto; font-family: 'Space Mono', ui-monospace, monospace; font-size: 0.74rem; font-weight: 700; color: var(--primary); min-width: 34px; padding-top: 2px; }
+.syl-lo-main { flex: 1 1 auto; min-width: 0; }
+.syl-lo-text { font-size: 0.9rem; line-height: 1.6; }
+.syl-lo-notes { margin: 7px 0 0; padding-left: 18px; font-size: 0.82rem; line-height: 1.65; color: var(--text-muted); }
+.syl-lo-badge { flex: 0 0 auto; font-size: 0.74rem; font-weight: 700; border-radius: 999px; padding: 4px 11px; white-space: nowrap; background: var(--surface-alt); border: 1px solid var(--border); color: var(--text-muted); }
+.syl-lo-badge.has { background: #e8f5ec; border-color: #b6ddc2; color: #2f6f4f; }
+.syl-lo-caret { flex: 0 0 auto; color: var(--text-light); font-size: 0.7rem; padding-top: 4px; transition: transform 0.18s ease; }
+.syl-lo.open .syl-lo-caret { transform: rotate(90deg); }
+.syl-lo-body { padding: 4px 22px 20px 70px; }
+.syl-lo-empty { font-size: 0.84rem; color: var(--text-muted); line-height: 1.65; padding: 4px 0 10px; }
+
+.syl-q { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); margin-bottom: 9px; }
+.syl-q-main { flex: 1 1 auto; min-width: 0; }
+.syl-q-title { font-size: 0.88rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.syl-q-meta { font-size: 0.76rem; color: var(--text-muted); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.syl-q .btn { flex: 0 0 auto; }
+.syl-lo-tools { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+
+/* ---- The learning-objective chips on a question (editor + pickers) ---- */
+.lo-chips { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.lo-chip { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; font-size: 0.78rem; line-height: 1.4; border: 1px solid var(--border); background: var(--surface-alt); border-radius: 999px; padding: 6px 8px 6px 12px; }
+.lo-chip b { font-family: 'Space Mono', ui-monospace, monospace; font-size: 0.72rem; color: var(--primary); }
+.lo-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 300px; }
+.lo-chip button { border: 0; background: none; color: var(--text-muted); font-size: 0.9rem; line-height: 1; cursor: pointer; padding: 2px 4px; border-radius: 6px; }
+.lo-chip button:hover { background: rgba(0,0,0,0.07); color: var(--text); }
+.lo-empty { font-size: 0.82rem; color: var(--text-muted); line-height: 1.6; }
+
+/* ---- The two pickers (objectives for a question / questions for an objective) ---- */
+.lop-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+.lop-bar select, .lop-bar input { flex: 1 1 160px; min-width: 140px; }
+.lop-list { max-height: 48vh; overflow-y: auto; border: 1px solid var(--border); border-radius: 12px; }
+.lop-group { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); background: var(--surface-alt); padding: 9px 16px; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 1; }
+.lop-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); cursor: pointer; }
+.lop-row:last-child { border-bottom: 0; }
+.lop-row:hover { background: var(--surface-alt); }
+.lop-row.on { background: #eef6f0; }
+.lop-row input { appearance: auto; -webkit-appearance: auto; width: 16px; height: 16px; min-width: 16px; margin: 2px 0 0; flex: 0 0 auto; }
+.lop-row-main { flex: 1 1 auto; min-width: 0; font-size: 0.86rem; line-height: 1.55; }
+.lop-row-code { font-family: 'Space Mono', ui-monospace, monospace; font-size: 0.72rem; font-weight: 700; color: var(--primary); margin-right: 8px; }
+.lop-row-sub { font-size: 0.76rem; color: var(--text-muted); margin-top: 3px; }
+.lop-empty { padding: 26px 16px; text-align: center; font-size: 0.85rem; color: var(--text-muted); }
+
 </style>
 </head>
 <body>
@@ -3722,6 +3799,7 @@ body.lore-reading { overflow: hidden; }
     <nav class="sidebar-nav">
       <div class="nav-item active" data-page="practice"><span class="ico">✍️</span> Practice</div>
       <div class="nav-item" id="navAiMark"><span class="ico">📸</span> AI Marking</div>
+      <div class="nav-item" data-page="syllabus" title="The MOE Primary Mathematics syllabus — every learning objective, and the questions filed under each one"><span class="ico">📐</span> Syllabus</div>
       <div class="nav-section rpg-el" style="display:none;">Game</div>
       <div class="nav-item rpg-el" data-page="character" style="display:none;"><span class="ico">🛡️</span> Character</div>
       <div class="nav-item rpg-el" data-page="leaderboard" style="display:none;"><span class="ico">🏆</span> Leaderboard</div>
@@ -3972,6 +4050,15 @@ body.lore-reading { overflow: hidden; }
             <div class="editor-field" style="margin:0;"><label>Topics</label><input id="qTopicInput" type="text" placeholder="e.g. Fractions, Ratio"></div>
           </div>
           <div class="editor-field" style="margin:0;"><label>Concept <span style="color:var(--text-light);font-weight:400;">(teacher only)</span></label><input id="qConceptInput" type="text" placeholder="e.g. Assumption, Total unchanged"><div class="hint">Private strategy/concept label for organising and AI guidance. Students only see the topic.</div></div>
+          <div class="editor-field" style="margin:14px 0 0;">
+            <label>Syllabus objectives</label>
+            <div class="lo-chips" id="qLoChips" style="margin-bottom:10px;"></div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <button class="btn btn-ghost btn-sm" type="button" id="qLoAddBtn">＋ Add objective</button>
+              <button class="btn btn-ghost btn-sm" type="button" id="qLoSuggestBtn" title="Let the AI read this question and propose the objectives it assesses">✨ Suggest</button>
+            </div>
+            <div class="hint">Files this question in the 📐 Syllabus map. Foundation is not covered — these are the standard P1–P6 objectives.</div>
+          </div>
         </div>
 
         <label style="display:block;font-size:0.84rem;font-weight:600;margin:6px 0;">Question content</label>
@@ -4191,6 +4278,16 @@ body.lore-reading { overflow: hidden; }
       </div>
     </div>
 
+    <!-- ================= SYLLABUS MAP =================
+         The MOE Primary Mathematics syllabus, with every question in the bank
+         filed under the learning objective it assesses. Click an objective to
+         open it. Foundation is excluded — this app serves the standard
+         syllabus, so a Foundation objective would be one nobody can fill. -->
+    <div class="page" id="page-syllabus">
+      <div class="page-head"><h3>📐 Syllabus</h3><p>Every learning objective in the MOE Primary Mathematics syllabus (P1–P6). Click one to see the questions filed under it.</p></div>
+      <div class="syl-wrap" id="syllabusBody"><div class="empty-note">Loading the syllabus…</div></div>
+    </div>
+
     <!-- ================= CREATE WORKSHEET PAGE (admin) =================
          A worksheet is nothing but an ORDERED list of question ids. Pick the
          questions here; the cover, the printed sheet, the answer key, the
@@ -4320,6 +4417,38 @@ body.lore-reading { overflow: hidden; }
 </div>
 
 <!-- ============================== OVERLAYS ============================== -->
+<!-- Picker A — the OBJECTIVES for one question. Opened from the editor's
+     "Syllabus objectives" field. Nothing is written until Apply. -->
+<div class="overlay" id="loPickerOverlay">
+  <div class="overlay-card">
+    <div class="overlay-head"><h3>📐 Syllabus objectives</h3><button class="close" data-close="loPickerOverlay">×</button></div>
+    <div class="overlay-body">
+      <p style="color:var(--text-muted);font-size:0.88rem;margin-bottom:16px;line-height:1.65;">Tick every objective this question actually assesses — usually one, sometimes two or three. The level is preset from the question's own level; clear it to search the whole syllabus.</p>
+      <div class="lop-bar">
+        <select id="loPickerLevel"></select>
+        <input type="text" id="loPickerSearch" placeholder="Search objectives…">
+      </div>
+      <div class="lop-list" id="loPickerList"></div>
+    </div>
+    <div class="overlay-foot"><button class="btn btn-ghost" data-close="loPickerOverlay">Cancel</button><button class="btn btn-primary" id="loPickerApply">Apply</button></div>
+  </div>
+</div>
+
+<!-- Picker B — the QUESTIONS for one objective. Opened from the Syllabus page.
+     Each tick writes straight away (a single `los` field, merged), because a
+     teacher filing thirty questions should not have to remember to save. -->
+<div class="overlay" id="qTagOverlay">
+  <div class="overlay-card">
+    <div class="overlay-head"><h3>＋ File questions under <span id="qTagTitle"></span></h3><button class="close" data-close="qTagOverlay">×</button></div>
+    <div class="overlay-body">
+      <p style="color:var(--text-muted);font-size:0.88rem;margin-bottom:16px;line-height:1.65;" id="qTagSub"></p>
+      <div class="lop-bar"><input type="text" id="qTagSearch" placeholder="Search your question bank…"></div>
+      <div class="lop-list" id="qTagList"></div>
+    </div>
+    <div class="overlay-foot"><button class="btn btn-primary" data-close="qTagOverlay">Done</button></div>
+  </div>
+</div>
+
 <div class="overlay" id="aiEngineOverlay">
   <div class="overlay-card">
     <div class="overlay-head"><h3>🧠 AI Engine</h3><button class="close" data-close="aiEngineOverlay">×</button></div>
@@ -6852,7 +6981,7 @@ function navigateTo(page) {
   // everything else is CSS, which is what makes the swap instant and
   // impossible to leave half-applied.
   document.body.classList.toggle("nova-protocol", page === "tcg");
-  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", vetting: "Vetting", graph: "Dependency Board", worksheet: "Create Worksheet", myworksheets: "My Worksheets", worksheetview: "Worksheet Overview", students: "Student Results", character: "Character", leaderboard: "Leaderboard", adventure: "Dungeon", tcg: "Nova Protocol" };
+  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", vetting: "Vetting", graph: "Dependency Board", worksheet: "Create Worksheet", myworksheets: "My Worksheets", worksheetview: "Worksheet Overview", students: "Student Results", character: "Character", leaderboard: "Leaderboard", adventure: "Dungeon", tcg: "Nova Protocol", syllabus: "Syllabus" };
   $("topbarTitle").textContent = titles[page] || "";
   $("sidebar").classList.remove("open");
   if (page === "character") rpgRenderCharacterPage();
@@ -6867,6 +6996,7 @@ function navigateTo(page) {
   if (page === "myworksheets") renderSavedWorksheets();
   if (page === "worksheetview") renderWorksheetOverview();
   if (page === "tcg") { try { tcgRenderBody(); tcgUpdateGoldChip(); } catch (e) { console.warn("tcg render", e); } }
+  if (page === "syllabus") renderSyllabusPage();
 }
 // Keep the sticky battle strip pinned right under the (also-sticky) topbar,
 // whatever the topbar's real height ends up being on this viewport.
@@ -10414,6 +10544,7 @@ function resetEditor() {
   imgChoices.clear();
   editorBlocks = [{ id: genBlockId(), type: "text", content: "" }];
   $("qTitleInput").value = ""; $("qLevelInput").value = ""; $("qTopicInput").value = ""; $("qConceptInput").value = "";
+  editorLos = []; sylEditorRender();
   $("qExpectedInput").value = ""; $("qGuideInput").value = "";
   $("qVideoInput").value = "";
   setAnswerKeyImage("");
@@ -10445,6 +10576,7 @@ function loadQuestionIntoEditor(q) {
   editorBlocks.forEach(b => { if (b.type === "image") b.scale = normalizeImageScale(b.scale); });
   if (!editorBlocks.length) editorBlocks = [{ id: genBlockId(), type: "text", content: "" }];
   $("qTitleInput").value = q.title || ""; $("qLevelInput").value = q.level || ""; $("qTopicInput").value = adminTopicsLabel(q); $("qConceptInput").value = conceptLabel(q);
+  editorLos = qLos(q); sylEditorRender();
   $("qExpectedInput").value = q.expected || ""; $("qGuideInput").value = q.markingGuide || "";
   $("qVideoInput").value = q.videoExplanationUrl || "";
   setAnswerKeyImage(q.answerKeyImageUrl || "");
@@ -10487,6 +10619,7 @@ function collectQuestion() {
     topic: topics.join(", "),
     topics,
     concept: $("qConceptInput").value.trim(),
+    los: editorLos.slice(),
     blocks,
     expected: $("qExpectedInput").value.trim(),
     markingGuide: $("qGuideInput").value.trim(),
@@ -18696,7 +18829,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.12.0 · 2026-08-09";
+const APP_VERSION = "v1.13.0 · 2026-08-09";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
@@ -32844,6 +32977,943 @@ async function _scaleDownDataUrl(dataUrl, maxSide){
   c.getContext('2d').drawImage(img, 0, 0, cw, ch);
   return c.toDataURL('image/png');
 }
+
+// =====================================================================
+// 📐 SYLLABUS MAP — every question filed under the MOE syllabus
+// =====================================================================
+// MOE_SYLLABUS below is the Content column of the Primary Mathematics
+// Syllabus (Primary 1 to 6, 2021), read straight out of the published PDF.
+// FOUNDATION IS DELIBERATELY EXCLUDED — this app serves the standard
+// syllabus, and a Foundation objective in the tree would be an objective
+// nobody here can ever file a question under.
+//
+// A question carries `q.los`: an array of learning-objective ids. An id is
+// `<level>.<sub-strand key>.<code>` — "P5.FR.2.6". Those ids are STORED ON
+// EVERY QUESTION, so the level letters, the sub-strand keys and the codes
+// are permanent: re-order or re-key anything here and every tag in the bank
+// points at the wrong objective. Append, never renumber.
+// ---------------------------------------------------------------------
+
+const MOE_SYLLABUS = [
+  // ───────────────────────────── P1 ─────────────────────────────
+  { lv: "P1", strands: [
+    { s: "Number and Algebra", subs: [
+      { k: "WN", n: "Whole Numbers", topics: [
+        { t: "Numbers up to 100", los: [
+          ["1.1", "counting to tell the number of objects in a given set"],
+          ["1.2", "number notation, representations and place values (tens, ones)"],
+          ["1.3", "reading and writing numbers in numerals and in words"],
+          ["1.4", "comparing the number of objects in two or more sets"],
+          ["1.5", "comparing and ordering numbers"],
+          ["1.6", "patterns in number sequences"],
+          ["1.7", "ordinal numbers (first, second, up to tenth) and symbols (1st, 2nd, 3rd, etc)"],
+          ["1.8", "number bonds for numbers up to 10"]
+        ] },
+        { t: "Addition and Subtraction", los: [
+          ["2.1", "concepts of addition and subtraction"],
+          ["2.2", "use of +, – and ="],
+          ["2.3", "relationship between addition and subtraction"],
+          ["2.4", "adding more than two 1-digit numbers"],
+          ["2.5", "adding and subtracting within 100"],
+          ["2.6", "adding and subtracting using algorithms"],
+          ["2.7", "solving 1-step word problems involving addition and subtraction within 20"],
+          ["2.8", "mental calculation involving addition and subtraction", ["within 20", "of a 2-digit number and ones without renaming", "of a 2-digit number and tens"]]
+        ] },
+        { t: "Multiplication and Division", los: [
+          ["3.1", "concepts of multiplication and division"],
+          ["3.2", "use of ×"],
+          ["3.3", "multiplying within 40"],
+          ["3.4", "dividing within 20"],
+          ["3.5", "solving 1-step word problems involving multiplication and division with pictorial representation"]
+        ] }
+      ] },
+      { k: "MON", n: "Money", topics: [
+        { t: "Money", los: [
+          ["1.1", "counting amount of money", ["in cents up to $1", "in dollars up to $100"]],
+          ["1.2", "solving 1-step word problems involving addition and subtraction of money in dollars only (or in cents only)"]
+        ] }
+      ] }
+    ] },
+    { s: "Measurement and Geometry", subs: [
+      { k: "MEA", n: "Measurement", topics: [
+        { t: "Length", los: [
+          ["1.1", "measuring and comparing the length of objects in non-standard units"]
+        ] },
+        { t: "Time", los: [
+          ["2.1", "telling time to the hour/half hour"]
+        ] }
+      ] },
+      { k: "GEO", n: "Geometry", topics: [
+        { t: "2D Shapes", los: [
+          ["1.1", "identifying, naming, describing and classifying 2D shapes", ["rectangle", "square", "circle", "triangle"]],
+          ["1.2", "making/completing patterns with 2D shapes according to one or two of the following attributes", ["size", "shape", "colour", "orientation"]]
+        ] }
+      ] }
+    ] },
+    { s: "Statistics", subs: [
+      { k: "DRI", n: "Data Representation and Interpretation", topics: [
+        { t: "Picture Graphs", los: [
+          ["1.1", "reading and interpreting data from picture graphs"]
+        ] }
+      ] }
+    ] }
+  ] },
+  // ───────────────────────────── P2 ─────────────────────────────
+  { lv: "P2", strands: [
+    { s: "Number and Algebra", subs: [
+      { k: "WN", n: "Whole Numbers", topics: [
+        { t: "Numbers up to 1000", los: [
+          ["1.1", "counting in tens/hundreds"],
+          ["1.2", "number notation, representations and place values (hundreds, tens, ones)"],
+          ["1.3", "reading and writing numbers in numerals and in words"],
+          ["1.4", "comparing and ordering numbers"],
+          ["1.5", "patterns in number sequences"],
+          ["1.6", "odd and even numbers"]
+        ] },
+        { t: "Addition and Subtraction", los: [
+          ["2.1", "addition and subtraction algorithms (up to 3 digits)"],
+          ["2.2", "solving up to 2-step word problems involving addition and subtraction"],
+          ["2.3", "mental calculation involving addition and subtraction of a 3-digit number and ones/tens/ hundreds"]
+        ] },
+        { t: "Multiplication and Division", los: [
+          ["3.1", "multiplication tables of 2, 3, 4, 5 and 10"],
+          ["3.2", "use of ÷"],
+          ["3.3", "relationship between multiplication and division"],
+          ["3.4", "multiplying and dividing within the multiplication tables"],
+          ["3.5", "solving 1-step word problems involving multiplication and division within the multiplication tables"],
+          ["3.6", "mental calculation involving multiplication and division within the multiplication tables of 2, 3, 4, 5 and 10"]
+        ] }
+      ] },
+      { k: "FR", n: "Fractions", topics: [
+        { t: "Fraction of a Whole", los: [
+          ["1.1", "fraction as part of a whole"],
+          ["1.2", "notation and representations of fractions"],
+          ["1.3", "comparing and ordering fractions with denominators of given fractions not exceeding 12", ["unit fractions", "like fractions"]]
+        ] },
+        { t: "Addition and Subtraction", los: [
+          ["2.1", "adding and subtracting like fractions within one whole with denominators of given fractions not exceeding 12"]
+        ] }
+      ] },
+      { k: "MON", n: "Money", topics: [
+        { t: "Money", los: [
+          ["1.1", "counting amount of money in dollars and cents"],
+          ["1.2", "reading and writing money in decimal notation"],
+          ["1.3", "comparing two or three amounts of money"],
+          ["1.4", "converting an amount of money in decimal notation to cents only, and vice versa"],
+          ["1.5", "solving word problems involving money in dollars only (or in cents only)"]
+        ] }
+      ] }
+    ] },
+    { s: "Measurement and Geometry", subs: [
+      { k: "MEA", n: "Measurement", topics: [
+        { t: "Length, Mass and Volume", los: [
+          ["1.1", "measuring", ["length in metres/centimetres", "mass in kilograms/grams", "volume of liquid in litres"]],
+          ["1.2", "measuring and drawing a line segment to the nearest cm"],
+          ["1.3", "using appropriate units of measurement and their abbreviations cm, m, g, kg, ℓ"],
+          ["1.4", "comparing and ordering", ["lengths", "masses", "volumes"]],
+          ["1.5", "solving word problems involving length/mass/ volume"]
+        ] },
+        { t: "Time", los: [
+          ["2.1", "telling time to 5 minutes"],
+          ["2.2", "use of ‘a.m.’ and ‘p.m.’"],
+          ["2.3", "use of abbreviations h and min"],
+          ["2.4", "drawing hands on the clock face to show time"],
+          ["2.5", "duration of 1 hour/half hour"]
+        ] }
+      ] },
+      { k: "GEO", n: "Geometry", topics: [
+        { t: "2D Shapes", los: [
+          ["1.1", "identifying, naming and describing 2D shapes", ["semicircle", "quarter circle"]],
+          ["1.2", "identifying the basic shapes that make up a given figure"],
+          ["1.3", "forming different 2D figures with", ["rectangle", "square", "triangle", "semicircle", "quarter circle"]],
+          ["1.4", "copying figures on dot grid or square grid"]
+        ] },
+        { t: "3D Shapes", los: [
+          ["2.1", "identifying, naming, describing and classifying 3D shapes", ["cube", "cuboid", "cone", "cylinder", "sphere"]]
+        ] }
+      ] }
+    ] },
+    { s: "Statistics", subs: [
+      { k: "DRI", n: "Data Representation and Interpretation", topics: [
+        { t: "Picture Graphs with Scales", los: [
+          ["1.1", "reading and interpreting data from picture graphs with scales"],
+          ["1.2", "solving 1-step problems using data from picture graphs"]
+        ] }
+      ] }
+    ] }
+  ] },
+  // ───────────────────────────── P3 ─────────────────────────────
+  { lv: "P3", strands: [
+    { s: "Number and Algebra", subs: [
+      { k: "WN", n: "Whole Numbers", topics: [
+        { t: "Numbers up to 10 000", los: [
+          ["1.1", "counting in hundreds/thousands"],
+          ["1.2", "number notation, representations and place values (thousands, hundreds, tens, ones)"],
+          ["1.3", "reading and writing numbers in numerals and in words"],
+          ["1.4", "comparing and ordering numbers"],
+          ["1.5", "patterns in number sequences"]
+        ] },
+        { t: "Addition and Subtraction", los: [
+          ["2.1", "addition and subtraction algorithms (up to 4 digits)"],
+          ["2.2", "solving up to 2-step word problems involving addition and subtraction"],
+          ["2.3", "mental calculation involving addition and subtraction of two 2-digit numbers"]
+        ] },
+        { t: "Multiplication and Division", los: [
+          ["3.1", "multiplication tables of 6, 7, 8 and 9"],
+          ["3.2", "multiplying and dividing within the multiplication tables"],
+          ["3.3", "division with remainder"],
+          ["3.4", "multiplication and division algorithms (up to 3 digits by 1 digit)"],
+          ["3.5", "solving up to 2-step word problems involving the 4 operations"],
+          ["3.6", "mental calculation involving multiplication and division within the multiplication tables"]
+        ] }
+      ] },
+      { k: "FR", n: "Fractions", topics: [
+        { t: "Equivalent fractions", los: [
+          ["1.1", "equivalent fractions"],
+          ["1.2", "expressing a fraction in its simplest form"],
+          ["1.3", "comparing and ordering unlike fractions with denominators of given fractions not exceeding 12"],
+          ["1.4", "writing the equivalent fraction of a fraction given the denominator or the numerator"]
+        ] },
+        { t: "Addition and subtraction", los: [
+          ["2.1", "adding and subtracting two related fractions within one whole with denominators of given fractions not exceeding 12"]
+        ] }
+      ] },
+      { k: "MON", n: "Money", topics: [
+        { t: "Money", los: [
+          ["1.1", "adding and subtracting money in decimal notation"],
+          ["1.2", "solving word problems involving addition and subtraction of money in decimal notation"]
+        ] }
+      ] }
+    ] },
+    { s: "Measurement and Geometry", subs: [
+      { k: "MEA", n: "Measurement", topics: [
+        { t: "Length, Mass and Volume", los: [
+          ["1.1", "measuring", ["length in kilometres (km)", "volume of liquid in millilitres (ml)"]],
+          ["1.2", "measuring length/mass/volume (of liquid) in compound units"],
+          ["1.3", "converting a measurement in compound units to the smaller unit, and vice versa", ["kilometres and metres", "metres and centimetres", "kilograms and grams", "litres and millilitres (numbers involved should be within easy manipulation)"]],
+          ["1.4", "solving word problems involving length/mass/ volume/capacity excluding fractions and compound units"]
+        ] },
+        { t: "Time", los: [
+          ["2.1", "telling time to the minute"],
+          ["2.2", "use of ‘past’ and ‘to’ to tell time"],
+          ["2.3", "measuring time in hours and minutes"],
+          ["2.4", "converting time in hours and minutes to minutes only, and vice versa"],
+          ["2.5", "finding the starting time, finishing time or duration given the other two quantities"],
+          ["2.6", "solving problems involving time in hours and minutes"]
+        ] }
+      ] },
+      { k: "AV", n: "Area and Volume", topics: [
+        { t: "Area and Perimeter", los: [
+          ["1.1", "concepts of area and perimeter of a plane figure"],
+          ["1.2", "measuring area in square units, cm² and m², excluding conversion between cm² and m²"],
+          ["1.3", "perimeter of", ["rectilinear figure", "rectangle", "square"]],
+          ["1.4", "area of rectangle/square"]
+        ] }
+      ] },
+      { k: "GEO", n: "Geometry", topics: [
+        { t: "Angles", los: [
+          ["1.1", "concepts of angle"],
+          ["1.2", "right angles, angles greater than/smaller than a right angle"]
+        ] },
+        { t: "Perpendicular and Parallel Lines", los: [
+          ["2.1", "perpendicular and parallel lines"],
+          ["2.2", "draw perpendicular and parallel lines on square grid"]
+        ] }
+      ] }
+    ] },
+    { s: "Statistics", subs: [
+      { k: "DRI", n: "Data Representation and Interpretation", topics: [
+        { t: "Bar Graphs", los: [
+          ["1.1", "reading and interpreting data from bar graphs"],
+          ["1.2", "using different scales on axis"],
+          ["1.3", "solving 1-step problems using data from bar graphs"]
+        ] }
+      ] }
+    ] }
+  ] },
+  // ───────────────────────────── P4 ─────────────────────────────
+  { lv: "P4", strands: [
+    { s: "Number and Algebra", subs: [
+      { k: "WN", n: "Whole Numbers", topics: [
+        { t: "Numbers up to 100 000", los: [
+          ["1.1", "number notation, representations and place values (ten thousands, thousands, hundreds, tens, ones)"],
+          ["1.2", "reading and writing numbers in numerals and in words"],
+          ["1.3", "comparing and ordering numbers"],
+          ["1.4", "patterns in number sequences"],
+          ["1.5", "rounding numbers to the nearest 10, 100 or 1000"],
+          ["1.6", "use of ≈"]
+        ] },
+        { t: "Factors and Multiples", los: [
+          ["2.1", "factors, multiples and their relationship"],
+          ["2.2", "determining if a 1-digit number is a factor of a given number within 100"],
+          ["2.3", "finding the common factors of two given numbers"],
+          ["2.4", "determining if a number is a multiple of a given 1-digit number"],
+          ["2.5", "finding the common multiples of two given 1-digit numbers"]
+        ] },
+        { t: "Four Operations", los: [
+          ["3.1", "multiplication algorithm", ["up to 4 digits by 1 digit", "up to 3 digits by 2 digits"]],
+          ["3.2", "division algorithm (up to 4 digits by 1 digit)"],
+          ["3.3", "solving up to 3-step word problems involving the 4 operations"]
+        ] }
+      ] },
+      { k: "FR", n: "Fractions", topics: [
+        { t: "Mixed Numbers and Improper Fractions", los: [
+          ["1.1", "mixed numbers, improper fractions and their relationships"]
+        ] },
+        { t: "Fraction of a Set of Objects", los: [
+          ["2.1", "fraction as part of a set of objects"]
+        ] },
+        { t: "Addition and Subtraction", los: [
+          ["3.1", "adding and subtracting fractions with denominators of given fractions not exceeding 12 and not more than two different denominators"],
+          ["3.2", "solving up to 2-step word problems involving addition and subtraction"]
+        ] }
+      ] },
+      { k: "DEC", n: "Decimals", topics: [
+        { t: "Decimals up to 3 decimal places", los: [
+          ["1.1", "notation, representations and place values (tenths, hundredths, thousandths)"],
+          ["1.2", "comparing and ordering decimals"],
+          ["1.3", "dividing a whole number by a whole number with quotient as a decimal"],
+          ["1.4", "converting decimals to fractions"],
+          ["1.5", "converting fractions to decimals when the denominator is a factor of 10 or 100"],
+          ["1.6", "rounding decimals to", ["the nearest whole number", "1 decimal place", "2 decimal places"]]
+        ] },
+        { t: "Addition and Subtraction", los: [
+          ["2.1", "adding and subtracting decimals (up to 2 decimal places)"]
+        ] },
+        { t: "Multiplication and Division", los: [
+          ["3.1", "multiplying and dividing decimals (up to 2 decimal places) by a 1-digit whole number"],
+          ["3.2", "solving up to 2-step word problems involving the 4 operations"],
+          ["3.3", "rounding off answers to a specified degree of accuracy"]
+        ] }
+      ] }
+    ] },
+    { s: "Measurement and Geometry", subs: [
+      { k: "MEA", n: "Measurement", topics: [
+        { t: "Time", los: [
+          ["1.1", "measuring time in seconds"],
+          ["1.2", "24-hour clock"],
+          ["1.3", "solving problems involving time in 24-hour clock"]
+        ] }
+      ] },
+      { k: "AV", n: "Area and Volume", topics: [
+        { t: "Area and Perimeter", los: [
+          ["1.1", "finding one dimension of a rectangle given the other dimension and its area/perimeter"],
+          ["1.2", "finding the length of one side of a square given its area/perimeter"],
+          ["1.3", "finding the area and perimeter of composite figures made up of rectangles and squares"]
+        ] }
+      ] },
+      { k: "GEO", n: "Geometry", topics: [
+        { t: "Angles", los: [
+          ["1.1", "using notation such as ABC and a to name angles"],
+          ["1.2", "measuring angles in degrees"],
+          ["1.3", "drawing an angle of given size"],
+          ["1.4", "relating quarter, half and complete turns to angles in degrees"],
+          ["1.5", "8-point compass"]
+        ] },
+        { t: "Rectangle and Square", los: [
+          ["2.1", "properties of rectangle and square, excluding diagonal properties"],
+          ["2.2", "drawing rectangles and squares on square grid"]
+        ] },
+        { t: "Line Symmetry", los: [
+          ["3.1", "identifying symmetric figures"],
+          ["3.2", "determining whether a straight line is a line of symmetry of a symmetric figure"],
+          ["3.3", "completing a symmetric figure with respect to a given line of symmetry on square grid"]
+        ] }
+      ] }
+    ] },
+    { s: "Statistics", subs: [
+      { k: "DRI", n: "Data Representation and Interpretation", topics: [
+        { t: "Tables and Line Graphs", los: [
+          ["1.1", "completing a table from given data"],
+          ["1.2", "reading and interpreting data from tables/line graphs"],
+          ["1.3", "solve 1-step problems using data from tables/graphs"]
+        ] }
+      ] }
+    ] }
+  ] },
+  // ───────────────────────────── P5 ─────────────────────────────
+  { lv: "P5", strands: [
+    { s: "Number and Algebra", subs: [
+      { k: "WN", n: "Whole Numbers", topics: [
+        { t: "Numbers up to 10 million", los: [
+          ["1.1", "reading and writing numbers in numerals and in words"]
+        ] },
+        { t: "Four Operations", los: [
+          ["2.1", "multiplying and dividing by 10, 100, 1000 and their multiples without calculator"],
+          ["2.2", "order of operations without calculator"],
+          ["2.3", "use of brackets without calculator"],
+          ["2.4", "solving word problems involving the 4 operations"]
+        ] }
+      ] },
+      { k: "FR", n: "Fractions", topics: [
+        { t: "Fraction and Division", los: [
+          ["1.1", "dividing a whole number by a whole number with quotient as a fraction"],
+          ["1.2", "converting fractions to decimals"]
+        ] },
+        { t: "Four Operations", los: [
+          ["2.1", "adding and subtracting mixed numbers"],
+          ["2.2", "multiplying a proper/improper fraction and a whole number without calculator"],
+          ["2.3", "multiplying a proper fraction and a proper/ improper fractions without calculator"],
+          ["2.4", "multiplying two improper fractions"],
+          ["2.5", "multiplying a mixed number and a whole number"],
+          ["2.6", "solving word problems involving addition, subtraction and multiplication"]
+        ] }
+      ] },
+      { k: "DEC", n: "Decimals", topics: [
+        { t: "Four Operations", los: [
+          ["1.1", "multiplying and dividing decimals (up to 3 decimal places) by 10, 100, 1000 and their multiples without calculator"],
+          ["1.2", "converting a measurement from a smaller unit to a larger unit in decimal form, and vice versa", ["kilometres and metres", "metres and centimetres", "kilograms and grams", "litres and millilitres"]],
+          ["1.3", "solving word problems involving the 4 operations"]
+        ] }
+      ] },
+      { k: "PCT", n: "Percentage", topics: [
+        { t: "Percentage", los: [
+          ["1.1", "expressing a part of a whole as a percentage"],
+          ["1.2", "use of %"],
+          ["1.3", "finding a percentage part of a whole"],
+          ["1.4", "finding discount, GST and annual interest"],
+          ["1.5", "solving up to 2-step word problems involving percentage"]
+        ] }
+      ] },
+      { k: "RAT", n: "Ratio", topics: [
+        { t: "Ratio", los: [
+          ["1.1", "notation, representations and interpretation of a:b and a:b:c, where a, b and c are whole numbers, excluding ratios involving fractions and decimals"],
+          ["1.2", "equivalent ratios"],
+          ["1.3", "dividing a quantity in a given ratio"],
+          ["1.4", "expressing a ratio in its simplest form"],
+          ["1.5", "finding the ratio of two or three given quantities"],
+          ["1.6", "finding the missing term in a pair of equivalent ratios"],
+          ["1.7", "solving up to 2-step word problems involving ratio"]
+        ] }
+      ] },
+      { k: "RS", n: "Rate and Speed", topics: [
+        { t: "Rate", los: [
+          ["1.1", "rate as the amount of a quantity per unit of another quantity"],
+          ["1.2", "finding rate, total amount or number of units given the other two quantities"],
+          ["1.3", "solving word problems involving rate"]
+        ] }
+      ] }
+    ] },
+    { s: "Measurement and Geometry", subs: [
+      { k: "AV", n: "Area and Volume", topics: [
+        { t: "Area of Triangle", los: [
+          ["1.1", "concepts of base and height of a triangle"],
+          ["1.2", "area of triangle"],
+          ["1.3", "finding the area of composite figures made up of rectangles, squares and triangles"]
+        ] },
+        { t: "Volume of Cube and Cuboid", los: [
+          ["2.1", "building solids with unit cubes"],
+          ["2.2", "measuring volume in cubic units, cm³ and m³, excluding conversion between cm³ and m³"],
+          ["2.3", "drawing cubes and cuboids on isometric grid"],
+          ["2.4", "volume of a cube/cuboid"],
+          ["2.5", "finding the volume of liquid in a rectangular tank"],
+          ["2.6", "relationship between ℓ (or ml) and cm³"]
+        ] }
+      ] },
+      { k: "GEO", n: "Geometry", topics: [
+        { t: "Angles", los: [
+          ["1.1", "angles on a straight line"],
+          ["1.2", "angles at a point"],
+          ["1.3", "vertically opposite angles"],
+          ["1.4", "finding unknown angles"]
+        ] },
+        { t: "Triangle", los: [
+          ["2.1", "properties of", ["isosceles triangle", "equilateral triangle", "right-angled triangle"]],
+          ["2.2", "angle sum of a triangle"],
+          ["2.3", "finding unknown angles without additional construction of lines"]
+        ] },
+        { t: "Parallelogram, Rhombus and Trapezium", los: [
+          ["3.1", "properties of", ["parallelogram", "rhombus", "trapezium"]],
+          ["3.2", "finding unknown angles without additional construction of lines"]
+        ] }
+      ] }
+    ] },
+    { s: "Statistics", subs: [
+      { k: "DA", n: "Data Analysis", topics: [
+        { t: "Average of a Set of Data", los: [
+          ["1.1", "average as ‘total value ÷ number of data’"],
+          ["1.2", "relationship between average, total value and number of data"]
+        ] }
+      ] }
+    ] }
+  ] },
+  // ───────────────────────────── P6 ─────────────────────────────
+  { lv: "P6", strands: [
+    { s: "Number and Algebra", subs: [
+      { k: "FR", n: "Fractions", topics: [
+        { t: "Four Operations", los: [
+          ["1.1", "dividing a proper fraction by a whole number without calculator"],
+          ["1.2", "dividing a whole number/proper fraction by a proper fraction without calculator"],
+          ["1.3", "solving word problems involving the 4 operations"]
+        ] }
+      ] },
+      { k: "PCT", n: "Percentage", topics: [
+        { t: "Percentage", los: [
+          ["1.1", "finding the whole given a part and the percentage"],
+          ["1.2", "finding percentage increase/decrease"],
+          ["1.3", "solving word problems involving percentage"]
+        ] }
+      ] },
+      { k: "RAT", n: "Ratio", topics: [
+        { t: "Ratio", los: [
+          ["1.1", "relationship between fraction and ratio"],
+          ["1.2", "solving word problems involving ratio including changing ratios"]
+        ] }
+      ] },
+      { k: "RS", n: "Rate and Speed", topics: [
+        { t: "Distance, Time and Speed", los: [
+          ["1.1", "concepts of speed and average speed"],
+          ["1.2", "relationship between distance, time and speed exclude conversion of units e.g. km/h to m/min"],
+          ["1.3", "writing speed in different units such as km/h, m/min, m/s and cm/s"],
+          ["1.4", "solving up to 3-step word problems involving speed and average speed"]
+        ] }
+      ] },
+      { k: "ALG", n: "Algebra", topics: [
+        { t: "Algebra", los: [
+          ["1.1", "using a letter to represent an unknown number"],
+          ["1.2", "notation, representations and interpretation of simple algebraic expressions such as", ["a ± 3", "a × 3 or 3a", "a ÷ 3 or a/3"]],
+          ["1.3", "simplifying simple linear expressions excluding brackets"],
+          ["1.4", "evaluating simple linear expressions by substitution"],
+          ["1.5", "solving simple linear equations involving whole number coefficient only in simple context"]
+        ] }
+      ] }
+    ] },
+    { s: "Measurement and Geometry", subs: [
+      { k: "AV", n: "Area and Volume", topics: [
+        { t: "Area and Circumference of Circle", los: [
+          ["1.1", "area and circumference of circle"],
+          ["1.2", "finding the area and perimeter of", ["semicircle", "quarter circle"]],
+          ["1.3", "finding the area and perimeter of composite figures made up of square, rectangle, triangle, semicircle and quarter circle"]
+        ] },
+        { t: "Volume of Cube and Cuboid", los: [
+          ["2.1", "finding one dimension of a cuboid given its volume and the other dimensions"],
+          ["2.2", "finding the length of one edge of a cube given its volume"],
+          ["2.3", "finding the height of a cuboid given its volume and base area"],
+          ["2.4", "finding the area of a face of a cuboid given its volume and one dimension"],
+          ["2.5", "use of √ and ∛"]
+        ] }
+      ] },
+      { k: "GEO", n: "Geometry", topics: [
+        { t: "Special Quadrilaterals", los: [
+          ["1.1", "finding unknown angles, without additional construction of lines, in composite geometric figures involving", ["square", "rectangle", "triangle", "parallelogram", "rhombus", "trapezium"]]
+        ] },
+        { t: "Nets", los: [
+          ["2.1", "identifying and drawing 2D representations of", ["cube", "cuboid", "cone", "cylinder", "prism", "pyramid"]],
+          ["2.2", "identifying the nets of 3D solids", ["cube", "cuboid", "prism", "pyramid"]],
+          ["2.3", "identifying the solid which can be formed by a given net"]
+        ] }
+      ] }
+    ] },
+    { s: "Statistics", subs: [
+      { k: "DRI", n: "Data Representation and Interpretation", topics: [
+        { t: "Pie Charts", los: [
+          ["1.1", "reading and interpreting data from pie charts"],
+          ["1.2", "solving 1-step problems using data from tables/graphs"]
+        ] }
+      ] }
+    ] }
+  ] }
+];
+
+// ---- Indexes -------------------------------------------------------------
+// Built once at load: the flat list is what the pickers, the search and the
+// AI prompt all read, so none of them walks the tree itself.
+const SYL_LOS = [];        // flat, in syllabus order
+const SYL_LO_BY_ID = {};
+MOE_SYLLABUS.forEach(L => L.strands.forEach(s => s.subs.forEach(sb => sb.topics.forEach(t => {
+  t.los.forEach(row => {
+    const lo = {
+      id: L.lv + '.' + sb.k + '.' + row[0],
+      level: L.lv, strand: s.s, sub: sb.n, subKey: sb.k, topic: t.t,
+      code: row[0], text: row[1], notes: row[2] || []
+    };
+    SYL_LOS.push(lo);
+    SYL_LO_BY_ID[lo.id] = lo;
+  });
+}))));
+const SYL_LEVELS = MOE_SYLLABUS.map(L => L.lv);
+function sylLoLabel(lo) { return lo ? lo.level + ' ' + lo.sub + ' ' + lo.code : ''; }
+// A question's objectives, filtered to ones that still exist. A tag pointing
+// at an id that is no longer in the syllabus is dropped at READ time rather
+// than deleted, so nothing is lost if the tree is ever edited by mistake.
+function qLos(q) {
+  const raw = (q && Array.isArray(q.los)) ? q.los : [];
+  const out = [];
+  raw.forEach(id => { if (SYL_LO_BY_ID[id] && out.indexOf(id) < 0) out.push(id); });
+  return out;
+}
+// Questions by objective id, rebuilt from the bank on demand. The bank is
+// re-assigned wholesale in several places (practice re-orders it), so this is
+// derived at render rather than kept in step by hand.
+function sylBuildIndex() {
+  const map = {};
+  (questionBank || []).forEach(q => qLos(q).forEach(id => { (map[id] = map[id] || []).push(q); }));
+  return map;
+}
+function sylLevelNum(level) { const m = /^P(\d)/i.exec(String(level || '').trim()); return m ? +m[1] : 0; }
+
+// ---- Page state ----------------------------------------------------------
+let sylLevel = 'P1';
+let sylQuery = '';
+let sylGapsOnly = false;
+const sylOpenLos = new Set();
+
+function sylSetLevel(lv) { sylLevel = lv; sylOpenLos.clear(); renderSyllabusPage(); }
+function sylSetQuery(v) { sylQuery = String(v || '').trim().toLowerCase(); renderSyllabusPage(); }
+function sylSetGaps(on) { sylGapsOnly = !!on; renderSyllabusPage(); }
+function sylToggleLo(id) {
+  if (sylOpenLos.has(id)) sylOpenLos.delete(id); else sylOpenLos.add(id);
+  renderSyllabusPage();
+}
+function sylMatches(lo) {
+  if (!sylQuery) return true;
+  return (lo.code + ' ' + lo.text + ' ' + lo.notes.join(' ') + ' ' + lo.topic + ' ' + lo.sub).toLowerCase().includes(sylQuery);
+}
+
+function renderSyllabusPage() {
+  const host = $("syllabusBody");
+  if (!host) return;
+  const idx = sylBuildIndex();
+  const level = MOE_SYLLABUS.find(L => L.lv === sylLevel) || MOE_SYLLABUS[0];
+  // Coverage is counted over the WHOLE syllabus, not the level on screen —
+  // the headline number is "how much of the syllabus does the bank reach".
+  const covered = SYL_LOS.filter(lo => (idx[lo.id] || []).length).length;
+  const tagged = (questionBank || []).filter(q => qLos(q).length).length;
+  const untagged = (questionBank || []).length - tagged;
+  const pct = SYL_LOS.length ? Math.round(covered / SYL_LOS.length * 100) : 0;
+
+  let html = `<div class="syl-cover">
+      <div class="syl-cover-nums">
+        <div class="syl-cover-num"><b>${covered} / ${SYL_LOS.length}</b><span>objectives with a question</span></div>
+        <div class="syl-cover-num"><b>${tagged}</b><span>questions filed</span></div>
+        ${canManageQuestions() ? `<div class="syl-cover-num"><b>${untagged}</b><span>not filed yet</span></div>` : ``}
+      </div>
+      <div class="syl-cover-bar"><i style="width:${pct}%;"></i></div>
+      <div class="syl-cover-note">${canManageQuestions()
+        ? `Open a question in <b>Create Question</b> to file it, or use <b>＋ Add questions</b> on any objective below. The <b>✨ Suggest</b> button reads the question and proposes the objectives it assesses.`
+        : `Every objective in the Primary Mathematics syllabus. Open one to practise the questions filed under it.`}</div>
+    </div>`;
+
+  html += `<div class="syl-controls">`
+    + SYL_LEVELS.map(lv => `<button type="button" class="syl-chip${lv === sylLevel ? ' active' : ''}" data-syllevel="${lv}">${lv}</button>`).join('')
+    + `<input type="text" class="syl-search" id="sylSearch" placeholder="Search objectives…" value="${escapeHtml(sylQuery)}">`
+    + `<label class="syl-toggle"><input type="checkbox" id="sylGaps"${sylGapsOnly ? ' checked' : ''}> Only gaps</label>`
+    + `</div>`;
+
+  let shown = 0;
+  level.strands.forEach(s => {
+    let strandHtml = '';
+    s.subs.forEach(sb => {
+      let subHtml = '', subCount = 0, subShown = 0;
+      sb.topics.forEach(t => {
+        let rows = '';
+        t.los.forEach(row => {
+          const lo = SYL_LO_BY_ID[level.lv + '.' + sb.k + '.' + row[0]];
+          const qs = idx[lo.id] || [];
+          subCount += qs.length;
+          if (!sylMatches(lo)) return;
+          if (sylGapsOnly && qs.length) return;
+          subShown++; shown++;
+          const open = sylOpenLos.has(lo.id);
+          rows += `<div class="syl-lo${open ? ' open' : ''}">
+            <button type="button" class="syl-lo-row" data-sylo="${lo.id}" aria-expanded="${open}">
+              <span class="syl-lo-caret">▶</span>
+              <span class="syl-lo-code">${lo.code}</span>
+              <span class="syl-lo-main">
+                <span class="syl-lo-text">${escapeHtml(lo.text)}</span>
+                ${lo.notes.length ? `<ul class="syl-lo-notes">${lo.notes.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul>` : ''}
+              </span>
+              <span class="syl-lo-badge${qs.length ? ' has' : ''}">${qs.length || '—'}</span>
+            </button>
+            ${open ? `<div class="syl-lo-body">${sylLoBodyHtml(lo, qs)}</div>` : ''}
+          </div>`;
+        });
+        // The topic number is not stored — it is the part of every objective
+        // code before the dot, which is where the syllabus itself puts it.
+        const tn = (t.los[0] && String(t.los[0][0]).split('.')[0]) || '';
+        if (rows) subHtml += `<div class="syl-topic"><div class="syl-topic-h">${tn ? tn + '. ' : ''}${escapeHtml(t.t)}</div>${rows}</div>`;
+      });
+      if (subShown) {
+        strandHtml += `<div class="syl-sub">
+          <div class="syl-sub-h"><span class="syl-sub-key">${sb.k}</span> ${escapeHtml(sb.n)}
+            <span class="syl-sub-count">${subCount} question${subCount === 1 ? '' : 's'}</span></div>
+          ${subHtml}</div>`;
+      }
+    });
+    if (strandHtml) html += `<div class="syl-strand"><div class="syl-strand-h">${escapeHtml(s.s)}</div>${strandHtml}</div>`;
+  });
+  if (!shown) {
+    html += `<div class="empty-note">${sylGapsOnly
+      ? `Every objective in ${sylLevel} that matches has a question filed under it. 🎉`
+      : `No objective in ${sylLevel} matches “${escapeHtml(sylQuery)}”.`}</div>`;
+  }
+  host.innerHTML = html;
+
+  host.querySelectorAll('[data-syllevel]').forEach(b => b.addEventListener('click', () => sylSetLevel(b.dataset.syllevel)));
+  host.querySelectorAll('[data-sylo]').forEach(b => b.addEventListener('click', () => sylToggleLo(b.dataset.sylo)));
+  const search = $("sylSearch");
+  if (search) {
+    // Re-rendering replaces the input, so the caret has to be put back.
+    search.addEventListener('input', e => { const v = e.target.value; sylSetQuery(v); const el = $("sylSearch"); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } });
+  }
+  const gaps = $("sylGaps");
+  if (gaps) gaps.addEventListener('change', e => sylSetGaps(e.target.checked));
+}
+
+function sylLoBodyHtml(lo, qs) {
+  const admin = canManageQuestions();
+  let h = '';
+  if (!qs.length) {
+    h += `<div class="syl-lo-empty">No question in the bank is filed under this objective yet.</div>`;
+  } else {
+    h += qs.map(q => `<div class="syl-q">
+      <div class="syl-q-main">
+        <div class="syl-q-title">${escapeHtml(q.title || 'Untitled')}</div>
+        <div class="syl-q-meta">${escapeHtml([q.level, admin ? adminTopicsLabel(q) : studentTopicsLabel(q)].filter(Boolean).join(' · ')) || '—'}</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" type="button" data-sylq-open="${escapeHtml(q.id)}">${admin ? '✎ Edit' : '✍️ Practise'}</button>
+      ${admin ? `<button class="btn btn-ghost btn-sm" type="button" data-sylq-untag="${escapeHtml(q.id)}" data-lo="${lo.id}" title="Remove this objective from the question">✕</button>` : ''}
+    </div>`).join('');
+  }
+  if (admin) {
+    h += `<div class="syl-lo-tools">
+      <button class="btn btn-ghost btn-sm" type="button" data-syl-add="${lo.id}">＋ Add questions</button>
+    </div>`;
+  } else if (qs.length) {
+    h += `<div class="syl-lo-tools"><button class="btn btn-blue btn-sm" type="button" data-syl-practise="${lo.id}">✍️ Practise all ${qs.length}</button></div>`;
+  }
+  return h;
+}
+
+// The body's buttons are bound once on the page, not per render — the whole
+// body is replaced on every open/close.
+document.addEventListener('click', e => {
+  const host = $("syllabusBody");
+  if (!host || !host.contains(e.target)) return;
+  const open = e.target.closest('[data-sylq-open]');
+  if (open) { sylOpenQuestion(open.dataset.sylqOpen); return; }
+  const untag = e.target.closest('[data-sylq-untag]');
+  if (untag) { sylUntag(untag.dataset.sylqUntag, untag.dataset.lo); return; }
+  const add = e.target.closest('[data-syl-add]');
+  if (add) { sylOpenTagPicker(add.dataset.sylAdd); return; }
+  const prac = e.target.closest('[data-syl-practise]');
+  if (prac) { sylPractiseLo(prac.dataset.sylPractise); return; }
+});
+
+function sylOpenQuestion(id) {
+  const q = (questionBank || []).find(x => x.id === id);
+  if (!q) { toast("That question is no longer in the bank", "error"); return; }
+  if (canManageQuestions()) { editQuestion(id); return; }
+  sylPractise([q]);
+}
+function sylPractiseLo(loId) {
+  const qs = sylBuildIndex()[loId] || [];
+  if (!qs.length) { toast("Nothing to practise here yet", "error"); return; }
+  sylPractise(qs);
+}
+// Put these questions at the front of the practice queue — the same move the
+// worksheet's ✍️ Practise button makes, so there is one practice entry point.
+function sylPractise(qs) {
+  const ids = new Set(qs.map(q => q.id));
+  questionBank = qs.concat(questionBank.filter(q => !ids.has(q.id)));
+  qIndex = 0;
+  navigateTo("practice");
+  renderQuestion();
+}
+
+// ---- Writing a tag -------------------------------------------------------
+// Only `los` is written, merged onto the PUBLIC half of the question. The
+// answer key lives in its own document and is never in hand on this page, so
+// re-saving the whole question here could only ever lose something.
+async function sylSaveLos(q, los) {
+  if (!canManageQuestions()) throw new Error("Only admin accounts can file questions");
+  q.los = los;
+  await setDoc(doc(db, "users", currentUser.uid, "mathQuestions", q.id), { los }, { merge: true });
+}
+async function sylUntag(qid, loId) {
+  const q = (questionBank || []).find(x => x.id === qid);
+  if (!q) return;
+  const next = qLos(q).filter(id => id !== loId);
+  try {
+    await sylSaveLos(q, next);
+    renderSyllabusPage();
+    toast("Removed from " + sylLoLabel(SYL_LO_BY_ID[loId]), "success");
+  } catch (e) { toast("Could not save: " + (e && e.message ? e.message : e), "error"); }
+}
+
+// ---- Picker A: questions for one objective (the syllabus page) ------------
+let _sylTagLo = null;
+function sylOpenTagPicker(loId) {
+  _sylTagLo = loId;
+  const lo = SYL_LO_BY_ID[loId];
+  if (!lo) return;
+  $("qTagTitle").textContent = sylLoLabel(lo);
+  $("qTagSub").textContent = lo.text;
+  $("qTagSearch").value = "";
+  renderQTagList();
+  $("qTagOverlay").classList.add("show");
+}
+function renderQTagList() {
+  const lo = SYL_LO_BY_ID[_sylTagLo];
+  const host = $("qTagList");
+  if (!lo || !host) return;
+  const term = ($("qTagSearch").value || "").trim().toLowerCase();
+  // The objective's own level first — that is nearly always the right answer —
+  // then everything else, so a question filed at the wrong level is still findable.
+  const all = (questionBank || []).slice().sort((a, b) => {
+    const am = sylLevelNum(a.level) === sylLevelNum(lo.level) ? 0 : 1;
+    const bm = sylLevelNum(b.level) === sylLevelNum(lo.level) ? 0 : 1;
+    return am - bm || String(a.title || "").localeCompare(String(b.title || ""));
+  });
+  const matches = all.filter(q => !term || bankSearchHaystack(q).includes(term));
+  if (!matches.length) { host.innerHTML = `<div class="lop-empty">No question matches “${escapeHtml(term)}”.</div>`; return; }
+  host.innerHTML = matches.slice(0, 300).map(q => {
+    const on = qLos(q).indexOf(lo.id) >= 0;
+    const firstText = (q.blocks || []).find(b => b.type === "text");
+    const preview = firstText ? stripHtml(firstText.content).slice(0, 90) : "(no text)";
+    return `<label class="lop-row${on ? ' on' : ''}">
+      <input type="checkbox" data-qtag="${escapeHtml(q.id)}"${on ? ' checked' : ''}>
+      <span class="lop-row-main">${escapeHtml(q.title || 'Untitled')}
+        <span class="lop-row-sub">${escapeHtml([q.level, adminTopicsLabel(q), preview].filter(Boolean).join(' · '))}</span>
+      </span></label>`;
+  }).join('');
+  host.querySelectorAll('[data-qtag]').forEach(cb => cb.addEventListener('change', () => sylTagOne(cb.dataset.qtag, cb.checked)));
+}
+async function sylTagOne(qid, on) {
+  const q = (questionBank || []).find(x => x.id === qid);
+  const lo = SYL_LO_BY_ID[_sylTagLo];
+  if (!q || !lo) return;
+  const cur = qLos(q);
+  const next = on ? (cur.indexOf(lo.id) < 0 ? cur.concat([lo.id]) : cur) : cur.filter(id => id !== lo.id);
+  try { await sylSaveLos(q, next); renderQTagList(); }
+  catch (e) { toast("Could not save: " + (e && e.message ? e.message : e), "error"); }
+}
+
+// ---- Picker B: objectives for one question (the editor) ------------------
+// `var`, not `let`, and that is load-bearing: this block sits at the END of the
+// module, but the editor is reset once during module evaluation (resetEditor()
+// in the init section below the editor code), which assigns to editorLos before
+// this line is reached. A `let` would still be in its temporal dead zone there
+// and the whole app would fail to start.
+var editorLos = [];
+let _loPickerSel = [];
+function sylEditorRender() {
+  const host = $("qLoChips");
+  if (!host) return;
+  if (!editorLos || !editorLos.length) {
+    host.innerHTML = `<span class="lo-empty">Not filed under the syllabus yet.</span>`;
+    return;
+  }
+  host.innerHTML = editorLos.map(id => {
+    const lo = SYL_LO_BY_ID[id];
+    if (!lo) return '';
+    return `<span class="lo-chip"><b>${lo.level} ${lo.code}</b><span title="${escapeHtml(lo.sub + ' › ' + lo.topic + ' — ' + lo.text)}">${escapeHtml(lo.text)}</span>
+      <button type="button" data-lo-del="${lo.id}" title="Remove">×</button></span>`;
+  }).join('');
+  host.querySelectorAll('[data-lo-del]').forEach(b => b.addEventListener('click', () => {
+    editorLos = editorLos.filter(id => id !== b.dataset.loDel);
+    sylEditorRender();
+  }));
+}
+function openLoPicker() {
+  _loPickerSel = editorLos.slice();
+  const sel = $("loPickerLevel");
+  const guess = String($("qLevelInput").value || "").trim().toUpperCase();
+  sel.innerHTML = `<option value="">All levels</option>` + SYL_LEVELS.map(lv => `<option value="${lv}">${lv}</option>`).join('');
+  sel.value = SYL_LEVELS.indexOf(guess) >= 0 ? guess : "";
+  $("loPickerSearch").value = "";
+  renderLoPicker();
+  $("loPickerOverlay").classList.add("show");
+}
+function renderLoPicker() {
+  const host = $("loPickerList");
+  if (!host) return;
+  const lv = $("loPickerLevel").value;
+  const term = ($("loPickerSearch").value || "").trim().toLowerCase();
+  const matches = SYL_LOS.filter(lo => (!lv || lo.level === lv)
+    && (!term || (lo.code + ' ' + lo.text + ' ' + lo.notes.join(' ') + ' ' + lo.topic + ' ' + lo.sub).toLowerCase().includes(term)));
+  if (!matches.length) { host.innerHTML = `<div class="lop-empty">No objective matches that.</div>`; return; }
+  let html = '', group = '';
+  matches.forEach(lo => {
+    const g = lo.level + ' · ' + lo.sub + ' › ' + lo.topic;
+    if (g !== group) { group = g; html += `<div class="lop-group">${escapeHtml(g)}</div>`; }
+    const on = _loPickerSel.indexOf(lo.id) >= 0;
+    html += `<label class="lop-row${on ? ' on' : ''}">
+      <input type="checkbox" data-lopick="${lo.id}"${on ? ' checked' : ''}>
+      <span class="lop-row-main"><span class="lop-row-code">${lo.code}</span>${escapeHtml(lo.text)}
+        ${lo.notes.length ? `<span class="lop-row-sub">${escapeHtml(lo.notes.join(' · '))}</span>` : ''}
+      </span></label>`;
+  });
+  host.innerHTML = html;
+  host.querySelectorAll('[data-lopick]').forEach(cb => cb.addEventListener('change', () => {
+    const id = cb.dataset.lopick;
+    if (cb.checked) { if (_loPickerSel.indexOf(id) < 0) _loPickerSel.push(id); }
+    else _loPickerSel = _loPickerSel.filter(x => x !== id);
+    cb.closest('.lop-row').classList.toggle('on', cb.checked);
+  }));
+}
+function applyLoPicker() {
+  // Keep the syllabus's own order, so a question's objectives always read the
+  // way the syllabus does rather than the order they were ticked in.
+  editorLos = SYL_LOS.filter(lo => _loPickerSel.indexOf(lo.id) >= 0).map(lo => lo.id);
+  $("loPickerOverlay").classList.remove("show");
+  sylEditorRender();
+}
+
+// ---- ✨ Suggest — the AI reads the question and proposes objectives -------
+// Scoped to the question's own level when it has one (a P3 question is not
+// assessing a P6 objective), and to the whole syllabus when it does not.
+function _sylPromptList(level) {
+  const pool = level ? SYL_LOS.filter(lo => lo.level === level) : SYL_LOS;
+  return (pool.length ? pool : SYL_LOS).map(lo =>
+    lo.id + ' — ' + lo.text + '  [' + lo.level + ' ' + lo.sub + ' › ' + lo.topic + ']').join('\n');
+}
+function _sylQuestionText(q) {
+  const body = (q.blocks || []).filter(b => b.type === 'text').map(b => stripHtml(b.content)).join('\n');
+  return [q.title, q.level ? 'Level: ' + q.level : '', q.topic ? 'Topics: ' + q.topic : '', body, q.expected ? 'Answer: ' + q.expected : '']
+    .filter(Boolean).join('\n').slice(0, 4000);
+}
+async function sylSuggestLos(q, level) {
+  const prompt = 'You are filing a Singapore primary school MATHEMATICS question under the MOE Primary Mathematics syllabus.\n\n'
+    + 'QUESTION\n' + _sylQuestionText(q) + '\n\n'
+    + 'Choose EVERY learning objective below that this question actually assesses — usually one, sometimes two or three. '
+    + 'Do not choose an objective just because the topic sounds related: the question must genuinely test it. '
+    + 'If none of them fit, return an empty list.\n\n'
+    + 'LEARNING OBJECTIVES\n' + _sylPromptList(level) + '\n\n'
+    + 'Reply with JSON only, in this exact shape: {"ids":["P5.FR.2.6"]}';
+  const raw = await askGemini(prompt, { maxOutputTokens: 400, temperature: 0.1, json: true });
+  const data = _parseAIJson(raw);
+  const ids = Array.isArray(data) ? data : (data && Array.isArray(data.ids) ? data.ids : []);
+  return ids.map(x => String(x || '').trim()).filter(id => SYL_LO_BY_ID[id]);
+}
+async function aiSuggestLosForEditor() {
+  const btn = $("qLoSuggestBtn");
+  const level = String($("qLevelInput").value || "").trim().toUpperCase();
+  const q = collectQuestion();
+  if (!(q.blocks || []).some(b => b.type === 'text' && b.content)) { toast("Write the question first, then Suggest", "error"); return; }
+  const orig = btn.textContent; btn.disabled = true; btn.textContent = "Reading…";
+  try {
+    const ids = await sylSuggestLos(q, SYL_LEVELS.indexOf(level) >= 0 ? level : "");
+    if (!ids.length) { toast("The AI could not match this to an objective — pick one by hand", "info"); return; }
+    const before = editorLos.length;
+    ids.forEach(id => { if (editorLos.indexOf(id) < 0) editorLos.push(id); });
+    editorLos = SYL_LOS.filter(lo => editorLos.indexOf(lo.id) >= 0).map(lo => lo.id);
+    sylEditorRender();
+    toast(`Suggested ${editorLos.length - before || ids.length} objective${ids.length === 1 ? '' : 's'} — check them before saving`, "success");
+  } catch (e) {
+    console.warn("lo suggest", e);
+    toast("Could not read the question: " + aiErrorMessage(e), "error");
+  } finally { btn.disabled = false; btn.textContent = orig; }
+}
+
+// ---- Wiring --------------------------------------------------------------
+$("qLoAddBtn").addEventListener("click", openLoPicker);
+$("qLoSuggestBtn").addEventListener("click", aiSuggestLosForEditor);
+$("loPickerApply").addEventListener("click", applyLoPicker);
+$("loPickerLevel").addEventListener("change", renderLoPicker);
+$("loPickerSearch").addEventListener("input", renderLoPicker);
+$("qTagSearch").addEventListener("input", renderQTagList);
+window.renderSyllabusPage = renderSyllabusPage;
 
 </script>
 <div id="tcgExpAnnounce" style="display:none;position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:1201;width:min(680px,calc(100vw - 28px));background:radial-gradient(120% 100% at 50% -30%,rgba(77,227,255,0.18),transparent 60%),linear-gradient(150deg,#16264f,#0b1230 60%,#080c1e);border:1px solid rgba(77,227,255,0.55);border-radius:18px;padding:26px 28px;box-shadow:0 22px 60px rgba(0,0,0,0.55);color:#e6f4ff;font-family:'DM Sans',system-ui,sans-serif;">
