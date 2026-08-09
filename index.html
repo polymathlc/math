@@ -2107,7 +2107,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
         <button type="button" class="annot-tool" data-atool="line" title="Drag to draw a straight label line (U) — hold Shift to snap to 45° angles">📏 Line</button>
         <button type="button" class="annot-tool" data-atool="text" title="Click to drop a text label (T)">🔤 Text</button>
         <label style="font-size:0.8rem;display:inline-flex;align-items:center;gap:5px;">Colour <input type="color" id="annotColor" value="#e23c3c" oninput="_annotSyncControls()" style="width:34px;height:28px;padding:0;border:1px solid var(--border);border-radius:6px;"></label>
-        <label style="font-size:0.8rem;display:inline-flex;align-items:center;gap:5px;" title="Brush size in image pixels — set to 1 to paint a single pixel. [ and ] change it, and you can scroll your mouse wheel over the slider.">Brush <input type="range" id="annotSize" min="1" max="60" value="6" oninput="_annotSyncControls()"><span id="annotSizeVal" style="min-width:30px;font-variant-numeric:tabular-nums;">6&nbsp;px</span></label>
+        <label style="font-size:0.8rem;display:inline-flex;align-items:center;gap:5px;" title="Brush size in image pixels — set to 1 to paint a single pixel. The ring around your pointer on the picture IS this size, drawn at the current zoom. [ and ] change it, and you can scroll your mouse wheel over the slider.">Brush <input type="range" id="annotSize" min="1" max="60" value="6" oninput="_annotSyncControls()"><span id="annotSizeVal" style="min-width:30px;font-variant-numeric:tabular-nums;">6&nbsp;px</span></label>
         <label style="font-size:0.8rem;display:inline-flex;align-items:center;gap:5px;" title="How close a colour has to be to count as the same one — used by the magic wand and the paint bucket. Scroll your mouse wheel over the slider to change it.">Match ± <input type="range" id="annotTol" min="0" max="120" value="32" oninput="_annotSyncControls()"><span id="annotTolVal" style="min-width:26px;font-variant-numeric:tabular-nums;">32</span></label>
         <span style="width:1px;height:20px;background:var(--border);"></span>
         <button type="button" class="annot-tool" onclick="annotZoomStep(1/1.3)" title="Zoom out">➖</button>
@@ -2171,7 +2171,7 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
         </span>
       </div>
       <div id="annotStage"><canvas id="annotCanvas"></canvas><canvas id="annotSelCanvas"></canvas></div>
-      <p class="hint" style="margin-top:10px;">Erase / Paint: drag over the image — <b>click then Shift-click</b> joins the two points with a straight line (Photoshop style), and <b>Shift-drag</b> locks the stroke to horizontal / vertical. <b>Fill</b>: click inside a shape to flood it with colour. <b>Clone</b>: click to set the source, then drag to stamp that area elsewhere (Alt+click re-sets the source). <b>History</b>: brush the original picture back by hand. <b>Select / Lasso / Wand</b>: mark out an area, then fill it, move it, or use AI content-aware fill (Esc deselects). <b>Move</b>: drag inside a selection to cut it out and drop it anywhere (Alt to copy), or drag a text label to reposition it. <b>Resize</b>: drag the handles round the box to make the selected object bigger or smaller — corners resize both ways, edges one way, and the corner opposite the one you drag stays exactly where it is. Drag inside the box to move it, hold <b>Shift</b> to swap between keeping the shape and stretching it freely, or type a width / height percentage in the panel. <b>Rotate / Skew</b>: turn or slant the selected object — or, with nothing selected, the whole picture, which is how you straighten a page that went into the scanner crooked. Drag on the image (Shift snaps to 15°) or use the sliders, and <b>📐 Straighten</b> lets you trace a line along a crooked edge to level it in one go. Enter applies the turn, Esc cancels it. Line: drag from start to end. Text: click, type, then Enter.<br><b>Scroll</b> over the image to zoom (down to single pixels); <b>hold Space</b> (or the middle mouse button) and drag to pan; <b>scroll over either slider</b> to change it. Set the brush to <b>1&nbsp;px</b> for pixel-perfect edits.
+      <p class="hint" style="margin-top:10px;">Erase / Paint: drag over the image — <b>click then Shift-click</b> joins the two points with a straight line (Photoshop style), and <b>Shift-drag</b> locks the stroke to horizontal / vertical. <b>Fill</b>: click inside a shape to flood it with colour. <b>Clone</b>: click to set the source, then drag to stamp that area elsewhere (Alt+click re-sets the source). <b>History</b>: brush the original picture back by hand. <b>Select / Lasso / Wand</b>: mark out an area, then fill it, move it, or use AI content-aware fill (Esc deselects). <b>Move</b>: drag inside a selection to cut it out and drop it anywhere (Alt to copy), or drag a text label to reposition it. <b>Resize</b>: drag the handles round the box to make the selected object bigger or smaller — corners resize both ways, edges one way, and the corner opposite the one you drag stays exactly where it is. Drag inside the box to move it, hold <b>Shift</b> to swap between keeping the shape and stretching it freely, or type a width / height percentage in the panel. <b>Rotate / Skew</b>: turn or slant the selected object — or, with nothing selected, the whole picture, which is how you straighten a page that went into the scanner crooked. Drag on the image (Shift snaps to 15°) or use the sliders, and <b>📐 Straighten</b> lets you trace a line along a crooked edge to level it in one go. Enter applies the turn, Esc cancels it. Line: drag from start to end. Text: click, type, then Enter.<br><b>Scroll</b> over the image to zoom (down to single pixels); <b>hold Space</b> (or the middle mouse button) and drag to pan; <b>scroll over either slider</b> to change it. Set the brush to <b>1&nbsp;px</b> for pixel-perfect edits.<br><b>Brush size:</b> Erase, Paint, Clone, History and Line draw a <b>ring around your pointer at the exact size of the mark</b> they will make, at whatever zoom you are on — so you can see the brush before you use it. Change the size with the slider, the wheel over it, or <kbd>[</kbd> and <kbd>]</kbd>, and the size is shown on the picture as you change it.
         <br><b>Keys:</b> <kbd>E</kbd> erase · <kbd>B</kbd> paint · <kbd>G</kbd> fill · <kbd>S</kbd> clone · <kbd>Y</kbd> history · <kbd>M</kbd> select · <kbd>L</kbd> lasso · <kbd>W</kbd> wand · <kbd>V</kbd> move · <kbd>R</kbd> rotate · <kbd>K</kbd> skew · <kbd>F</kbd> resize · <kbd>U</kbd> line · <kbd>T</kbd> text · <kbd>[</kbd> <kbd>]</kbd> brush size · <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo · <kbd>+</kbd> <kbd>−</kbd> zoom · <kbd>0</kbd> fit · <kbd>Esc</kbd> deselect / cancel the transform · <kbd>Enter</kbd> apply</p>
     </div>
     <div class="overlay-foot">
@@ -5465,7 +5465,22 @@ async function applyCropTool() {
   #annotCloneSrc { position:absolute; z-index:6; width:16px; height:16px; margin:-8px 0 0 -8px; border-radius:50%; border:2px solid #2d6ca8; background:rgba(37,99,235,0.18); box-shadow:0 0 0 1px rgba(255,255,255,0.8); pointer-events:none; }
   #annotCloneSrc::before, #annotCloneSrc::after { content:''; position:absolute; background:#2d6ca8; }
   #annotCloneSrc::before { left:6px; top:1px; width:2px; height:12px; }
-  #annotCloneSrc::after { top:6px; left:1px; height:2px; width:12px; }`;
+  #annotCloneSrc::after { top:6px; left:1px; height:2px; width:12px; }
+  /* The brush cursor: a ring the exact size of the mark about to be made, at
+     the current zoom. Black ring inside a white one, so it stays visible on a
+     white page and on a dark diagram alike. */
+  #annotBrushRing { position:absolute; z-index:7; box-sizing:border-box; border-radius:50%; pointer-events:none; display:none;
+    border:1px solid rgba(0,0,0,0.9); box-shadow:0 0 0 1px rgba(255,255,255,0.9), inset 0 0 0 1px rgba(255,255,255,0.9); }
+  /* Under a few screen pixels a circle is just a blob — draw a crosshair, the
+     way every paint program does for a tiny brush. */
+  #annotBrushRing.tiny { border-color:transparent; box-shadow:none; }
+  #annotBrushRing.tiny::before, #annotBrushRing.tiny::after { content:''; position:absolute; background:rgba(0,0,0,0.85); box-shadow:0 0 0 1px rgba(255,255,255,0.9); }
+  #annotBrushRing.tiny::before { left:50%; top:50%; width:1px; height:11px; margin:-5.5px 0 0 -0.5px; }
+  #annotBrushRing.tiny::after { left:50%; top:50%; height:1px; width:11px; margin:-0.5px 0 0 -5.5px; }
+  #annotBrushHud { position:absolute; z-index:8; pointer-events:none; opacity:0; transition:opacity 0.16s ease; transform:translateX(-50%);
+    background:rgba(17,20,18,0.88); color:#fff; font-family:'DM Sans',sans-serif; font-size:11px; font-weight:700; line-height:1;
+    padding:5px 8px; border-radius:6px; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  #annotBrushHud.show { opacity:1; }`;
   const s = document.createElement('style'); s.textContent = css; document.head.appendChild(s);
 })();
 
@@ -5499,7 +5514,10 @@ function openAnnotTool(blockId) {
     orig.getContext('2d').drawImage(canvas, 0, 0);
     _annot = { blockId, canvas, ctx, tool: 'erase', color: '#e23c3c', size: 6, tol: 32, drawing: false, history: [], start: null, snap: null,
       zoom: 1, fit: 1, panX: 0, panY: 0, space: false, panning: false, cloneSrc: null, cloneSnap: null, cloneOff: null,
-      anchor: null, sel: null, selPts: null, selCanvas, aiFillBusy: false, origSnap: orig, float: null, xform: null, xfStart: null };
+      anchor: null, sel: null, selPts: null, selCanvas, aiFillBusy: false, origSnap: orig, float: null, xform: null, xfStart: null,
+      // Where the pointer is, in STAGE coordinates, and how long the size badge
+      // stays up after a change — see the brush cursor below.
+      ptr: null, ptrIn: false, hudUntil: 0, hudTimer: null };
     _annotSelSyncBar();
     if (!_annotAntsRunning) _annotAntsLoop();
     _annotSyncControls();
@@ -5513,6 +5531,7 @@ function openAnnotTool(blockId) {
 }
 function _annotSyncControls() {
   const col = document.getElementById('annotColor'), sz = document.getElementById('annotSize'), tl = document.getElementById('annotTol');
+  const _sizeWas = _annot ? _annot.size : 0;
   if (_annot) {
     if (col) _annot.color = col.value || _annot.color;
     if (sz) _annot.size = parseInt(sz.value, 10) || _annot.size;
@@ -5521,6 +5540,9 @@ function _annotSyncControls() {
     if (lbl) lbl.innerHTML = _annot.size + '&nbsp;px';
     const tlbl = document.getElementById('annotTolVal');
     if (tlbl) tlbl.textContent = _annot.tol;
+    // Every route to the size — the slider, the wheel, [ and ] — lands here, so
+    // this is the one place that has to say what it did on the picture itself.
+    if (_annot.size !== _sizeWas) _annotBrushFlash(); else _annotUpdateBrushRing();
   }
   // The bucket icon always shows the colour it would pour, open tool or not.
   const bucket = document.querySelector('.annot-tool[data-atool="fill"]');
@@ -5578,6 +5600,7 @@ function _annotUpdateTransform() {
   const zl = document.getElementById('annotZoomVal');
   if (zl) zl.textContent = Math.round(s * 100) + '%';
   _annotUpdateCloneMarker();   // the source pin rides along with zoom / pan
+  _annotUpdateBrushRing();     // ... and so does the brush ring: it is drawn at the zoomed size
 }
 // A small pin marking the clone-stamp source point, kept aligned under zoom/pan.
 function _annotUpdateCloneMarker() {
@@ -5590,6 +5613,93 @@ function _annotUpdateCloneMarker() {
   m.style.display = 'block';
   m.style.left = (_annot.panX + _annot.cloneSrc.x * s) + 'px';
   m.style.top = (_annot.panY + _annot.cloneSrc.y * s) + 'px';
+}
+// ---- The brush cursor — what you are about to paint with, drawn on the picture
+// -----------------------------------------------------------------------------
+// A brush whose size you can only read as a number on a slider is a brush you
+// are guessing with: "12 px" at 40% zoom is a quarter of the mark "12 px" makes
+// at 400%. So every size-driven tool shows its real footprint under the pointer,
+// at the current zoom, the way Photoshop does — erase, paint, clone, history and
+// the line tool, whose thickness IS the brush size. The tools that take no size
+// (fill, wand, select, lasso, move, the transforms, text) keep their own cursor
+// and deliberately show no ring; a circle round a paint bucket would be a lie.
+const ANNOT_RING_TOOLS = { erase: 1, paint: 1, clone: 1, history: 1, line: 1 };
+const ANNOT_RING_TINY = 7;     // under this many screen px a circle is a blob: draw a crosshair instead
+const ANNOT_HUD_MS = 1200;     // how long the "12 px" badge stays up after a size change
+// The ring and its badge live in the STAGE, like the clone-source pin — not on
+// the canvas, which is scaled and panned underneath them.
+function _annotRingEls(make) {
+  const st = document.getElementById('annotStage');
+  if (!st) return null;
+  let ring = document.getElementById('annotBrushRing'), hud = document.getElementById('annotBrushHud');
+  if (!ring && make) { ring = document.createElement('div'); ring.id = 'annotBrushRing'; st.appendChild(ring); }
+  if (!hud && make) { hud = document.createElement('div'); hud.id = 'annotBrushHud'; st.appendChild(hud); }
+  return ring ? { st, ring, hud } : null;
+}
+function _annotBrushRingVisible() {
+  if (!_annot || !ANNOT_RING_TOOLS[_annot.tool]) return false;
+  if (_annot.space || _annot.panning) return false;                 // pan mode has its own hand cursor
+  // Mid-stroke it stays up even if the drag has run off the edge; otherwise it
+  // follows the pointer, or shows briefly while the size is being changed.
+  return _annot.drawing || _annot.ptrIn || _annot.hudUntil > Date.now();
+}
+// Remember where the pointer is, in stage coordinates, and redraw the ring.
+function _annotTrackPointer(e) {
+  if (!_annot) return;
+  const box = _annotStageBox();
+  const x = e.clientX - box.left, y = e.clientY - box.top;
+  // A text label inside the stage is its own thing to click and drag, so the
+  // brush cursor gets out of the way over it.
+  const overLabel = !!(e.target && e.target.closest && e.target.closest('.annot-textbox'));
+  _annot.ptr = { x, y };
+  _annot.ptrIn = !overLabel && x >= 0 && y >= 0 && x <= box.width && y <= box.height;
+  _annotUpdateBrushRing();
+}
+function _annotUpdateBrushRing() {
+  const want = _annotBrushRingVisible();
+  const els = _annotRingEls(want);
+  if (!els) return;
+  const ring = els.ring, hud = els.hud, st = els.st, c = document.getElementById('annotCanvas');
+  // The system cursor is only ever hidden for a tool that HAS a ring — the
+  // resize handles and the transform tools set their own cursor and must keep it.
+  if (c && ANNOT_RING_TOOLS[_annot ? _annot.tool : '']) {
+    c.style.cursor = (want && _annot.ptrIn) ? 'none' : (ANNOT_CURSORS[_annot.tool] || 'crosshair');
+  }
+  if (!want) {
+    ring.style.display = 'none';
+    if (hud) hud.classList.remove('show');
+    return;
+  }
+  const box = _annotStageBox();
+  // While the pointer is away (a slider drag) the preview sits in the middle of
+  // the view, so the size still shows on the picture rather than only on a label.
+  const p = (_annot.ptrIn || _annot.drawing) && _annot.ptr ? _annot.ptr : { x: box.width / 2, y: box.height / 2 };
+  const px = Math.max(1, Math.round(_annot.size));
+  const d = px * _annotDisplayScale();
+  ring.style.display = 'block';
+  ring.classList.toggle('tiny', d < ANNOT_RING_TINY);
+  ring.style.width = ring.style.height = Math.max(1, d) + 'px';
+  ring.style.left = (p.x - d / 2) + 'px';
+  ring.style.top = (p.y - d / 2) + 'px';
+  if (hud) {
+    const on = _annot.hudUntil > Date.now();
+    hud.classList.toggle('show', on);
+    if (on) {
+      hud.textContent = px + ' px';
+      hud.style.left = Math.min(box.width - 8, Math.max(8, p.x)) + 'px';
+      hud.style.top = Math.min(box.height - 26, p.y + d / 2 + 12) + 'px';
+    }
+  }
+}
+// Show the ring and its "12 px" badge for a moment after the size changes, so
+// the slider, the wheel and [ ] all say what they did even when the pointer is
+// nowhere near the picture.
+function _annotBrushFlash() {
+  if (!_annot) return;
+  _annot.hudUntil = Date.now() + ANNOT_HUD_MS;
+  _annotUpdateBrushRing();
+  clearTimeout(_annot.hudTimer);
+  _annot.hudTimer = setTimeout(() => { if (_annot) _annotUpdateBrushRing(); }, ANNOT_HUD_MS + 40);
 }
 // hex → [r,g,b]
 function _annotHexToRgb(hex) {
@@ -6210,7 +6320,7 @@ function _annotTypingInField(e) {
 }
 function _annotKeyDown(e) {
   if (!_annot) return;
-  if (e.code === 'Space' && !_annotTypingInField(e)) { _annot.space = true; const st = document.getElementById('annotStage'); if (st) st.classList.add('canpan'); e.preventDefault(); }
+  if (e.code === 'Space' && !_annotTypingInField(e)) { _annot.space = true; const st = document.getElementById('annotStage'); if (st) st.classList.add('canpan'); _annotUpdateBrushRing(); e.preventDefault(); }
   // Escape backs out of the open transform first, then out of a selection.
   if (e.key === 'Escape' && !_annotTypingInField(e) && _annot.xform) { e.preventDefault(); _annot.drawing = false; annotXformCancel(); return; }
   if (e.key === 'Escape' && !_annotTypingInField(e) && (_annot.sel || _annot.selPts)) { _annot.selPts = null; _annot.drawing = false; annotSelClear(); }
@@ -6229,10 +6339,16 @@ function _annotKeyDown(e) {
   const tool = ANNOT_KEYS[String(k).toLowerCase()];
   if (tool) { e.preventDefault(); _annotSetTool(tool); }
 }
-function _annotKeyUp(e) { if (_annot && e.code === 'Space') { _annot.space = false; const st = document.getElementById('annotStage'); if (st) st.classList.remove('canpan'); } }
+function _annotKeyUp(e) { if (_annot && e.code === 'Space') { _annot.space = false; const st = document.getElementById('annotStage'); if (st) st.classList.remove('canpan'); _annotUpdateBrushRing(); } }
 function _annotBindZoomListeners() {
   const st = document.getElementById('annotStage');
-  if (st && !st._zoomBound) { st.addEventListener('wheel', _annotWheel, { passive: false }); st._zoomBound = true; }
+  if (st && !st._zoomBound) {
+    st.addEventListener('wheel', _annotWheel, { passive: false });
+    // The pointer can leave the stage (or the window) without another move
+    // event ever arriving, which would strand the ring where it was last seen.
+    st.addEventListener('pointerleave', () => { if (_annot) { _annot.ptrIn = false; _annotUpdateBrushRing(); } });
+    st._zoomBound = true;
+  }
   window.addEventListener('keydown', _annotKeyDown);
   window.addEventListener('keyup', _annotKeyUp);
 }
@@ -6261,6 +6377,9 @@ function _annotSetTool(t) {
   // discover the panel.
   if (_annot && (t === 'rotate' || t === 'skew' || t === 'scale') && !_annot.xform) _annotXformBegin();
   _annotXformSyncBar();
+  // Switching to a brush tool should show its size straight away — you should
+  // not have to make a mark to find out how big the mark will be.
+  if (_annot && ANNOT_RING_TOOLS[t]) _annotBrushFlash(); else _annotUpdateBrushRing();
 }
 // Single-key tool switching, Photoshop's letters where they exist.
 const ANNOT_KEYS = { e: 'erase', b: 'paint', g: 'fill', s: 'clone', y: 'history', m: 'select', l: 'lasso', w: 'wand', v: 'move', u: 'line', t: 'text', r: 'rotate', k: 'skew', f: 'scale' };
@@ -6995,6 +7114,9 @@ function closeAnnotTool() {
   const o = document.getElementById('annotOverlay'); if (o) o.classList.remove('show');
   const s = document.getElementById('annotStage'); if (s) s.querySelectorAll('.annot-textbox').forEach(el => el.remove());
   const cm = document.getElementById('annotCloneSrc'); if (cm) cm.remove();
+  const br = document.getElementById('annotBrushRing'); if (br) br.remove();
+  const bh = document.getElementById('annotBrushHud'); if (bh) bh.remove();
+  if (_annot) clearTimeout(_annot.hudTimer);
   const sc = document.getElementById('annotSelCanvas'); if (sc) sc.getContext('2d').clearRect(0, 0, sc.width, sc.height);
   _annotUnbindZoomListeners();
   _annot = null;
@@ -7010,6 +7132,7 @@ function _annotPanStart(e) {
   _annot.panning = true;
   _annot.panFrom = { x: e.clientX, y: e.clientY, panX: _annot.panX, panY: _annot.panY };
   const st = document.getElementById('annotStage'); if (st) st.classList.add('panning');
+  _annotUpdateBrushRing();
   try { e.target.setPointerCapture && e.target.setPointerCapture(e.pointerId); } catch (_) {}
 }
 function _annotPanMove(e) {
@@ -7020,16 +7143,18 @@ function _annotPanMove(e) {
   _annotUpdateTransform();
 }
 function _annotPanEnd() {
-  if (_annot && _annot.panning) { _annot.panning = false; _annot.panFrom = null; const st = document.getElementById('annotStage'); if (st) st.classList.remove('panning'); }
+  if (_annot && _annot.panning) { _annot.panning = false; _annot.panFrom = null; const st = document.getElementById('annotStage'); if (st) st.classList.remove('panning'); _annotUpdateBrushRing(); }
 }
 document.addEventListener('pointerdown', function (e) {
   const c = document.getElementById('annotCanvas');
   if (!_annot || !c || e.target !== c) return;
+  _annotTrackPointer(e);   // a tap with no movement before it still gets its ring
   if (_annot.space || e.button === 1) { e.preventDefault(); _annotPanStart(e); return; }
   if (e.button === 0) _annotDown(e);
 });
 document.addEventListener('pointermove', function (e) {
   if (!_annot) return;
+  _annotTrackPointer(e);   // the ring follows the pointer whatever else is going on
   if (_annot.panning) { _annotPanMove(e); return; }
   if (_annot.drawing) { _annotMove(e); return; }
   // Hovering the transform box: the pointer says what each handle will do, so
@@ -7043,7 +7168,7 @@ document.addEventListener('pointermove', function (e) {
     }
   }
 });
-document.addEventListener('pointerup', function () { _annotPanEnd(); _annotUp(); });
+document.addEventListener('pointerup', function () { _annotPanEnd(); _annotUp(); _annotUpdateBrushRing(); });
 
 
 
@@ -14969,7 +15094,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.6.0 · 2026-08-07";
+const APP_VERSION = "v1.7.0 · 2026-08-09";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
