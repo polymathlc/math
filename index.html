@@ -245,6 +245,8 @@ a { color: var(--primary); }
 .btn-orange:hover { background: #bf7622; }
 .btn-blue { background: var(--accent-blue); color: #fff; }
 .btn-blue:hover { background: #3f5f8e; }
+.btn-green { background: var(--accent-green); color: #fff; }
+.btn-green:hover { background: #2f8850; }
 
 /* A count pill on a sidebar item (e.g. how many questions are waiting in Vetting). */
 .nav-count {
@@ -448,6 +450,54 @@ a { color: var(--primary); }
 .mw-print-options-title { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px; }
 .mw-print-options label { display: flex; align-items: center; gap: 9px; cursor: pointer; font-size: 0.88rem; font-weight: 500; padding: 5px 0; }
 .mw-print-options input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--primary); }
+
+/* ---- Worksheet overview -------------------------------------------------
+   ONE page carrying a whole saved worksheet: every question in order, each
+   with its video and its answer key. It is what the single QR on the printed
+   sheet opens, so a class no longer scans a code per question to reach the
+   solutions. Reached from My Worksheets, or by ?ws=<id>&owner=<uid>. */
+.wv-wrap { max-width: 900px; margin: 0 auto; }
+.wv-head { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-lg); padding: 20px 22px; box-shadow: var(--shadow-sm); margin-bottom: 18px; }
+.wv-head h3 { font-size: 1.3rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.35; }
+.wv-head-meta { display: flex; gap: 8px; flex-wrap: wrap; font-size: 0.8rem; color: var(--text-muted); margin: 6px 0 14px; }
+.wv-head-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.wv-share { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 14px; }
+.wv-share-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.wv-share-row input { flex: 1; min-width: 0; padding: 8px 10px; border: 1.5px solid var(--border); border-radius: var(--radius-md); background: var(--surface-alt); font-size: 0.78rem; font-family: 'Space Mono', monospace; color: var(--text); }
+.wv-share-qr { width: 162px; }
+.wv-share-qr svg { width: 150px !important; height: 150px !important; display: block; background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px; }
+.wv-share-toggle { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 0.85rem; margin-top: 12px; line-height: 1.45; }
+.wv-share-toggle input { width: 16px; height: 16px; margin-top: 2px; accent-color: var(--primary); flex: 0 0 auto; }
+/* Jump list — a 20-question sheet is a long page, and the whole point is to
+   land on question 7 without scrolling past six of them. */
+.wv-jump { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 14px; }
+.wv-jump a { font-family: 'Space Mono', monospace; font-size: 0.72rem; font-weight: 700; min-width: 30px; text-align: center; padding: 5px 8px; border-radius: var(--radius-sm); background: var(--primary-light); color: var(--primary); text-decoration: none; }
+.wv-jump a:hover { background: var(--primary); color: #fff; }
+.wv-q { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-lg); padding: 20px 22px; box-shadow: var(--shadow-sm); margin-bottom: 16px; scroll-margin-top: 80px; }
+.wv-q-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.wv-q-no { font-family: 'Space Mono', monospace; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; color: var(--primary); background: var(--primary-light); padding: 4px 9px; border-radius: 999px; }
+.wv-q-title { font-size: 0.95rem; font-weight: 700; }
+.wv-q-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.wv-missing { color: var(--accent-red); font-size: 0.88rem; }
+/* The solution panel is closed to start with. A student opening the overview
+   to READ question 3 shouldn't have question 3's answer already on screen —
+   they choose to reveal it, per question or all at once. */
+.wv-sol { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
+.wv-sol-btn { font: 600 0.85rem/1 'DM Sans', sans-serif; display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: var(--radius-md); border: 1.5px solid var(--border); background: var(--surface-alt); color: var(--text); cursor: pointer; }
+.wv-sol-btn:hover { border-color: var(--primary); color: var(--primary); }
+.wv-sol-body { display: none; margin-top: 12px; }
+.wv-sol.open .wv-sol-body { display: block; }
+.wv-sol-lbl { font-family: 'Space Mono', monospace; font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
+.wv-sol-key { background: var(--surface-alt); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 14px; font-size: 0.92rem; }
+.wv-sol-ans { font-weight: 600; margin-bottom: 6px; }
+.wv-sol-guide { white-space: pre-wrap; color: #444; font-size: 0.88rem; line-height: 1.55; }
+.wv-sol-img { display: block; max-width: 100%; margin-top: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.wv-sol-none { font-size: 0.88rem; color: var(--text-muted); }
+.wv-note { font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; margin-top: 10px; }
+@media (max-width: 640px) {
+  .wv-head, .wv-q { padding: 16px; }
+  .wv-head-actions .btn, .wv-q-actions .btn { flex: 1; min-width: 140px; }
+}
 
 /* The worksheet editor drawer: change which questions a SAVED worksheet holds. */
 .wse-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
@@ -1993,6 +2043,9 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
           <label title="Print a QR code beside each question so a student can scan it, AI-mark their paper working and watch the solution">
             <input type="checkbox" id="wsIncludeQr" checked> 📱 QR per question
           </label>
+          <label title="Saved with the worksheet: whether students opening its overview page may see the worked solutions and videos, or only the questions">
+            <input type="checkbox" id="wsShareSolutions" checked> 🎬 Students see solutions on the overview page
+          </label>
         </div>
 
         <div class="ws-actions-bar">
@@ -2013,8 +2066,18 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
         <label title="Print the blank Name / Date / Class lines at the top of the sheet"><input type="checkbox" id="mwIncludeFields" checked> ✍️ Name / Date / Class fields</label>
         <label class="admin-only" title="Print the answer key on its own page at the back"><input type="checkbox" id="mwIncludeAnswers"> 🔑 Answer key page</label>
         <label title="Print a QR code beside each question for AI marking"><input type="checkbox" id="mwIncludeQr" checked> 📱 QR per question</label>
+        <label title="Print one QR for the WHOLE sheet — it opens the overview page carrying every question, video and answer key"><input type="checkbox" id="mwIncludeSheetQr" checked> 📄 One QR for the whole sheet</label>
       </div>
       <div class="ws-saved-grid" id="savedWsGrid"></div>
+    </div>
+
+    <!-- ================= WORKSHEET OVERVIEW PAGE =================
+         One page for a whole saved worksheet: every question in order, each
+         with its video and answer key. This is what the single sheet QR
+         opens, so a class stops scanning a code per question. Rendered
+         entirely from JS — see renderWorksheetOverview. -->
+    <div class="page" id="page-worksheetview">
+      <div class="wv-wrap" id="wvWrap"></div>
     </div>
 
     <!-- ================= DEPENDENCY BOARD PAGE (admin) ================= -->
@@ -2553,6 +2616,11 @@ const askMrChungCall = httpsCallable(cloudFunctions, "askMrChung", { timeout: 24
 const starfallCall = httpsCallable(cloudFunctions, "starfall");
 const importLegacyProgressionCall = httpsCallable(cloudFunctions, "importLegacyProgression");
 const grantAdminRoleCall = httpsCallable(cloudFunctions, "grantAdminRole");
+// The worksheet overview page's answer keys and videos. They live in the
+// admin-only mathQuestionKeys docs, so a student can only ever get at them
+// through this function — and only for a worksheet whose owner left
+// "students see solutions" on.
+const getWorksheetSolutionsCall = httpsCallable(cloudFunctions, "getWorksheetSolutions");
 function serverErrorMessage(e) {
   const code = String((e && e.code) || "").replace(/^functions\//, "").toLowerCase();
   const raw = String((e && e.message) || e || "server error").replace(/^(Firebase|functions):\s*/i, "").trim();
@@ -3913,6 +3981,17 @@ let pendingShareQ = (() => {
   try { const p = new URLSearchParams(location.search); const id = p.get("q"); return id ? { id, src: p.get("src") || "bank" } : null; }
   catch (_) { return null; }
 })();
+// A WHOLE-worksheet deep link from the one QR printed on the sheet:
+// ?ws=<worksheetId>&owner=<ownerUid>. It opens the overview page — every
+// question on that sheet with its video and answer key on one page — which is
+// the point of the sheet QR: no scanning a code per question.
+let pendingShareWs = (() => {
+  try {
+    const p = new URLSearchParams(location.search);
+    const id = p.get("ws");
+    return id ? { id, owner: p.get("owner") || "" } : null;
+  } catch (_) { return null; }
+})();
 let aiMarkingSettings = { instructions: "", strictness: 3 };
 let aiGenSettings = { instructions: "" };
 let studentProgress = {};        // per-question spaced-review state for students
@@ -3984,7 +4063,7 @@ onAuthStateChanged(auth, async (user) => {
     // if the bank owner has enabled Anonymous sign-in. onAuthStateChanged then
     // fires again with the guest user. If it's not enabled, fall back to the
     // normal sign-in screen with the question still pending.
-    if (pendingShareQ && !guestSignInTried) {
+    if ((pendingShareQ || pendingShareWs) && !guestSignInTried) {
       guestSignInTried = true;
       try { await signInAnonymously(auth); return; }
       catch (e) { console.warn("guest sign-in unavailable (enable Anonymous in Firebase Auth)", e); }
@@ -4062,6 +4141,8 @@ async function enterApp(user) {
   renderQuestion();
   // If they arrived via a question QR / shared link, open that one question.
   if (pendingShareQ) { const t = pendingShareQ; pendingShareQ = null; setTimeout(() => openQuestionShareById(t.id), 80); }
+  // If they scanned the SHEET QR instead, open the whole worksheet's overview.
+  if (pendingShareWs) { const t = pendingShareWs; pendingShareWs = null; setTimeout(() => openWorksheetOverviewById(t.id, t.owner), 80); }
 }
 function canManageQuestions() { return !!currentUser && currentUser.role === "admin"; }
 function makeDocId(prefix) { return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`; }
@@ -4267,7 +4348,7 @@ function navigateTo(page) {
   const nav = document.querySelector(`.nav-item[data-page="${page}"]`); if (nav) nav.classList.add("active");
   if ((page === "character" || page === "leaderboard" || page === "adventure") && rpgGameHidden()) page = "practice";
   if (page !== "adventure") advAbandon();
-  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", vetting: "Vetting", graph: "Dependency Board", worksheet: "Create Worksheet", myworksheets: "My Worksheets", students: "Student Results", character: "Character", leaderboard: "Leaderboard", adventure: "Dungeon" };
+  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", vetting: "Vetting", graph: "Dependency Board", worksheet: "Create Worksheet", myworksheets: "My Worksheets", worksheetview: "Worksheet Overview", students: "Student Results", character: "Character", leaderboard: "Leaderboard", adventure: "Dungeon" };
   $("topbarTitle").textContent = titles[page] || "";
   $("sidebar").classList.remove("open");
   if (page === "character") rpgRenderCharacterPage();
@@ -4280,6 +4361,7 @@ function navigateTo(page) {
   if (page === "vetting") renderVettingList();
   if (page === "worksheet") { wsPopulateFilters(); renderWsQuestions(); }
   if (page === "myworksheets") renderSavedWorksheets();
+  if (page === "worksheetview") renderWorksheetOverview();
 }
 // Keep the sticky battle strip pinned right under the (also-sticky) topbar,
 // whatever the topbar's real height ends up being on this viewport.
@@ -10114,7 +10196,8 @@ function wsCurrentOptions() {
     cover: !!($("wsIncludeCover") || {}).checked,
     fields: !!($("wsIncludeFields") || {}).checked,
     withAnswers: !!($("wsIncludeAnswers") || {}).checked,
-    withQr: !!($("wsIncludeQr") || {}).checked
+    withQr: !!($("wsIncludeQr") || {}).checked,
+    shareSolutions: !!($("wsShareSolutions") || { checked: true }).checked
   };
 }
 function wsCurrentTitle() {
@@ -10125,7 +10208,7 @@ function wsCurrentTitle() {
 // The cover is its own page: title, the class's own name/date lines and the
 // Polymath mark. Deliberately generous with space — it is the first thing a
 // parent sees.
-function wsCoverHtml(title, sub, noFields) {
+function wsCoverHtml(title, sub, noFields, sheetQr = "") {
   return `<section class="ws-page ws-cover">
     <div class="ws-cover-inner">
       <img class="ws-cover-logo" src="${WS_COVER_LOGO}" alt="Polymath" onerror="this.onerror=null;this.src='${WS_LOGO_FALLBACK}';">
@@ -10137,13 +10220,25 @@ function wsCoverHtml(title, sub, noFields) {
         <div><span>Class</span><i></i></div>
         <div><span>Date</span><i></i></div>
       </div>`}
+      ${sheetQr ? wsSheetQrHtml(sheetQr, true) : ""}
     </div>
   </section>`;
 }
-function wsHeaderHtml(title, noFields) {
+// ONE QR for the whole worksheet. It opens the overview page — every question
+// on this sheet with its video and answer key — which is why it is worth the
+// space even on a sheet that already carries a QR per question: the per-question
+// codes are for marking one question, this one is for the whole sheet at once.
+function wsSheetQrHtml(svg, onCover) {
+  return `<div class="ws-sheetqr${onCover ? " on-cover" : ""}">
+    ${svg}
+    <div class="ws-sheetqr-cap">📱 Scan once for<br>every question,<br>video &amp; answer</div>
+  </div>`;
+}
+function wsHeaderHtml(title, noFields, sheetQr = "") {
   return `<div class="ws-head">
     <img class="ws-head-logo" src="${WS_COVER_LOGO}" alt="Polymath" onerror="this.onerror=null;this.src='${WS_LOGO_FALLBACK}';">
     <div class="ws-head-text"><h1>${escapeHtml(title)}</h1><p>Polymath Learning Centre</p></div>
+    ${sheetQr ? wsSheetQrHtml(sheetQr, false) : ""}
   </div>
   ${noFields ? "" : `<div class="ws-head-fields"><span>Name: ______________________</span><span>Class: ____________</span><span>Date: ____________</span></div>`}`;
 }
@@ -10275,7 +10370,17 @@ function wsPrintCss() {
     .ws-head-logo { width: 14mm; height: auto; }
     .ws-head-text h1 { font-size: 15pt; margin: 0 0 1mm; font-weight: 700; }
     .ws-head-text p { font-size: 8.5pt; margin: 0; color: #7a756d; letter-spacing: 0.14em; text-transform: uppercase; }
+    .ws-head-text { flex: 1; }
     .ws-head-fields { display: flex; gap: 8mm; flex-wrap: wrap; font-size: 10pt; color: #514d47; margin-bottom: 7mm; }
+    /* The one QR for the whole sheet — in the header, or centred on the cover
+       when the sheet has one. Bigger than a per-question code because it is
+       scanned by a whole class from wherever they are sitting. */
+    .ws-sheetqr { flex: 0 0 auto; width: 30mm; text-align: center; }
+    .ws-sheetqr svg { width: 27mm !important; height: 27mm !important; display: block; margin: 0 auto; }
+    .ws-sheetqr-cap { font-size: 6pt; color: #7a756d; line-height: 1.3; margin-top: 1mm; }
+    .ws-sheetqr.on-cover { width: 36mm; margin: 14mm auto 0; }
+    .ws-sheetqr.on-cover svg { width: 33mm !important; height: 33mm !important; }
+    .ws-sheetqr.on-cover .ws-sheetqr-cap { font-size: 7.5pt; }
     /* One question. It refuses to break across a page; the browser paginates
        around it, so two questions can never end up on top of each other. */
     .ws-chunk { break-inside: avoid; page-break-inside: avoid; margin-bottom: 9mm; }
@@ -10352,11 +10457,18 @@ function wsPrintCss() {
 async function wsBuildDocumentHtml(questions, title, opts) {
   let qrMap = {};
   if (opts.withQr) { try { qrMap = await buildQrMap(questions); } catch (e) { console.warn("qr map failed", e); } }
+  // The whole-sheet QR, printed ONCE: on the cover if there is one, otherwise
+  // in the sheet header. `sheetUrl` is only set for a saved worksheet, since an
+  // unsaved selection has no overview page to point at.
+  let sheetQr = "";
+  if (opts.sheetUrl && opts.withSheetQr !== false) {
+    try { sheetQr = await makeQrSvg(opts.sheetUrl); } catch (e) { console.warn("sheet qr failed", e); }
+  }
   // One table row per whole-page section, so the forced page breaks sit between
   // ROWS and the copyright <tfoot> keeps repeating (see wsFooterHtml).
   const sections = [
-    ...(opts.cover ? [wsCoverHtml(title, `${questions.length} question${questions.length > 1 ? "s" : ""}`, !opts.fields)] : []),
-    `<section class="ws-page">${wsHeaderHtml(title, !opts.fields)}${questions.map((q, i) => wsQuestionChunkHtml(q, i + 1, qrMap[q.id] || "")).join("")}</section>`,
+    ...(opts.cover ? [wsCoverHtml(title, `${questions.length} question${questions.length > 1 ? "s" : ""}`, !opts.fields, sheetQr)] : []),
+    `<section class="ws-page">${wsHeaderHtml(title, !opts.fields, opts.cover ? "" : sheetQr)}${questions.map((q, i) => wsQuestionChunkHtml(q, i + 1, qrMap[q.id] || "")).join("")}</section>`,
     ...(opts.withAnswers ? [wsAnswerKeyHtml(questions)] : []),
   ];
   const body = `<table class="ws-doc">
@@ -10439,6 +10551,11 @@ async function saveCurrentWorksheet() {
     includeFields: opts.fields,
     includeAnswers: opts.withAnswers,
     includeQr: opts.withQr,
+    // Whether students opening this sheet's overview page may see its worked
+    // solutions and videos. The overview page itself is always open to them —
+    // this only gates the answers. Read by getWorksheetSolutions, which is the
+    // only thing that can hand an answer key out.
+    shareSolutions: opts.shareSolutions,
     ownerUid: currentUser.uid,
     ownerName: currentUser.name || "",
     createdAt: new Date().toISOString()
@@ -10484,6 +10601,7 @@ function renderSavedWorksheets() {
       </div>
       <div class="ws-saved-actions">
         <button class="btn btn-primary btn-sm" data-ws-print="${escapeHtml(ws.id)}">🖨️ Print / PDF</button>
+        <button class="btn btn-green btn-sm" data-ws-overview="${escapeHtml(ws.id)}" title="One page with every question on this sheet, its video and its answer key">📖 Overview</button>
         <button class="btn btn-ghost btn-sm" data-ws-preview="${escapeHtml(ws.id)}">👁️ Preview</button>
         <button class="btn btn-blue btn-sm" data-ws-practise="${escapeHtml(ws.id)}">✍️ Practise</button>
         ${wsMine(ws) ? `<button class="btn btn-ghost btn-sm" data-ws-edit="${escapeHtml(ws.id)}" title="Change which questions are on this sheet">✎ Questions</button>
@@ -10492,11 +10610,245 @@ function renderSavedWorksheets() {
     </div>`;
   }).join("");
   grid.querySelectorAll("[data-ws-print]").forEach(b => b.addEventListener("click", () => openSavedWorksheet(b.dataset.wsPrint, true)));
+  grid.querySelectorAll("[data-ws-overview]").forEach(b => b.addEventListener("click", () => openWorksheetOverview(wsFind(b.dataset.wsOverview))));
   grid.querySelectorAll("[data-ws-preview]").forEach(b => b.addEventListener("click", () => openSavedWorksheet(b.dataset.wsPreview, false)));
   grid.querySelectorAll("[data-ws-practise]").forEach(b => b.addEventListener("click", () => practiseWorksheet(b.dataset.wsPractise)));
   grid.querySelectorAll("[data-ws-edit]").forEach(b => b.addEventListener("click", () => wseOpen(b.dataset.wsEdit)));
   grid.querySelectorAll("[data-ws-del]").forEach(b => b.addEventListener("click", () => deleteSavedWorksheet(b.dataset.wsDel)));
 }
+// ---- The worksheet overview page ----------------------------------------
+// ONE page carrying a whole saved worksheet: every question in order, each
+// with its video and its answer key. It exists because a printed sheet carries
+// a QR per question, and reading the solutions meant scanning them one at a
+// time — the sheet now carries a single QR that lands here instead.
+//
+// The questions are student-readable already (mathQuestions is the public half
+// of the bank); the ANSWERS are not — they live in the admin-only key docs. So
+// an admin renders them straight from the bank they already hold, and everyone
+// else asks getWorksheetSolutions, which only answers for a worksheet whose
+// owner left "students see solutions" on.
+let _wvWs = null;                // the worksheet on show
+let _wvSolutions = {};           // qid -> { expected, markingGuide, answerKeyImageUrl, videoExplanationUrl, correctOption, annotationAnswers }
+let _wvSolutionState = "idle";   // idle | loading | ready | hidden | error
+let _wvSolutionNote = "";
+// The link the sheet QR encodes. `owner` is carried because a worksheet doc
+// lives under its owner's uid, and a student scanning a sheet may not have
+// that teacher's worksheets loaded (or may not be signed in yet at all).
+function worksheetShareUrl(ws) {
+  const params = new URLSearchParams();
+  params.set("ws", ws.id);
+  if (ws.ownerUid) params.set("owner", ws.ownerUid);
+  return location.origin + location.pathname + "?" + params.toString();
+}
+// Opened from the sheet QR. The worksheet is usually already loaded (a student
+// pulls their teacher's sheets on sign-in), but a sheet set by someone other
+// than the registered admin still has to be fetched by its own id.
+async function openWorksheetOverviewById(id, ownerUid) {
+  let ws = wsFind(id);
+  if (!ws && ownerUid) {
+    try {
+      const snap = await getDoc(doc(db, "users", ownerUid, "mathWorksheets", id));
+      if (snap.exists()) {
+        ws = snap.data();
+        if (!ws.ownerUid) ws.ownerUid = ownerUid;
+        if (!wsFind(ws.id)) savedWorksheets.push(ws);
+      }
+    } catch (e) { console.warn("worksheet fetch", e); }
+  }
+  if (!ws) { toast("That worksheet isn't available — ask your teacher to share it again.", "error"); return; }
+  openWorksheetOverview(ws);
+}
+function openWorksheetOverview(ws) {
+  if (!ws) return;
+  _wvWs = ws;
+  _wvSolutions = {};
+  _wvSolutionState = "loading";
+  _wvSolutionNote = "";
+  navigateTo("worksheetview");
+  wvLoadSolutions(ws);
+}
+function wvAnnotationAnswers(q) {
+  return annotBlocksOf(q)
+    .map(b => ({ answerImg: String(b.answerImg || "").trim(), answerKey: String(b.answerKey || "").trim() }))
+    .filter(r => r.answerImg || r.answerKey);
+}
+async function wvLoadSolutions(ws) {
+  const target = ws;
+  // The admin's bank already has the private half merged in, so there is
+  // nothing to fetch — and nothing to gate, since the keys are theirs.
+  if (canManageQuestions()) {
+    wsSavedQuestions(ws).forEach(q => {
+      _wvSolutions[q.id] = {
+        expected: q.expected || "",
+        markingGuide: q.markingGuide || "",
+        answerKeyImageUrl: q.answerKeyImageUrl || "",
+        videoExplanationUrl: q.videoExplanationUrl || "",
+        correctOption: typeof q.correctOption === "number" ? q.correctOption : undefined,
+        annotationAnswers: wvAnnotationAnswers(q)
+      };
+    });
+    _wvSolutionState = "ready";
+    if (_wvWs === target) renderWorksheetOverview();
+    return;
+  }
+  try {
+    const res = await getWorksheetSolutionsCall({ ownerUid: ws.ownerUid || adminUid || "", worksheetId: ws.id });
+    const data = (res && res.data) || {};
+    if (_wvWs !== target) return;   // they moved on to another sheet while it loaded
+    if (data.shared === false) {
+      _wvSolutionState = "hidden";
+    } else {
+      (data.solutions || []).forEach(s => { if (s && s.id) _wvSolutions[s.id] = s; });
+      _wvSolutionState = "ready";
+    }
+  } catch (e) {
+    if (_wvWs !== target) return;
+    console.warn("worksheet solutions", e);
+    // Only a teacher's worksheet unlocks answer keys, so a sheet a student
+    // saved themselves comes back denied — that isn't a fault, it is the same
+    // "no solutions here" the flag gives, and it reads better as that.
+    const code = String((e && e.code) || "").replace(/^functions\//, "");
+    if (code === "permission-denied") { _wvSolutionState = "hidden"; }
+    else { _wvSolutionState = "error"; _wvSolutionNote = serverErrorMessage(e); }
+  }
+  renderWorksheetOverview();
+}
+// The worked solution for ONE question: the video first (it is the thing a
+// student came here for), then the answer and the marking guide.
+function wvSolutionBodyHtml(q) {
+  const s = _wvSolutions[q.id] || {};
+  const video = aiMarkVideoHtml(s.videoExplanationUrl);
+  const mcq = (Array.isArray(q.options) && q.options.length >= 2 && Number.isInteger(s.correctOption))
+    ? `<div class="wv-sol-ans">Answer: ${String.fromCharCode(65 + s.correctOption)}. ${escapeHtml(q.options[s.correctOption] || "")}</div>` : "";
+  const ans = String(s.expected || "").trim();
+  const guide = String(s.markingGuide || "").trim();
+  const annot = (s.annotationAnswers || []).map(r =>
+    (r.answerImg ? `<img class="wv-sol-img" src="${escapeHtml(r.answerImg)}" alt="Correctly annotated diagram">` : "") +
+    (r.answerKey ? `<div class="wv-sol-guide">${escapeHtml(r.answerKey)}</div>` : "")).join("");
+  const img = s.answerKeyImageUrl ? `<img class="wv-sol-img" src="${escapeHtml(s.answerKeyImageUrl)}" alt="Answer key">` : "";
+  const key = mcq + (ans && !mcq ? `<div class="wv-sol-ans">Answer: ${escapeHtml(ans)}</div>` : "") +
+    (guide ? `<div class="wv-sol-guide">${escapeHtml(guide)}</div>` : "") + annot + img;
+  return (video || "") +
+    `<div class="wv-sol-lbl">Answer key</div>
+     <div class="wv-sol-key">${key || `<div class="wv-sol-none">No answer key on this question yet.</div>`}</div>`;
+}
+function wvSolutionHtml(q) {
+  if (_wvSolutionState === "loading") return `<div class="wv-sol"><div class="wv-sol-none">Loading the worked solutions…</div></div>`;
+  if (_wvSolutionState === "hidden") return `<div class="wv-sol"><div class="wv-sol-none">🔒 This sheet's solutions aren't shared — your teacher can switch them on. You can still AI-mark your working to see the answer.</div></div>`;
+  if (_wvSolutionState === "error") return `<div class="wv-sol"><div class="wv-sol-none">Couldn't load the solutions: ${escapeHtml(_wvSolutionNote || "please try again")}</div></div>`;
+  return `<div class="wv-sol" data-wv-sol="${escapeHtml(q.id)}">
+    <button class="wv-sol-btn" type="button" data-wv-reveal="${escapeHtml(q.id)}">🎬 Show the worked solution &amp; video</button>
+    <div class="wv-sol-body">${wvSolutionBodyHtml(q)}</div>
+  </div>`;
+}
+function renderWorksheetOverview() {
+  const wrap = $("wvWrap");
+  if (!wrap) return;
+  const ws = _wvWs;
+  if (!ws) {
+    wrap.innerHTML = `<div class="empty-note">Open a worksheet from <b>My Worksheets</b> to see everything on it in one place.</div>`;
+    return;
+  }
+  const questions = wsSavedQuestions(ws);
+  const missing = (ws.questionIds || []).length - questions.length;
+  const when = ws.createdAt ? new Date(ws.createdAt).toLocaleDateString() : "";
+  const owned = wsMine(ws) || canManageQuestions();
+  const share = owned ? `<div class="wv-share">
+      <div class="wv-sol-lbl">Share this worksheet — one code for the whole sheet</div>
+      <div class="wv-share-row"><input id="wvLink" type="text" readonly value="${escapeHtml(worksheetShareUrl(ws))}"><button class="btn btn-ghost btn-sm" type="button" id="wvCopyBtn">Copy</button></div>
+      <div class="wv-share-qr" id="wvQr">Generating QR…</div>
+      ${wsMine(ws) && canManageQuestions() ? `<label class="wv-share-toggle"><input type="checkbox" id="wvShareSolutions" ${ws.shareSolutions === false ? "" : "checked"}> Students opening this page may see the worked solutions and videos. Turn it off to leave them the questions only.</label>` : ""}
+    </div>` : "";
+
+  wrap.innerHTML = `<div class="wv-head">
+      <h3>📖 ${escapeHtml(ws.title || "Untitled worksheet")}</h3>
+      <div class="wv-head-meta">
+        <span>${questions.length} question${questions.length === 1 ? "" : "s"}</span>
+        ${missing > 0 ? `<span style="color:var(--accent-red);">${missing} no longer in the bank</span>` : ""}
+        ${when ? `<span>Saved ${escapeHtml(when)}</span>` : ""}
+        ${ws.ownerName && !wsMine(ws) ? `<span>by ${escapeHtml(ws.ownerName)}</span>` : ""}
+      </div>
+      <div class="wv-head-actions">
+        <button class="btn btn-primary btn-sm" type="button" id="wvRevealAllBtn">🎬 Show every solution</button>
+        <button class="btn btn-blue btn-sm" type="button" id="wvPractiseBtn">✍️ Practise this sheet</button>
+        <button class="btn btn-ghost btn-sm" type="button" id="wvPrintBtn">🖨️ Print / PDF</button>
+        <button class="btn btn-ghost btn-sm" type="button" id="wvBackBtn">← My Worksheets</button>
+      </div>
+      <div class="wv-note">Everything on this sheet is on this one page — tap a question's button to watch its video and read its answer. No scanning a code per question.</div>
+      ${questions.length > 1 ? `<div class="wv-jump">${questions.map((q, i) => `<a href="#wvq${i + 1}">${i + 1}</a>`).join("")}</div>` : ""}
+      ${share}
+    </div>
+    ${questions.length ? questions.map((q, i) => `<div class="wv-q" id="wvq${i + 1}">
+      <div class="wv-q-head">
+        <span class="wv-q-no">Q${i + 1}</span>
+        <span class="wv-q-title">${escapeHtml(q.title || "Question")}</span>
+      </div>
+      <div class="q-body">${renderQuestionBlocksHtml(q.blocks || [])}</div>
+      ${mcqOptionsPreviewHtml(q)}
+      <div class="wv-q-actions">
+        <button class="btn btn-ghost btn-sm" type="button" data-wv-mark="${escapeHtml(q.id)}">📸 AI-mark my answer</button>
+        <button class="btn btn-ghost btn-sm" type="button" data-wv-practise="${escapeHtml(q.id)}">✍️ Do it on screen</button>
+      </div>
+      ${wvSolutionHtml(q)}
+    </div>`).join("")
+    : `<div class="wv-q"><div class="wv-missing">None of this worksheet's questions are in the bank any more.</div></div>`}`;
+
+  $("wvRevealAllBtn").addEventListener("click", () => {
+    const panels = [...wrap.querySelectorAll(".wv-sol[data-wv-sol]")];
+    if (!panels.length) { toast("No solutions to show on this sheet", ""); return; }
+    const openThem = !panels.every(p => p.classList.contains("open"));
+    panels.forEach(p => {
+      p.classList.toggle("open", openThem);
+      // Keep each panel's own button honest — a "Show" button sitting above an
+      // already-open solution is how a student ends up closing what they wanted.
+      const b = p.querySelector("[data-wv-reveal]");
+      if (b) b.textContent = openThem ? "🙈 Hide the worked solution" : "🎬 Show the worked solution & video";
+    });
+    $("wvRevealAllBtn").textContent = openThem ? "🙈 Hide every solution" : "🎬 Show every solution";
+  });
+  $("wvPractiseBtn").addEventListener("click", () => practiseWorksheet(ws.id));
+  $("wvPrintBtn").addEventListener("click", () => openSavedWorksheet(ws.id, true));
+  $("wvBackBtn").addEventListener("click", () => navigateTo("myworksheets"));
+  wrap.querySelectorAll("[data-wv-reveal]").forEach(b => b.addEventListener("click", () => {
+    const panel = b.closest(".wv-sol");
+    const open = !panel.classList.contains("open");
+    panel.classList.toggle("open", open);
+    b.textContent = open ? "🙈 Hide the worked solution" : "🎬 Show the worked solution & video";
+  }));
+  wrap.querySelectorAll("[data-wv-mark]").forEach(b => b.addEventListener("click", () => {
+    const q = wsQuestionById(b.dataset.wvMark);
+    if (q) openAiMarkForQuestion(q);
+  }));
+  wrap.querySelectorAll("[data-wv-practise]").forEach(b => b.addEventListener("click", () => {
+    const q = wsQuestionById(b.dataset.wvPractise);
+    if (q) goPracticeQuestion(q);
+  }));
+  if (owned) {
+    const copyBtn = $("wvCopyBtn");
+    if (copyBtn) copyBtn.addEventListener("click", async () => {
+      const url = worksheetShareUrl(ws);
+      try { await navigator.clipboard.writeText(url); toast("Link copied", "success"); }
+      catch (_) { const i = $("wvLink"); if (i) { i.focus(); i.select(); try { document.execCommand("copy"); toast("Link copied", "success"); } catch (e) {} } }
+    });
+    const qrBox = $("wvQr");
+    if (qrBox) makeQrSvg(worksheetShareUrl(ws))
+      .then(svg => { qrBox.innerHTML = svg; })
+      .catch(() => { qrBox.textContent = "Couldn't load the QR generator — check your connection."; });
+    const toggle = $("wvShareSolutions");
+    if (toggle) toggle.addEventListener("change", async () => {
+      ws.shareSolutions = toggle.checked;
+      try {
+        await persistWorksheet(ws);
+        toast(toggle.checked ? "Students can see this sheet's solutions" : "Solutions hidden from students", "success");
+      } catch (e) {
+        ws.shareSolutions = !toggle.checked;
+        toggle.checked = ws.shareSolutions;
+        toast("Couldn't save that: " + e.message, "error");
+      }
+    });
+  }
+}
+
 // Reprinting reads the checkboxes on the My Worksheets page, not the ones the
 // sheet was saved with — the teacher reprinting it decides whether THIS copy
 // gets a cover or the answer key.
@@ -10505,7 +10857,8 @@ function mwPrintOptions() {
     cover: !!($("mwIncludeCover") || {}).checked,
     fields: !!($("mwIncludeFields") || {}).checked,
     withAnswers: !!($("mwIncludeAnswers") || {}).checked && canManageQuestions(),
-    withQr: !!($("mwIncludeQr") || {}).checked
+    withQr: !!($("mwIncludeQr") || {}).checked,
+    withSheetQr: !!($("mwIncludeSheetQr") || { checked: true }).checked
   };
 }
 async function openSavedWorksheet(id, autoPrint) {
@@ -10515,7 +10868,10 @@ async function openSavedWorksheet(id, autoPrint) {
   if (!questions.length) { toast("None of this worksheet's questions are in the bank any more", "error"); return; }
   const missing = (ws.questionIds || []).length - questions.length;
   if (missing) toast(`${missing} question(s) are no longer in the bank — printing the rest`, "");
-  await wsOpenDocument(questions, ws.title || "Math Worksheet", Object.assign(mwPrintOptions(), { autoPrint }));
+  // The sheet QR only exists for a SAVED worksheet — it is a link to that
+  // worksheet's overview page, and an unsaved selection has no page to link to.
+  await wsOpenDocument(questions, ws.title || "Math Worksheet",
+    Object.assign(mwPrintOptions(), { autoPrint, sheetUrl: worksheetShareUrl(ws) }));
 }
 // Practise a worksheet on screen: the practice queue becomes this worksheet's
 // questions, in its own order. `prioritizeReviewQuestions` is deliberately not
@@ -15706,7 +16062,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.10.0 · 2026-08-09";
+const APP_VERSION = "v1.11.0 · 2026-08-09";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type

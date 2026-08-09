@@ -7,6 +7,9 @@
 //    leaderboard stats and raid-boss damage with the Admin SDK.
 //  - getHint: next-step hint that can see the answer key without ever
 //    shipping it to the browser.
+//  - getWorksheetSolutions: the videos and answer keys for a whole saved
+//    worksheet, so its overview page can show them on ONE page — gated on
+//    the teacher's per-worksheet "students see solutions" switch.
 //  - starfall: rebirth + star-shop purchases against server-owned shards.
 //  - importLegacyProgression: one-time seed of server XP from a player's
 //    pre-existing client-side save.
@@ -1294,6 +1297,100 @@ export const askMrChung = onCall(CALL_OPTS, async (request) => {
     console.error("askMrChung AI failed", e);
     throw new HttpsError("unavailable", "Polymath couldn't answer just now — please try again in a moment.");
   }
+});
+
+// ---------------------------------------------------------------------
+// getWorksheetSolutions — the worksheet overview page
+//
+// A saved worksheet has ONE overview page carrying every question on it with
+// its video and its answer key, so a class stops scanning a QR per question.
+// The questions themselves are already client-readable (mathQuestions is the
+// public half of the bank); the answers are not — they live in
+// mathQuestionKeys, which only the owning admin may read. This is the one door
+// through which a student gets at them, and it only opens for a worksheet
+// whose owner left `shareSolutions` on.
+//
+// Nothing here is per-attempt: the whole point of the page is that the class
+// can read the worked solutions after they have done the sheet. A teacher who
+// doesn't want that turns the flag off and the page shows questions only.
+// ---------------------------------------------------------------------
+const WORKSHEET_SOLUTIONS_MAX = 120;
+// Is this uid a teacher? The `admin` custom claim is the real answer; the
+// registered mathAdmin uid is accepted too, because an allow-listed admin whose
+// claim never got granted still runs the bank the class loads.
+async function isTeacherUid(uid) {
+  try {
+    const rec = await getAuth().getUser(uid);
+    if (rec.customClaims && rec.customClaims.admin === true) return true;
+  } catch (e) { console.warn("owner lookup failed", uid, e.message || e); }
+  try { return uid === await getAdminUid(); } catch (_) { return false; }
+}
+export const getWorksheetSolutions = onCall(LIGHT_OPTS, async (request) => {
+  const auth = requireAuth(request);
+  const d = request.data || {};
+  const ownerUid = cleanText(d.ownerUid, 128).replace(/[^A-Za-z0-9_-]/g, "");
+  const worksheetId = cleanText(d.worksheetId, 160).replace(/[\/\\#?\[\]]/g, "");
+  if (!ownerUid || !worksheetId) throw new HttpsError("invalid-argument", "Missing worksheet.");
+
+  const wsSnap = await db.doc(`users/${ownerUid}/mathWorksheets/${worksheetId}`).get();
+  if (!wsSnap.exists) throw new HttpsError("not-found", "That worksheet no longer exists.");
+  const ws = wsSnap.data() || {};
+
+  // ONLY a teacher's worksheet unlocks answer keys. Firestore rules let any
+  // student write worksheet docs in their OWN subtree — so without this check a
+  // student could save a worksheet listing every question in the bank, flip
+  // shareSolutions on and read the whole answer key out of it. The flag is the
+  // teacher's switch; owning a worksheet is not a way to grant it to yourself.
+  if (!isAdminAuth(auth) && !(await isTeacherUid(ownerUid))) {
+    throw new HttpsError("permission-denied", "Only a teacher's worksheet can show its solutions.");
+  }
+
+  // Worksheets saved before this flag existed are still worksheets the teacher
+  // handed out, so the default is ON — matching what the overview page is for.
+  const shared = ws.shareSolutions !== false;
+  if (!shared && !isAdminAuth(auth)) return { shared: false, solutions: [] };
+
+  const ids = [...new Set((Array.isArray(ws.questionIds) ? ws.questionIds : [])
+    .map(id => cleanText(id, 160))
+    .filter(id => id && !/[\/\\#?\[\]]/.test(id)))].slice(0, WORKSHEET_SOLUTIONS_MAX);
+  if (!ids.length) return { shared: true, solutions: [] };
+
+  const adminUid = await getAdminUid();
+  const keySnaps = await Promise.all(ids.map(id => db.doc(`users/${adminUid}/mathQuestionKeys/${id}`).get()));
+  // A bank that predates the public/private split (or one whose admin is
+  // running on the client-side fallback) still keeps its answers on the public
+  // question doc, so fall back to that for any id with no key doc.
+  const legacyIds = ids.filter((id, i) => !keySnaps[i].exists);
+  const legacy = {};
+  if (legacyIds.length) {
+    const pubSnaps = await Promise.all(legacyIds.map(id => db.doc(`users/${adminUid}/mathQuestions/${id}`).get()));
+    pubSnaps.forEach((snap, i) => { if (snap.exists) legacy[legacyIds[i]] = snap.data() || {}; });
+  }
+
+  const solutions = [];
+  ids.forEach((id, i) => {
+    const data = keySnaps[i].exists ? (keySnaps[i].data() || {}) : legacy[id];
+    if (!data) return;
+    // Annotation questions: the answer is the correctly annotated diagram, held
+    // per block. The page shows them under the answer key like any other.
+    const blockAnswers = (data.blockAnswers && typeof data.blockAnswers === "object") ? data.blockAnswers : {};
+    const annotationAnswers = Object.keys(blockAnswers).map(k => blockAnswers[k] || {})
+      // The diagram goes through the same filter as the answer-key image: pass
+      // real URLs through, allow a small inline data: image, drop anything else
+      // — cleanText would silently truncate a data URL into a broken picture.
+      .map(b => ({ answerImg: publicAnswerKeyImageUrl({ answerKeyImageUrl: b.answerImg }), answerKey: cleanText(b.answerKey, 2000) }))
+      .filter(r => r.answerImg || r.answerKey);
+    solutions.push({
+      id,
+      expected: cleanText(data.expected, 800),
+      markingGuide: cleanText(data.markingGuide, 4000),
+      answerKeyImageUrl: publicAnswerKeyImageUrl(data),
+      videoExplanationUrl: cleanText(data.videoExplanationUrl, 800),
+      correctOption: typeof data.correctOption === "number" ? data.correctOption : null,
+      annotationAnswers
+    });
+  });
+  return { shared: true, solutions };
 });
 
 // ---------------------------------------------------------------------

@@ -116,6 +116,12 @@ service cloud.firestore {
       // what lets a student open the sheet their teacher built. Writes stay
       // with the owner, so a student can save and delete their own and cannot
       // touch the teacher's.
+      //
+      // It also carries `shareSolutions`: whether the sheet's overview page
+      // may show students its worked solutions and videos. The flag being
+      // readable here changes nothing — the answers themselves never live in
+      // this doc, and the getWorksheetSolutions function re-reads the flag
+      // server-side before it hands any of them out.
       match /mathWorksheets/{wsId} {
         allow read: if signedIn();
         allow write: if isOwner(uid) || isAdmin();
