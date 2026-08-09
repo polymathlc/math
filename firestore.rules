@@ -50,19 +50,28 @@ service cloud.firestore {
 
     // Shared game leaderboard. XP / level / month standings are written by
     // the markAttempt function; clients may only touch cosmetic fields.
+    //
+    // The Nova Protocol fields below are client-written by design and are
+    // NOT trusted for the XP boards: `games` / `duelStats` / `gameScores` /
+    // `tcg` / `audit` only feed the 🌌 Nova and 🎴 Duel tabs, whose prizes
+    // are awarded by hand from the admin's own view. Keeping them on this
+    // one document is what lets `{ merge: true }` from two different code
+    // paths coexist — see rpgPublishLeaderboard.
     match /gameLeaderboard/{uid} {
       allow read: if signedIn();
       allow create: if isOwner(uid)
         && request.resource.data.keys().hasOnly(
           ['uid', 'name', 'house', 'clazz', 'equipment',
-           'wins', 'bestFloor', 'arenaWins', 'updatedAt'])
+           'wins', 'bestFloor', 'arenaWins', 'updatedAt',
+           'tcg', 'games', 'duelStats', 'gameScores', 'audit'])
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.name is string
         && request.resource.data.name.size() <= 60;
       allow update: if isOwner(uid)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
           ['uid', 'name', 'house', 'clazz', 'equipment',
-           'wins', 'bestFloor', 'arenaWins', 'updatedAt'])
+           'wins', 'bestFloor', 'arenaWins', 'updatedAt',
+           'tcg', 'games', 'duelStats', 'gameScores', 'audit'])
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.name is string
         && request.resource.data.name.size() <= 60;
@@ -163,10 +172,21 @@ service cloud.firestore {
       // mathRpg (hero save: gold, items, battles + display mirrors of the
       // server XP) are client-written by design; neither is trusted for
       // competitive stats. mathMarking / mathGeneration belong to admins.
+      //
+      // Three of these belong to the ADMIN and have to be readable by every
+      // student, because that is how the client resolves them: `tcgConfig`
+      // says whether Nova Protocol is released (and which modes are open),
+      // `tcgArt` holds the card artwork every student's collection renders
+      // from, and `boardBans` is the leaderboard ban list every board applies
+      // at render. None of them contains anything private — no answers, no
+      // marks, no personal data — so a signed-in read is safe; writes stay
+      // with the admin.
       match /settings/{docId} {
-        allow read: if isOwner(uid) || isAdmin();
+        allow read: if isOwner(uid) || isAdmin()
+          || (signedIn() && docId in ['tcgConfig', 'tcgArt', 'boardBans']);
         allow write: if (isOwner(uid) || isAdmin())
-          && docId in ['mathLearningProfile', 'mathRpg', 'mathMarking', 'mathGeneration'];
+          && docId in ['mathLearningProfile', 'mathRpg', 'mathMarking', 'mathGeneration',
+                       'tcgConfig', 'tcgArt', 'boardBans'];
       }
 
       // Students flag questions into the ADMIN's subtree; the admin
