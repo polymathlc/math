@@ -2718,8 +2718,8 @@ function renderMathInline(text) {
   s = s.replace(/\bsqrt\s*\(\s*([^)]+?)\s*\)/gi, (_, v) => stash(sqrtHtml(v)));
   s = s.replace(/\(([^()\n]{1,40})\)\s*[\/⁄]\s*\(([^()\n]{1,40})\)/g, (_, n, d) => stash(fractionHtml(n, d)));
   const atom = "-?(?:\\d+(?:\\.\\d+)?|[A-Za-zαβγθπ]+\\d*|\\d+[A-Za-zαβγθπ]*)";
-  const overFraction = new RegExp(`(^|[^\\w./:@-])(${atom})\\s+over\\s+(${atom})(?=$|[^\\w./])`, "gi");
-  s = s.replace(overFraction, (_, prefix, n, d) => prefix + stash(fractionHtml(n, d)));
+  // The word "over" is ordinary English ("over 4 hours", "spread over 3 days"),
+  // so it is never treated as a fraction bar. Use 1/2, \frac{1}{2} or frac(1,2).
   const simpleFraction = new RegExp(`(^|[^\\w./:@-])(${atom})\\s*[\\/⁄]\\s*(${atom})(?=$|[^\\w./])`, "g");
   s = s.replace(simpleFraction, (_, prefix, n, d) => prefix + stash(fractionHtml(n, d)));
   let html = renderMathPlain(s);
@@ -15094,7 +15094,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.7.0 · 2026-08-09";
+const APP_VERSION = "v1.7.1 · 2026-08-09";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
