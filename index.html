@@ -786,8 +786,47 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .feedback-block .answer-key-text { white-space: pre-line; }
 .feedback-block ul { margin: 4px 0 0 18px; }
 .feedback-block li { font-size: 0.92rem; margin-bottom: 4px; }
-.video-explanation-frame { width: 100%; aspect-ratio: 16 / 9; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: #000; margin-top: 8px; }
+.video-explanation-frame { position: relative; width: 100%; aspect-ratio: 16 / 9; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: #000; margin-top: 8px; }
 .video-explanation-frame iframe, .video-explanation-frame video { display: block; width: 100%; height: 100%; border: 0; background: #000; }
+
+/* ===== 🎬 VIDEO AMENDMENTS ================================================
+   Notes and scribbles drawn OVER a video explanation instead of re-cutting it.
+   The layer is a canvas the size of the frame, painted from items stored in
+   FRACTIONS of the frame — so the same authoring pass is right in the practice
+   panel, the worksheet overview and the share card, at all three sizes. */
+.vo-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
+.vo-sync {
+  position: absolute; left: 12px; top: 12px; z-index: 3;
+  padding: 7px 13px; border: 0; border-radius: 999px; cursor: pointer;
+  background: rgba(17, 20, 18, 0.82); color: #fff; backdrop-filter: blur(4px);
+  font-family: 'DM Sans', sans-serif; font-size: 0.76rem; font-weight: 700; letter-spacing: 0.01em;
+  display: inline-flex; align-items: center; gap: 7px;
+}
+.vo-sync:hover { background: rgba(17, 20, 18, 0.95); }
+.vo-sync.running { background: rgba(74, 124, 89, 0.92); }
+.vo-hint { font-size: 0.76rem; color: var(--text-muted); line-height: 1.6; margin-top: 8px; }
+
+/* ---- the authoring drawer ---- */
+.vo-stage { position: relative; width: 100%; max-width: 780px; margin: 0 auto; aspect-ratio: 16 / 9; background: #000; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border); }
+.vo-stage > .vo-player, .vo-stage > .vo-player > * { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; background: #000; }
+#voCanvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 3; cursor: crosshair; touch-action: none; }
+.vo-bar { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; justify-content: center; max-width: 780px; margin: 16px auto 0; padding: 12px 16px; border: 1.5px solid var(--border); border-radius: var(--radius-md); background: var(--surface-alt); }
+.vo-bar label { display: inline-flex; align-items: center; gap: 7px; font-size: 0.8rem; color: var(--text-muted); }
+.vo-bar input[type="text"], .vo-bar input[type="number"] { padding: 6px 9px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.82rem; font-family: inherit; background: #fff; }
+.vo-bar input[type="number"] { width: 78px; font-variant-numeric: tabular-nums; }
+.vo-note-input { flex: 1 1 260px; min-width: 180px; }
+.vo-tool { padding: 6px 12px; border: 1.5px solid var(--border); background: #fff; border-radius: var(--radius-sm); cursor: pointer; font-size: 0.82rem; font-family: inherit; }
+.vo-tool:hover { border-color: var(--primary); }
+.vo-tool.active { border-color: var(--primary); background: var(--primary-light); color: var(--primary); font-weight: 700; }
+.vo-swatch { width: 26px; height: 26px; padding: 0; border-radius: 50%; border: 2px solid var(--border); cursor: pointer; }
+.vo-swatch.active { border-color: var(--text); transform: scale(1.12); }
+.vo-clock { font-family: 'Space Mono', monospace; font-size: 0.82rem; font-variant-numeric: tabular-nums; color: var(--text); }
+.vo-list { display: grid; gap: 8px; max-width: 780px; margin: 18px auto 0; max-height: 240px; overflow-y: auto; padding-right: 6px; }
+.vo-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); cursor: pointer; }
+.vo-item.sel { border-color: var(--primary); background: var(--primary-light); }
+.vo-item-dot { width: 12px; height: 12px; border-radius: 50%; flex: 0 0 auto; }
+.vo-item-when { font-family: 'Space Mono', monospace; font-size: 0.74rem; color: var(--text-muted); flex: 0 0 auto; }
+.vo-item-what { flex: 1; min-width: 0; font-size: 0.84rem; line-height: 1.5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .captured { margin-top: 4px; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: var(--surface-alt); }
 .captured img { display: block; width: 100%; }
 .answer-key-image { display: block; max-width: 100%; height: auto; margin-top: 4px; border: 1px solid var(--border); border-radius: var(--radius-md); background: #fff; }
@@ -4115,7 +4154,9 @@ body.lore-reading { overflow: hidden; }
           <button class="btn btn-ghost btn-sm" id="mcqAddOptionBtn" type="button" style="margin-top:8px;">➕ Add option</button>
         </div>
         <div class="editor-field"><label>Marking guide <span style="color:var(--text-light);font-weight:400;">(per-question)</span></label><textarea id="qGuideInput" placeholder="Worked solution / what to look for in the working. e.g. Common denominator 20; 2/5=8/20, 1/4=5/20; eaten 13/20; left 7/20."></textarea><div class="hint">Private notes for the AI marker — students never see this.</div></div>
-        <div class="editor-field"><label>Video explanation link <span style="color:var(--text-light);font-weight:400;">(optional)</span></label><input id="qVideoInput" type="text" placeholder="YouTube, Dropbox or Google Drive video link"><div class="hint">Shown only after a student uses AI marking. YouTube, Vimeo, Dropbox and Google Drive share links are converted for embedding automatically.</div></div>
+        <div class="editor-field"><label>Video explanation link <span style="color:var(--text-light);font-weight:400;">(optional)</span></label><input id="qVideoInput" type="text" placeholder="YouTube, Dropbox or Google Drive video link"><div class="hint">Shown only after a student uses AI marking. YouTube, Vimeo, Dropbox and Google Drive share links are converted for embedding automatically.</div>
+          <button class="btn btn-ghost btn-sm" type="button" id="qVideoOverlayBtn" style="margin-top:10px;" title="Correct the video without re-recording it — put a note or a scribble over the film at the second it is needed">🎬 Video amendments</button>
+        </div>
         <div class="editor-field">
           <label>Answer key image <span style="color:var(--text-light);font-weight:400;">(optional)</span></label>
           <div class="img-zone" id="answerKeyZone" tabindex="0">📎 Hover &amp; paste, drop, or click to add a worked answer key image</div>
@@ -4603,6 +4644,50 @@ body.lore-reading { overflow: hidden; }
 <!-- Change which questions a SAVED worksheet holds. A worksheet is an ordered
      list of question ids, so this edits that list — it never touches the
      question bank itself. Every change persists as it is made. -->
+<!-- 🎬 Video amendments. A recorded explanation goes out of date the moment a
+     question is corrected, and re-cutting the film for one wrong number is not
+     a job anybody does — so the correction is drawn OVER the video instead.
+     Everything here writes to editorVideoOverlays; nothing is saved on the
+     question until the editor's own Save. -->
+<div class="overlay" id="voOverlay">
+  <div class="overlay-card wide">
+    <div class="overlay-head"><h3>🎬 Video amendments</h3><button class="close" data-close="voOverlay">×</button></div>
+    <div class="overlay-body">
+      <p style="color:var(--text-muted);font-size:0.86rem;margin-bottom:6px;line-height:1.65;">Correct a video without re-recording it: a note or a scribble appears over the film at the second you choose, in the spot you put it, and disappears again. The video itself is never touched.</p>
+      <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:18px;line-height:1.6;">Scrub to the moment, pick a tool, then <b>type a note and click the frame</b> — or drag to draw, point an arrow or box something in. Everything is placed relative to the picture, so it lands in the same spot at every size the video is shown at.</p>
+      <div class="vo-stage" id="voStage">
+        <div class="vo-player" id="voPlayerWrap"></div>
+        <canvas id="voCanvas"></canvas>
+      </div>
+      <div class="vo-bar">
+        <span class="vo-clock" id="voClock">0:00</span>
+        <button class="vo-tool" type="button" id="voUseHeadBtn" title="Set the note's start time to wherever the video is now">⤓ Use playhead</button>
+        <label title="When the note appears, in seconds or m:ss">Show at <input type="text" id="voAtInput" value="0:00" size="6"></label>
+        <label title="How long it stays on screen">for <input type="number" id="voDurInput" min="0.5" max="600" step="0.5" value="4"> s</label>
+      </div>
+      <div class="vo-bar">
+        <button class="vo-tool" type="button" data-votool="select" title="Pick a note up and move it, or select it to change its time">✥ Select / move</button>
+        <button class="vo-tool" type="button" data-votool="text" title="Type the note, then click where it should sit on the frame">🔤 Note</button>
+        <button class="vo-tool" type="button" data-votool="draw" title="Drag to scribble freehand">✏️ Draw</button>
+        <button class="vo-tool" type="button" data-votool="arrow" title="Drag from the tail to the head">➡️ Arrow</button>
+        <button class="vo-tool" type="button" data-votool="rect" title="Drag a box around what is wrong">▭ Box</button>
+        <input type="text" id="voTextInput" class="vo-note-input" placeholder="Type the note, then click the frame…" maxlength="300">
+      </div>
+      <div class="vo-bar">
+        <span style="font-size:0.8rem;color:var(--text-muted);">Colour</span>
+        <span id="voColors" style="display:inline-flex;gap:8px;align-items:center;"></span>
+        <label title="Text size / line thickness">Size <input type="range" id="voSizeInput" min="1" max="10" step="1" value="3" style="width:120px;"></label>
+        <button class="vo-tool" type="button" id="voDeleteBtn" title="Delete the selected note (Delete)">🗑️ Delete selected</button>
+      </div>
+      <div class="vo-list" id="voList"></div>
+    </div>
+    <div class="overlay-foot">
+      <button class="btn btn-ghost" type="button" data-close="voOverlay">Cancel</button>
+      <button class="btn btn-primary" type="button" id="voApplyBtn">Save amendments</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="wsEditOverlay">
   <div class="overlay-card wide">
     <div class="overlay-head"><h3>✎ Worksheet questions</h3><button class="close" data-close="wsEditOverlay">×</button></div>
@@ -6623,6 +6708,10 @@ let editorBlocks = [];           // editor block list
 let editorOptions = [];          // MCQ option rows: [{ id, text }]
 let editorCorrectId = null;      // id of the option row marked correct
 let currentEditingId = null;
+// 🎬 The amendments drawn over this question's video explanation, while it is
+// being edited. The drawer writes here; collectQuestion is what puts them on
+// the question, so cancelling an edit leaves the saved video untouched.
+let editorVideoOverlays = [];
 // Where the editor was opened FROM, when that is somewhere other than the bank.
 // The worksheet question drawer sets it, so Save and Cancel land the teacher
 // back on the sheet they were building instead of dropping them on the bank
@@ -7152,7 +7241,7 @@ document.querySelectorAll(".overlay").forEach(o => o.addEventListener("click", e
 // =====================================================================
 // Answers live in a separate, admin-only doc (mathQuestionKeys) so the
 // student-readable question doc never contains anything worth peeking at.
-const QUESTION_KEY_FIELDS = ["expected", "markingGuide", "answerKeyImageUrl", "videoExplanationUrl"];
+const QUESTION_KEY_FIELDS = ["expected", "markingGuide", "answerKeyImageUrl", "videoExplanationUrl", "videoOverlays"];
 // Per-block answers (annotation questions) live on the BLOCKS, and `blocks`
 // stays in the student-readable half — so they have to be lifted out block by
 // block, or every student who reads the bank can read the answer. They come
@@ -10700,6 +10789,7 @@ function resetEditor() {
   editorLos = []; sylEditorRender();
   $("qExpectedInput").value = ""; $("qGuideInput").value = "";
   $("qVideoInput").value = "";
+  editorVideoOverlays = []; voSyncButton();
   setAnswerKeyImage("");
   setEditorOptions([]);
   $("createHeading").textContent = "Create Question";
@@ -10736,6 +10826,7 @@ function loadQuestionIntoEditor(q) {
   editorLos = qLos(q); sylEditorRender();
   $("qExpectedInput").value = q.expected || ""; $("qGuideInput").value = q.markingGuide || "";
   $("qVideoInput").value = q.videoExplanationUrl || "";
+  editorVideoOverlays = voClean(q.videoOverlays); voSyncButton();
   setAnswerKeyImage(q.answerKeyImageUrl || "");
   setEditorOptions(q.options, q.correctOption);
   $("createHeading").textContent = "Edit Question";
@@ -10781,6 +10872,9 @@ function collectQuestion() {
     expected: $("qExpectedInput").value.trim(),
     markingGuide: $("qGuideInput").value.trim(),
     videoExplanationUrl: $("qVideoInput").value.trim(),
+    // Amendments ride with the video, in the admin-only half — a note saying
+    // what the answer should have been is an answer.
+    videoOverlays: voClean(editorVideoOverlays),
     answerKeyImageUrl: $("answerKeyUrlInput").value.trim(),
     createdAt: currentEditingId ? (questionBank.find(q => q.id === currentEditingId) || {}).createdAt || new Date().toISOString() : new Date().toISOString(),
     createdBy: currentUser ? currentUser.name : "Admin"
@@ -10925,6 +11019,7 @@ function populateEditorFromAi(d) {
   $("qExpectedInput").value = d.expected || "";
   $("qGuideInput").value = d.markingGuide || "";
   $("qVideoInput").value = "";
+  editorVideoOverlays = []; voSyncButton();
   setAnswerKeyImage("");
   // MCQ: seed the option editor if the AI extracted choices.
   const aiOpts = Array.isArray(d.options) ? d.options.map(o => String(o == null ? "" : o).trim()).filter(Boolean) : [];
@@ -11618,6 +11713,9 @@ async function regenerateQuestionVariant(difficulty = "same") {
     // The old worked answer key image and solution video describe the previous numbers, so they no longer apply.
     setAnswerKeyImage("");
     $("qVideoInput").value = "";
+    // …and so do the amendments on it: they are timed against a film that
+    // explains the OLD numbers.
+    editorVideoOverlays = []; voSyncButton();
     $("createHeading").textContent = "Create Question";
     $("saveQBtn").textContent = "💾 Save to Question Bank";
     $("cancelEditBtn").style.display = "none";
@@ -12717,6 +12815,7 @@ function openQuestionShare(q) {
         : "Snap a photo of your paper working to AI-mark it, or do it on screen. The worked solution and video appear after you submit."}</div>
      ${admin ? renderShareAdminSection(q) : ""}`;
   $("questionShareOverlay").classList.add("show");
+  voBindIn($("questionShareBody"));   // start the video's amendment layer
   $("qshareMarkBtn").addEventListener("click", () => { closeOverlay("questionShareOverlay"); openAiMarkForQuestion(q); });
   $("qsharePracticeBtn").addEventListener("click", () => { closeOverlay("questionShareOverlay"); goPracticeQuestion(q); });
   if (admin) wireShareAdminSection(q);
@@ -12729,7 +12828,7 @@ function renderShareAdminSection(q) {
     ? `<div><b>Options:</b></div>${mcqOptionsPreviewHtml(q, true)}` : "";
   const keyBody = (ans ? `<div><b>Answer:</b> ${escapeHtml(ans)}</div>` : "") + mcq +
     (guide ? `<div class="qshare-guide">${escapeHtml(guide)}</div>` : "") + akImg;
-  const video = q.videoExplanationUrl ? aiMarkVideoHtml(q.videoExplanationUrl) : "";
+  const video = q.videoExplanationUrl ? aiMarkVideoHtml(q.videoExplanationUrl, q.videoOverlays) : "";
   return `<div class="qshare-admin">
     <div class="qshare-key"><div class="qshare-lbl">Answer key (admin only)</div>${keyBody || '<div class="qshare-guide">No answer key on this question yet.</div>'}</div>
     ${video ? `<div>${video}</div>` : ""}
@@ -13535,6 +13634,7 @@ async function wvLoadSolutions(ws) {
         markingGuide: q.markingGuide || "",
         answerKeyImageUrl: q.answerKeyImageUrl || "",
         videoExplanationUrl: q.videoExplanationUrl || "",
+        videoOverlays: voClean(q.videoOverlays),
         correctOption: typeof q.correctOption === "number" ? q.correctOption : undefined,
         annotationAnswers: wvAnnotationAnswers(q)
       };
@@ -13569,7 +13669,7 @@ async function wvLoadSolutions(ws) {
 // student came here for), then the answer and the marking guide.
 function wvSolutionBodyHtml(q) {
   const s = _wvSolutions[q.id] || {};
-  const video = aiMarkVideoHtml(s.videoExplanationUrl);
+  const video = aiMarkVideoHtml(s.videoExplanationUrl, s.videoOverlays);
   const mcq = (Array.isArray(q.options) && q.options.length >= 2 && Number.isInteger(s.correctOption))
     ? `<div class="wv-sol-ans">Answer: ${String.fromCharCode(65 + s.correctOption)}. ${escapeHtml(q.options[s.correctOption] || "")}</div>` : "";
   const ans = String(s.expected || "").trim();
@@ -13658,6 +13758,7 @@ function renderWorksheetOverview() {
     });
     $("wvRevealAllBtn").textContent = openThem ? "🙈 Hide every solution" : "🎬 Show every solution";
   });
+  voBindIn(wrap);   // start every solution video's amendment layer
   $("wvPractiseBtn").addEventListener("click", () => practiseWorksheet(ws.id));
   $("wvPrintBtn").addEventListener("click", () => openSavedWorksheet(ws.id, true));
   $("wvBackBtn").addEventListener("click", () => navigateTo("myworksheets"));
@@ -14447,7 +14548,16 @@ function normalizeVideoExplanationUrl(raw) {
     const host = u.hostname.toLowerCase().replace(/^www\./, "").replace(/^m\./, "");
     if (host === "drive.google.com") {
       const id = googleDriveFileId(u);
-      if (id) return { kind: "iframe", url: `https://drive.google.com/file/d/${encodeURIComponent(id)}/preview` };
+      // `directUrl` is Drive's own file stream. Nothing plays it by default —
+      // the /preview embed is the well-tested path — but a video carrying
+      // AMENDMENTS needs a playhead we can read, which an iframe will never
+      // give us. videoExplanationFrameHtml tries this first in that one case
+      // and falls back to the iframe the moment it fails.
+      if (id) return {
+        kind: "iframe",
+        url: `https://drive.google.com/file/d/${encodeURIComponent(id)}/preview`,
+        directUrl: `https://drive.usercontent.google.com/download?id=${encodeURIComponent(id)}&export=download`
+      };
     }
     // YouTube watch/share/shorts links can't be framed directly (the watch
     // page refuses embedding) — convert them to the /embed/ player URL.
@@ -14479,19 +14589,678 @@ function normalizeVideoExplanationUrl(raw) {
   }
 }
 
+// =====================================================================
+// 🎬 VIDEO AMENDMENTS — corrections drawn OVER a video, not cut into it
+// =====================================================================
+// A recorded explanation goes out of date the moment the question is
+// corrected, and re-cutting the film for one wrong number is not a job
+// anybody actually does — so the correction is drawn on top of it instead: a
+// note or a scribble that appears at a given second, at a given spot on the
+// frame, and disappears again. The video file is never touched.
+//
+// An item is stored in FRACTIONS of the frame (0..1), never pixels. The same
+// video is shown in the practice panel, the worksheet overview and the share
+// card at three different sizes, and one authoring pass has to be right in all
+// of them.
+//
+//   { id, t, dur, kind, color, size,
+//     x, y, w, text        — 'text'
+//     pts: [{x,y}, …]      — 'draw' (freehand), 'arrow' (2 pts), 'rect' (2 pts) }
+//
+// They travel with the VIDEO in the admin-only key doc (QUESTION_KEY_FIELDS):
+// a note reading "the answer here should be 24" IS an answer, and must not be
+// readable before the video it belongs to is.
+const VO_KINDS = ["text", "draw", "arrow", "rect"];
+const VO_MAX_ITEMS = 60;
+const VO_MAX_PTS = 400;
+const VO_DEFAULT_DUR = 4;
+const VO_COLORS = ["#ffd400", "#ff5252", "#4dd2ff", "#7ce87c", "#ffffff"];
+function voNum(v, lo, hi, dflt) {
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : dflt;
+}
+function voNewId() { return "vo_" + Math.random().toString(36).slice(2, 9); }
+// Every item that reaches a canvas or a Firestore write goes through here, so
+// a hand-edited doc, an old shape or a truncated AI reply can't crash a render.
+function voCleanItem(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const kind = VO_KINDS.includes(raw.kind) ? raw.kind : "text";
+  const item = {
+    id: String(raw.id || voNewId()).slice(0, 40),
+    kind,
+    t: voNum(raw.t, 0, 86400, 0),
+    dur: voNum(raw.dur, 0.2, 600, VO_DEFAULT_DUR),
+    color: /^#[0-9a-f]{6}$/i.test(String(raw.color || "")) ? String(raw.color) : VO_COLORS[0],
+    size: voNum(raw.size, 1, 10, 3)
+  };
+  if (kind === "text") {
+    item.text = String(raw.text == null ? "" : raw.text).slice(0, 300);
+    if (!item.text.trim()) return null;
+    item.x = voNum(raw.x, 0, 1, 0.5);
+    item.y = voNum(raw.y, 0, 1, 0.5);
+    item.w = voNum(raw.w, 0.1, 1, 0.44);
+    return item;
+  }
+  const pts = (Array.isArray(raw.pts) ? raw.pts : []).slice(0, VO_MAX_PTS)
+    .map(p => ({ x: voNum(p && p.x, 0, 1, 0), y: voNum(p && p.y, 0, 1, 0) }));
+  if (pts.length < 2) return null;
+  item.pts = (kind === "draw") ? pts : [pts[0], pts[pts.length - 1]];
+  return item;
+}
+function voClean(list) {
+  return (Array.isArray(list) ? list : []).slice(0, VO_MAX_ITEMS)
+    .map(voCleanItem).filter(Boolean)
+    .sort((a, b) => a.t - b.t);
+}
+function voLive(item, t) { return t >= item.t && t < item.t + item.dur; }
+function voFmtTime(s) {
+  const v = Math.max(0, Number(s) || 0);
+  const m = Math.floor(v / 60), sec = v - m * 60;
+  return m + ":" + (sec < 10 ? "0" : "") + (Math.round(sec * 10) / 10).toFixed(1).replace(/\.0$/, "");
+}
+// Accepts "12", "12.5", "1:05" and "1:05.5" — a teacher reading a time off a
+// player types it the way the player shows it.
+function voParseTime(str) {
+  const s = String(str == null ? "" : str).trim();
+  if (!s) return 0;
+  const parts = s.split(":");
+  if (parts.length === 1) return voNum(parts[0], 0, 86400, 0);
+  const m = voNum(parts[0], 0, 1440, 0), sec = voNum(parts[1], 0, 59.99, 0);
+  return m * 60 + sec;
+}
+
+// ---- Painting one item onto a canvas of W×H pixels ------------------------
+// Everything is derived from the frame's own height, so a note is the same
+// share of the picture in a thumbnail and on a projector.
+function voTextFont(item, H) { return Math.max(9, H * (0.026 + 0.011 * (item.size - 1))); }
+function voWrapLines(ctx, text, maxW) {
+  const out = [];
+  String(text).split(/\n/).forEach(para => {
+    const words = para.split(/\s+/).filter(Boolean);
+    if (!words.length) { out.push(""); return; }
+    let line = words[0];
+    for (let i = 1; i < words.length; i++) {
+      const test = line + " " + words[i];
+      if (ctx.measureText(test).width <= maxW) line = test;
+      else { out.push(line); line = words[i]; }
+    }
+    out.push(line);
+  });
+  return out;
+}
+// The plate a note is painted on, in pixels — also what the editor hit-tests
+// against, so what you click is exactly what you see.
+function voTextBox(ctx, item, W, H) {
+  const fs = voTextFont(item, H);
+  ctx.font = `700 ${fs}px 'DM Sans', sans-serif`;
+  const pad = fs * 0.42, lh = fs * 1.32;
+  const lines = voWrapLines(ctx, item.text, item.w * W - pad * 2);
+  const wide = lines.reduce((m, l) => Math.max(m, ctx.measureText(l).width), 0);
+  const bw = Math.min(W, wide + pad * 2), bh = lines.length * lh + pad * 2 - (lh - fs) * 0.35;
+  // Clamped so a note placed near an edge is never half off the picture.
+  const x = Math.min(Math.max(0, item.x * W), Math.max(0, W - bw));
+  const y = Math.min(Math.max(0, item.y * H), Math.max(0, H - bh));
+  return { x, y, w: bw, h: bh, fs, pad, lh, lines };
+}
+function voRoundRect(ctx, x, y, w, h, r) {
+  const rad = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rad, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rad);
+  ctx.arcTo(x + w, y + h, x, y + h, rad);
+  ctx.arcTo(x, y + h, x, y, rad);
+  ctx.arcTo(x, y, x + w, y, rad);
+  ctx.closePath();
+}
+function voDrawItem(ctx, item, W, H) {
+  ctx.save();
+  if (item.kind === "text") {
+    const b = voTextBox(ctx, item, W, H);
+    ctx.fillStyle = "rgba(14,17,15,0.82)";
+    voRoundRect(ctx, b.x, b.y, b.w, b.h, b.fs * 0.42);
+    ctx.fill();
+    ctx.fillStyle = item.color;
+    ctx.textBaseline = "top";
+    b.lines.forEach((line, i) => ctx.fillText(line, b.x + b.pad, b.y + b.pad + i * b.lh));
+    ctx.restore();
+    return;
+  }
+  const lw = Math.max(1.5, item.size * H / 300);
+  ctx.strokeStyle = item.color;
+  ctx.fillStyle = item.color;
+  ctx.lineWidth = lw;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  // A dark halo is what keeps a yellow line readable over a white whiteboard.
+  ctx.shadowColor = "rgba(0,0,0,0.6)";
+  ctx.shadowBlur = lw * 1.8;
+  const p = item.pts.map(q => ({ x: q.x * W, y: q.y * H }));
+  if (item.kind === "rect") {
+    const x = Math.min(p[0].x, p[1].x), y = Math.min(p[0].y, p[1].y);
+    ctx.strokeRect(x, y, Math.abs(p[1].x - p[0].x), Math.abs(p[1].y - p[0].y));
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(p[0].x, p[0].y);
+    for (let i = 1; i < p.length; i++) ctx.lineTo(p[i].x, p[i].y);
+    ctx.stroke();
+    if (item.kind === "arrow") {
+      const a = p[0], b = p[1];
+      const ang = Math.atan2(b.y - a.y, b.x - a.x);
+      const head = Math.max(lw * 3.4, H * 0.028);
+      ctx.beginPath();
+      ctx.moveTo(b.x, b.y);
+      ctx.lineTo(b.x - head * Math.cos(ang - 0.42), b.y - head * Math.sin(ang - 0.42));
+      ctx.lineTo(b.x - head * Math.cos(ang + 0.42), b.y - head * Math.sin(ang + 0.42));
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+// Repaint a whole layer for one moment in the video.
+function voPaint(canvas, items, t) {
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+  items.forEach(it => { if (voLive(it, t)) voDrawItem(ctx, it, W, H); });
+}
+// The canvas backing store follows the frame's real size, so nothing is drawn
+// blurry on a retina screen or stretched after a resize.
+function voSizeCanvas(canvas, host) {
+  const r = host.getBoundingClientRect();
+  const dpr = Math.min(3, window.devicePixelRatio || 1);
+  const w = Math.max(1, Math.round(r.width * dpr)), h = Math.max(1, Math.round(r.height * dpr));
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; return true; }
+  return false;
+}
+
+// ---- The playback layer, wherever a video explanation is shown -------------
+// The markup is built as a STRING (every caller here assembles HTML and drops
+// it in with innerHTML), so the items are parked in a registry under a frame id
+// and picked up by voBindIn once the markup is actually in the document.
+const _voFrames = new Map();
+let _voFrameSeq = 0;
+function videoExplanationFrameHtml(rawUrl, overlays) {
+  const info = normalizeVideoExplanationUrl(rawUrl);
+  if (!info) return "";
+  const items = voClean(overlays);
+  // No amendments: the embed is exactly what it has always been.
+  if (!items.length) {
+    return `<div class="video-explanation-frame">` + (info.kind === "video"
+      ? `<video controls preload="metadata" src="${escapeHtml(info.url)}"></video>`
+      : `<iframe src="${escapeHtml(info.url)}" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen title="Video explanation"></iframe>`)
+      + `</div>`;
+  }
+  const fid = "vof" + (++_voFrameSeq);
+  _voFrames.set(fid, items);
+  // An iframe never tells us where its playhead is, so a note over one can only
+  // run off a stopwatch the student starts. Google Drive is the case worth
+  // fighting for — it also serves the file directly, and if that plays we own
+  // the clock and every note lands on the exact second. If Drive refuses (a
+  // private file, or the virus-scan interstitial for a big one) the <video>
+  // errors and voAttach puts the iframe back, stopwatch and all.
+  const direct = info.kind !== "video" && info.directUrl ? info.directUrl : "";
+  const player = (info.kind === "video" || direct)
+    ? `<video controls preload="metadata" src="${escapeHtml(direct || info.url)}"${direct ? ` data-vo-fallback="${escapeHtml(info.url)}"` : ""}></video>`
+    : `<iframe src="${escapeHtml(info.url)}" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen title="Video explanation"></iframe>`;
+  return `<div class="video-explanation-frame" data-vo-frame="${fid}">${player}<canvas class="vo-layer"></canvas></div>`;
+}
+// Wire every unbound amendment layer inside a container. Idempotent, so a
+// caller may hand it the same subtree twice without stacking listeners.
+function voBindIn(root) {
+  if (!root || !root.querySelectorAll) return;
+  root.querySelectorAll("[data-vo-frame]").forEach(frame => {
+    if (frame._voBound) return;
+    frame._voBound = true;
+    const fid = frame.getAttribute("data-vo-frame");
+    const items = _voFrames.get(fid);
+    // Handed over: the registry is a doorstep, not a store. Every re-render
+    // mints a fresh id, so keeping consumed entries would grow all session.
+    _voFrames.delete(fid);
+    if (items && items.length) voAttach(frame, items);
+  });
+}
+function voAttach(frame, items) {
+  const canvas = frame.querySelector("canvas.vo-layer");
+  if (!canvas) return;
+  let video = frame.querySelector("video");
+  let manual = null;          // the stopwatch, when there is no readable playhead
+  let raf = 0;
+
+  const clockNow = () => {
+    if (video) return video.currentTime || 0;
+    if (!manual) return 0;
+    return manual.running ? manual.base + (performance.now() - manual.startedAt) / 1000 : manual.base;
+  };
+  // paint() must not measure — it runs every animation frame. The backing
+  // store is resized only when the frame actually changes size.
+  const paint = () => voPaint(canvas, items, clockNow());
+  const resize = () => { voSizeCanvas(canvas, frame); paint(); };
+  const tick = () => { paint(); raf = requestAnimationFrame(tick); };
+  const start = () => { if (!raf) raf = requestAnimationFrame(tick); };
+  const stop = () => { if (raf) { cancelAnimationFrame(raf); raf = 0; } paint(); };
+
+  // The stopwatch, for a player whose playhead we cannot see.
+  const useManual = () => {
+    manual = { base: 0, running: false, startedAt: 0 };
+    const pill = document.createElement("button");
+    pill.type = "button";
+    pill.className = "vo-sync";
+    pill.title = "This player doesn't report where it is up to, so your teacher's notes run on a timer — press this as you press play, and again to pause.";
+    const reset = document.createElement("button");
+    reset.type = "button";
+    reset.className = "vo-sync";
+    reset.style.left = "auto";
+    reset.style.right = "12px";
+    reset.textContent = "↺ Back to the start";
+    reset.title = "Put the notes timer back to zero";
+    reset.style.display = "none";
+    const label = () => {
+      const t = clockNow();
+      pill.textContent = (manual.running ? "⏸ " : "⏱ ") + (t > 0.05 ? voFmtTime(t) : "Start notes");
+      pill.classList.toggle("running", manual.running);
+      reset.style.display = (t > 0.05 || manual.running) ? "" : "none";
+    };
+    pill.addEventListener("click", () => {
+      if (manual.running) { manual.base = clockNow(); manual.running = false; stop(); }
+      else { manual.startedAt = performance.now(); manual.running = true; start(); }
+      label();
+    });
+    reset.addEventListener("click", () => {
+      manual.base = 0; manual.running = false; manual.startedAt = performance.now();
+      stop(); label();
+    });
+    frame.appendChild(pill);
+    frame.appendChild(reset);
+    const relabel = setInterval(() => { if (frame.isConnected) label(); else clearInterval(relabel); }, 250);
+    label();
+  };
+
+  if (video) {
+    ["play", "playing"].forEach(ev => video.addEventListener(ev, start));
+    ["pause", "ended"].forEach(ev => video.addEventListener(ev, stop));
+    // A scrub or a metadata load moves the playhead without starting the loop,
+    // so those repaint once rather than cancelling it.
+    ["seeked", "loadedmetadata", "timeupdate"].forEach(ev => video.addEventListener(ev, paint));
+    // Drive's direct stream refused: put the preview iframe back and fall
+    // through to the stopwatch, without the student ever seeing a broken player.
+    const fallback = video.getAttribute("data-vo-fallback");
+    if (fallback) {
+      video.addEventListener("error", () => {
+        if (!video) return;
+        const iframe = document.createElement("iframe");
+        iframe.src = fallback;
+        iframe.setAttribute("allow", "autoplay; fullscreen; picture-in-picture");
+        iframe.setAttribute("allowfullscreen", "");
+        iframe.title = "Video explanation";
+        video.replaceWith(iframe);
+        video = null;
+        stop();
+        useManual();
+      }, { once: true });
+    }
+  } else {
+    useManual();
+  }
+
+  if (window.ResizeObserver) {
+    const ro = new ResizeObserver(() => resize());
+    ro.observe(frame);
+  } else {
+    window.addEventListener("resize", resize);
+  }
+  resize();
+}
+
+// ---- The authoring drawer -------------------------------------------------
+// Scrub to the moment, pick a tool, put the note where it belongs. Nothing is
+// written to the question here: this edits editorVideoOverlays, and the
+// editor's own Save is what persists it — the same contract every other field
+// in the editor keeps.
+let _vo = null;
+function voOpenEditor() {
+  if (!canManageQuestions()) { toast("Only admin accounts can edit questions", "error"); return; }
+  const url = $("qVideoInput").value.trim();
+  const info = normalizeVideoExplanationUrl(url);
+  if (!info) { toast("Add a video link first — then you can put notes over it", "error"); return; }
+  const wrap = $("voPlayerWrap");
+  // Author against a player we can scrub whenever one exists. A Drive link is
+  // worth the direct-stream attempt here too: the author needs a playhead to
+  // set times against, and this is the same URL the student's page will try.
+  const direct = info.kind !== "video" && info.directUrl ? info.directUrl : "";
+  if (info.kind === "video" || direct) {
+    wrap.innerHTML = `<video id="voVideo" controls preload="metadata" playsinline src="${escapeHtml(direct || info.url)}"></video>`;
+  } else {
+    wrap.innerHTML = `<iframe src="${escapeHtml(info.url)}" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen title="Video"></iframe>`;
+  }
+  const video = $("voVideo");
+  _vo = {
+    items: voClean(editorVideoOverlays),
+    sel: null, tool: "text", color: VO_COLORS[0], size: 3, dur: VO_DEFAULT_DUR,
+    at: 0, video: video || null, drag: null, manual: 0,
+    canvas: $("voCanvas"), fallback: direct ? info.url : ""
+  };
+  if (video && direct) {
+    // Same self-healing swap the student's page does, so an author never sits
+    // looking at a dead player wondering what they did wrong.
+    video.addEventListener("error", () => {
+      if (!_vo) return;
+      wrap.innerHTML = `<iframe src="${escapeHtml(info.url)}" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen title="Video"></iframe>`;
+      _vo.video = null;
+      voSyncBars();
+      toast("This Drive file won't stream here, so type the times in by hand — the notes still work", "");
+    }, { once: true });
+    video.addEventListener("timeupdate", () => { if (_vo) voPaintEditor(); });
+    video.addEventListener("seeked", () => { if (_vo) voPaintEditor(); });
+    video.addEventListener("loadedmetadata", () => { if (_vo) voPaintEditor(); });
+  } else if (video) {
+    ["timeupdate", "seeked", "loadedmetadata"].forEach(ev => video.addEventListener(ev, () => { if (_vo) voPaintEditor(); }));
+  }
+  voRenderColors();
+  voSetTool("text");
+  $("voTextInput").value = "";
+  $("voDurInput").value = String(VO_DEFAULT_DUR);
+  $("voSizeInput").value = "3";
+  $("voAtInput").value = voFmtTime(0);
+  $("voOverlay").classList.add("show");
+  requestAnimationFrame(() => { voPaintEditor(); voRenderList(); });
+}
+// The moment the drawer is pointed at: the player's own playhead when we have
+// one, otherwise whatever the author typed in "Show at".
+function voHeadTime() {
+  if (_vo && _vo.video) return _vo.video.currentTime || 0;
+  return _vo ? _vo.at : 0;
+}
+function voRenderColors() {
+  const box = $("voColors");
+  box.innerHTML = VO_COLORS.map(c =>
+    `<button type="button" class="vo-swatch${c === _vo.color ? " active" : ""}" data-vocolor="${c}" style="background:${c};" title="${c}"></button>`).join("");
+  box.querySelectorAll("[data-vocolor]").forEach(b => b.addEventListener("click", () => {
+    _vo.color = b.dataset.vocolor;
+    const sel = voSelected();
+    if (sel) { sel.color = _vo.color; voPaintEditor(); voRenderList(); }
+    voRenderColors();
+  }));
+}
+function voSetTool(t) {
+  if (!_vo) return;
+  _vo.tool = t;
+  document.querySelectorAll("[data-votool]").forEach(b => b.classList.toggle("active", b.dataset.votool === t));
+  $("voCanvas").style.cursor = t === "select" ? "move" : "crosshair";
+}
+function voSelected() { return _vo && _vo.sel ? _vo.items.find(i => i.id === _vo.sel) || null : null; }
+function voSyncBars() {
+  if (!_vo) return;
+  const sel = voSelected();
+  $("voAtInput").value = voFmtTime(sel ? sel.t : voHeadTime());
+  $("voDurInput").value = String(sel ? sel.dur : _vo.dur);
+  $("voSizeInput").value = String(sel ? sel.size : _vo.size);
+  $("voClock").textContent = voFmtTime(voHeadTime());
+}
+// The editor canvas shows the film's own moment, plus a dashed box round
+// whatever is selected — so what you see is what will play.
+function voPaintEditor() {
+  if (!_vo) return;
+  const canvas = _vo.canvas, host = $("voStage");
+  voSizeCanvas(canvas, host);
+  const t = voHeadTime();
+  const ctx = canvas.getContext("2d"), W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+  _vo.items.forEach(it => { if (voLive(it, t)) voDrawItem(ctx, it, W, H); });
+  if (_vo.draft) voDrawItem(ctx, _vo.draft, W, H);
+  const sel = voSelected();
+  if (sel) {
+    const b = voItemBounds(ctx, sel, W, H);
+    ctx.save();
+    ctx.setLineDash([6, 5]);
+    ctx.lineWidth = Math.max(1.5, H / 400);
+    ctx.strokeStyle = "#4a7c59";
+    ctx.strokeRect(b.x - 6, b.y - 6, b.w + 12, b.h + 12);
+    ctx.restore();
+  }
+  $("voClock").textContent = voFmtTime(t);
+}
+// The pixel box an item occupies — used for the selection outline and for
+// hit-testing, so clicking a note picks up exactly what is drawn.
+function voItemBounds(ctx, item, W, H) {
+  if (item.kind === "text") { const b = voTextBox(ctx, item, W, H); return { x: b.x, y: b.y, w: b.w, h: b.h }; }
+  const xs = item.pts.map(p => p.x * W), ys = item.pts.map(p => p.y * H);
+  const x = Math.min(...xs), y = Math.min(...ys);
+  const pad = Math.max(6, item.size * H / 300);
+  return { x: x - pad, y: y - pad, w: Math.max(...xs) - x + pad * 2, h: Math.max(...ys) - y + pad * 2 };
+}
+function voHitTest(px, py) {
+  if (!_vo) return null;
+  const canvas = _vo.canvas, ctx = canvas.getContext("2d"), W = canvas.width, H = canvas.height;
+  const t = voHeadTime();
+  // Topmost first: the last one drawn is the one on top.
+  const live = _vo.items.filter(it => voLive(it, t));
+  for (let i = live.length - 1; i >= 0; i--) {
+    const b = voItemBounds(ctx, live[i], W, H);
+    if (px >= b.x && px <= b.x + b.w && py >= b.y && py <= b.y + b.h) return live[i];
+  }
+  return null;
+}
+function voPt(e) {
+  const canvas = _vo.canvas, r = canvas.getBoundingClientRect();
+  return {
+    px: (e.clientX - r.left) * (canvas.width / r.width),
+    py: (e.clientY - r.top) * (canvas.height / r.height),
+    fx: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)),
+    fy: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))
+  };
+}
+function voAddItem(item) {
+  const clean = voCleanItem(item);
+  if (!clean) return;
+  if (_vo.items.length >= VO_MAX_ITEMS) { toast(`That's the limit of ${VO_MAX_ITEMS} notes on one video`, "error"); return; }
+  _vo.items.push(clean);
+  _vo.items.sort((a, b) => a.t - b.t);
+  _vo.sel = clean.id;
+  voPaintEditor();
+  voRenderList();
+  voSyncBars();
+}
+function voPointerDown(e) {
+  if (!_vo) return;
+  const p = voPt(e);
+  e.preventDefault();
+  // Capture keeps a drag alive when the pointer leaves the frame. It throws
+  // for a pointer the browser no longer considers active, and losing the whole
+  // handler over that would drop the note being placed.
+  try { _vo.canvas.setPointerCapture && _vo.canvas.setPointerCapture(e.pointerId); } catch (_) {}
+  if (_vo.tool === "select") {
+    const hit = voHitTest(p.px, p.py);
+    _vo.sel = hit ? hit.id : null;
+    _vo.drag = hit ? { id: hit.id, fx: p.fx, fy: p.fy } : null;
+    voPaintEditor(); voRenderList(); voSyncBars();
+    return;
+  }
+  if (_vo.tool === "text") {
+    const text = $("voTextInput").value.trim();
+    if (!text) { toast("Type the note first, then click where it should sit", ""); return; }
+    voAddItem({ kind: "text", text, x: p.fx, y: p.fy, w: 0.44,
+      t: voParseTime($("voAtInput").value), dur: voNum($("voDurInput").value, 0.5, 600, VO_DEFAULT_DUR),
+      color: _vo.color, size: voNum($("voSizeInput").value, 1, 10, 3) });
+    $("voTextInput").value = "";
+    return;
+  }
+  _vo.draft = {
+    id: voNewId(), kind: _vo.tool, pts: [{ x: p.fx, y: p.fy }, { x: p.fx, y: p.fy }],
+    t: voParseTime($("voAtInput").value), dur: voNum($("voDurInput").value, 0.5, 600, VO_DEFAULT_DUR),
+    color: _vo.color, size: voNum($("voSizeInput").value, 1, 10, 3)
+  };
+}
+function voPointerMove(e) {
+  if (!_vo) return;
+  if (_vo.drag) {
+    const p = voPt(e);
+    const it = _vo.items.find(i => i.id === _vo.drag.id);
+    if (it) {
+      const dx = p.fx - _vo.drag.fx, dy = p.fy - _vo.drag.fy;
+      if (it.kind === "text") { it.x = Math.min(1, Math.max(0, it.x + dx)); it.y = Math.min(1, Math.max(0, it.y + dy)); }
+      else it.pts.forEach(q => { q.x = Math.min(1, Math.max(0, q.x + dx)); q.y = Math.min(1, Math.max(0, q.y + dy)); });
+      _vo.drag.fx = p.fx; _vo.drag.fy = p.fy;
+      voPaintEditor();
+    }
+    return;
+  }
+  if (!_vo.draft) return;
+  const p = voPt(e);
+  if (_vo.draft.kind === "draw") {
+    if (_vo.draft.pts.length < VO_MAX_PTS) _vo.draft.pts.push({ x: p.fx, y: p.fy });
+  } else {
+    _vo.draft.pts[1] = { x: p.fx, y: p.fy };
+  }
+  voPaintEditor();
+}
+function voPointerUp() {
+  if (!_vo) return;
+  if (_vo.drag) { _vo.drag = null; voRenderList(); return; }
+  const draft = _vo.draft;
+  _vo.draft = null;
+  if (!draft) return;
+  // A tap with no drag behind it isn't a shape — drop it rather than leaving
+  // an invisible dot on the film.
+  const a = draft.pts[0], b = draft.pts[draft.pts.length - 1];
+  if (draft.kind !== "draw" && Math.hypot(b.x - a.x, b.y - a.y) < 0.015) { voPaintEditor(); return; }
+  voAddItem(draft);
+}
+function voRenderList() {
+  const list = $("voList");
+  if (!_vo) { list.innerHTML = ""; return; }
+  if (!_vo.items.length) {
+    list.innerHTML = `<div class="empty-note">No amendments on this video yet — scrub to the moment, then put a note or a drawing on the frame.</div>`;
+    return;
+  }
+  const icon = { text: "🔤", draw: "✏️", arrow: "➡️", rect: "▭" };
+  list.innerHTML = _vo.items.map(it => {
+    const what = it.kind === "text" ? it.text : { draw: "Freehand drawing", arrow: "Arrow", rect: "Box" }[it.kind];
+    return `<div class="vo-item${it.id === _vo.sel ? " sel" : ""}" data-vo-pick="${escapeHtml(it.id)}">
+      <span class="vo-item-dot" style="background:${escapeHtml(it.color)};"></span>
+      <span class="vo-item-when">${escapeHtml(voFmtTime(it.t))} · ${escapeHtml(String(Math.round(it.dur * 10) / 10))}s</span>
+      <span class="vo-item-what">${icon[it.kind] || "•"} ${escapeHtml(what)}</span>
+      <button class="mini-btn" type="button" data-vo-del="${escapeHtml(it.id)}" title="Delete this amendment">✕</button>
+    </div>`;
+  }).join("");
+  list.querySelectorAll("[data-vo-pick]").forEach(row => row.addEventListener("click", e => {
+    if (e.target.closest("[data-vo-del]")) return;
+    voSelect(row.dataset.voPick);
+  }));
+  list.querySelectorAll("[data-vo-del]").forEach(b => b.addEventListener("click", () => voDelete(b.dataset.voDel)));
+}
+// Selecting seeks the film to the note's own moment, so the note being edited
+// is the note on screen.
+function voSelect(id) {
+  if (!_vo) return;
+  _vo.sel = id;
+  const it = voSelected();
+  if (it) {
+    if (_vo.video) { try { _vo.video.currentTime = it.t + Math.min(0.2, it.dur / 4); } catch (_) {} }
+    else _vo.at = it.t;
+  }
+  voSetTool("select");
+  voPaintEditor(); voRenderList(); voSyncBars();
+}
+function voDelete(id) {
+  if (!_vo) return;
+  const target = id || _vo.sel;
+  if (!target) { toast("Pick an amendment first", ""); return; }
+  _vo.items = _vo.items.filter(i => i.id !== target);
+  if (_vo.sel === target) _vo.sel = null;
+  voPaintEditor(); voRenderList(); voSyncBars();
+}
+function voApply() {
+  if (!_vo) return;
+  editorVideoOverlays = voClean(_vo.items);
+  voCloseEditor();
+  voSyncButton();
+  toast(editorVideoOverlays.length
+    ? `${editorVideoOverlays.length} amendment${editorVideoOverlays.length === 1 ? "" : "s"} ready — save the question to keep them`
+    : "Amendments cleared — save the question to keep it that way", "success");
+}
+function voCloseEditor() {
+  closeOverlay("voOverlay");
+  const wrap = $("voPlayerWrap");
+  if (wrap) wrap.innerHTML = "";   // stop the audio the moment the drawer closes
+  _vo = null;
+}
+function voSyncButton() {
+  const btn = $("qVideoOverlayBtn");
+  if (!btn) return;
+  const n = (editorVideoOverlays || []).length;
+  btn.textContent = n ? `🎬 Video amendments (${n})` : "🎬 Video amendments";
+}
+
+// The drawer's markup is static, so this binds once. Guarded on the elements
+// existing so the block is safe to move.
+(function voWire() {
+  const canvas = $("voCanvas");
+  if (!canvas) return;
+  canvas.addEventListener("pointerdown", voPointerDown);
+  canvas.addEventListener("pointermove", voPointerMove);
+  canvas.addEventListener("pointerup", voPointerUp);
+  canvas.addEventListener("pointercancel", voPointerUp);
+  document.querySelectorAll("[data-votool]").forEach(b => b.addEventListener("click", () => voSetTool(b.dataset.votool)));
+  $("voApplyBtn").addEventListener("click", voApply);
+  $("voDeleteBtn").addEventListener("click", () => voDelete());
+  $("qVideoOverlayBtn").addEventListener("click", voOpenEditor);
+  $("voUseHeadBtn").addEventListener("click", () => {
+    if (!_vo) return;
+    $("voAtInput").value = voFmtTime(voHeadTime());
+    const sel = voSelected();
+    if (sel) { sel.t = voHeadTime(); _vo.items.sort((a, b) => a.t - b.t); voPaintEditor(); voRenderList(); }
+  });
+  // Typing a time / duration / size edits the SELECTED note when there is one,
+  // and otherwise sets what the next note will use.
+  $("voAtInput").addEventListener("change", () => {
+    if (!_vo) return;
+    const t = voParseTime($("voAtInput").value);
+    $("voAtInput").value = voFmtTime(t);
+    const sel = voSelected();
+    if (sel) { sel.t = t; _vo.items.sort((a, b) => a.t - b.t); }
+    if (!_vo.video) _vo.at = t;
+    voPaintEditor(); voRenderList();
+  });
+  $("voDurInput").addEventListener("change", () => {
+    if (!_vo) return;
+    const d = voNum($("voDurInput").value, 0.5, 600, VO_DEFAULT_DUR);
+    $("voDurInput").value = String(d);
+    const sel = voSelected();
+    if (sel) sel.dur = d; else _vo.dur = d;
+    voPaintEditor(); voRenderList();
+  });
+  $("voSizeInput").addEventListener("input", () => {
+    if (!_vo) return;
+    const s = voNum($("voSizeInput").value, 1, 10, 3);
+    const sel = voSelected();
+    if (sel) sel.size = s; else _vo.size = s;
+    voPaintEditor();
+  });
+  // Delete removes the selected note, but never while a note is being typed.
+  window.addEventListener("keydown", e => {
+    if (!_vo || !$("voOverlay").classList.contains("show")) return;
+    const el = e.target;
+    if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
+    if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); voDelete(); }
+  });
+  // Enter in the note box arms the text tool, so the next click drops it.
+  $("voTextInput").addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); voSetTool("text"); toast("Now click the frame where the note should sit", ""); }
+  });
+})();
+
 function renderVideoExplanation(q) {
   const block = $("videoExplanationBlock");
   const target = $("videoExplanationEmbed");
-  const info = normalizeVideoExplanationUrl(q && q.videoExplanationUrl);
-  if (!info) {
+  const html = videoExplanationFrameHtml(q && q.videoExplanationUrl, q && q.videoOverlays);
+  if (!html) {
     target.innerHTML = "";
     block.style.display = "none";
     return;
   }
-  const src = escapeHtml(info.url);
-  target.innerHTML = info.kind === "video"
-    ? `<div class="video-explanation-frame"><video controls preload="metadata" src="${src}"></video></div>`
-    : `<div class="video-explanation-frame"><iframe src="${src}" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen title="Video explanation"></iframe></div>`;
+  target.innerHTML = html;
+  voBindIn(target);
   block.style.display = "block";
 }
 
@@ -14805,6 +15574,9 @@ $("submitBtn").addEventListener("click", async () => {
     const out = res.data || {};
     const v = out.verdict || {};
     if (out.videoExplanationUrl) q.videoExplanationUrl = out.videoExplanationUrl; // revealed only after marking
+    // The amendments drawn over that video come back on the same response, for
+    // the same reason: a note on the film can name the answer.
+    q.videoOverlays = Array.isArray(out.videoOverlays) ? out.videoOverlays : [];
     if (out.answerKeyImageUrl) q.answerKeyImageUrl = out.answerKeyImageUrl; // answer-key image, revealed only after marking
     // The correctly annotated diagram(s) — private until now, so they come back
     // on the response rather than from the question doc the student can read.
@@ -14987,6 +15759,7 @@ async function aiMarkApplyResult(out) {
   const v = out.verdict || {};
   const q = aiMarkResolveQuestion(out.matched || {});
   if (out.videoExplanationUrl && q) q.videoExplanationUrl = out.videoExplanationUrl;
+  if (q) q.videoOverlays = Array.isArray(out.videoOverlays) ? out.videoOverlays : [];
   if (out.answerKeyImageUrl && q) q.answerKeyImageUrl = out.answerKeyImageUrl;
   let reviewPlan = "";
   try { reviewPlan = await recordLearningAttempt(q, v, out.progress); } catch (e) { console.warn("ai mark record", e); }
@@ -15012,13 +15785,12 @@ function aiMarkResolveQuestion(matched) {
     blocks: []
   };
 }
-function aiMarkVideoHtml(rawUrl) {
-  const info = normalizeVideoExplanationUrl(rawUrl);
-  if (!info) return "";
-  const src = escapeHtml(info.url);
-  const frame = info.kind === "video"
-    ? `<div class="video-explanation-frame"><video controls preload="metadata" src="${src}"></video></div>`
-    : `<div class="video-explanation-frame"><iframe src="${src}" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen title="Video explanation"></iframe></div>`;
+// Every caller drops this into an innerHTML, so whoever does that must call
+// voBindIn on the container afterwards — that is what starts the amendment
+// layer. A frame with no amendments needs no binding and works either way.
+function aiMarkVideoHtml(rawUrl, overlays) {
+  const frame = videoExplanationFrameHtml(rawUrl, overlays);
+  if (!frame) return "";
   return `<div class="feedback-block"><h4>🎬 Video explanation</h4>${frame}</div>`;
 }
 // An annotation question marked from a photo: show the correctly annotated
@@ -15075,7 +15847,7 @@ function aiMarkRenderResult(out, reviewPlan) {
   if (fullAnswerKey) html += `<div class="feedback-block"><h4>🧾 Full answer key</h4><p class="answer-key-text">${escapeHtml(fullAnswerKey)}</p></div>`;
   html += aiMarkAnswerKeyImageHtml(out.answerKeyImageUrl);
   html += aiMarkAnnotationHtml(out.annotationAnswers);
-  html += aiMarkVideoHtml(out.videoExplanationUrl);
+  html += aiMarkVideoHtml(out.videoExplanationUrl, out.videoOverlays);
   if (aiMarkMedia && !aiMarkMedia.isPdf && aiMarkMedia.previewUrl) {
     html += `<div class="feedback-block"><h4>📸 What you submitted</h4><div class="captured"><img src="${aiMarkMedia.previewUrl}" alt="Your worksheet photo"></div></div>`;
   }
@@ -15083,6 +15855,7 @@ function aiMarkRenderResult(out, reviewPlan) {
 
   const el = $("aiMarkResult");
   el.innerHTML = html;
+  voBindIn(el);   // start the video's amendment layer
   el.style.display = "block";
   $("aiMarkPreviewWrap").style.display = "none";
   const wrong = $("aiMarkWrongMatchBtn"); if (wrong) wrong.addEventListener("click", () => aiMarkRenderPicker([]));
@@ -19074,7 +19847,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.19.0 · 2026-08-09";
+const APP_VERSION = "v1.20.0 · 2026-08-09";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type

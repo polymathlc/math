@@ -580,6 +580,49 @@ function publicAnswerKeyImageUrl(q) {
   return "";
 }
 
+// 🎬 The amendments drawn over a video explanation — notes and scribbles the
+// teacher added on top of the film rather than re-cutting it. They are
+// revealed at exactly the same moment as the video they belong to (a note
+// saying what the answer should have been IS an answer), so they travel on the
+// same two responses the video URL does.
+//
+// Bounded here as well as in the browser: this is what a student's page
+// receives, and a hand-edited key doc must not be able to hand it a million
+// points to draw.
+const VIDEO_OVERLAY_KINDS = ["text", "draw", "arrow", "rect"];
+function overlayNum(v, lo, hi, dflt) {
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : dflt;
+}
+function cleanVideoOverlays(list) {
+  if (!Array.isArray(list)) return [];
+  return list.slice(0, 60).map(raw => {
+    if (!raw || typeof raw !== "object") return null;
+    const kind = VIDEO_OVERLAY_KINDS.includes(raw.kind) ? raw.kind : "text";
+    const item = {
+      id: cleanText(raw.id, 40),
+      kind,
+      t: overlayNum(raw.t, 0, 86400, 0),
+      dur: overlayNum(raw.dur, 0.2, 600, 4),
+      color: /^#[0-9a-f]{6}$/i.test(String(raw.color || "")) ? String(raw.color) : "#ffd400",
+      size: overlayNum(raw.size, 1, 10, 3)
+    };
+    if (kind === "text") {
+      item.text = cleanText(raw.text, 300);
+      if (!item.text.trim()) return null;
+      item.x = overlayNum(raw.x, 0, 1, 0.5);
+      item.y = overlayNum(raw.y, 0, 1, 0.5);
+      item.w = overlayNum(raw.w, 0.1, 1, 0.44);
+      return item;
+    }
+    const pts = (Array.isArray(raw.pts) ? raw.pts : []).slice(0, 400)
+      .map(p => ({ x: overlayNum(p && p.x, 0, 1, 0), y: overlayNum(p && p.y, 0, 1, 0) }));
+    if (pts.length < 2) return null;
+    item.pts = kind === "draw" ? pts : [pts[0], pts[pts.length - 1]];
+    return item;
+  }).filter(Boolean);
+}
+
 // Fetches the teacher's answer-key image so it can be attached privately.
 async function answerKeyMedia(q) {
   const url = String((q && q.answerKeyImageUrl) || "").trim();
@@ -1000,6 +1043,7 @@ async function markKnownQuestion({ uid, isAdmin, isGuest = false, displayName = 
     reward: { gold, xp: finalXp, repeatAttempt, streakBonus, practiceBoost: boost > 1 },
     totals,
     videoExplanationUrl: cleanText(q.videoExplanationUrl, 800),
+    videoOverlays: cleanVideoOverlays(q.videoOverlays),
     answerKeyImageUrl: publicAnswerKeyImageUrl(q),
     // Annotation questions: the correctly annotated diagram, released only now
     // that the student's work is in. It is never in a doc they can read.
@@ -1386,6 +1430,7 @@ export const getWorksheetSolutions = onCall(LIGHT_OPTS, async (request) => {
       markingGuide: cleanText(data.markingGuide, 4000),
       answerKeyImageUrl: publicAnswerKeyImageUrl(data),
       videoExplanationUrl: cleanText(data.videoExplanationUrl, 800),
+      videoOverlays: cleanVideoOverlays(data.videoOverlays),
       correctOption: typeof data.correctOption === "number" ? data.correctOption : null,
       annotationAnswers
     });
