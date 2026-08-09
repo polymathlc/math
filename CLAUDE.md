@@ -77,11 +77,27 @@ is what lets a fix in one app be copied to the other. Only the *world* differs.
     chapter `id` is the art slot (`lore:<saga>:<id>`) — rewrite a chapter around it,
     never rename it.
 - **Two expansions, 101 cards.** `TCG_GEN1` (c001–c051, 51 xeno war-forms, *The
-  Prime Index · Xenocline Dominion*) then `TCG_GEN2` (c052–c101, 50 human heroes,
-  *Aegis Vanguard · Rise of Humanity*). **Ids are positional and live in every
-  student's save** (`s.cards`, `merges`, `levels`, `team`, the `tcgArt` overrides)
-  — a new set must be APPENDED and gen 1 flattened first, or every collection
-  re-points at different cards.
+  Prime Index · Xenocline Dominion*) then `TCG_GEN2` (c052–c101, 50 defenders of
+  humanity, *Aegis Vanguard · Rise of Humanity*). **Ids are positional and live in
+  every student's save** (`s.cards`, `merges`, `levels`, `team`, the `tcgArt`
+  overrides) — a new set must be APPENDED and gen 1 flattened first, or every
+  collection re-points at different cards.
+- **The top two tiers are KAIJU SCALE and the prompts say so.** 6★ is a
+  kaiju-class titan, 7★ is a galaxy-scale apex power — three star-eating
+  cybernetic void-drakes in gen 1 (`Solvorax Prime`, `Vhorrukhaal`, `Aeternax`)
+  and the two kilometre-tall Titan Engines humanity built to stand in front of
+  them (`Ferrovax Omega`, `Cryovast Aegis`). `_tcgTierMood` carries the scale and
+  `TCG_ART_WORLD` demands a city, a fleet or a star in frame to measure it by —
+  without something beside it, a model draws a big animal, not a titan.
+  - **Say "void-drake", never "dragon".** `TCG_FANTASY_PROMPT_RE` flags the word
+    and it drags the whole picture medieval; "cybernetic void-drake" gets the
+    star-eater without the castle.
+  - **An art note is a 6th column on a gen 1 row / an 8th on a gen 2 row**, and on
+    a CREATURE it REPLACES the `TCG_EM_WORD` phrase (on a human it is added to the
+    class look). That is how a row says which drake, at what size, eating what.
+  - **`cls: 'titan'` on a gen 2 row sets `human: false`** so the Titan Engines go
+    down the creature branch of `tcgCardArtPrompt`. Leave it off and the generator
+    draws a person in armour instead of a war-engine.
 - **Every name in the card tables is written for the ART GENERATOR.** Designations
   and strain names for the xenos (`Vexil-9`, `Sludgeform-04`, `Cogitor-Zero`), rank
   plus call-sign for the humans (`Castellan`, `Marshal`, `Archmagos`, `Arch-Psion`)
