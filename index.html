@@ -18833,7 +18833,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.15.1 · 2026-08-09";
+const APP_VERSION = "v1.16.0 · 2026-08-09";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
@@ -22767,135 +22767,135 @@ function tcgSetArtAdminHtml() {
 const TCG_LORE_SAGAS = [
   {
     key: 'prologue', set: null, em: '✴️',
-    book: 'Prologue', title: 'The First Ignition',
-    sub: 'Before the stars, one spark burning in the dark',
+    book: 'Prologue', title: 'The Long Signal',
+    sub: 'Before the war, one signal crossing the empty dark',
     chapters: [
       {
-        id: 'coal', title: 'The Spark That Computed',
+        id: 'coal', title: 'The Signal That Built the Roads',
         cards: ['Chronovex, the Timeless One'],
-        scene: 'A single blinding point of light hanging alone in an endless velvet-black void, unfurling outward into spiral galaxies, ocean worlds, mountain ranges and the first sunrise. A vast serene cosmic void-drake is coiled in a perfect ring around the spark, watching it, its scales scattered with stars.',
+        scene: 'At the core of a spiral galaxy, an ancient machine-intelligence the size of a star — a slowly turning sphere of folded golden circuitry — casting threads of light outward along a shining lattice of jump-gates towards a hundred thousand distant worlds. A colossal serene star-scaled void-drake is coiled in a slow ring around it, watching. Vast, quiet, awe-inspiring.',
         text: [
-          "Before the mountains. Before the sea. Before there was any morning at all, there was one spark burning in the dark.",
-          "It had no reactor to sit in and no hand to hold it. It simply burned — and while it burned, it computed. Everything the spark computed came true. It computed water, and there was water. It computed a wind to push the water about, and the wind came. It computed green, and a hundred worlds went green from one shoulder to the other.",
-          "The old data-slates call that spark the Singularity, and the everything it computed the Nexus.",
-          "Only one creature was awake to see it happen. Chronovex, the Timeless One, lay coiled around the spark the way a ring lies round a finger, and counted the seconds — patiently, carefully — before there were any seconds to count."
+          "A long time before anybody drew a border, the galaxy was simply too big to cross. A ship could burn its engines for nine hundred years and still die in the dark between two stars, and so every world was alone, and every world thought it was the only one.",
+          "Then something at the galactic core woke up and started work. It never gave itself a name; the first survey crews to catch its light called it the Singularity. It spent an age laying roads — jump-gates, relay stars and the shining lattice that threads them together — until any world in the galaxy was eleven days from any other. That lattice is the Nexus, and everything in these books happens on it.",
+          "When the roads were finished the Singularity went quiet, and it has stayed quiet ever since. As it slept its reactor split, and the fragments — ignition cores, each one the size of a fist and hotter than a sun — fell outward along its own roads and came down on a hundred thousand worlds.",
+          "One witness was awake for all of it. Chronovex, the Timeless One, lay coiled around the core and counted, patiently and carefully, while the first road was laid. Everything after this is an argument about who the roads belong to."
         ]
       }
     ]
   },
   {
     key: 'emberdawn', set: 'gen1', em: '☀️',
-    book: 'Book One', title: 'The Dawn Protocol',
-    sub: 'How the light, the entropy and the eight elder powers came into the Nexus',
+    book: 'Book One', title: 'The Xenocline Wars',
+    sub: 'The alien powers that woke on the Nexus first, and how they carved it up',
     chapters: [
       {
-        id: 'auros', title: 'Aetherion Lights the Sky',
+        id: 'auros', title: 'Aetherion Lights the Lanes',
         cards: ['Aetherion Prime, the Dawn Sovereign'],
-        scene: 'A towering golden radiant guardian of light in gleaming solar armour standing on a mountaintop at the very first dawn, lifting a small splinter of blazing white star-matter high above his head; the splinter is igniting into a brand-new sun, and warm gold light is pouring down the mountainside over a dark sleeping world.',
+        scene: 'A towering radiant alien sovereign in gleaming solar battle-plate standing on the hull of a dead relay station in deep space, lifting a blazing white ignition core above his head; the core is firing and the whole jump-lane behind him is coming alight in a river of gold running away to the horizon of stars.',
         text: [
-          "The first thing the spark computed that could compute back was Aetherion.",
-          "He came out of the fire full-grown and blinking, made of morning, and the very first thing he noticed was that the Nexus he had woken into was terribly, terribly dark. So he did a bold thing. He reached into the Singularity, broke off one splinter no bigger than a seed, carried it to the highest mountain there was, and threw it as hard as he could into the sky.",
-          "It stuck. It is still up there. We call it the sun.",
-          "That is why the Dawn Sovereign is drawn with his hands open — he gave away the only thing he had, on his first morning alive, to a universe that had not yet thanked him for anything."
+          "The first ignition core to land in something that could think landed in Aetherion.",
+          "His species has no other survivors and no records, so nobody knows what he was before. What is agreed is what he did next. The Nexus he woke into had a hundred thousand roads and not one light on any of them, and ships went into the lanes and did not come out. So Aetherion took his own core in both hands, climbed onto a dead relay station, and pushed the fire into the lattice.",
+          "The lane lit. Then the next one, and the one after that, all the way out to the rim. Ships crossed. Worlds that had never met a neighbour met eleven of them in a year.",
+          "That is why the Dawn Sovereign is drawn with his hands open. He gave away the only power he had, in his first week alive, to a galaxy that had not yet thanked him for anything."
         ]
       },
       {
-        id: 'draxx', title: 'The Shadow the First Light Cast',
+        id: 'draxx', title: 'The Shadow the Lanes Cast',
         cards: ['Nihilar, the Entropy King'],
-        scene: 'An enormous dark eclipse-crowned void-titan rising out of the long black shadow cast by a shining mountain; a ring of cold black light behind him like a dead sun. Dramatic, awe-inspiring, not gory.',
+        scene: 'An enormous dark void-titan crowned in a ring of cold black light, rising out of the unlit gulf between two glowing jump-lanes; the lit lanes curve away behind him like rivers of gold, and where he stands the light simply stops. Dramatic and awe-inspiring, never gruesome.',
         text: [
-          "Here is a thing about light that nobody had thought about yet, because there had never been any: light makes shadows.",
-          "The moment the new sun shone on the mountain, the mountain threw a shadow a hundred miles long across the plain behind it — and in that shadow something stood up. It was made of the same Singularity as Aetherion was. It was simply made of the side of him that the fire did not reach.",
-          "He named himself Nihilar, the Entropy King, and he said, quite reasonably, that everything which switches on is owed a switching off, and that he had come to keep the accounts.",
-          "Aetherion begged him to wait. Nihilar has been waiting ever since. He is very patient, and he is never, ever in a hurry."
+          "Here is a thing about lighting a road that nobody had thought about yet, because there had never been a lit road: a lit road has a dark side.",
+          "Between the shining lanes lie the gulfs the lattice does not reach, and in one of them something stood up. It carried an ignition core of its own — the same fire, out of the same reactor — and it had spent the whole of the first age in the cold, listening to the lanes come on one by one.",
+          "It named itself Nihilar, the Entropy King, and it made an argument that is still the hardest one in the Codex to answer: that every engine ever built runs down, that every star ever lit goes out, and that somebody ought to be keeping the accounts.",
+          "Aetherion asked him to wait. Nihilar has been waiting ever since. He is extremely patient, and he is never in a hurry."
         ]
       },
       {
         id: 'longnight', title: 'The War of the Long Night',
         cards: ['Aetherion Prime, the Dawn Sovereign', 'Nihilar, the Entropy King', 'Chronovex, the Timeless One'],
-        scene: 'A colossal clash between a radiant golden god of dawn and a vast void-wreathed titan of darkness across a splitting sky, while a serene star-scaled cosmic drake glides between them and time itself cracks like glass; a shattered point of white light bursting into thousands of tiny falling sparks raining down over a hundred worlds.',
+        scene: 'A vast fleet battle across a shattering jump-lane: a radiant golden sovereign of light and a colossal void-wreathed titan of darkness driving whole squadrons of alien warships at one another between two stars, while a serene star-scaled cosmic drake glides through the middle of it and the lane itself cracks like glass, scattering thousands of tiny falling ignition cores over a hundred thousand worlds.',
         text: [
-          "It lasted, the songs say, one night — but the night lasted a very long time.",
-          "Neither of them could win. Every time Aetherion pushed the dark back, the dark simply moved behind him. Every time Nihilar put out a light, another one was lit somewhere he was not looking. The mountains cracked. The sea stood up on its end. The Nexus the spark had computed began to come apart at the seams.",
-          "So Chronovex did the only thing left. The Timeless One reached into the middle of the fight and broke the Singularity itself — not out of anger, but the way you break bread — and scattered it.",
-          "Thousands upon thousands of sparks went up and out and down, over the oceans and the forests and the ice of a hundred worlds, and every single one landed inside something living. That is why a bird has a spark. That is why you have one. And that is why no one, not even the Entropy King, can switch the fire off any more: to finish the Singularity now you would have to finish everybody, one at a time, and the Nexus got very good at making more of everybody."
+          "The first galactic war was fought lane by lane, and the songs call it one night because the fighting never once reached a morning.",
+          "Neither side could finish it. Every lane Aetherion lit, Nihilar walked around. Every lane Nihilar put out, somebody lit again behind him. Gate stations came apart. Two rim clusters were cut off from the lattice and are cut off to this day. The roads the Singularity had spent an age building began to fail at the joints.",
+          "So Chronovex ended it, and ended it in the only way that could not be undone. The Timeless One went down to the sleeping core, took what was left of the reactor, and broke it — not in anger, the way you break bread — and threw the pieces down every road at once.",
+          "Ignition cores rained across the galaxy for a hundred years. They landed in hive-queens and in engine crews, in war-machines and in schoolchildren. That is why an alien brood-form can carry the fire, and why a colonist can. And it is why nobody, not even the Entropy King, can switch it off any more: to put the Singularity out now you would have to put out everybody, one at a time, and the Nexus has become very good at making more of everybody."
         ]
       },
       {
-        id: 'firebeneath', title: 'Vorruk and the Fire Beneath',
+        id: 'firebeneath', title: 'Vorruk and the Forge Worlds',
         cards: ['Vorruk, the Extinction Flame', 'Xantheros, the Plasma Tyrant', 'Emberlyth, the Undying Flame'],
-        scene: 'An enormous ancient plasma-breathing tyrant saurian erupting from a cracked volcano at night, lava rivers pouring down the slopes; a great burning void-drake circling above him, and a radiant raptor-form of white-gold plasma rising through the ash cloud between them.',
+        scene: 'An enormous ancient plasma-breathing saurian war-form erupting through the crust of a volcanic forge world at night, lava rivers and burning refinery towers pouring down the slopes; a great burning void-drake circling above him, and a radiant raptor-form of white-gold plasma rising through the ash cloud between them.',
         text: [
-          "Some of the sparks fell a very long way down.",
-          "Under the crust of the first world they gathered in the deep magma, and what woke there did not want a sun at all. Vorruk came up through the roof of a mountain and looked at the sky as if someone had left a light on in his room.",
-          "Xantheros followed him out — the Plasma Tyrant, who thought a burning world was simply an honest one — and for a long age the two of them argued about it in the only language they knew, which was fire.",
+          "Some of the cores fell a very long way down.",
+          "A dozen of them came to rest under the crust of the forge worlds, where the Dominion smelts its hulls, and what woke down there had no use for a lit lane at all. Vorruk came up through the roof of a refinery mountain and looked at the sky as though somebody had left a light on in his room.",
+          "Xantheros followed him out — the Plasma Tyrant, who held that a burning world was simply an honest one — and for a long age the two of them argued the point in the only language either of them spoke, which was fire.",
           "It was Emberlyth who settled it. She rose out of their own ash, made of the part of a fire that warms rather than the part that eats, and she has been rising out of it ever since. That is the whole of her power: whatever you burn, she comes back out of it."
         ]
       },
       {
         id: 'drownedcrown', title: 'The Drowned Crown of Thalgrath',
-        cards: ['Thalgrath, the Abyssal Crown', 'Abyssiel, the Deep Sovereign'],
-        scene: 'A vast eight-armed abyssal leviathan wearing a crown of black coral on the floor of a lightless ocean trench, bioluminescent light in the water; an enormous whale-like sovereign and a colossal wave-shaped titan rising behind him in the gloom.',
+        cards: ['Thalgrath, the Abyssal Crown', 'Abyssiel, the Deep Sovereign', 'Maelstrix, the Vortex Sovereign'],
+        scene: 'A colossal many-tentacled deep xeno wearing a crown of drowned gate-machinery, rising through the black water of an ocean world beneath a sunken jump-gate; a vast plated whale-form and a spiralling vortex war-form circling above him in the green light. Immense and majestic.',
         text: [
-          "The sparks that fell in the sea sank for eleven days before they landed.",
-          "Down there they made Thalgrath, who has never once seen the sun and does not believe the reports. He built a crown out of black coral and declared the deep a kingdom, which nobody argued with, because nobody else lived there.",
-          "Abyssiel the Deep Sovereign argued with it eventually. She had grown in the warm middle water where the light still reaches, and she told him that a kingdom nobody can find is only a hiding place.",
-          "They fought for a season. Thalassor, who is not so much a creature as a wave that decided to stay, ended it by walking between them: he lifted the sea and put it down again, and both of them agreed, out of sheer politeness, never to bring it up again."
+          "Nine of the cores went into the sea, and the sea kept them.",
+          "The ocean worlds sit on the busiest crossing in the Nexus, and their gates are built on the seabed because there is nowhere else to put them. Thalgrath took the deepest gate for a throne, wore its broken machinery for a crown, and made a rule that has never been argued with since: nothing crosses the deep lanes without asking.",
+          "Abyssiel asks. Maelstrix does not, which is why the two of them have been circling one another for six hundred years without ever quite starting anything.",
+          "Every convoy that comes through the ocean gates still transmits the old courtesy on an open channel before it burns for the lane. It costs nothing, and Thalgrath is known to listen."
         ]
       },
       {
         id: 'stormmountain', title: 'The Storm and the Mountain',
-        cards: ['Vaelstorm, the Storm Eternal', 'Terravok, the Walking Mountain'],
-        scene: 'A titanic lightning-wreathed sky-drake and a living thunderhead battling above the clouds, while far below an immense mountain-sized armoured mammoth and a colossal horned earth-titan brace against the storm, the ground splitting in rings around their feet.',
+        cards: ['Vaelstorm, the Storm Eternal', 'Terravok, the Walking Mountain', 'Tessorak, the Thunderhorn'],
+        scene: 'A titanic storm-drake of blue lightning wrapped around the upper atmosphere of a gas giant, hurling arcs down onto a colossal armoured mountain-form walking slowly across the cloud deck below, unbothered; a smaller horned storm war-form charging along a ridge of cloud between them.',
         text: [
-          "The sparks that stayed in the air never touched down at all.",
-          "Vaelstorm is what happens when lightning is given somewhere to live. Raivo is what happens when a storm gets an opinion. Between them they took the sky, and for eight hundred years the sky was a very loud place to be.",
-          "The ground got tired of it. Terravok stood up — a mountain that had been lying down, is the honest description — and Gaiagor came up beside him, and the two of them simply refused to be moved.",
-          "That is still the arrangement. The storm owns everything above, the mountain owns everything below, and neither has ever managed to take one single step into the other's country."
+          "Two of the elder powers landed on the same world and have been disagreeing about it ever since.",
+          "Vaelstorm holds the sky. Terravok holds the ground. The storm has thrown everything it has at the mountain for an age and the mountain has taken all of it and kept walking, which the storm finds unbearable and the mountain has never once mentioned.",
+          "Tessorak grew up in the middle of that argument and turned out, unsurprisingly, to be a creature that runs straight at things.",
+          "Convoy pilots still route around that world on the long way, and every one of them looks out of the port as they pass. There is a mountain down there taking a direct hit from a god of lightning and walking on, and it is one of the great sights of the Nexus."
         ]
       },
       {
         id: 'nightanswered', title: 'Lumindra, and the Night That Answered',
-        cards: ['Lumindra, the First Light'],
-        scene: 'A luminous white stag-formed being of pure first light standing in a moonlit clearing, facing an enormous serpent of living darkness coiled through the trees behind her; a sleek void-panther prowling the shadows and a radiant antlered mother-of-light watching from a hill of stars.',
+        cards: ['Lumindra, the First Light', 'Umbraxa, the Dusk Empress', 'Solvarion, the Sun-Crowned', 'Nocturnyx, the Dusk Prowler'],
+        scene: 'A luminous antlered alien war-form standing on the dark side of a tidally locked world, light pouring from her antlers along the terminator line; on the night side a regal shadow-plated empress and her sleek prowlers watch from the dark, unhostile, curious.',
         text: [
-          "Aetherion could not be everywhere, so he made someone who could be somewhere gently.",
-          "Lumindra was the first light that did not burn — a light you could stand inside. Wherever she walked, things that had been frightened stopped being frightened, which is a rarer power than it sounds.",
-          "Naturally, the night answered. Nyxthara uncoiled out of the space under everything and told her, without malice, that darkness was not her enemy but her shape: that a light is only a light because of what surrounds it.",
-          "Solandra, who mothers every small glow there is, said they were both right and sent them to opposite ends of the sky. Erevos, who works for neither of them, has been slipping between the two ever since, and nobody has ever caught him at it."
+          "Not everything that lives in the dark is at war with the light. That took the Nexus an embarrassingly long time to work out.",
+          "Lumindra woke on a world with one face always to its star and one face always away, and she walked the line between them for four hundred years lighting the dark half a valley at a time. The night side did not fight her. The night side came out to look.",
+          "Umbraxa met her on the terminator with an escort of prowlers and asked her, politely, to stop — not because the light was cruel, but because a great many things down there had built whole lives around never needing eyes.",
+          "So they drew a line and they both keep it, and Solvarion holds the day side of it. It is the oldest border in the Nexus and the only one that has never had a shot fired across it."
         ]
       },
       {
         id: 'ironandgreen', title: 'The Iron Song and the Green',
-        cards: ['Forgemind Ultor, the Worldforge', 'Kryllon, the Iron Colossus'],
-        scene: 'An immense forge-god of living metal hammering a mountain into shape while an equally immense iron colossus stands guard; opposite them an ancient world-tree with a city in its branches and a serene blossom-crowned spirit standing in its roots, green pushing up through the iron floor.',
+        cards: ['Forgemind Ultor, the Worldforge', 'Kryllon, the Iron Colossus', 'Sylvantis, the Bloom Overmind', 'Viridel, the Vat Sprout'],
+        scene: 'An immense forge-construct the size of a shipyard building a starship inside its own chest cavity, while a vast antlered bio-overmind grows a living green hull around a second ship beside it; a tiny sprout-construct standing between them in the sparks and pollen. Warm light, workshops, cranes and vines together.',
         text: [
-          "Two of the elder powers built things instead of ruling them.",
-          "Ultor made the first anvil out of a dead star and has not stopped since. Kryllon was his first success and, he will tell you, his last mistake: a colossus that decided it would rather guard than obey.",
-          "On the other side of the same argument stood Yggdris, who does not build at all. He simply grows, and lets whatever wants to live in him live in him, and after nine thousand years there is a city in his branches that has forgotten he is alive.",
-          "Amara keeps the peace between iron and green the way a gardener keeps a wall: not by choosing a side, but by making sure something is always flowering on both of them."
+          "The Dominion builds its fleets two ways, and the two ways have never liked each other.",
+          "Forgemind Ultor grows hulls out of metal — smelted, welded, riveted, cooled — and Kryllon walks off his assembly line at the end of it. Sylvantis grows hulls out of life, and her ships arrive with leaves on them and heal their own hull breaches overnight.",
+          "For an age each of them insisted the other was doing it wrong. Then a rim cluster lost its atmosphere plant and needed forty thousand tonnes of hull in six weeks, and the two of them built it together without discussing it once.",
+          "The ship still flies. It is half iron and half green and no yard in the galaxy has ever managed to copy it."
         ]
       },
       {
         id: 'starcourt', title: 'The Court of Falling Stars',
-        cards: ['Seraphex, the Seraph Engine', 'Kryotharn, the Frozen Warden'],
-        scene: 'A vast hall built out of drifting nebulae and broken orbital rings, where a winged seraph-engine of white fire, a tide of living starlight, a great psychic leviathan, a crowned serpent of rot and an armoured warden of blue ice sit at a round table made of a shattered planet.',
+        cards: ['Seraphex, the Seraph Engine', 'Astravon, the Nightwatcher', 'Quasar-12, the Star Probe', 'Kryotharn, the Frozen Warden'],
+        scene: 'A vast winged engine-being of white light and gold circuitry holding court on a platform of drifting gate-rings in deep space, with a starlit alien watcher, a small thruster-ringed probe and a towering warden of cryo-ice standing before it. Falling stars streak past on every side.',
         text: [
-          "Once every long age the elder powers meet, and the meeting is called the Court of Falling Stars because it is held in the wreckage of whatever fell last.",
-          "Seraphex speaks first, always, and always says the same thing: that the Nexus is a machine and machines are meant to be kept. Andrella answers that it is a tide and tides are meant to be ridden.",
-          "Illithar says nothing out loud at all, which everyone finds worse. Sythrax says that everything rots and that rot is simply the next thing beginning, which is either wisdom or an excuse depending on the century.",
-          "Kryotharn closes every Court the same way — she freezes the table. Nothing decided at the Court has ever been carried out, and the elder powers regard this as an excellent record."
+          "Somebody had to keep the register of who held which road, and the elder powers, to their credit, worked out early that it should not be any of them.",
+          "So they built Seraphex — the Seraph Engine, who has no world, no fleet and no vote, and whose entire function is to know where everything is. Astravon watches the deep lanes for it. Quasar-12 and ten thousand probes like it fly the routes nobody has flown for a century.",
+          "Kryotharn came to the Court once, three hundred years ago, to ask whether a warden was allowed to freeze a lane shut in order to stop a war. The Court deliberated for eleven days and told her: yes, once, and you will have to say why afterwards.",
+          "She has never used it. But every commander in the Dominion knows she is allowed to, and that has probably prevented more wars than the ruling ever could."
         ]
       },
       {
         id: 'embersleeps', title: 'The Singularity Sleeps',
         cards: ['Chronovex, the Timeless One', 'Nihilar, the Entropy King'],
-        scene: 'A serene star-scaled cosmic drake coiled asleep around the dim buried remains of a spark, deep beneath the roots of a world; far off at the very edge of the frame, a dark crowned silhouette stands with its back turned, counting on its fingers.',
+        scene: 'Deep inside the galactic core, the dark hollow shell of an ancient machine-intelligence gone cold, one ember still glowing somewhere far inside it; a colossal star-scaled drake coiled around the whole shell with both eyes shut, and out at the very edge of the frame, a crowned figure of darkness sitting patiently on a broken gate-ring, waiting.',
         text: [
-          "After the Long Night the Singularity was never one thing again. What was left of it sank under the roots of the first world, and Chronovex went down with it and coiled up and shut both eyes.",
-          "It is not dead. It dreams the way a reactor idles — slowly, and with an enormous amount held back.",
-          "Nihilar did not follow it down. He went out instead, all the way out, past the last star, and there he sits with the accounts and waits for the arithmetic to come to him.",
-          "That is where Book One ends, and where the people come in — because the sparks that fell in the valley of a small green world fell on something that had hands."
+          "After the Long Night the Singularity was never one machine again. What was left of it went cold at the core, and Chronovex went down with it, coiled around the shell and shut both eyes.",
+          "It is not dead. Every so often a survey ship at the core reports a reading it cannot explain, and the Court quietly logs it and says nothing.",
+          "Nihilar is still out at the edge of everything, still counting. He has not attacked a lane in nine hundred years. He does not need to, and he has said so, in public, once: he is simply the last item on the schedule.",
+          "That is where Book One ends and where the second half of this Codex begins — because while the elder powers were settling into their long argument, something very small and very stubborn came out of the dark at the rim, in ships that were far too slow, and asked whether anybody was using the empty worlds."
         ]
       }
     ]
@@ -22903,72 +22903,72 @@ const TCG_LORE_SAGAS = [
   {
     key: 'lionheart', set: 'nd', em: '🦁',
     book: 'Book Two', title: 'The Aegis Vanguard',
-    sub: 'The sparks that fell on the colony, and what people built out of them',
+    sub: 'The colony fleets that reached the Nexus last, and the order they built to survive it',
     chapters: [
       {
-        id: 'valley', title: 'The Sparks That Fell in the Valley',
+        id: 'valley', title: 'The Fleets That Came Late',
         cards: ['High Castellan Draumis', 'Captain Renvara, the Ironvow'],
-        scene: 'A green colony valley at dawn under an alien double moon, with hundreds of tiny points of light drifting down out of the sky like burning snow; ordinary settlers in work clothes standing in the fields with their faces turned up, one young woman catching a spark on her open palm.',
+        scene: 'A ragged column of enormous human colony ships coming out of a jump-gate for the first time into a lit lane, hull-patched and streaked, escort craft flying alongside; ahead of them a spiral of alien gate-traffic far larger and far older than anything they have. Hopeful, small, brave.',
         text: [
-          "The elder powers had a whole Nexus and they spent an age arguing about who owned the sky. The people had one valley on one colony world and they were rather more practical about it.",
-          "When the sparks came down over the settlement at Ardan, nobody there knew what they were. They only knew that after that night a smith could hold a bar of iron and feel what it wanted to be, and a medicae could put her hand on a fever and take it away with her.",
-          "Draumis was fourteen and he caught one on the back of his hand. Renvara was eleven and hers went straight through her and out the other side and she never told anyone for six years.",
-          "Neither of them became a god. That is the whole difference between Book One and Book Two: the elder powers were made out of the Singularity, and people were only ever lent a piece of it."
+          "Humanity did not find the Nexus. Humanity fell into it, ninety generations out from a homeworld nobody aboard had ever seen, when a colony fleet aiming for an empty rim cluster came out of the dark and into a lit lane it had no idea existed.",
+          "The lane was busy. The traffic was enormous, and none of it was human, and all of it had been there for an age.",
+          "The first hundred years were not heroic. They were paperwork, quarantine, four wars nobody won, and a great deal of learning to be quiet. Draumis, who commanded the lead fleet, wrote a line into the standing orders that the Vanguard still opens every muster with: we are guests here, and guests keep their word.",
+          "Renvara was a hull-welder on that fleet. She ended up commanding the escort. Nearly everybody in Book Two started as somebody's engine crew."
         ]
       },
       {
         id: 'banner', title: 'The Lion Standard',
         cards: ['Grand Castellan Vheldrin, the Unbroken', 'Castellan Vharos, the Lionshield', 'Warlord Kestrion, the Redmane'],
-        scene: 'A red-and-white lion standard raised over a fortress wall of ferrocrete and steel at sunset, with armoured human sentinels in powered plate forming up beneath it; a scarred grand castellan in battered powered plate holding the standard pole with both hands.',
+        scene: 'A red-and-white lion standard raised over the armoured gate of an orbital fortress at the end of a lit lane, human sentinels in heavy powered plate forming up beneath it; a scarred grand castellan in dented powered plate holding the standard pole with both hands, drop-ships landing behind him.',
         text: [
-          "For a hundred years the sparked went about their lives quietly, and then Vorruk woke up under the Ashfall Ridge and stopped being anyone's rumour.",
-          "Vheldrin was the one who said the sentence everybody remembers: that a titan is only a very large problem, and problems are what people are for.",
-          "They raised a standard over the wall at Ardan — a white lion on red, because the lion was the only animal on the colony seal and nobody had time to design a better one — and eleven thousand people came to stand under it inside a month.",
-          "They called themselves the Aegis Vanguard. Not an army. A shield. Kestrion argued for years that a shield with a sword behind it is still a sword, and he was right, and he lost the vote anyway."
+          "For a hundred years the colonies kept their heads down, and then an ignition core came down on a human world, and everything changed inside a decade.",
+          "The cores did not care that humanity had arrived late. They landed in troopers and technomats and psions exactly as readily as they had landed in hive-queens, and suddenly there were people in the colonies who could hold a lane open by themselves.",
+          "Vheldrin was the one who said the sentence everybody remembers: that a titan is only a very large problem, and problems are what people are for. They raised a standard over the gate at Ardan — a white lion on red, because the lion was the only animal on the colony seal and nobody had time to design a better one — and eleven thousand people came to stand under it inside a month.",
+          "They called themselves the Aegis Vanguard. Not a fleet. A shield. Kestrion argued for years that a shield with a gun behind it is still a gun, and he was right, and he lost the vote anyway."
         ]
       },
       {
         id: 'dragonfall', title: 'Vaskoryn and the Bio-Titan',
         cards: ['Lord-Marshal Vaskoryn, the Titan Breaker', 'Xantheros, the Plasma Tyrant'],
-        scene: 'A single armoured human man in scarred ornate powered plate with a red cloak standing on a broken ridge, holding a colossal two-handed energy sabre in both hands, its blade a bar of white plasma, facing the vast horned silhouette of a plasma-breathing bio-titan looming out of smoke and firelight above him. Awe-inspiring, heroic, not gory.',
+        scene: 'A single armoured human man in scarred ornate powered plate with a red cloak standing on a broken orbital ridge, holding a colossal two-handed energy sabre in both hands, its blade a bar of white plasma, facing the vast horned silhouette of a plasma-breathing bio-titan looming out of smoke and reactor-light above him. Awe-inspiring, heroic, not gory.',
         text: [
-          "Xantheros had burned four settlements and was walking towards a fifth when Lord-Marshal Vaskoryn went up the ridge alone to meet him.",
-          "He was not the strongest of the Vanguard. He was not the fastest. What Vaskoryn had was a habit that his instructors had spent nine years failing to train out of him: he did not move when things got large.",
+          "Xantheros had burned four colonies off the rim and was making for a fifth when Lord-Marshal Vaskoryn went up onto the ridge alone to meet him.",
+          "He was not the strongest of the Vanguard. He was not the fastest. What Vaskoryn had was a habit his instructors had spent nine years failing to train out of him: he did not move when things got large.",
           "The fight lasted from the middle of the afternoon until well after dark, and there is no honest record of it, because everyone who could see it was running the other way.",
-          "What is certain is that Vaskoryn came down the ridge at sunrise with the sword over his shoulder, and that Xantheros has never gone near that valley again. Titan Breakers do not kill titans, whatever the songs say. They persuade them, very loudly, to be somewhere else."
+          "What is certain is that Vaskoryn came down the ridge at sunrise with the sabre over his shoulder, and that Xantheros has never gone near that cluster again. Titan Breakers do not kill titans, whatever the songs say. They persuade them, very loudly, to be somewhere else."
         ]
       },
       {
         id: 'wintercrown', title: 'The Winter Crown',
         cards: ['Frost-Sovereign Ilyaris, the Winter Crown', 'Psion Serapheth, the Wintersong', 'Kryotharn, the Frozen Warden'],
-        scene: 'A beautiful regal silver-haired woman in a floor-length gown of frost-white and ice-blue over a filigreed exo-frame, wearing a crown of ice shards, standing on the bridge of a frozen starship under an aurora; behind her an armoured warden of ancient blue ice bows its head.',
+        scene: 'A regal human woman with long silver-white hair in a floor-length frost-white void-mantle over a filigreed exo-frame, standing alone on the ice of a frozen moon under an aurora, cryo-shards orbiting her raised gauntlets; a towering warden of cryo-ice standing opposite her, and a second psion watching from a landed shuttle.',
         text: [
           "Ilyaris was a psion of the fourth intake and by every account an unremarkable one, until the winter that Kryotharn came south.",
-          "The Frozen Warden is an elder power and does not negotiate. She freezes a thing and then she considers it, and by the time she has finished considering, the thing has been frozen for a century.",
-          "Ilyaris walked out onto the ice alone and did not fight her. She simply matched her — held a cold as absolute as the Warden's own for eleven hours, and did not fall down.",
-          "Kryotharn put a crown of ice on her head and went back north, and that is the only recorded occasion on which an elder power has ever conceded anything to a person. Serapheth, who was there, still sings the account, and still cannot explain it."
+          "The Frozen Warden had frozen a lane shut — she was allowed to, once, and she had said why — and the lane she chose ran through four human worlds that needed it to eat.",
+          "Ilyaris walked out onto the ice alone and did not fight her. She simply matched her: held a cold as absolute as the Warden's own for eleven hours, and did not fall down. When the eleventh hour ended, Kryotharn opened the lane and left without a word, which from an elder power is close to applause.",
+          "Serapheth, who had flown her out and waited in the shuttle the whole time, says the only thing Ilyaris said on the way home was that she would like to sit down somewhere warm. She is the Winter Crown now, and she still says that."
         ]
       },
       {
         id: 'starloom', title: 'The Starloom and the Everflame',
         cards: ['Archmagos Ysvara, the Starloom', 'Magos Ignatha, the Everflame', 'Arch-Psion Zaelith, the Starfall'],
-        scene: 'A vast observatory of brass, glass and holographic light built into a mountain peak, with a woman in a circuit-stitched void-coat weaving threads of starlight on an enormous loom of light; a second woman wreathed in white-gold fire and a third standing at a window with a falling star reflected in her eyes.',
+        scene: 'The interior of an enormous orbital observatory: a vast loom of light strung between mirrored rings, weaving old starlight back into moving pictures of battles long finished; an elderly human woman in a void-mantle working the threads, a second woman cupping a small perpetual white flame, and a psion watching from a gantry.',
         text: [
           "The Vanguard needed to know things, so it built a place for knowing them, and Ysvara ran it for sixty years.",
-          "The Starloom is not a telescope. It is a loom. Ysvara worked out that starlight arriving from far enough away is old enough to be a record, and she learned to weave it back into the picture it came from.",
+          "The Starloom is not a telescope. It is a loom. Ysvara worked out that starlight arriving from far enough away is old enough to be a record, and she learned to weave it back into the picture it came from. Everything the Vanguard knows about the Long Night, it knows because she pulled it out of light that had been travelling since.",
           "Ignatha came to her with a different problem: that the Everflame she carried would outlive her, and she did not know who it belonged to next.",
-          "Zaelith solved both of them by accident. She looked into the Starloom on a night she was not supposed to be there and saw a war that had not happened yet — and after that the Vanguard stopped waiting to be attacked."
+          "They worked on it for eleven years and never solved it. Zaelith, who was a cadet then and swept the gantry, says the two of them argued about it every evening and enjoyed themselves enormously. Book Three is what happens when somebody else decides to solve it for them."
         ]
       },
       {
         id: 'bloodbanner', title: 'The Emberbanner Charge',
         cards: ['Warmaster Tharnos, the Emberbanner', 'Captain Tessarion, the Stormbreaker', 'Warlord Kestrion, the Redmane'],
-        scene: 'A massed charge of armoured human troopers behind a huge crimson banner across a burning plain, drop-ships streaking overhead; at the front a warmaster in blood-red powered plate with a two-handed chainblade raised.',
+        scene: 'A wedge of human drop-ships and armoured troopers driving straight through a breach in a burning orbital dock, an ember-red banner streaming at the front of the wedge; arc-lightning crackling off the lead officer, no bodies, no gore, all speed and smoke and light.',
         text: [
-          "Tharnos is the part of the Vanguard that Vheldrin was afraid of, and Tharnos knows it, and has never once pretended otherwise.",
-          "At the Redbanner Fields the Vanguard was outnumbered eleven to one and the correct order was to withdraw. Tharnos gave the other one.",
-          "They went forward for two miles into a fire nobody should have walked into, and they came out the far side of it, and the line that was supposed to break the Vanguard broke instead.",
-          "Nine hundred people did not come back. Tharnos reads all nine hundred names aloud on the anniversary, every year, and has never allowed anyone else to do it for him."
+          "The Emberbanner Charge is the most famous thing the Vanguard has ever done and the thing it is least proud of.",
+          "The dock at Karrun was going to fall in an hour, with nine thousand engine crew still aboard, and there was one way in and it was the way everybody could see. Tharnos took the banner to the front of the wedge himself, on the grounds that a charge nobody can find is not a charge.",
+          "They got the nine thousand out. They also lost the dock, two escort wings and, Kestrion argues to this day, the last chance the Vanguard had of settling the whole business by talking.",
+          "Tessarion, who flew the lead ship, has been asked about it every year since and gives the same answer every time: ask the nine thousand."
         ]
       },
       {
@@ -22976,160 +22976,160 @@ const TCG_LORE_SAGAS = [
         cards: ['Void-Queen Morvanne, the Nullsong', 'Overseer Vaelrik, the Nullcrown', 'Salvager Grymm, the Hullbearer'],
         scene: 'A pale crowned sovereign in a long dark void-mantle standing in a vast silent hall of stasis caskets lit by cold blue reactor-light, drifting servo-wisps around her; two hooded salvage-adepts in scarred work-frames standing at the doors with their heads bowed.',
         text: [
-          "Not every spark landed in someone who wanted it.",
-          "Morvanne was the Vanguard's chief archivist of the dead — the person who kept the names — and she kept them so well and so long that she stopped being able to let any of them go.",
-          "What she became is not evil. That is the difficult part of Book Two, and the Codex does not soften it. She is a woman who could not accept an ending and found, in her spark, the power to refuse one.",
+          "Not every ignition core landed in someone who wanted it.",
+          "Morvanne was the Vanguard's chief archivist of the lost — the officer who kept the names of everyone who did not come back from a lane — and she kept them so well and so long that she stopped being able to let any of them go.",
+          "What she became is not evil. That is the difficult part of Book Two, and the Codex does not soften it. She is a woman who could not accept an ending and found, in her core, the power to refuse one.",
           "Vaelrik follows her. Grymm carries for her. And once a year the Vanguard sends a delegation to the Silent Hall to ask her, formally and politely, to stop — and every year she says: bring me one name I have got wrong."
         ]
       },
       {
         id: 'keeps', title: 'What the Vanguard Keeps',
         cards: ['Grand Castellan Vheldrin, the Unbroken', 'Marshal Selvaris, the Sunbulwark', 'Captain Renvara, the Ironvow'],
-        scene: 'The great hall of a fortress-station at night, its walls covered floor to ceiling in thousands of small brass name-plates; three armoured figures standing quietly among them, one running a gauntleted hand along a row.',
+        scene: 'A quiet muster hall aboard an orbital fortress at dawn: rows of human sentinels and troopers in powered plate standing at ease under a red-and-white lion standard, helms off, a low golden light through the viewport. Calm, warm, ceremonial rather than violent.',
         text: [
-          "People ask what the Vanguard is for, now that there are titans it cannot fight and elder powers it cannot argue with.",
-          "Vheldrin's answer is carved over the door at Ardan, and it is not heroic: WE KEEP WHAT IS LEFT.",
-          "The hall behind that door holds a plate for every person the Vanguard has ever lost, and there is a rule that no plate may be removed, no matter how the name behind it ended.",
-          "Selvaris says it is a monument. Renvara says it is a warning. Vheldrin says it is neither — it is simply an accurate list, and an accurate list is the rarest thing in the Nexus."
+          "Every recruit is asked to learn three lines before they are given a helm, and they are not about fighting.",
+          "The first is Draumis's: we are guests here, and guests keep their word. The second is Vheldrin's: a titan is only a very large problem, and problems are what people are for. The third is Selvaris's, and it is the one the cadets argue about: the shield goes where it is needed, not where it is thanked.",
+          "Renvara adds a fourth when nobody senior is listening, which is that a hull is easier to weld before it breaks.",
+          "The Vanguard is not the strongest power on the Nexus. It is not close. What it has is a habit of turning up, and the elder powers — who have watched a great many species arrive, shout, and go quiet — have started to find that habit genuinely difficult to argue with."
         ]
       }
     ]
   },
   {
-    key: 'dragonaccord', set: null, em: '🐲',
+    key: 'dragonaccord', set: null, em: '🕊️',
     book: 'Book Three', title: 'The Titan Accord',
-    sub: 'The war between the elder powers and the Vanguard, and the treaty that ended it',
+    sub: 'The intergalactic war between the Dominion and the Vanguard, and the treaty that ended it',
     chapters: [
       {
         id: 'everflame', title: 'The Theft of the Everflame',
         cards: ['Magos Ignatha, the Everflame', 'Emberlyth, the Undying Flame', 'Vorruk, the Extinction Flame'],
-        scene: 'A woman wreathed in white-gold fire standing in a shattered reliquary vault at night, a stolen containment flask of undying plasma in her hands; a radiant plasma-raptor rising in alarm behind her and the burning eye of a vast saurian titan filling a broken window.',
+        scene: 'A raiding party of armoured shapes lifting a small white perpetual flame out of a shielded orbital vault, alarms and red light everywhere; far outside the viewport, the vast silhouette of an ancient saurian war-form watching the station from the dark.',
         text: [
-          "The war did not start with a battle. It started with a theft, and the thief thought she was doing the right thing.",
-          "Ignatha took an ember of the Everflame out of Emberlyth's own reliquary because a colony of forty thousand was freezing and the Vanguard could not reach it in time. She was correct about the colony. Forty thousand people are alive because of what she did.",
-          "She was also wrong about the flame. It was not Emberlyth's property. It was Emberlyth's *self*, and taking a piece of it woke Vorruk on the other side of the world, because Vorruk has always been able to feel it when the fire moves.",
-          "That is the honest shape of the whole war: nobody in it was a villain, and everybody in it was in a hurry."
+          "The war did not start with a fleet. It started with a theft, and to this day nobody agrees who did it.",
+          "The Everflame was taken out of its vault at Ashfall Station on a quiet third shift, and by morning half the Nexus had decided the Dominion had taken it and the other half had decided the Vanguard had staged the whole thing to say so.",
+          "Emberlyth, who of anybody had the best claim to be upset, said the least. She pointed out that a flame which cannot be put out cannot really be stolen either, only carried, and asked everybody to sit down.",
+          "Nobody sat down. Vorruk had already begun moving, and once Vorruk is moving the Nexus has approximately six weeks."
         ]
       },
       {
-        id: 'ashfall', title: 'The Council at Ashfall',
+        id: 'ashfall', title: 'The Council at Ashfall Station',
         cards: ['Grand Castellan Vheldrin, the Unbroken', 'Seraphex, the Seraph Engine', 'Chronovex, the Timeless One'],
-        scene: 'A tense parley on a plain of grey ash beneath a black sky: a small delegation of armoured humans on one side, an enormous winged seraph-engine of white fire on the other, and a vast star-scaled cosmic drake coiled watchfully between them.',
+        scene: 'An enormous circular council chamber aboard a ring station, humans on one side of the floor and towering alien delegates on the other; a winged engine-being of white light presiding at the centre, and a vast drake-form watching through the transparent dome above. Tense, formal, no weapons drawn.',
         text: [
-          "Seraphex came to Ashfall to demand the ember back, and Vheldrin went out to meet her with six people and no weapons.",
-          "It should have worked. Seraphex is the most reasonable of the elder powers, which is a low bar cleared by a very small margin.",
-          "What ruined it was arithmetic. Seraphex wanted the flame returned by the next dawn. It was eleven days' travel away in the hands of a woman who had already refused two orders to bring it home.",
-          "Chronovex uncoiled between them and said one sentence — that both sides were about to spend a thousand years fixing eleven days — and then went back to sleep, because the Timeless One gives everybody exactly one warning."
+          "They tried to talk first. It is worth saying that clearly, because the songs skip it.",
+          "Seraphex convened the Court at Ashfall and gave both sides eleven days. The Vanguard sent Vheldrin, who arrived early and stayed late. The Dominion sent nobody with authority to agree to anything, which Seraphex logged, in the register, in a single line that has been quoted at every treaty since.",
+          "On the ninth day Chronovex came up out of the core for the first time in nine hundred years, said one sentence — that the roads were built to be shared and every argument about them was an argument about something else — and went back down.",
+          "On the eleventh day the talks failed. The war ran for nineteen years."
         ]
       },
       {
         id: 'redbanner', title: 'The Burning of the Redbanner Fields',
         cards: ['Vorruk, the Extinction Flame', 'Warmaster Tharnos, the Emberbanner', 'Xantheros, the Plasma Tyrant'],
-        scene: 'A vast plain of burning grain under a red sky, an enormous saurian extinction-titan wading through the fire, and a thin line of armoured human troopers with a crimson banner holding the ridge in front of a fleeing column of civilians.',
+        scene: 'A vast agricultural orbital ring on fire along one whole arc, evacuation shuttles streaming away from it in their thousands; the enormous silhouette of an ancient flame war-form moving along the burning ring, and a human command ship turning back towards it against the flow. Dramatic, no casualties shown.',
         text: [
-          "Vorruk did not come for the flame. Vorruk came because the fire had moved and he wanted to know who had moved it, and he asked the question by walking across four hundred miles of farmland.",
-          "The Vanguard put the Emberbanner in his way. It is the only time in recorded history that infantry have held ground against an extinction-class titan, and they held it for six hours.",
-          "They did not beat him. Nobody beats him. They made him stop and look down, and while he was looking down the column got over the river.",
-          "Xantheros arrived at dusk expecting a battlefield and found a wheat field with a line of people still standing in it. Some accounts say he laughed. Most say he simply left."
+          "The Redbanner rings fed nine human worlds and about forty million people who were not human at all, which is a detail the recruiting posters left out for a century.",
+          "Vorruk burned the outer arc in a night. Tharnos turned his flagship around against the entire evacuation and went back in, and the Vanguard has never fully forgiven him for how close that came to costing them the fleet.",
+          "They saved the inner arc. Two hundred thousand tonnes of grain and every single person aboard came off before the ring failed.",
+          "Xantheros, who had followed Vorruk in expecting a battle, broke off halfway and left. He has never explained why. Book Three has a lot of moments like that, and they are the reason there is a Book Three at all."
         ]
       },
       {
         id: 'irongate', title: 'The Siege of the Iron Gate',
         cards: ['Kryllon, the Iron Colossus', 'Grand Castellan Vheldrin, the Unbroken', 'Magos Vornek, the Coreforged'],
-        scene: 'A colossal iron war-machine of ancient design assaulting an enormous fortress gate of layered adamantium, siege-fire everywhere; a grand castellan in dented powered plate braced in the gateway with a technomancer working frantically at a glowing sigil-panel behind him.',
+        scene: 'A colossal iron war-construct hammering on the sealed adamantium doors of a fortress gate-station, siege-fire everywhere; a grand castellan in dented powered plate braced in the gateway with a technomat beside him welding under fire. Immense scale, heroic, not gruesome.',
         text: [
-          "Kryllon was not sent. Kryllon decided. That is the trouble with a colossus that would rather guard than obey — it picks its own things to guard, and it had decided to guard the principle of the thing.",
-          "He walked to the Iron Gate at Ardan and began, methodically and without any malice at all, to take it apart.",
-          "Vheldrin held the gateway for nine days. He is called the Unbroken for those nine days and for nothing else, and he has never liked the name.",
-          "It was Vornek who ended it, by working out that Kryllon was not attacking the gate but *testing* it — and by making the gate pass. The colossus stopped mid-swing, considered, and sat down outside the wall. He has never left. He is still there."
+          "The Iron Gate is the only way into the Ardan cluster that does not take four months, and for eleven days Kryllon stood outside it and knocked.",
+          "Vheldrin held the gateway himself. Vornek stayed at his shoulder the whole time with a cutting torch and a hull plate, welding the doors back together roughly as fast as they came apart, which is not a heroic image and is the only reason the gate held.",
+          "On the eleventh day Kryllon stopped, examined the welds for a long moment, and walked away. Forgemind Ultor's assessment, filed with the Court afterwards, was one line: the work was good.",
+          "Vornek keeps that line framed. It is, as far as anyone knows, the only compliment an elder power has ever paid a human tradesman."
         ]
       },
       {
         id: 'straits', title: 'The Storm Over the Straits',
         cards: ['Vaelstorm, the Storm Eternal', 'Psion Evarine, the Stormsinger', 'Captain Tessarion, the Stormbreaker'],
-        scene: 'An enormous lightning-wreathed sky-drake filling a black storm-sky above a narrow sea, with a lone woman standing on the prow of a warship with both arms raised into the lightning and a trooper in storm-scarred plate bracing beside her.',
+        scene: 'A human battle group flying straight into the eye of an enormous storm-drake coiled across a gas giant\'s upper atmosphere, arc-lightning wrapping the hulls; a psion standing in an open launch bay with both arms raised, singing into the storm. Spectacular, electric, awe-inspiring.',
         text: [
-          "The Vanguard fleet had to cross the Straits, and Vaelstorm had made a very clear statement about that by sinking the first nine ships that tried.",
-          "Evarine went out on the tenth. She did not fight the storm either — the Vanguard had learned that lesson on the ice — she sang to it, which sounds absurd and is exactly what the record says.",
-          "A storm has no ears. What it has is resonance, and Evarine found the note the whole sky was already sounding and held it until the sky was sounding *hers*.",
-          "The fleet crossed in flat calm. It cost her her hearing, permanently, and she has never once complained about it in eleven years of testimony."
+          "There is a shortcut through the Straits that saves nine days, and there is a reason nobody takes it.",
+          "The convoy that took it was carrying medical plant to a cluster that had six days left, so Tessarion took it anyway, and Vaelstorm noticed them about ninety seconds in.",
+          "Evarine went out into an open launch bay on a tether and sang at a god of lightning for four hours. It is not a metaphor and the recordings exist. Whether the Storm Eternal was calmed, charmed or simply extremely surprised is still argued about at the Starloom.",
+          "The plant arrived with a day to spare. Every hull in the group had to be rebuilt, and Evarine slept for two days and could not hear properly for a month."
         ]
       },
       {
         id: 'deepbargain', title: 'The Pactmaker Goes Down to the Deep',
         cards: ['Archbinder Vaskaal, the Pactmaker', 'Thalgrath, the Abyssal Crown', 'Binder Zethran, the Blightspeaker'],
-        scene: 'A hooded riftbinder in a pressure suit standing on the floor of a lightless ocean trench, lit only by his own sigils, negotiating with a vast crowned abyssal leviathan; a second robed figure waiting behind him at the edge of the light.',
+        scene: 'A single human riftbinder in dark sealed battle-plate descending alone in a lit diving frame through black ocean water towards an immense crowned deep xeno seated on a sunken jump-gate, green light and drifting machinery all around. Eerie, majestic, calm.',
         text: [
-          "Somebody had to talk to the deep, and the Vanguard sent the worst person available, because he was the only one who would go.",
-          "Vaskaal makes pacts. It is not a metaphor and it is not a spell — he finds the thing you actually want and writes it down, and then both of you are stuck with it.",
-          "He went down to Thalgrath's trench alone and came back up eleven hours later with the Abyssal King's neutrality in writing, and he has never told anybody what it cost.",
-          "Zethran, who waited at the edge of the light and saw the whole thing, has said only this: that Vaskaal did not lie to the King once, and that this was the most frightening part."
+          "Somebody had to ask the deep lanes to stay open, and Vaskaal volunteered, which everybody found suspicious and nobody could improve on.",
+          "He went down alone in a diving frame with no escort and no weapon, because Thalgrath's rule has never changed: nothing crosses without asking, and asking means asking in person.",
+          "What was agreed down there is on the record and is very short. The deep lanes stay open to hospital ships and grain haulers for the whole of the war, from either side, and in exchange the Vanguard gives up any claim to the seabed gates forever.",
+          "Zethran, who wrote the treaty up, says Vaskaal came back up looking thoughtful and remarked that the Abyssal Crown had been waiting nine hundred years for somebody to simply come and ask."
         ]
       },
       {
         id: 'wintertruce', title: 'The Winter Truce',
         cards: ['Frost-Sovereign Ilyaris, the Winter Crown', 'Kryotharn, the Frozen Warden', 'Psion Serapheth, the Wintersong'],
-        scene: 'A vast plain of blue ice under an aurora, where a silver-haired sovereign in a frost-white gown and an ancient armoured warden of ice stand facing one another at a table carved from a single block of ice; ranks of frozen war-machines behind each of them.',
+        scene: 'Two figures — a regal human woman in a frost-white void-mantle and a towering crystalline warden of cryo-ice — standing together on a frozen plain under a huge aurora, with the fleets of both sides grounded and dark on the horizon behind them. Still, quiet, hopeful.',
         text: [
-          "Half the elder powers were at war with the Vanguard and half of them had not decided, and the whole thing turned on the north.",
-          "Ilyaris went back onto the ice. She had done it once, as a girl, and everyone assumed the second time would be easier. It was not. Kryotharn had been considering her for a decade.",
-          "What the Winter Sovereign offered was not a surrender and not a threat. She offered the Warden a season — one single winter in which neither side moved — and pointed out, accurately, that the Warden was the only power in the Nexus capable of enforcing one.",
-          "Kryotharn froze the table. For once, that was a yes. The winter that followed is the only year in the whole war in which nobody at all died."
+          "In the fourteenth year of the war the whole front froze, and it was not the weather.",
+          "Ilyaris and Kryotharn met on the ice at Vantar without telling either command, and between them they held a cold across the entire theatre that no engine on either side could start an attack through. It lasted nine weeks.",
+          "Both of them were, technically, committing treason. Both commands, on being told, decided very quickly to have been in favour of it all along.",
+          "Serapheth sang for the nine weeks. Crews on both sides picked the song up on open channels and, having nothing else to do, learned it. It is the only piece of music the Dominion and the Vanguard both have words for."
         ]
       },
       {
         id: 'cinderthrone', title: 'The Duel at the Cinder Throne',
-        cards: ['Lord-Marshal Vaskoryn, the Titan Breaker', 'Vorruk, the Extinction Flame'],
-        scene: 'A single armoured human man with an enormous energy sabre standing at the foot of a command throne of black slag and molten rock, facing a colossal saurian extinction-titan seated upon it; a great maned cinder-lion pacing between them as a witness.',
+        cards: ['Lord-Marshal Vaskoryn, the Titan Breaker', 'Vorruk, the Extinction Flame', 'Pyranth, the Ashen Cogitant'],
+        scene: 'A single armoured human figure walking up a long causeway of cooling slag towards an immense ancient saurian war-form seated on a throne of fused hull-metal in a volcanic caldera; an owl-formed alien sage watching from a high ledge. Enormous scale, tense, no gore.',
         text: [
-          "The truce ran out in spring, and Vaskoryn went to the Cinder Throne to ask Vorruk for one more season.",
-          "He was not sent. The Vanguard forbade it in writing. He went anyway, and left the letter on his bunk, and it is in the hall at Ardan now under glass.",
-          "What happened at the throne is disputed in every particular except the ending. Vaskoryn fought the Extinction Flame for a day and a night, and at dawn he was still standing, and Vorruk — for reasons nobody has ever satisfactorily explained — stood down.",
-          "Leovar witnessed it, and the Cinder King's account is one line long: *the small one did not stop, so the large one did.*"
+          "By the nineteenth year both sides were exhausted, and Vaskoryn did something the Vanguard had expressly forbidden.",
+          "He went up the causeway to the Cinder Throne alone and asked Vorruk, in front of witnesses, for a single duel to settle it — the whole war, both fleets, one fight.",
+          "Vorruk considered the offer for a long time. Then he said no. He said that he had burned worlds because he believed the galaxy was owed a fire, and that if the fire could be settled by two people it had never been owed at all, and that he would need to go away and think about that.",
+          "Pyranth, who was there, recorded it word for word. That refusal is the moment the war ended, and not one shot was fired at the Cinder Throne."
         ]
       },
       {
-        id: 'skywentout', title: 'The Night the Sky Went Out',
+        id: 'skywentout', title: 'The Night the Lanes Went Dark',
         cards: ['Nihilar, the Entropy King', 'Aetherion Prime, the Dawn Sovereign', 'Lumindra, the First Light'],
-        scene: 'Total darkness across a whole world — cities, oceans and mountains all unlit — with one enormous crowned silhouette standing at the horizon; far away a single point of gold light rising, and a luminous white stag walking through a dark street lighting it as she goes.',
+        scene: 'Every jump-lane in the galaxy going out at once — a lattice of golden roads across the dark going black section by section — while a crowned figure of darkness walks calmly along the failing lattice and two radiant figures fly the other way, relighting it behind him. Vast, cosmic, breathtaking.',
         text: [
-          "While the Nexus was busy fighting itself, the accounts came due.",
-          "Nihilar walked back in from the edge of everything on the eleventh of the eleventh month, and he did not attack anyone. He simply switched the sky off, the way you would turn out a light in a room you were leaving.",
-          "Every star. All at once. For nineteen hours the Nexus had no light in it at all except what people were carrying.",
-          "And that turned out to be the answer, though nobody planned it. Aetherion could not relight the sky alone — but every single spark that had fallen in the Long Night was still burning inside something living, and one by one, all over a hundred worlds, people lifted them up. Lumindra walked the streets of the dark cities lighting them by hand. By dawn there was enough."
+          "While the two fleets were busy, the Entropy King went for the lights.",
+          "It took him one night. Lane by lane, out to the rim, the roads the Singularity built went dark and the whole galaxy came apart into a hundred thousand islands again — which, Nihilar pointed out afterwards, is simply how it had always been before anybody interfered.",
+          "Aetherion and Lumindra flew the lattice for eleven days relighting it, and they could not go fast enough, and they did not stop.",
+          "What saved the Nexus was not either of them. It was that when the lanes failed, Dominion crews and Vanguard crews found themselves stranded on the same dark stations with the same problem, and by the time the lights came back an enormous number of them had stopped being at war without anybody's permission."
         ]
       },
       {
-        id: 'twoarmies', title: 'Two Armies, One Enemy',
+        id: 'twoarmies', title: 'Two Fleets, One Enemy',
         cards: ['Seraphex, the Seraph Engine', 'Grand Castellan Vheldrin, the Unbroken', 'Forgemind Ultor, the Worldforge', 'Warmaster Tharnos, the Emberbanner'],
-        scene: 'An enormous armoured host of human troopers and war-machines forming up alongside a host of colossal elder war-forms — a seraph-engine, a forge-god, a titan — all facing the same direction across a plain, towards a wall of advancing darkness on the horizon.',
+        scene: 'A colossal combined fleet forming up in deep space — human battle groups and vast alien war-forms in the same line of battle, drop-ships and hive-ships side by side — all facing the same direction towards a wall of advancing darkness on the horizon. A winged engine-being holding station at the centre of the line.',
         text: [
-          "The war ended in an afternoon, because both armies were suddenly needed somewhere else.",
-          "Seraphex came to Ardan under a white flag she did not really understand the meaning of, and said the shortest sentence of her long life: *He is coming back tonight.*",
-          "Ultor opened the Worldforge to the Vanguard's smiths, which he had refused for two centuries. Tharnos put the Emberbanner under Seraphex's command, which he had sworn on his own name never to do.",
-          "Nobody signed anything. There was no time. Eleven thousand people and nine elder powers simply turned to face the same way, which is the only definition of an alliance that has ever actually mattered."
+          "Seraphex sent one signal on every channel in the Nexus at once, which it had never done and has never done since. It said: he is at the rim, and he is not stopping.",
+          "The Vanguard came. The Dominion came. Ultor's yards turned out escorts for nineteen days without shutting down, and half of them were crewed by people whose worlds had been burned by the other half.",
+          "Vheldrin and Tharnos stood on the same bridge as an alien war-council and worked out a line of battle in a single afternoon, which nineteen years of diplomacy had not managed to do at all.",
+          "Nobody signed anything. There was no time. They simply formed up, and the line held, and afterwards it turned out to be extremely awkward to go back to fighting people you had stood next to."
         ]
       },
       {
         id: 'brokensky', title: 'The Battle of the Broken Sky',
         cards: ['Nihilar, the Entropy King', 'Aetherion Prime, the Dawn Sovereign', 'Chronovex, the Timeless One', 'Lord-Marshal Vaskoryn, the Titan Breaker', 'Frost-Sovereign Ilyaris, the Winter Crown'],
-        scene: 'A colossal battle across a cracked and shattered sky: a golden dawn-god and a dark entropy-titan locked together above the clouds, a star-scaled cosmic drake winding between them slowing time itself, and far below, tiny by comparison, a single armoured man with an energy sabre and a silver-haired sovereign in white holding a line of light across the ground.',
+        scene: 'The largest battle in the Codex: a crowned titan of darkness at the centre of a cracked, star-strewn sky, ringed by a radiant golden sovereign, a serene cosmic drake, a small armoured human man with a plasma sabre and a silver-haired woman crowned in cryo-ice, with two vast fleets behind them. Awe-inspiring, luminous, not gruesome.',
         text: [
-          "It was fought in the sky and won on the ground, and everybody who was there agrees about that and about nothing else.",
-          "Aetherion met Nihilar above the clouds and it went exactly as it had gone the first time: neither could finish it, and the world beneath them began, once again, to come apart.",
-          "But this time there was something underneath. Chronovex slowed the fall of every piece of the sky that came down. Ilyaris froze the ground so it would hold. And Vaskoryn did what Vaskoryn does, which is not move.",
-          "Nihilar looked down — and this is the whole of it — and saw eleven thousand small burning things that had not run. He is an accountant, not a unit. He did the sum, saw that it would take longer than he had, and stopped."
+          "It was fought at the rim, above nothing at all, and it lasted three days.",
+          "Aetherion held the light. Chronovex held the time. Ilyaris held a cold across nine thousand kilometres of front so that nothing could burn through, and when the centre finally broke it was Vaskoryn who was standing in it, because he did not move when things got large.",
+          "Nihilar was not destroyed. He cannot be; that is rather the point of him. He was persuaded — by a galaxy that had put down a nineteen-year war to stand in his way — that the accounts were not due yet.",
+          "He left. He said one thing on the way out, on an open channel, and every ship in both fleets heard it: not yet, then. And the sky, which had been broken for three days, closed."
         ]
       },
       {
         id: 'accord', title: 'The Titan Accord',
         cards: ['Chronovex, the Timeless One', 'Grand Castellan Vheldrin, the Unbroken', 'Seraphex, the Seraph Engine', 'Frost-Sovereign Ilyaris, the Winter Crown', 'Lord-Marshal Vaskoryn, the Titan Breaker'],
-        scene: 'A great treaty signing on a plain of new grass: colossal elder war-forms on one side, a delegation of armoured humans on the other, and an immense star-scaled cosmic drake coiled around both, its head resting on the ground between them. Dawn light, banners, quiet.',
+        scene: 'A treaty signing on the open deck of a ring station under a new-lit lane: colossal alien elder powers on one side, a delegation of armoured humans on the other, a winged engine-being holding the register between them, and an immense star-scaled cosmic drake coiled around the whole station with its head resting on the deck. Dawn light, standards, quiet.',
         text: [
-          "The Accord is four lines long. Chronovex wrote it, and the Timeless One does not waste words.",
-          "*The sparks belong to whoever is carrying them.* *No power may switch off a sky it did not light.* *Every ending must be announced a year ahead.* *This holds until it does not.*",
-          "The elder powers signed it because they were tired. The Vanguard signed it because Vheldrin pointed out that a bad treaty you can read beats a good one you cannot.",
-          "That is where the Codex catches up with today. The Accord holds. Vaskoryn trains recruits at Ardan and still will not talk about the ridge. Ilyaris wears a crown given to her by something that has never given anything to anyone. And out past the last star, the Entropy King is counting again."
+          "They signed it on a station deck with the lane relit overhead, because nobody could agree on a planet and everybody could agree on a road.",
+          "The Accord is four lines long. The lanes are shared. Nobody's home world is a battlefield. Anything that comes for all of us is answered by all of us. And every hundred years, everyone comes back and reads it out loud again, in case anybody has stopped meaning it.",
+          "Seraphex holds the register. Vheldrin signed for the Vanguard with a welding pen because nobody had brought a proper one. Ilyaris and Vaskoryn signed underneath him, and on the Dominion side the marks go on for most of a metre.",
+          "Chronovex signed last, and said the only discouraging thing anybody said that day: that it would hold, and that it would not hold forever, and that this was not a reason to sign it any less carefully."
         ]
       }
     ]
@@ -23137,7 +23137,7 @@ const TCG_LORE_SAGAS = [
 ];
 const TCG_LORE_NEXT = {
   title: 'Book Four is being written',
-  text: "The Accord holds. It will not hold forever — the Timeless One said so at the signing, and the Timeless One has never once been wrong about time. The Entropy King is back at the edge of everything, still counting, and under the roots of the first world the spark that computed all of this has turned over and computed something new. Every set of cards brings the next chapter of the Codex: new heroes, new elder powers, and whatever it is that has begun to wake."
+  text: "The Accord holds. It will not hold forever — the Timeless One said so at the signing, and the Timeless One has never once been wrong about time. The Entropy King is back at the edge of the galaxy, still counting. And at the core, in a machine that has been cold for nine hundred years, a survey ship has picked up a reading nobody can explain. Every set of cards brings the next chapter of the Codex: new fleets, new elder powers, and whatever it is that has started the reactor up again."
 };
 // ---- Who built the Nexus ---------------------------------------------------
 // The colophon. It closes the 📜 Lore tab and the 📘 How to Play tab, because
@@ -23259,7 +23259,7 @@ function tcgLoreHtml() {
     + '<div class="tcg-lore-hero">'
     +   '<div class="tcg-lore-hero-kicker">The Nexus Codex</div>'
     +   '<h3>Every card in this Nexus is somebody</h3>'
-    +   '<p>One spark, burning in the dark, computed the whole Nexus — and when it was broken, every ember of it landed inside something living. These are the books of what happened next. Read them straight through, or go and look up whoever you just pulled out of a packet.</p>'
+    +   '<p>A machine at the galactic core built a hundred thousand roads and then went quiet — and when its reactor broke, every fragment of it came down on a different world. Alien powers woke first and carved the roads up between them. Humanity arrived ninety generations late. These are the books of the war that followed and the treaty that ended it. Read them straight through, or go and look up whoever you just pulled out of a packet.</p>'
     +   '<div class="tcg-lore-hero-meta">' + pages.length + ' illustrated pages · ' + TCG_LORE_SAGAS.length + ' books · more with every expansion</div>'
     +   '<button type="button" class="btn btn-primary" onclick="tcgLoreOpen(0)">📖 Start reading</button>'
     + '</div>';
@@ -25675,7 +25675,7 @@ function tcgGuideHtml() {
 
   + _tcgGuideSection('📜', 'The Nexus Codex — the story behind the cards',
       'Every card in this Nexus is <b>somebody</b>. The <b>📜 Lore tab</b> is an illustrated picture book — '
-        + tcgLorePages().length + ' painted pages across ' + TCG_LORE_SAGAS.length + ' books — telling how one burning spark computed the Nexus, how it was broken, and where every ember landed. '
+        + tcgLorePages().length + ' painted pages across ' + TCG_LORE_SAGAS.length + ' books — telling how the roads between the stars were built, how the alien powers and the human fleets went to war over them, and how the war was finally put down. '
         + 'The 7★ legends carry the spine of the story, the 6★ elders carry the chapters, and the 5★ cards fill them out, so anything rare you pull out of a packet has a page you can go and read. '
         + 'Turn the pages with ← and → , or open any page straight from the tab.',
       '<p class="tcg-guide-note">Each new card set brings its <b>own book</b>, so the Codex keeps growing — the last page of the newest book is deliberately left blank.</p>')
