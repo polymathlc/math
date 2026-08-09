@@ -63,11 +63,19 @@ fiction (v1.12.0). `TCG_*` / `tcg*`, `DUEL_*` / `duel*`, `EMS_*` / `ems*`,
 `ELG_*` / `elg*`. **The identifiers are deliberately unchanged from cer's** — that
 is what lets a fix in one app be copied to the other. Only the *world* differs.
 
-- **The world.** The Nexus, computed by one spark called the **Singularity**. Modes:
-  🎴 **Nexus Duel** (Hearthstone-style card duel), 🌋 **Orbital Siege** (lane
-  defence), ⚔️ **Nova Legends** (arena survival), the Battle Arena and the infinite
-  **Derelict**. The lore is 📜 **The Nexus Codex** (`TCG_LORE_SAGAS`) — 4 books,
-  31 illustrated pages.
+- **The world is an INTERGALACTIC WAR.** The **Nexus** is the lattice of jump-gates
+  a machine at the galactic core — the **Singularity** — built and then went quiet
+  inside; its broken reactor scattered **ignition cores** across a hundred thousand
+  worlds. The alien **Xenocline Dominion** woke on the roads first; the human
+  **Aegis Vanguard** arrived ninety generations late; Book Three is their war and
+  the **Titan Accord** that ended it. Modes: 🎴 **Nexus Duel** (Hearthstone-style
+  card duel), 🌋 **Orbital Siege** (lane defence), ⚔️ **Nova Legends** (arena
+  survival), the Battle Arena and the infinite **Derelict**. The lore is 📜 **The
+  Nexus Codex** (`TCG_LORE_SAGAS`) — 4 books, 31 illustrated pages.
+  - **A chapter names its cast by exact card name** and the prose calls the same
+    characters by their bare personal name, so a rename has to move both. The
+    chapter `id` is the art slot (`lore:<saga>:<id>`) — rewrite a chapter around it,
+    never rename it.
 - **Two expansions, 101 cards.** `TCG_GEN1` (c001–c051, 51 xeno war-forms, *The
   Prime Index · Xenocline Dominion*) then `TCG_GEN2` (c052–c101, 50 human heroes,
   *Aegis Vanguard · Rise of Humanity*). **Ids are positional and live in every
