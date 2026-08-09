@@ -9710,11 +9710,13 @@ function mcqOptionsPreviewHtml(q, showCorrect = false) {
   return `<div class="mcq-preview" style="margin-top:10px;">${rows}</div>`;
 }
 function questionPreviewHtml(q, numberLabel = "", qrSvg = "") {
-  const meta = [q.level, studentTopicsLabel(q)].filter(Boolean).join(" - ");
   const qr = qrSvg ? `<div class="q-qr">${qrSvg}<div class="q-qr-cap">📱 Scan to AI-mark<br>&amp; watch the solution</div></div>` : "";
+  // No level or topic on a printed sheet — same reason as the worksheet
+  // export: it is a filing label for the teacher, and on the student's copy it
+  // announces the method before they have read the question.
   return `<section class="preview-sheet">
     ${qr}
-    <div class="preview-title">${numberLabel ? escapeHtml(numberLabel) + " - " : ""}${escapeHtml(q.title || "Question")}${meta ? ` (${escapeHtml(meta)})` : ""}</div>
+    <div class="preview-title">${numberLabel ? escapeHtml(numberLabel) + " - " : ""}${escapeHtml(q.title || "Question")}</div>
     <div class="q-body">${renderQuestionBlocksHtml(q.blocks || [])}</div>
     ${mcqOptionsPreviewHtml(q)}
     <div class="worksheet-working-label preview-working">Working</div>
@@ -10196,7 +10198,6 @@ function wsAnswerBlankHtml() {
   return `<div class="ws-answer-final"><span>Answer:</span><i></i></div>`;
 }
 function wsQuestionChunkHtml(q, n, qrSvg) {
-  const meta = [q.level, studentTopicsLabel(q)].filter(Boolean).join(" · ");
   const qr = qrSvg ? `<div class="ws-qr">${qrSvg}<div class="ws-qr-cap">📱 Scan to AI-mark<br>&amp; watch the solution</div></div>` : "";
   const opts = wsHasMcq(q)
     // A / B / C / D, the same lettering the on-screen practice pad and every
@@ -10212,7 +10213,10 @@ function wsQuestionChunkHtml(q, n, qrSvg) {
     : `<div class="ws-answer-box"><div class="ws-work" style="height:${wsWorkingSpaceMm(q)}mm"></div>${wsAnswerBlankHtml()}</div>`;
   return `<section class="ws-chunk${questionIsAnnotation(q) ? " ws-chunk-annot" : ""}">
     ${qr}
-    <div class="ws-q-no">${n}.${meta ? ` <span class="ws-q-metatext">${escapeHtml(meta)}</span>` : ""}</div>
+    <!-- Just the number. The level and topic are the teacher's filing labels,
+         not part of the question, and printing "P5 · Decimals, Ratio" over a
+         question tells the class what method to use before they have read it. -->
+    <div class="ws-q-no">${n}.</div>
     <div class="ws-q-body">${renderQuestionBlocksHtml(q.blocks || [])}</div>
     ${opts}
   </section>`;
@@ -10276,7 +10280,6 @@ function wsPrintCss() {
        around it, so two questions can never end up on top of each other. */
     .ws-chunk { break-inside: avoid; page-break-inside: avoid; margin-bottom: 9mm; }
     .ws-q-no { font-size: 12pt; font-weight: 700; margin-bottom: 2.5mm; }
-    .ws-q-metatext { font-size: 8.5pt; font-weight: 400; color: #8d887f; }
     .ws-q-body { font-size: 12pt; line-height: 1.55; }
     .ws-q-body p { margin: 0 0 2mm; }
     /* A picture is capped so a question with a diagram AND a chart still fits
