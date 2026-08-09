@@ -1581,8 +1581,8 @@ function renderMathInline(text) {
   s = s.replace(/\bsqrt\s*\(\s*([^)]+?)\s*\)/gi, (_, v) => stash(sqrtHtml(v)));
   s = s.replace(/\(([^()\n]{1,40})\)\s*[\/⁄]\s*\(([^()\n]{1,40})\)/g, (_, n, d) => stash(fractionHtml(n, d)));
   const atom = "-?(?:\\d+(?:\\.\\d+)?|[A-Za-zαβγθπ]+\\d*|\\d+[A-Za-zαβγθπ]*)";
-  const overFraction = new RegExp(`(^|[^\\w./:@-])(${atom})\\s+over\\s+(${atom})(?=$|[^\\w./])`, "gi");
-  s = s.replace(overFraction, (_, prefix, n, d) => prefix + stash(fractionHtml(n, d)));
+  // The word "over" is ordinary English ("over 4 hours", "spread over 3 days"),
+  // so it is never treated as a fraction bar. Use 1/2, \frac{1}{2} or frac(1,2).
   const simpleFraction = new RegExp(`(^|[^\\w./:@-])(${atom})\\s*[\\/⁄]\\s*(${atom})(?=$|[^\\w./])`, "g");
   s = s.replace(simpleFraction, (_, prefix, n, d) => prefix + stash(fractionHtml(n, d)));
   let html = renderMathPlain(s);
