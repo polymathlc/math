@@ -168,6 +168,29 @@ is what lets a fix in one app be copied to the other. Only the *world* differs.
     transparency visible, and its tile is sized from `_annotUpdateTransform` so
     it stays put on screen at any zoom.
 
+## 🎬 Video amendments
+A recorded explanation goes stale the moment a question is corrected, so the fix
+is drawn OVER the film (`vo*`, `q.videoOverlays`) rather than cut into it: a note
+or a scribble at a given second, at a given spot, for a given number of seconds.
+- **Positions are FRACTIONS of the frame, never pixels.** The same video is shown
+  in the practice panel, the worksheet overview and the share card at three
+  sizes, and one authoring pass has to be right in all of them.
+- **Overlays are gated exactly like the video** — `videoOverlays` is in
+  `QUESTION_KEY_FIELDS`, because "the answer here should be 24" *is* an answer.
+  That means students only get them via the marking / shared-solutions Cloud
+  Functions, so `cleanVideoOverlays` in `functions/index.js` has to stay in step
+  with `voClean` — **a change here needs a functions deploy**, not just a page
+  upload.
+- **`videoExplanationFrameHtml` is the ONLY place video markup is built**, and
+  every caller must run `voBindIn(container)` after its `innerHTML` or the layer
+  never starts. A video with no amendments emits no canvas and no frame id, so
+  the well-tested embed is byte-for-byte what it always was.
+- **An iframe never reports its playhead.** `kind: 'video'` (Dropbox, direct
+  files) is exact. Google Drive is the one case worth fighting for: when a video
+  HAS amendments the frame tries Drive's `directUrl` stream first and falls back
+  to the `/preview` iframe on `error`, and an iframe player gets the ⏱ stopwatch
+  the student starts by hand. Videos with no amendments never take that path.
+
 ## 📝 Worksheets — the ✎ Questions drawer
 A saved worksheet is an ordered **list of question ids**, so `wsEditOverlay`
 (`wse*`) edits that list and nothing else. Both its columns share one row
