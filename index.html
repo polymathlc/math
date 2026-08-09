@@ -3752,6 +3752,10 @@ body.lore-reading { overflow: hidden; }
 .lop-row-sub { font-size: 0.76rem; color: var(--text-muted); margin-top: 3px; }
 .lop-empty { padding: 26px 16px; text-align: center; font-size: 0.85rem; color: var(--text-muted); }
 
+/* The art-direction reminder on the generator panel — this world is science
+   fiction, and the panel says so where the drawing is actually started. */
+.tcg-gen-world { margin-top: 12px !important; padding: 12px 15px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-alt); font-size: 0.82rem !important; line-height: 1.7 !important; }
+
 </style>
 </head>
 <body>
@@ -18829,7 +18833,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.13.0 · 2026-08-09";
+const APP_VERSION = "v1.14.0 · 2026-08-09";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
@@ -19805,7 +19809,7 @@ const TCG_SKILLS = {
   chrono:  { name: 'Time Fracture',        icon: '⌛', kind: 'chrono', pow: 1.30, desc: 'Signature: shatters time over ALL foes for 130% ATK (ignores DEF) and freezes their clocks — every foe loses 2 turns of skill charge.' },
   // National Day set — the two 7★ signatures. Same rule as the trio above:
   // a one-of-a-kind mechanic nothing else in the dex can do.
-  dragonfall: { name: 'Dragonfall Execution', icon: '🗡️', kind: 'slay',       pow: 2.30, exec: 0.15, desc: 'Signature: one titanic blow on a single foe for 230% ATK — ignores DEF and carves away another 15% of that foe\'s MAXIMUM health. The bigger they are, the harder it lands.' },
+  dragonfall: { name: 'Titanfall Execution', icon: '🗡️', kind: 'slay',       pow: 2.30, exec: 0.15, desc: 'Signature: one titanic blow on a single foe for 230% ATK — ignores DEF and carves away another 15% of that foe\'s MAXIMUM health. The bigger they are, the harder it lands.' },
   winter:     { name: "Winter's Crown",       icon: '👑', kind: 'frostreign', pow: 1.35, desc: 'Signature: a killing winter falls on ALL foes for 135% ATK and freezes every one of them solid — each skips its next turn.' }
 };
 // How a unit's skill shapes its stat spread (role identity).
@@ -19893,11 +19897,11 @@ const TCG_ARTIFACTS = [
   { id: 'chalice',   name: 'Reaper Chalice',  icon: '🏺', stars: 5, kind: 'lifesteal',   pow: 0.22, blurb: 'Every attack heals the attacker for 22% of the damage dealt.' },
   { id: 'titan',     name: 'Titan Heart',     icon: '🫀', stars: 5, kind: 'hp',          pow: 0.18, blurb: 'Your whole team is far beefier (Max HP +18%).' },
   // 6★ — legends
-  { id: 'phoenix',   name: 'Phoenix Plume',   icon: '🪶', stars: 6, kind: 'phoenix',     pow: 0.35, blurb: 'The first ally to faint is revived once at 35% HP. A second chance every battle.' },
+  { id: 'phoenix',   name: 'Reignition Vane',   icon: '🪶', stars: 6, kind: 'phoenix',     pow: 0.35, blurb: 'The first ally to faint is revived once at 35% HP. A second chance every battle.' },
   { id: 'mirror',    name: 'Mirror Shell',    icon: '🐚', stars: 6, kind: 'thorns',      pow: 0.30, blurb: 'Foes that hit your units take 30% of the damage back.' },
   // 7★ — myths
-  { id: 'wyrm',      name: 'Wyrmheart Ruby',  icon: '💎', stars: 7, kind: 'ember',       pow: 3,    blurb: 'Super-effective element hits deal ×3 damage instead of ×2 — devastating matchups.' },
-  { id: 'ankh',      name: 'Eternity Ankh',   icon: '☥', stars: 7, kind: 'phoenix',     pow: 0.60, blurb: 'The first ally to faint is reborn at 60% HP. Fainting is only a suggestion.' }
+  { id: 'wyrm',      name: 'Drakeheart Core',  icon: '💎', stars: 7, kind: 'ember',       pow: 3,    blurb: 'Super-effective element hits deal ×3 damage instead of ×2 — devastating matchups.' },
+  { id: 'ankh',      name: 'Eternity Sigil',   icon: '☥', stars: 7, kind: 'phoenix',     pow: 0.60, blurb: 'The first ally to faint is reborn at 60% HP. Fainting is only a suggestion.' }
 ];
 function tcgArtifactById(id) { return TCG_ARTIFACTS.find(a => a.id === id) || null; }
 
@@ -20123,7 +20127,7 @@ const TCG_GEN1 = {
     ['Borvina, the Whiteout', '❄️', 'frost', 'freeze', 'Total Whiteout'],
     ['Vipraxa, the Mire Queen', '🐍', 'venom', 'venomf', 'Mirequeen Kiss'],
     ['Enigmus, the Riddlekeeper', '🦁', 'psychic', 'bloom', 'Riddlelight Boon'],
-    ['Solarius, the Radiant Phoenix', '🐦‍🔥', 'light', 'solar', 'Phoenix Sunflare'],
+    ['Solarius, the Reignition Raptor', '🐦‍🔥', 'light', 'solar', 'Reignition Sunflare'],
     ['Morthul, the Dusk Reaper', '💀', 'shadow', 'eclipse', 'Duskreap Harvest'],
     ['Gryphus, the Steelwing', '🦅', 'metal', 'fang', 'Steelwing Shear'],
     ['Quasara, the Fallen Star', '🐠', 'cosmic', 'rain', 'Fallen Starlight'],
@@ -20238,9 +20242,9 @@ const TCG_GEN2 = {
   ],
   7: [ // 2 × 7★ — the National Day legends, each with a one-of-a-kind signature
     ['Kaelen Draxmoor, the Titan Slayer', '🗡️', 'metal', 'dragonfall', 'Titanfall Execution', 'trooper', 'male',
-      'THE legendary titan slayer of the set — a broad-shouldered human man in scarred, ornate powered battle-plate with a red battle-cloak, gripping an enormous rune-etched power greatsword crackling with energy. Behind and above him, the vast shadow, wing and horned silhouette of the bio-titan he hunts looms through smoke and firelight, dwarfing him — he stands his ground unafraid. Make him look utterly legendary and awe-inspiring.'],
+      'THE legendary titan slayer of the set — a broad-shouldered human man in scarred, ornate POWERED BATTLE-PLATE with enormous shoulder guards, a red battle-cloak and a sealed helm clamped at his hip, gripping a colossal two-handed ENERGY SABRE whose blade is a bar of white plasma. Behind and above him, the vast shadow, wing and horned silhouette of the armoured bio-titan he hunts looms through smoke and burning promethium, dwarfing him — he stands his ground unafraid. Make him look utterly legendary and awe-inspiring.'],
     ['Ariselle, the Winter Sovereign', '👑', 'frost', 'winter', 'Absolute Zero Crown', 'psion', 'female',
-      'THE legendary winter sovereign of the set — a strikingly beautiful, regal human woman with pale skin and long silver-white hair, wearing a magnificent floor-length gown of frost-white and ice-blue over a filigreed exo-frame, with a high crystalline collar, an intricate crown of ice shards, and a flowing cape of falling snow. Delicate snowflakes and shards of cryo-ice orbit her raised hands. Serene, elegant and utterly commanding, on the bridge of a frozen starship under an aurora. Make her look breathtakingly beautiful and legendary.']
+      'THE legendary winter sovereign of the set — a strikingly beautiful, regal human woman with pale skin and long silver-white hair, wearing a magnificent floor-length ceremonial void-mantle of frost-white and ice-blue over a slender filigreed powered exo-frame, with a high crystalline armoured collar, a circlet of machined cryo-shards, and a long cape of falling frost. Shards of cryo-ice orbit her raised gauntlets. Serene, elegant and utterly commanding, on the frost-rimed bridge of a starship under an aurora. Make her look breathtakingly beautiful and legendary.']
   ]
 };
 // Flatten to the master dex: gen 1 takes c001…c151 by position, the National
@@ -20893,6 +20897,34 @@ function onTcgArtPaste(id, e) {
 }
 function onTcgArtDrop(id, e) { e.preventDefault(); if (e.currentTarget) e.currentTarget.classList.remove('drag'); const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; _raidersFileToDataUrl(file, du => _tcgArtApply(id, du)); }
 function onTcgArtPick(id, e) { const file = e.target && e.target.files && e.target.files[0]; _raidersFileToDataUrl(file, du => _tcgArtApply(id, du)); if (e.target) e.target.value = ''; }
+// Wipe every stored art override in one go, so the whole set can be redrawn
+// under the current prompts. This is the button to press after the art
+// DIRECTION changes — a redraw alone leaves anything already drawn under the
+// old direction sitting in the slots beside the new work.
+// The pictures themselves stay in Storage (they cost nothing there and a
+// stale URL is harmless); it is the overrides map that decides what the game
+// shows, so clearing that is what resets the art.
+async function tcgResetAllArt() {
+  if (!_isAdmin()) { showToast('Admins only', 'error'); return; }
+  const n = _tcgArt ? Object.keys(_tcgArt).length : 0;
+  if (!n) { showToast('There is no card art stored yet', 'info'); return; }
+  if (!confirm('Reset ALL ' + n + ' stored pictures?\n\nEvery card, avatar, artifact, hero, pack frame, effect frame and banner goes back to its placeholder, and the set can be drawn again from scratch. This cannot be undone.')) return;
+  const btn = document.getElementById('tcgResetAllBtn');
+  const orig = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Resetting…'; }
+  try {
+    const uid = _tcgOwnerUid();
+    if (!uid) throw new Error('no admin bank to reset');
+    await setDoc(doc(db, 'users', uid, 'settings', 'tcgArt'), { overrides: {} });
+    _tcgArt = {};
+    tcgArtRefresh();
+    try { tcgApplyLogo(); } catch (e) {}
+    showToast('Reset ' + n + ' picture' + (n === 1 ? '' : 's') + ' — press ✨ Generate all remaining to redraw', 'success');
+  } catch (e) {
+    console.error('tcg reset all', e);
+    showToast('Reset failed: ' + (e && e.message ? e.message : e), 'error');
+  } finally { if (btn) { btn.disabled = false; btn.textContent = orig; } }
+}
 async function resetTcgArt(id) {
   try {
     const uid = _tcgOwnerUid(); if (!uid) return;
@@ -20913,31 +20945,143 @@ async function resetTcgArt(id) {
 // Engine: the ChatGPT image model when the ChatGPT engine is switched on
 // (sidebar → AI Engine), otherwise the Gemini image model.
 
+// ── WHAT THIS WORLD LOOKS LIKE — every art prompt opens with this ─────────
+// Nova Protocol is set in the FAR FUTURE, and the single most reliable way an
+// image model goes wrong here is to reach for the fantasy trading-card look it
+// has seen a hundred thousand times: wizards, dragons, knights in medieval
+// plate, castles. Naming the genre once is not enough — "science fiction" and
+// "warrior" in the same prompt still produces a man in chainmail. So every
+// prompt states what the world IS and what it is NOT, in these exact words,
+// and every fantasy shape is given its technological replacement rather than
+// simply being forbidden.
+// Keep every prompt pointing at THIS fragment rather than restating it: the
+// element FX, the pack frames and the card art have drifted apart before.
+const TCG_ART_WORLD =
+  'THE WORLD — READ THIS BEFORE ANYTHING ELSE: this game is SCIENCE FICTION, set thousands of years in the future. '
+  + 'Starships, orbital docks and hull plating; exposed cabling, rivets, vents and reactor glow; hard-light energy sabres, plasma weapons and beam-lances; '
+  + 'holographic displays, sealed void-suits, powered exo-frames, and rugged battle-worn POWERED ARMOUR of the space-marine kind — huge shoulder plates, scarred paint, sealed helms. '
+  + 'Its creatures are ALIEN SPECIES and war-machines: sleek high-tech xenos, hulking armoured xeno-brutes, insectile hive-forms, bio-engineered war-beasts and walking constructs. '
+  + 'ABSOLUTELY NOT FANTASY. No wizards, mages, sorcerers, witches, warlocks or necromancers. No medieval knights, plate armour, chainmail, tabards, surcoats or heraldic shields. '
+  + 'No dragons, unicorns, phoenixes, angels, demons, elves, orcs, goblins or fairies. No castles, dungeons, taverns, forests of oak or cobbled streets. '
+  + 'No wands, spellbooks, wooden staves, crystal balls, scrolls, potions, cauldrons or carved stone runes. No cloth wizard robes and no pointed hats. '
+  + 'Where a shape would read as fantasy, BUILD IT OUT OF TECHNOLOGY instead: a staff becomes a beam-lance, a sword becomes an energy sabre, a robe becomes a hooded void-cloak over an exo-frame, '
+  + 'a shield becomes a projected hard-light barrier, armour becomes powered plate, and magic becomes exotic energy pouring out of a device.\n';
+
 // The emoji in each unit row is the only clue the data carries about what
 // the creature actually IS — and image models read emoji poorly, so spell it out.
 const TCG_EM_WORD = {
-  '🐹': 'hamster', '💧': 'living water droplet', '🐭': 'mouse', '🪨': 'living boulder', '🌱': 'sprouting seedling',
-  '🦟': 'mosquito', '🟢': 'green slime blob', '🦋': 'butterfly', '🐞': 'ladybug', '🐾': 'padded beast with huge paws',
-  '⚙️': 'clockwork gear construct', '🌟': 'star spirit', '🐟': 'fish', '🐤': 'chick', '🪱': 'worm',
-  '🍄': 'mushroom creature', '🐝': 'bee', '🐌': 'snail', '🐁': 'field mouse', '💦': 'water-spray spirit',
-  '🐈': 'cat', '🐶': 'puppy', '✨': 'sparkling light spirit', '🦇': 'bat', '🤖': 'robot',
-  '🪰': 'fly', '🦎': 'lizard', '🦉': 'owl', '🐀': 'rat', '🌋': 'volcano beast',
-  '🐕': 'dog', '🐠': 'tropical fish', '🐇': 'rabbit', '🐢': 'turtle', '🌿': 'leafy plant creature',
-  '🦊': 'fox', '🐸': 'frog', '🐥': 'chick', '🐈‍⬛': 'black cat', '🪲': 'beetle',
-  '🐡': 'pufferfish', '👺': 'oni goblin', '🪼': 'jellyfish', '🪸': 'coral creature', '🦀': 'crab',
-  '🦔': 'hedgehog', '🦌': 'antlered stag', '🌫️': 'mist wraith', '👻': 'ghost', '🐦': 'bird',
-  '🦫': 'beaver', '☄️': 'comet spirit', '🐺': 'wolf', '🦦': 'otter', '🐱': 'cat',
-  '🗿': 'stone golem', '🦭': 'seal', '🦂': 'scorpion', '🐑': 'sheep', '🌈': 'rainbow spirit',
-  '🦝': 'raccoon', '🐏': 'horned ram', '🧱': 'brick golem', '🐍': 'serpent', '🌞': 'sun spirit',
-  '🫎': 'moose', '🐆': 'leopard', '🐒': 'monkey', '🐬': 'dolphin', '🐗': 'wild boar',
-  '🍃': 'wind-borne leaf sprite', '❄️': 'snowflake spirit', '🦬': 'bison', '🦑': 'squid', '🦅': 'eagle',
-  '🦗': 'cricket', '🧊': 'ice golem', '🐊': 'crocodile', '🌙': 'moon spirit', '🐴': 'horse',
-  '🐦‍⬛': 'raven', '🌀': 'whirlpool spirit', '🐅': 'tiger', '🐻‍❄️': 'polar bear', '🐛': 'caterpillar',
-  '🧠': 'psychic brain creature', '🦄': 'unicorn', '🦏': 'rhinoceros', '🌠': 'shooting-star spirit', '🐲': 'eastern dragon',
-  '🌺': 'blossom creature', '🦁': 'lion', '🐦‍🔥': 'phoenix', '💀': 'skeletal revenant', '🐉': 'dragon',
-  '🐋': 'whale', '⛈️': 'storm-cloud elemental', '🌸': 'cherry-blossom spirit', '🌌': 'galaxy spirit', '🐳': 'great whale',
-  '🌳': 'ancient walking tree', '🦖': 'tyrannosaur', '🐙': 'octopus', '🦣': 'mammoth', '🦾': 'armoured mechanical titan',
-  '👼': 'winged angel', '☀️': 'radiant sun deity', '🌑': 'eclipse being'
+  '\u{1F439}': 'a small six-limbed burrowing xeno-rodent plated in chitin, sensor whiskers twitching',
+  '\u{1F4A7}': 'a hovering blob of living coolant held together by a magnetic field',
+  '\u{1F42D}': 'a scurrying vermin-xeno with a segmented metal tail',
+  '\u{1FAA8}': 'a walking boulder of fused ferrocrete rubble with glowing seams',
+  '\u{1F331}': 'a bio-engineered seedling construct sprouting out of a nutrient canister',
+  '\u{1F99F}': 'a needle-nosed insectile drone the size of a hand',
+  '\u{1F7E2}': 'a blob of animate green bio-sludge in a cracked containment shell',
+  '\u{1F98B}': 'a broad-winged xeno-moth, panels of shifting light across its wings',
+  '\u{1F41E}': 'a domed armoured beetle-drone with a segmented carapace',
+  '\u{1F43E}': 'a heavy padded quadruped xeno-predator with huge armoured paws',
+  '\u{2699}\u{FE0F}': 'a small servitor construct built out of gears, pistons and salvage',
+  '\u{1F31F}': 'a starlight probe — a mote of plasma inside a ring of thruster vanes',
+  '\u{1F41F}': 'a streamlined finned xeno-swimmer with bio-luminous stripes',
+  '\u{1F424}': 'a hatchling avian xeno, still downy but already crested with antennae',
+  '\u{1FAB1}': 'a segmented boring worm-xeno with a drill for a mouth',
+  '\u{1F344}': 'a fungal xeno-form with a domed spore-cap and venting gills',
+  '\u{1F41D}': 'an insectile hive-drone with rotor wings and a barbed stinger',
+  '\u{1F40C}': 'a slow armoured gastropod xeno hauling a domed pressure shell',
+  '\u{1F401}': 'a tiny scavenger xeno-rodent with wide photoreceptor eyes',
+  '\u{1F4A6}': 'a sprayed cloud of animate coolant vapour, lights flickering inside it',
+  '\u{1F408}': 'a lithe feline xeno-stalker with sleek plated fur',
+  '\u{1F436}': 'a young quadruped hound-xeno with a heavy sensor collar',
+  '\u{2728}': 'a swarm of hovering light-motes — a photonic xeno-form',
+  '\u{1F987}': 'a leather-winged night-flyer xeno with sonar dishes for ears',
+  '\u{1F916}': 'a battle servitor robot',
+  '\u{1FAB0}': 'a buzzing scavenger drone-fly with faceted lenses',
+  '\u{1F98E}': 'a scaled reptilian xeno-crawler with static arcing along its back',
+  '\u{1F989}': 'a wide-eyed avian cogitator-xeno, its face ringed with sensor discs',
+  '\u{1F400}': 'a long-tailed scavenger vermin-xeno out of the lower decks',
+  '\u{1F30B}': 'a magma-cored xeno-brute, cracked lava seams running through its plating',
+  '\u{1F415}': 'a heavy war-kennel hound-xeno, plated across the shoulders',
+  '\u{1F420}': 'a bright-finned reef xeno-swimmer',
+  '\u{1F407}': 'a long-eared bounding xeno with powerful thruster-like hind legs',
+  '\u{1F422}': 'a domed shell-backed xeno, its shell plated like a hull',
+  '\u{1F33F}': 'a walking gene-vine construct of engineered leaves and cabling',
+  '\u{1F98A}': 'a sharp-muzzled, quick-footed xeno-scout',
+  '\u{1F438}': 'a wide-mouthed amphibious xeno with a swelling pressure sac',
+  '\u{1F425}': 'a downy avian hatchling xeno',
+  '\u{1F408}\u{200D}\u{2B1B}': 'a black-plated feline xeno-assassin',
+  '\u{1FAB2}': 'a heavy armoured beetle-xeno with a splitting carapace',
+  '\u{1F421}': 'a spined spherical xeno that inflates its own armour',
+  '\u{1F47A}': 'a brutish red-skinned xeno-brute with tusks and a heavy underslung jaw',
+  '\u{1FABC}': 'a drifting translucent bio-luminous xeno-medusa',
+  '\u{1FAB8}': 'a branching coral-like colony xeno',
+  '\u{1F980}': 'an armoured crustacean xeno with hydraulic claws',
+  '\u{1F994}': 'a bristling quill-backed xeno, every spine an antenna',
+  '\u{1F98C}': 'a tall antlered xeno-grazer, its antlers grown into aerial arrays',
+  '\u{1F32B}\u{FE0F}': 'a drifting cloud of animate smog with running lights inside it',
+  '\u{1F47B}': 'a phase-shifted xeno flickering half out of real space',
+  '\u{1F426}': 'a small crested avian xeno',
+  '\u{1F9AB}': 'a broad flat-tailed engineer-xeno that builds barricades out of salvage',
+  '\u{2604}\u{FE0F}': 'a burning meteor-form trailing a plume of plasma',
+  '\u{1F43A}': 'a pack-hunting lupine xeno with a plated ruff',
+  '\u{1F9A6}': 'a sleek swimming xeno with webbed manipulator paws',
+  '\u{1F431}': 'a small feline xeno with reflective eyes',
+  '\u{1F5FF}': 'a towering monolith construct with a blunt carved face and lit eyes',
+  '\u{1F9AD}': 'a blubbery armoured pinniped xeno',
+  '\u{1F982}': 'a segmented xeno-scorpion with a hydraulic sting',
+  '\u{1F411}': 'a quadruped xeno fleeced in fibre-optic wool',
+  '\u{1F308}': 'a prismatic light-form xeno splitting into bands of colour',
+  '\u{1F99D}': 'a masked-faced scavenger xeno with clever manipulator paws',
+  '\u{1F40F}': 'a heavy-horned ramming xeno with a reinforced skull plate',
+  '\u{1F9F1}': 'a blocky construct assembled from fused hull plating',
+  '\u{1F40D}': 'a long armoured serpent-xeno with overlapping plated coils',
+  '\u{1F31E}': 'a burning solar entity — a small captive star',
+  '\u{1FACE}': 'a huge broad-antlered xeno-grazer',
+  '\u{1F406}': 'a spotted sprint-hunter xeno built for speed',
+  '\u{1F412}': 'an agile long-limbed climbing xeno',
+  '\u{1F42C}': 'a sleek fast-swimming xeno with a sonar crest',
+  '\u{1F417}': 'a tusked charging xeno-boar with plated shoulders',
+  '\u{1F343}': 'a wind-borne cluster of bio-engineered leaf-blades',
+  '\u{2744}\u{FE0F}': 'a crystalline cryo-form of interlocking ice shards',
+  '\u{1F9AC}': 'a massive shaggy armoured xeno-bison',
+  '\u{1F991}': 'a many-tentacled deep xeno with a bullet-shaped mantle',
+  '\u{1F985}': 'a broad-winged raptor xeno with blade-edged pinions',
+  '\u{1F997}': 'a leaping insectile xeno with resonating hind legs',
+  '\u{1F9CA}': 'a walking construct of solid cryo-ice',
+  '\u{1F40A}': 'an armoured amphibious xeno-saurian with a long toothed jaw',
+  '\u{1F319}': 'a pale crescent light-entity',
+  '\u{1F434}': 'a swift quadruped mount-xeno with a plated crest',
+  '\u{1F426}\u{200D}\u{2B1B}': 'a black-feathered scavenger xeno-corvid with a lens for an eye',
+  '\u{1F300}': 'a spiralling vortex entity of drawn-in matter and light',
+  '\u{1F405}': 'a striped apex predator xeno with retractable blades',
+  '\u{1F43B}\u{200D}\u{2744}\u{FE0F}': 'a huge white-furred cryo-adapted xeno-bear',
+  '\u{1F41B}': 'a soft segmented larval xeno',
+  '\u{1F9E0}': 'an exposed psionic brain-form floating in a suspension cradle',
+  '\u{1F984}': 'a crystalline quadruped xeno with a single energy-lance horn',
+  '\u{1F98F}': 'an enormously armoured horned charger-xeno, a walking tank',
+  '\u{1F320}': 'a falling star-form trailing a long tail of light',
+  '\u{1F432}': 'a serpentine void-drake — a long armoured bio-titan with plasma vents down its spine',
+  '\u{1F33A}': 'a bio-engineered bloom-form unfurling petals of light',
+  '\u{1F981}': 'a maned apex predator xeno, the mane grown into heavy plating',
+  '\u{1F426}\u{200D}\u{1F525}': 'a raptor xeno wreathed in its own plasma exhaust, reigniting as it climbs',
+  '\u{1F480}': 'a reanimated combat husk of bone and chrome',
+  '\u{1F409}': 'a colossal winged void-drake — a serpentine bio-titan clad in armour plate, plasma venting from its jaws',
+  '\u{1F40B}': 'a vast void-whale, a living leviathan that swims between ships',
+  '\u{26C8}\u{FE0F}': 'a living storm-cell crackling with discharge',
+  '\u{1F338}': 'a drifting bloom-form of pale engineered petals',
+  '\u{1F30C}': 'a galaxy-form entity — a swirl of stars given a body',
+  '\u{1F433}': 'an immense void-leviathan the size of a cruiser',
+  '\u{1F333}': 'a colossal walking arcology-tree of gene-grown timber and cabling',
+  '\u{1F996}': 'a towering bipedal saurian war-beast under armour plating',
+  '\u{1F419}': 'a many-armed deep xeno with suckered manipulator limbs',
+  '\u{1F9A3}': 'a colossal tusked shaggy xeno-behemoth',
+  '\u{1F9BE}': 'a towering armoured war-machine titan',
+  '\u{1F47C}': 'a seraph-engine — a humanoid war-construct riding hard-light wings',
+  '\u{2600}\u{FE0F}': 'a radiant solar entity of contained fusion light',
+  '\u{1F311}': 'an eclipse-form entity — a sphere of absolute dark ringed in cold light',
+  // Two gen-1 cards wear their element as their emoji rather than a body, so
+  // they need a body of their own or they fall through to the default below.
+  '\u{1F525}': 'a small plasma-spawn — a scrap-plated xeno-whelp trailing burning slag',
+  '\u{26A1}': 'an arc-seed drone — a hovering nodule of contained lightning on stubby thrusters'
 };
 // Element → the palette and effects the artwork should carry.
 const TCG_ART_PALETTE = {
@@ -20967,13 +21111,13 @@ function _tcgTierMood(stars) {
 // "science-fiction warrior" with no other steer will drift into a different rendering
 // style card by card.
 const TCG_CLASS_LOOK = {
-  trooper:      'a human line trooper in battle-worn powered plate and webbing, wielding a heavy chainblade or power hammer',
-  sentinel:     'a human sentinel in gleaming ornate powered armour with a tower storm-shield and an energy warhammer or longsword, a banner or cloak flowing behind',
-  technomancer: 'a human technomancer in long circuit-stitched robes over an exo-frame, with a tall data-staff, servo-skull and floating holographic glyphs',
-  psion:        'a human psion in flowing elegant robes over light armour, raw psychic energy streaming from open hands',
-  voidcaller:   'a human void-caller in layered voidsuit robes channelling energy through a focus crystal or beam-staff',
-  riftbinder:   'a human riftbinder in dark hooded finery, bound containment sigils and eldritch rift energy coiling around the arms',
-  reanimator:   'a human reanimator in tattered dark robes and bone-and-chrome ornaments, pale reactor-light and drifting servo-wisps at their command'
+  trooper:      'a human line trooper in rugged battle-worn POWERED ARMOUR of the space-marine kind — huge shoulder plates, exposed pistons and cabling at the joints, webbing and ammunition pouches, scarred and re-painted plating — carrying a heavy rifle or a humming power maul, sealed helm either worn or clamped at the hip',
+  sentinel:     'a human sentinel in heavy ornate powered armour with a massive projected hard-light tower shield on one arm and an energy maul in the other, a tattered honour-drape hanging from one pauldron, thruster vents across the back',
+  technomancer: 'a human tech-adept in a hooded void-cloak worn over a powered exo-frame, two extra servo-arms folded above the shoulders, a data-slate at the belt, a hovering servo-skull drone, and holographic glyphs projected into the air from a wrist unit',
+  psion:        'a human psion in a sleek armoured void-suit with a fine filigreed psi-focus halo of metal ringing the head, raw psychic energy arcing between open armoured gauntlets',
+  voidcaller:   'a human void-caller in a layered sealed voidsuit with a heavy ribbed collar and a mirrored visor, pouring a beam out of a hand-held focus lance',
+  riftbinder:   'a human riftbinder in dark hooded battle-plate hung with containment sigil-plates, rift energy coiling out of the gauntlets and being forced back down into a caged wrist unit',
+  reanimator:   'a human reanimator in a scarred surgical exo-frame and a heavy respirator mask, bone-and-chrome trophies bolted to the plating, pale reactor-light and drifting repair drones at their command'
 };
 function _tcgHumanArtPrompt(c) {
   const el = TCG_ELEMENTS[c.element] || { name: 'Elemental' };
@@ -20981,9 +21125,10 @@ function _tcgHumanArtPrompt(c) {
   const woman = c.sex === 'female';
   const person = woman ? 'woman' : 'man';
   return 'Original science-fiction CHARACTER artwork for a children\'s collectible trading-card game — one card in an existing set.\n'
+    + TCG_ART_WORLD
     + 'CHARACTER: "' + c.name + '" — ' + look + '. A ' + (c.stars >= 6 ? 'strikingly heroic ' : '') + 'human ' + person + ', '
     + el.name.toLowerCase() + '-element, ' + _tcgTierMood(c.stars) + ' (' + c.stars + ' of 7 stars).\n'
-    + 'IMPORTANT: this is a PERSON, not a unit or a beast — noble and heroic, a hero a child would want on their card.\n'
+    + 'IMPORTANT: this is a PERSON, not a creature — a far-future human soldier, noble and heroic, a hero a child would want on their card. Rugged, lived-in, functional kit; never a fantasy adventurer.\n'
     + (c.art ? 'THIS CHARACTER SPECIFICALLY: ' + c.art + '\n' : '')
     + 'ELEMENT LOOK: ' + (TCG_ART_PALETTE[c.element] || 'vivid science-fiction colours') + '.\n'
     + (c.skillName ? 'SIGNATURE MOVE: "' + c.skillName + '" — let the pose and the effects hint at it.\n' : '')
@@ -20996,9 +21141,10 @@ function _tcgHumanArtPrompt(c) {
 function tcgCardArtPrompt(c) {
   if (c && c.human) return _tcgHumanArtPrompt(c);
   const el = TCG_ELEMENTS[c.element] || { name: 'Elemental' };
-  const creature = TCG_EM_WORD[c.em] || 'mythical beast';
+  const creature = TCG_EM_WORD[c.em] || 'an unclassified alien war-form';
   return 'Original science-fiction war-form artwork for a children\'s collectible trading-card game.\n'
-    + 'WAR-FORM: "' + c.name + '" — a ' + el.name.toLowerCase() + '-element creature whose base form is a ' + creature + ', reimagined as ' + _tcgTierMood(c.stars) + ' (' + c.stars + ' of 7 stars).\n'
+    + TCG_ART_WORLD
+    + 'WAR-FORM: "' + c.name + '" — a ' + el.name.toLowerCase() + '-element ALIEN CREATURE OR WAR-MACHINE: ' + creature + '. Built up into ' + _tcgTierMood(c.stars) + ' (' + c.stars + ' of 7 stars). Give it the hardware of its rank — plating, vents, emitters, running lights — so it reads as a xeno-form of this world and never as an earthly animal or a mythical beast.\n'
     + 'ELEMENT LOOK: ' + (TCG_ART_PALETTE[c.element] || 'vivid science-fiction colours') + '.\n'
     + (c.skillName ? 'SIGNATURE MOVE: "' + c.skillName + '" — let the pose and the effects hint at it.\n' : '')
     + 'COMPOSITION: square, full-bleed illustration; the whole creature is inside the frame, centred and filling most of it, in a heroic three-quarter view; an atmospheric background scene that matches the element.\n'
@@ -21080,6 +21226,7 @@ function tcgAvatarPrompt(c, harder) {
     ? 'face, hair, build, armour, robes, weapon, colour scheme, insignia and elemental effects'
     : 'species, silhouette, body plan, colour scheme, markings, horns, wings, limbs and elemental effects';
   return 'Turn the reference picture into a GAME BATTLE AVATAR sprite of the very same ' + subject + ', "' + c.name + '".\n'
+    + TCG_ART_WORLD
     + 'KEEP IDENTICAL: ' + keep + ' — this must read as the exact same character as the reference.\n'
     + 'CHANGE: remove the background scenery completely and stand the ' + subject + ' in front of the chroma-key screen described below — no ground, no shadow, no glow plate, no frame, no scenery of any kind. Show the complete ' + subject + ' from head to toe, centred, facing the viewer in a battle-ready three-quarter stance, with a clear margin of screen on every side.\n'
     + _screenRules('the ' + subject, tcgScreenForElement(c && c.element), harder)
@@ -21115,11 +21262,23 @@ async function _tcgGenOnce(prompt, refDataUrl, transparent) {
 // through a shared fragment and once through two animation step descriptions —
 // so the prompt is checked on the way out rather than by eye.
 const TCG_BANNED_PROMPT_RE = /transparen|alpha channel|che(ck|qu)er|chess ?board/i;
+// ...and the words that drag the picture back into fantasy. "Science fiction"
+// and "warrior" in one prompt still produces a man in chainmail, so the prompt
+// is checked on the way out rather than by eye — exactly like the chequerboard
+// above. A hit is a WARNING, not a refusal: it points at the table that needs
+// rewording rather than blocking a draw.
+const TCG_FANTASY_PROMPT_RE = /\b(wizard|sorcer(?:er|ess)|warlock|necromancer|witch|mages?|spellbook|magic wand|medieval|chainmail|tabard|surcoat|dragons?|unicorn|phoenix|griffin|elves|elf|orcs?|goblin|fairy|fairies|castles?|dungeons?|tavern|scroll|potion|cauldron|wooden staff|wizard robe)\b/i;
+
 async function tcgGenArtImage(prompt, refDataUrl, transparent) {
   const banned = TCG_BANNED_PROMPT_RE.exec(prompt || '');
   if (banned) {
     console.error('art prompt contains "' + banned[0] + '" — an image model paints that word rather than honouring it. '
       + 'Say what to PAINT (the chroma screen), never what the background is made of.');
+  }
+  const fantasy = TCG_FANTASY_PROMPT_RE.exec(prompt || '');
+  if (fantasy) {
+    console.warn('art prompt contains "' + fantasy[0] + '" — this world is science fiction, so the table it came from needs rewording: '
+      + (prompt || '').slice(0, 240));
   }
   let lastErr = null;
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -21321,11 +21480,13 @@ function tcgArtGenPanelHtml() {
   return '<div class="tcg-gen-panel">'
     + '<h4>✨ AI art generator</h4>'
     + '<p>Draws each unit\'s <b>🃏 trading-card art</b> first, then its <b>⚔️ battle avatar</b> <i>from that same picture</i>, so the two always show the same creature. Engine: <b>' + escapeHtml(_tcgArtEngineLabel()) + '</b> — change it in the sidebar under <b>AI Engine</b>.</p>'
+    + '<p class="tcg-gen-world">This is <b>science fiction set in the far future</b>: starships, powered armour, energy sabres and alien species — <b>never</b> wizards, knights or dragons. Every prompt carries that direction, so a redraw always comes back in this world. If the art direction has changed, press <b>♻️ Reset ALL art</b> first — redrawing alone leaves older pictures sitting beside the new ones.</p>'
     + '<div class="tcg-gen-actions">'
     +   '<button type="button" class="btn btn-primary" id="tcgGenAllBtn" onclick="tcgGenerateAllArt(\'missing\')"'
     +     (m.pics ? '' : ' disabled') + '>✨ Generate all remaining'
     +     (m.pics ? ' · ' + m.pics + ' picture' + (m.pics === 1 ? '' : 's') + ' for ' + m.units + ' unit' + (m.units === 1 ? '' : 's') : ' · all done 🎉') + '</button>'
     +   '<button type="button" class="btn btn-outline" id="tcgGenRedoBtn" onclick="tcgGenerateAllArt(\'all\')">↻ Redraw every unit</button>'
+    +   '<button type="button" class="btn btn-outline" id="tcgResetAllBtn" onclick="tcgResetAllArt()" title="Clear every stored picture so the whole set can be drawn again under the current art direction">♻️ Reset ALL art</button>'
     +   '<button type="button" class="btn btn-outline tcg-gen-stop" id="tcgGenStopBtn" onclick="tcgStopArtGen()" style="display:none;">⏹ Stop</button>'
     + '</div>'
     + '<div class="tcg-gen-track" id="tcgGenTrack" style="display:none;"><i id="tcgGenFill" style="width:0%;"></i></div>'
@@ -21404,6 +21565,7 @@ function tcgFxPrompt(element, phase, n, harder) {
   const wide = phase.key === 'blast';
   return 'Game VFX sprite: ONE frame from the ' + phase.frames + '-frame "' + phase.name + '" animation of a ' + el.name
       + '-element projectile in a science-fiction card game.\n'
+    + TCG_ART_WORLD
     + 'ELEMENT LOOK: ' + fx.words + '.\n'
     + 'FRAME ' + n + ' OF ' + phase.frames + ' — ' + step.t + ': ' + step.d + '.\n'
     + 'COMPOSITION: perfectly centred against the chroma-key screen described below, square'
@@ -21640,6 +21802,7 @@ function duelFxPrompt(shape, element, n, harder) {
   const fx = shape.elemental ? (TCG_ELEM_FX[element] || TCG_ELEM_FX.flame) : null;
   return 'Game VFX sprite: ONE frame from the ' + shape.frames + '-frame "' + shape.name
       + '" animation in a science-fiction card-battle game — ' + shape.what + '.\n'
+    + TCG_ART_WORLD
     + (fx ? 'ELEMENT LOOK: ' + fx.words + '. Everything in the frame is made of this element.\n' : '')
     + 'FRAME ' + n + ' OF ' + shape.frames + ' — ' + step.t + ': ' + step.d + '.\n'
     + 'COMPOSITION: the effect ' + (shape.wide
@@ -22129,51 +22292,52 @@ function tcgScreenForArtifact(a) { return TCG_ARTI_SCREEN[a && a.id] || 'magenta
 // could be anything. One short phrase each, and the tier below supplies the
 // grandeur.
 const TCG_ARTI_LOOK = {
-  pin:       'a small plain iron pin or brooch',
-  flint:     'a rough chip of red flint on a leather cord',
-  moss:      'a simple woven band wrapped in living green moss',
-  pebble:    'a smooth grey river pebble carved with one protective mark',
-  vial:      'a small glass vial of faintly glowing liquid, stoppered with cork',
-  feather:   'a single light feather token bound with thread',
-  swift:     'an hourglass sigil of pale metal, sand caught mid-fall',
-  oak:       'a chest plate of banded oak heartwood with iron studs',
-  emberdrop: 'a faceted amber-orange gemstone shaped like a falling drop',
-  bud:       'a silver clasp cradling one green sprouting bud',
-  bead:      'a string of round prayer beads carved from pale stone',
-  sunchip:   'a warm golden disc like a chip broken off the sun',
-  keen:      'a lens of polished crystal in a brass ring, an aiming reticle etched on it',
-  leech:     'a curved fang of dark bone with a single crimson drop at its tip',
-  bramble:   'a vest woven from thorned bramble and hardened bark',
-  idol:      'a squat carved stone idol with a heavy blunt face',
-  gale:      'a long curved feather of white and pale blue, wind curling round it',
-  ward:      'a blue-and-white glass eye amulet on a silver chain',
-  banner:    'a crimson war banner on a spear haft, torn at the edge',
-  torc:      'a golden neck torc blooming with living pink flowers',
-  bulwark:   'a huge tower shield shaped like a fortress wall, iron and stone',
-  falcon:    'a golden falcon-eye amulet, the iris a sharp amber gemstone',
-  battery:   'a heavy arcane power cell of dark metal with glowing green cells',
-  ember:     'a floating prism of red crystal splitting light into elements',
-  chalice:   'a tall dark chalice with a deep red pool inside it',
-  titan:     'a colossal crystalline heart, still beating, veined with red light',
-  phoenix:   'a single enormous burning feather, orange-gold and alive with flame',
-  mirror:    'a great spiral shell with an inner surface like a mirror',
-  wyrm:      'an enormous cut ruby with a dragon\'s slit pupil burning inside it',
-  ankh:      'a great golden ankh, worn smooth, older than the world'
+  pin:       'a small plain steel data-pin, scratched and unremarkable',
+  flint:     'a rough chip of red ablative hull ceramic on a wire loop',
+  moss:      'a simple woven band wrapped in living engineered green moss',
+  pebble:    'a smooth grey ballast slug stamped with one hazard mark',
+  vial:      'a small sealed ampoule of faintly glowing coolant',
+  feather:   'a single light carbon-fibre vane hanging on a lanyard',
+  swift:     'a chronometer sigil of pale alloy, its counter caught mid-tick',
+  oak:       'a chest plate of banded composite armour with heavy bolt heads',
+  emberdrop: 'a faceted amber-orange power cell shaped like a falling drop',
+  bud:       'a steel clasp cradling one green sprouting gene-bud',
+  bead:      'a string of round tracking beads machined from pale ceramic',
+  sunchip:   'a warm golden solar wafer, a chip broken off a collector array',
+  keen:      'a targeting lens in a machined housing, an aiming reticle etched across it',
+  leech:     'a curved siphon fang of dark alloy with a single crimson drop at its tip',
+  bramble:   'a vest woven from barbed wire and hardened bio-plate',
+  idol:      'a squat cast-alloy idol of a blunt-faced war-machine',
+  gale:      'a long curved turbine blade of white and pale blue, air curling round it',
+  ward:      'a blue-and-white lens amulet — a ward-field emitter on a chain',
+  banner:    'a crimson regimental standard on a powered haft, scorched along one edge',
+  torc:      'a golden neck torc blooming with living engineered pink flowers',
+  bulwark:   'a huge tower shield built like a bulkhead door, steel and rivets',
+  falcon:    'a golden raptor-eye targeting amulet, the iris a sharp amber lens',
+  battery:   'a heavy fusion power cell of dark metal with glowing green cells',
+  ember:     'a floating prism of red crystal splitting a beam into its elements',
+  chalice:   'a tall dark reactor flask with a deep red fluid turning inside it',
+  titan:     'a colossal crystalline reactor heart, still pulsing, veined with red light',
+  phoenix:   'a single enormous burning thruster vane, orange-gold and alive with plasma',
+  mirror:    'a great spiral dish antenna, its inner surface polished to a mirror',
+  wyrm:      'an enormous cut ruby lens with a drake\'s slit pupil burning inside it',
+  ankh:      'a great golden key-sigil of an ancient fleet, worn smooth, older than the Nexus'
 };
 // The ladder. Nothing else in the prompt changes with rarity — this is it.
 const TCG_ARTI_TIER = {
   1: { word: 'trinket',  look: 'PLAIN AND HUMBLE. Everyday materials, honest wear and small chips, no gold, no gemstones, NO glow and NO exotic glow at all. It is a useful little thing somebody has carried for years.' },
   2: { word: 'charm',    look: 'WELL MADE AND CARED FOR. Cleanly worked metal or wood with one small ornament, and the faintest warm glow — a hint of exotic energy, nothing more. A couple of tiny motes of light at most.' },
-  3: { word: 'relic',    look: 'ORNATE AND CLEARLY MAGICAL. Carved detail, precious-metal inlay, a steady inner light, and a scatter of drifting sparks around it. Something a temple would keep.' },
-  4: { word: 'treasure', look: 'MAGNIFICENT. Gold filigree, set gemstones, a bright coloured aura, swirling motes of light and a faint ring of energy turning slowly around it. A king\'s treasure.' },
-  5: { word: 'wonder',   look: 'AWE-INSPIRING. Radiant light pouring out of it, orbiting rings of arcane energy, crackling power arcing across the surface, shards of light floating free around it. The air itself is bent by it.' },
-  6: { word: 'legend',   look: 'LEGENDARY AND OVERWHELMING. Blinding radiance, a storm of fire and light wrapped around it, orbiting runes and shattered fragments turning in the air, energy tearing outward in every direction. Only two of these exist.' },
-  7: { word: 'myth',     look: 'A WORLD-SHAPING MYTH — the single most spectacular object in the entire Nexus. Divine, overwhelming radiance; reality visibly bending and cracking around it; a vortex of golden and elemental energy; orbiting constellations, falling embers and rings of light stacked one inside another. Absolutely enormous presence. Nothing else in the game may look more powerful than this.' }
+  3: { word: 'relic',    look: 'ORNATE AND CLEARLY POWERED. Machined detail, precious-metal inlay, a steady inner light behind its panels, and a scatter of drifting sparks around it. Something a flagship keeps in its reliquary.' },
+  4: { word: 'treasure', look: 'MAGNIFICENT. Gold filigree, set gemstones and lenses, a bright coloured aura, swirling motes of light and a faint ring of energy turning slowly around it. An admiral\'s prize.' },
+  5: { word: 'wonder',   look: 'AWE-INSPIRING. Radiant light pouring out of it, orbiting rings of exotic energy, power arcing across its surface, shards of light floating free around it. The air itself is bent by it.' },
+  6: { word: 'legend',   look: 'LEGENDARY AND OVERWHELMING. Blinding radiance, a storm of fire and light wrapped around it, orbiting sigil-plates and shattered fragments turning in the air, energy tearing outward in every direction. Only two of these exist.' },
+  7: { word: 'myth',     look: 'A WORLD-SHAPING RELIC — the single most spectacular object in the entire Nexus. Overwhelming radiance; reality visibly bending and cracking around it; a vortex of golden and elemental energy; orbiting constellations, falling sparks and rings of light stacked one inside another. Absolutely enormous presence. Nothing else in the game may look more powerful than this.' }
 };
 function tcgArtifactArtPrompt(a, harder) {
   const tier = TCG_ARTI_TIER[a.stars] || TCG_ARTI_TIER[1];
   const look = TCG_ARTI_LOOK[a.id] || a.name;
   return 'A single science-fiction ARTEFACT object for a children\'s collectible card game — the item picture printed on the card.\n'
+    + TCG_ART_WORLD
     + 'THE OBJECT: "' + a.name + '" — ' + look + '.\n'
     + 'WHAT IT DOES (flavour only, do not draw words or diagrams): ' + a.blurb + '\n'
     + 'RARITY — ' + a.stars + ' out of 7 stars, a ' + tier.word + '. THIS IS THE MOST IMPORTANT INSTRUCTION AFTER THE OBJECT ITSELF, because the whole set is looked at side by side and the rarity has to be obvious at a glance: ' + tier.look + '\n'
@@ -22424,6 +22588,7 @@ function tcgHeroSlotId(id) { return 'hero:' + id; }
 function tcgHeroArtUrl(id) { return (_tcgArt && _tcgArt[tcgHeroSlotId(id)]) || ''; }
 function tcgHeroArtPrompt(h, harder) {
   return 'A single science-fiction HERO PORTRAIT for a children\'s collectible card game — the face a player wears on the duel board.\n'
+    + TCG_ART_WORLD
     + 'THE HERO: "' + h.name + '", ' + h.title + ' — ' + h.look + '.\n'
     + 'THEIR POWER (flavour only, do not draw words, symbols or diagrams): ' + h.power.name + ' — ' + h.power.text + '\n'
     + 'COMPOSITION: exactly ONE character, alone, facing the viewer at a slight three-quarter angle, from the WAIST UP, centred and whole in a SQUARE frame with a clear margin of screen all around them. Head and shoulders large enough to read at 48 pixels. No other people, no creatures, no scenery, no ground, floor, throne or pedestal — they stand free.\n'
@@ -22525,8 +22690,9 @@ const TCG_LOGO_SCREEN = 'magenta';
 function tcgLogoUrl() { return (_tcgArt && _tcgArt[TCG_LOGO_SLOT]) || ''; }
 function tcgLogoPrompt(harder) {
   return 'A LOGO EMBLEM for a science-fiction trading-card game called "Nova Protocol" — the crest stamped on the box, NOT an illustration of a scene.\n'
-    + 'THE MARK: one elegant heraldic crest built around a single LIVING CORE at its heart — a glowing fusion core burning cyan and white, throwing off a few small sparks that rise from it. The core is cradled inside a finely engraved gothic-industrial frame: a slender pointed shield or a circular wax-seal ring of dark antique metal, edged in worked gold filigree, with a small crown or laurel resting above it and one restrained flourish to either side. Perfectly symmetrical, balanced and precise.\n'
-    + 'THE FEEL — elegant first, science-fiction second: the mark of an old and disciplined order, not a poster for a video game. Think a hull-plate stencil, a fleet seal, or an order\'s crest etched into a signet ring — fine confident linework, deep shadow, cold cyan and electric white against dark burnished steel, and the only light in the whole mark coming from the core itself.\n'
+    + TCG_ART_WORLD
+    + 'THE MARK: one elegant FLEET SEAL built around a single LIVING CORE at its heart — a glowing fusion core burning cyan and white, throwing off a few small sparks that rise from it. The core is cradled inside a finely machined frame of dark burnished alloy: a slender angular plate or a circular seal ring, edged in worked gold, with a small star-cluster or swept wing motif resting above it and one restrained flourish to either side. Perfectly symmetrical, balanced and precise.\n'
+    + 'THE FEEL — elegant first, spectacle second: the mark of an old and disciplined fleet, not a poster for a video game. Think a hull-plate stencil, a squadron badge, or an insignia etched into a signet ring — fine confident linework, deep shadow, cold cyan and electric white against dark burnished steel, and the only light in the whole mark coming from the core itself.\n'
     + 'COMPOSITION: ONE mark, centred, roughly square, filling the frame with a clear even margin of screen on all four sides. Bold enough in its shapes to still read clearly at 32 pixels, fine enough in its engraving to reward a close look at full size. No characters, no creatures, no scenery, no photographic realism.\n'
     + _screenRules('the emblem', TCG_LOGO_SCREEN, harder)
     + 'HARD RULES: absolutely NO text, letters, words, numbers, runes, monograms, signatures or watermarks anywhere in the picture — the name is set in type beside the mark afterwards, so the emblem must be left clean; no card frame, no border box, no interface; suitable for primary-school children.';
@@ -22558,7 +22724,7 @@ function tcgLogoArtAdminHtml() {
   const thumb = url ? '<img src="' + url + '" alt="Nova Protocol logo">'
     : '<div style="font-size:30px;line-height:64px;text-align:center;opacity:.7;">🔥</div>';
   return '<h3 class="ga-cat">🔥 Nova Protocol logo</h3>'
-    + '<div class="tcg-section-note">The Nexus\'s own <b>crest</b> — one elegant gothic-industrial emblem built around a <b>living core</b>. It is worn on the <b>page header</b> and on the <b>sidebar door</b>, over the galaxy, so it is drawn to stand on <b>nothing</b> and is checked for a painted-in background exactly like the battle avatars and the booster packs. The <b>name is not drawn by the AI</b> — lettering comes back as gibberish — it is set in Cinzel beside the mark in the app.</div>'
+    + '<div class="tcg-section-note">The Nexus\'s own <b>crest</b> — one elegant <b>fleet seal</b> built around a <b>living fusion core</b>. It is worn on the <b>page header</b> and on the <b>sidebar door</b>, over the galaxy, so it is drawn to stand on <b>nothing</b> and is checked for a painted-in background exactly like the battle avatars and the booster packs. The <b>name is not drawn by the AI</b> — lettering comes back as gibberish — it is set in Cinzel beside the mark in the app.</div>'
     + '<div class="ga-cards" id="tcglogorow">'
     + _tcgArtSlotHtml(TCG_LOGO_SLOT, 'Nova Protocol crest', '🔥', thumb, 'logo',
         'Square works best. Until one is drawn, the 🃏 emoji stands in everywhere the mark is worn.')
@@ -22617,11 +22783,12 @@ function tcgSetArtPrompt(setKey, withRef) {
   const heroes = tcgSetHeroes(setKey);
   const names = heroes.map(c => '"' + c.name + '"').join(', ');
   return 'Key artwork for one SET of a children\'s science-fiction collectible trading-card game — the picture printed across the booster packet and the set banner.\n'
+    + TCG_ART_WORLD
     + 'THE SET: "' + set.title + '". ' + set.art + '\n'
     + (heroes.length
         ? 'THE HEADLINE CHARACTERS — the ' + heroes.length + ' legendary 7-star cards of this set — are the stars of the picture and must be big, central and unmistakable: ' + names + '.\n'
           + (withRef
-              ? 'The reference picture is a line-up of those exact characters, side by side. Keep every one of them recognisably the SAME character — same face, same build, same colours, same armour or robes, same weapon, same silhouette — and rearrange them into the group shot described below.\n'
+              ? 'The reference picture is a line-up of those exact characters, side by side. Keep every one of them recognisably the SAME character — same face, same build, same colours, same armour or void-suit, same weapon, same silhouette — and rearrange them into the group shot described below.\n'
               : '')
         : '')
     + 'COMPOSITION: ONE WIDE LANDSCAPE BANNER, about 16:9. A dynamic group hero shot — the legends overlapping and layered at different depths, the boldest of them anchoring the centre, with sweeping ribbons of colour, bursts of light and drifting sparks behind them and smaller silhouettes filling the far corners. Energetic and celebratory, exactly how a real trading-card set is sold.\n'
@@ -22749,7 +22916,7 @@ const TCG_LORE_SAGAS = [
       {
         id: 'firebeneath', title: 'Ignarok and the Fire Beneath',
         cards: ['Ignarok, the Extinction Flame', 'Volkarrion, the Plasma Tyrant', 'Pyrelia, the Undying Flame'],
-        scene: 'An enormous ancient plasma-breathing tyrant saurian erupting from a cracked volcano at night, lava rivers pouring down the slopes; a great burning void-drake circling above him, and a radiant phoenix of white-gold flame rising through the ash cloud between them.',
+        scene: 'An enormous ancient plasma-breathing tyrant saurian erupting from a cracked volcano at night, lava rivers pouring down the slopes; a great burning void-drake circling above him, and a radiant raptor-form of white-gold plasma rising through the ash cloud between them.',
         text: [
           "Some of the sparks fell a very long way down.",
           "Under the crust of the first world they gathered in the deep magma, and what woke there did not want a sun at all. Ignarok came up through the roof of a mountain and looked at the sky as if someone had left a light on in his room.",
@@ -22855,7 +23022,7 @@ const TCG_LORE_SAGAS = [
       {
         id: 'dragonfall', title: 'Kaelen and the Bio-Titan',
         cards: ['Kaelen Draxmoor, the Titan Slayer', 'Volkarrion, the Plasma Tyrant'],
-        scene: 'A single armoured human man in scarred ornate powered plate with a red cloak standing on a broken ridge, holding an enormous rune-etched power greatsword in both hands, facing the vast horned silhouette of a plasma-breathing bio-titan looming out of smoke and firelight above him. Awe-inspiring, heroic, not gory.',
+        scene: 'A single armoured human man in scarred ornate powered plate with a red cloak standing on a broken ridge, holding a colossal two-handed energy sabre in both hands, its blade a bar of white plasma, facing the vast horned silhouette of a plasma-breathing bio-titan looming out of smoke and firelight above him. Awe-inspiring, heroic, not gory.',
         text: [
           "Volkarrion had burned four settlements and was walking towards a fifth when Kaelen Draxmoor went up the ridge alone to meet him.",
           "He was not the strongest of the Vanguard. He was not the fastest. What Kaelen had was a habit that his instructors had spent nine years failing to train out of him: he did not move when things got large.",
@@ -22877,7 +23044,7 @@ const TCG_LORE_SAGAS = [
       {
         id: 'starloom', title: 'The Starloom and the Everflame',
         cards: ['Archmagos Ysera, the Starloom', 'Magus Cyrene, the Everflame', 'Arch-Psion Nyx, the Starfall'],
-        scene: 'A vast observatory of brass, glass and holographic light built into a mountain peak, with a woman in circuit-stitched robes weaving threads of starlight on an enormous loom of light; a second woman wreathed in white-gold fire and a third standing at a window with a falling star reflected in her eyes.',
+        scene: 'A vast observatory of brass, glass and holographic light built into a mountain peak, with a woman in a circuit-stitched void-coat weaving threads of starlight on an enormous loom of light; a second woman wreathed in white-gold fire and a third standing at a window with a falling star reflected in her eyes.',
         text: [
           "The Vanguard needed to know things, so it built a place for knowing them, and Ysera ran it for sixty years.",
           "The Starloom is not a telescope. It is a loom. Ysera worked out that starlight arriving from far enough away is old enough to be a record, and she learned to weave it back into the picture it came from.",
@@ -22899,7 +23066,7 @@ const TCG_LORE_SAGAS = [
       {
         id: 'requiem', title: 'The Requiem of Morrigane',
         cards: ['Lich-Queen Morrigane', 'Necrarch Vayne, the Gravecrown', 'Morgrave, the Coffinbearer'],
-        scene: 'A pale crowned queen in tattered dark robes standing in a vast silent hall of reliquary caskets lit by cold blue reactor-light, drifting servo-wisps around her; two robed reanimators standing at the doors with their heads bowed.',
+        scene: 'A pale crowned queen in a tattered dark void-mantle standing in a vast silent hall of stasis caskets lit by cold blue reactor-light, drifting servo-wisps around her; two hooded reanimators in scarred exo-frames standing at the doors with their heads bowed.',
         text: [
           "Not every spark landed in someone who wanted it.",
           "Morrigane was the Vanguard's chief archivist of the dead — the person who kept the names — and she kept them so well and so long that she stopped being able to let any of them go.",
@@ -22910,7 +23077,7 @@ const TCG_LORE_SAGAS = [
       {
         id: 'keeps', title: 'What the Vanguard Keeps',
         cards: ['Grandmaster Valdren, the Unbroken', 'Dame Elowyn, the Sunbulwark', 'Sable, the Ironvow'],
-        scene: 'The great hall of a fortress-monastery at night, its walls covered floor to ceiling in thousands of small brass name-plates; three armoured figures standing quietly among them, one running a gauntleted hand along a row.',
+        scene: 'The great hall of a fortress-station at night, its walls covered floor to ceiling in thousands of small brass name-plates; three armoured figures standing quietly among them, one running a gauntleted hand along a row.',
         text: [
           "People ask what the Vanguard is for, now that there are titans it cannot fight and elder powers it cannot argue with.",
           "Valdren's answer is carved over the door at Ardan, and it is not heroic: WE KEEP WHAT IS LEFT.",
@@ -22928,7 +23095,7 @@ const TCG_LORE_SAGAS = [
       {
         id: 'everflame', title: 'The Theft of the Everflame',
         cards: ['Magus Cyrene, the Everflame', 'Pyrelia, the Undying Flame', 'Ignarok, the Extinction Flame'],
-        scene: 'A woman wreathed in white-gold fire standing in a shattered reliquary vault at night, a stolen brazier of undying flame in her hands; a radiant phoenix rising in alarm behind her and the burning eye of a vast saurian titan filling a broken window.',
+        scene: 'A woman wreathed in white-gold fire standing in a shattered reliquary vault at night, a stolen containment flask of undying plasma in her hands; a radiant plasma-raptor rising in alarm behind her and the burning eye of a vast saurian titan filling a broken window.',
         text: [
           "The war did not start with a battle. It started with a theft, and the thief thought she was doing the right thing.",
           "Cyrene took an ember of the Everflame out of Pyrelia's own reliquary because a colony of forty thousand was freezing and the Vanguard could not reach it in time. She was correct about the colony. Forty thousand people are alive because of what she did.",
@@ -23005,7 +23172,7 @@ const TCG_LORE_SAGAS = [
       {
         id: 'cinderthrone', title: 'The Duel at the Cinder Throne',
         cards: ['Kaelen Draxmoor, the Titan Slayer', 'Ignarok, the Extinction Flame', 'Leovar, the Cinder King'],
-        scene: 'A single armoured human man with an enormous power greatsword standing at the foot of a throne of black cinder and molten rock, facing a colossal saurian extinction-titan seated upon it; a great maned cinder-lion pacing between them as a witness.',
+        scene: 'A single armoured human man with an enormous energy sabre standing at the foot of a command throne of black slag and molten rock, facing a colossal saurian extinction-titan seated upon it; a great maned cinder-lion pacing between them as a witness.',
         text: [
           "The truce ran out in spring, and Kaelen went to the Cinder Throne to ask Ignarok for one more season.",
           "He was not sent. The Vanguard forbade it in writing. He went anyway, and left the letter on his bunk, and it is in the hall at Ardan now under glass.",
@@ -23038,7 +23205,7 @@ const TCG_LORE_SAGAS = [
       {
         id: 'brokensky', title: 'The Battle of the Broken Sky',
         cards: ['Draxx, the Entropy King', 'Auros, the Dawn Sovereign', 'Aeonyx, the Timeless One', 'Kaelen Draxmoor, the Titan Slayer', 'Ariselle, the Winter Sovereign'],
-        scene: 'A colossal battle across a cracked and shattered sky: a golden dawn-god and a dark entropy-titan locked together above the clouds, a star-scaled cosmic drake winding between them slowing time itself, and far below, tiny by comparison, a single armoured man with a greatsword and a silver-haired sovereign in white holding a line of light across the ground.',
+        scene: 'A colossal battle across a cracked and shattered sky: a golden dawn-god and a dark entropy-titan locked together above the clouds, a star-scaled cosmic drake winding between them slowing time itself, and far below, tiny by comparison, a single armoured man with an energy sabre and a silver-haired sovereign in white holding a line of light across the ground.',
         text: [
           "It was fought in the sky and won on the ground, and everybody who was there agrees about that and about nothing else.",
           "Auros met Draxx above the clouds and it went exactly as it had gone the first time: neither could finish it, and the world beneath them began, once again, to come apart.",
@@ -23153,13 +23320,14 @@ function tcgLoreArtPrompt(saga, ch, withRef) {
   const cards = tcgLoreCards(ch);
   const names = cards.map(c => '"' + c.name + '"').join(', ');
   return 'A full-page ILLUSTRATION from a beautiful hardback CHILDREN\'S PICTURE BOOK of science-fiction legends — the big painted picture that fills the page above the story text.\n'
+    + TCG_ART_WORLD
     + 'THE BOOK: "' + saga.book + ' — ' + saga.title + '", from the Nexus Codex.\n'
     + 'THE PAGE: "' + ch.title + '".\n'
     + 'THE SCENE TO PAINT: ' + ch.scene + '\n'
     + (cards.length
         ? 'THE CHARACTERS in this scene are cards from the game and must be drawn as themselves: ' + names + '.\n'
           + (withRef
-              ? 'The reference picture is a line-up of those exact characters side by side. Keep every one of them recognisably the SAME character — same face, same build, same colours, same armour, robes, horns, scales or weapon, same silhouette — and place them into the scene described above.\n'
+              ? 'The reference picture is a line-up of those exact characters side by side. Keep every one of them recognisably the SAME character — same face, same build, same colours, same armour, void-suit, horns, plating or weapon, same silhouette — and place them into the scene described above.\n'
               : '')
         : '')
     + 'COMPOSITION: ONE WIDE LANDSCAPE picture, about 16:9, composed as a storybook spread — a clear main subject, a real sense of scale and distance, and plenty of atmosphere (mist, sparks, falling snow, shafts of light) so it reads instantly from across a room.\n'
@@ -23430,8 +23598,8 @@ const TCG_PACK_LOOK = {
 // The wrapper's own artwork, per card set — this is what makes the two runs
 // look like two different products rather than one recoloured one.
 const TCG_PACK_SET_LOOK = {
-  gen1: 'The wrapper carries the ORIGINAL unit set: a bold science-fiction-creature emblem — scales, horns and claws — over a dark starry field, in the style of a painted unit-collecting card game.',
-  nd:   'The wrapper carries the NATIONAL DAY set, the Aegis Vanguard: a heraldic LION crest on a red-and-white banner, flanked by a crossed sword and staff, in the style of a painted science-fiction card game. Regal and ceremonial.'
+  gen1: 'The wrapper carries the ORIGINAL xeno set: a bold alien war-form emblem — chitin plating, horns and hooked claws — over a dark starfield, in the style of a painted science-fiction card game.',
+  nd:   'The wrapper carries the NATIONAL DAY set, the Aegis Vanguard: a LION insignia stencilled on a red-and-white hull plate, flanked by a crossed energy sabre and beam-lance, in the style of a painted science-fiction card game. Regal and ceremonial.'
 };
 // The knock-out in _tcgArtStore runs when a frame is SAVED, so any frame drawn
 // before it learned about packs still has its plate baked into the PNG sitting
@@ -23513,6 +23681,7 @@ function tcgPackFramePrompt(setKey, tier, n, harder) {
   const step = TCG_PACK_STEPS[n - 1] || TCG_PACK_STEPS[0];
   return 'Game artwork: ONE frame from a ' + TCG_PACK_FRAMES + '-frame animation of a ' + look.name
       + ' booster pack being TORN OPEN in a science-fiction collectible card game.\n'
+    + TCG_ART_WORLD
     + 'THE PACK: a foil trading-card booster packet standing upright, seen straight on. ' + look.words + '.\n'
     + 'WRAPPER ARTWORK: ' + (TCG_PACK_SET_LOOK[setKey] || TCG_PACK_SET_LOOK.gen1) + '\n'
     + 'FRAME ' + n + ' OF ' + TCG_PACK_FRAMES + ' — ' + step.t + ': ' + step.d + '.\n'
@@ -26107,35 +26276,35 @@ const DUEL_HEROES = [
     id: 'warden', name: 'Warden Elowen', title: 'Keeper of the Hearth', em: '🛡️', tier: 'basic',
     safe: true, screen: 'magenta', el: 'metal',
     blurb: 'Holds the line while your board grows. Armour stacks up turn after turn, and nothing you press can ever be wasted — which is why she is the hero you start with.',
-    look: 'a calm young woman knight in dented silver plate armour with a deep blue tabard, a heavy round shield held steady in front of her, short dark hair, a warm patient expression',
+    look: 'a calm young woman in dented silver POWERED ARMOUR with heavy shoulder plates and a deep blue shoulder-drape, a projected hard-light round shield held steady in front of her, short dark hair, a warm patient expression',
     power: { name: 'Bulwark', icon: '🛡️', kind: 'armor', v: 2, text: 'Gain 2 Armor.' }
   },
   {
     id: 'ember', name: 'Plasmafist Rook', title: 'Of the Burning Road', em: '🔥', tier: 'basic',
     screen: 'green', el: 'flame',
     blurb: 'One point of damage a turn does not sound like much — until it is the point that finishes a minion your board could not quite kill, every single turn.',
-    look: 'a broad-shouldered young man in scorched leather and a red half-cloak, one bare fist wrapped in burning orange flame held up in front of him, cropped hair, a grin like he enjoys this',
+    look: 'a broad-shouldered young man in scorched flight leathers over light armour plate with a red half-cape, one armoured gauntlet wrapped in burning orange plasma held up in front of him, cropped hair, a grin like he enjoys this',
     power: { name: 'Ignition Spark', icon: '🔥', kind: 'dmgAny', v: 1, need: 'any', text: 'Deal 1 damage to any target.' }
   },
   {
     id: 'grove', name: 'Sage Wren', title: 'Voice of the Green', em: '🌿', tier: 'basic',
     screen: 'blue', el: 'flora',
     blurb: 'Makes one of your minions a little better every turn. Put it on something with Taunt or Lifesteal and the rival has to answer a card that keeps growing.',
-    look: 'a slender older woman in flowing green and brown robes with a woven leaf mantle, long grey hair, one hand open with small glowing green shoots curling up out of her palm, kind eyes',
+    look: 'a slender older woman in a flowing green-and-brown field coat over a light exo-frame, a woven bio-mantle across the shoulders, long grey hair, one hand open with small glowing green shoots curling up out of her palm, kind eyes',
     power: { name: 'Green Gift', icon: '🌿', kind: 'grow', v: 1, need: 'friendlyMinion', text: 'Give a friendly minion +1/+1.' }
   },
   {
     id: 'frost', name: 'Tidecaller Nell', title: 'Daughter of the Deep Frost', em: '❄️', tier: 'basic',
     screen: 'magenta', el: 'frost',
     blurb: 'Take the rival\'s best attacker out of the fight for a turn, every turn. It deals no damage at all — it simply means their biggest minion never gets to swing.',
-    look: 'a young woman in pale blue-and-white sealskin robes with silver clasps, long white braided hair, both hands cupped around a slowly turning shard of ice, a quiet unbothered face',
+    look: 'a young woman in a pale blue-and-white sealed void-suit with silver clasps and a high collar, long white braided hair, both hands cupped around a slowly turning shard of cryo-ice, a quiet unbothered face',
     power: { name: 'Chill Touch', icon: '❄️', kind: 'chill', need: 'enemyMinion', v: 0, text: 'Freeze an enemy minion.' }
   },
   {
     id: 'scribe', name: 'Ashen Scribe Pip', title: 'Reader of Cinders', em: '📖', tier: 'basic',
     screen: 'green', el: 'cosmic',
     blurb: 'More cards than anybody else — at a price. One life a turn is cheap early and expensive late, so this hero is about knowing when to stop.',
-    look: 'a small studious young person in a soot-smudged grey scholar\'s robe with ink-stained fingers, round spectacles, an open book floating open in front of them with glowing plasma-orange letters drifting off the page',
+    look: 'a small studious young person in a soot-smudged grey tech-adept coat with stained fingers, round lens goggles pushed up on the forehead, a data-slate hovering open in front of them with glowing plasma-orange characters drifting off the screen',
     power: { name: 'Ashen Study', icon: '📖', kind: 'study', v: 1, text: 'Draw a card. Your hero takes 1 damage.' }
   }
 ];
@@ -32103,6 +32272,7 @@ window.onTcgArtPaste = onTcgArtPaste;
 window.onTcgArtDrop = onTcgArtDrop;
 window.onTcgArtPick = onTcgArtPick;
 window.resetTcgArt = resetTcgArt;
+window.tcgResetAllArt = tcgResetAllArt;
 window.tcgOpenFromAnnounce = tcgOpenFromAnnounce;
 // Expansion news CTAs — the community post's buttons are inline onclick
 window.tcgOpenExpansionPacks = tcgOpenExpansionPacks;

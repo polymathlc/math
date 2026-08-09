@@ -85,6 +85,28 @@ is what lets a fix in one app be copied to the other. Only the *world* differs.
     galaxy and the starfield are `position: fixed` layers at `z-index: 0`, and a
     fixed positioned element paints ABOVE ordinary in-flow content — without that
     rule the tab bar and every other unpositioned element sits under the sky.
+- **The art direction is SCIENCE FICTION, and every prompt says so** (v1.14.0).
+  `TCG_ART_WORLD` is one paragraph — starships, powered armour of the
+  space-marine kind, energy sabres, alien species and war-machines; **no**
+  wizards, knights, dragons, castles, wands or robes — and **every** art prompt
+  opens with it: card art, avatars, artifacts, hero portraits, the logo, set
+  banners, pack frames, both FX sets and the lore plates. Naming the genre once
+  is not enough: "science fiction" and "warrior" in the same prompt still
+  produces a man in chainmail, so the fragment also gives each fantasy shape its
+  replacement (a staff is a beam-lance, a robe is a hooded void-cloak over an
+  exo-frame). Point new prompts at the fragment; never restate it.
+  - `TCG_EM_WORD` is where a card's BODY comes from — the emoji is the only clue
+    the row carries — so every entry is a xeno-form or a construct. An emoji with
+    no entry falls through to "an unclassified alien war-form", never to a beast.
+  - **`TCG_FANTASY_PROMPT_RE` is checked on the way out**, beside the
+    chequerboard guard in `tcgGenArtImage`, and warns rather than refuses: it
+    points at the table that needs rewording. The world fragment names the banned
+    words in order to forbid them, so a scan must cut it out before testing the
+    rest.
+  - **♻️ Reset ALL art** (`tcgResetAllArt`) clears the whole `overrides` map so
+    the set can be redrawn under the current direction. Press it *before* a
+    redraw whenever the DIRECTION changes — redrawing alone leaves work drawn
+    under the old direction sitting in the slots beside the new.
 - **Nothing that stands on nothing may keep a background** — battle avatars,
   element projectile frames, booster-pack frames, artifacts, hero portraits and the
   logo. Enforced at GENERATION: `_screenRules` briefs one flat named chroma wall and
