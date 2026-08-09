@@ -473,6 +473,28 @@ a { color: var(--primary); }
 .wv-jump { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 14px; }
 .wv-jump a { font-family: 'Space Mono', monospace; font-size: 0.72rem; font-weight: 700; min-width: 30px; text-align: center; padding: 5px 8px; border-radius: var(--radius-sm); background: var(--primary-light); color: var(--primary); text-decoration: none; }
 .wv-jump a:hover { background: var(--primary); color: #fff; }
+/* ▶ The reel: every video solution on the sheet, back to back in one player.
+   A worksheet's videos are one lesson broken into pieces, and watching it
+   means pressing play eight times and scrolling between each. The reel plays
+   them in order and moves itself on, with a numbered chip per question so a
+   student can drop straight into the one they got wrong. */
+.wv-reel { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-lg); padding: 22px 24px 24px; box-shadow: var(--shadow-sm); margin-bottom: 18px; }
+.wv-reel-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+.wv-reel-head h4 { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.01em; }
+.wv-reel-sub { font-size: 0.8rem; color: var(--text-muted); }
+.wv-reel-note { font-size: 0.8rem; color: var(--text-muted); line-height: 1.6; margin-top: 12px; }
+.wv-reel-now { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-top: 14px; font-size: 0.9rem; }
+.wv-reel-now b { font-weight: 700; }
+.wv-reel-now a { font-size: 0.78rem; color: var(--primary); text-decoration: none; border-bottom: 1px solid currentColor; }
+.wv-reel-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+.wv-chip {
+  font-family: 'Space Mono', monospace; font-size: 0.74rem; font-weight: 700;
+  min-width: 40px; padding: 8px 12px; border-radius: 999px; cursor: pointer;
+  border: 1.5px solid var(--border); background: var(--surface-alt); color: var(--text-muted);
+}
+.wv-chip:hover { border-color: var(--primary); color: var(--primary); }
+.wv-chip.playing { background: var(--primary); border-color: var(--primary); color: #fff; }
+.wv-reel-controls { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; align-items: center; }
 .wv-q { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-lg); padding: 20px 22px; box-shadow: var(--shadow-sm); margin-bottom: 16px; scroll-margin-top: 80px; }
 .wv-q-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
 .wv-q-no { font-family: 'Space Mono', monospace; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; color: var(--primary); background: var(--primary-light); padding: 4px 9px; border-radius: 999px; }
@@ -4430,7 +4452,7 @@ body.lore-reading { overflow: hidden; }
 
     <!-- ================= MY WORKSHEETS PAGE ================= -->
     <div class="page" id="page-myworksheets">
-      <div class="page-head"><h3>📄 My Worksheets</h3><p>Every worksheet you've saved. Reprint it, practise it on screen, or change which questions are on it. <span id="mwCount"></span></p></div>
+      <div class="page-head"><h3>📄 My Worksheets</h3><p>Every worksheet you've saved. Reprint it, practise it on screen, or change which questions are on it. <b>🎬 Solutions &amp; videos</b> opens a shareable page with every answer key and video on the sheet, and a player that works through all the videos in order. <span id="mwCount"></span></p></div>
       <div class="mw-print-options">
         <div class="mw-print-options-title">Printing options</div>
         <label title="Print a Polymath cover page in front of the questions"><input type="checkbox" id="mwIncludeCover"> 📄 Cover page when reprinting</label>
@@ -7131,6 +7153,11 @@ function navigateTo(page) {
   if (page === "worksheet") { wsPopulateFilters(); renderWsQuestions(); }
   if (page === "myworksheets") renderSavedWorksheets();
   if (page === "worksheetview") renderWorksheetOverview();
+  // Leaving the sheet takes its address out of the bar with it — a stale `?ws=`
+  // would reopen a worksheet nobody asked for on the next refresh.
+  if (page !== "worksheetview" && location.search.includes("ws=")) {
+    try { history.replaceState(null, "", location.origin + location.pathname); } catch (_) {}
+  }
   if (page === "tcg") { try { tcgRenderBody(); tcgUpdateGoldChip(); } catch (e) { console.warn("tcg render", e); } }
   if (page === "syllabus") renderSyllabusPage();
 }
@@ -13552,7 +13579,7 @@ function renderSavedWorksheets() {
       </div>
       <div class="ws-saved-actions">
         <button class="btn btn-primary btn-sm" data-ws-print="${escapeHtml(ws.id)}">🖨️ Print / PDF</button>
-        <button class="btn btn-green btn-sm" data-ws-overview="${escapeHtml(ws.id)}" title="One page with every question on this sheet, its video and its answer key">📖 Overview</button>
+        <button class="btn btn-green btn-sm" data-ws-overview="${escapeHtml(ws.id)}" title="One shareable page with every question on this sheet, its answer key and its video solution — plus a player that works through all the videos in order. Copy the link from that page to give it to students.">🎬 Solutions &amp; videos</button>
         <button class="btn btn-ghost btn-sm" data-ws-preview="${escapeHtml(ws.id)}">👁️ Preview</button>
         <button class="btn btn-blue btn-sm" data-ws-practise="${escapeHtml(ws.id)}">✍️ Practise</button>
         ${wsMine(ws) ? `<button class="btn btn-ghost btn-sm" data-ws-edit="${escapeHtml(ws.id)}" title="Change which questions are on this sheet">✎ Questions</button>
@@ -13611,6 +13638,11 @@ async function openWorksheetOverviewById(id, ownerUid) {
 }
 function openWorksheetOverview(ws) {
   if (!ws) return;
+  // This page IS a link: put its own address in the bar while it is open, so
+  // copying from there is the same thing as copying from the share box, and a
+  // refresh (or a bookmark) lands back on this sheet. Read straight back by
+  // the `?ws=` bootstrap at the top of the module.
+  try { history.replaceState(null, "", worksheetShareUrl(ws)); } catch (_) {}
   _wvWs = ws;
   _wvSolutions = {};
   _wvSolutionState = "loading";
@@ -13665,6 +13697,112 @@ async function wvLoadSolutions(ws) {
   }
   renderWorksheetOverview();
 }
+// ---- ▶ The reel: every video solution on the sheet, in one player ---------
+// A worksheet's videos are one lesson cut into pieces, and watching the lot
+// means pressing play eight times and scrolling between each. The reel plays
+// them in order and moves itself on when one ends, with a numbered chip per
+// question so a student who only got Q5 wrong can drop straight into Q5.
+//
+// It is a PLAYLIST, not a concatenation: the files sit on Dropbox and Drive
+// and nothing in a browser can splice them into one stream without
+// re-encoding them. One player, one video at a time, advanced automatically —
+// which is what "watch them all" actually needs.
+let _wvReel = null;   // { list: [{ qid, no, title, url, overlays }], idx }
+// Which questions on the sheet actually carry a video, in sheet order, each
+// keeping its own question NUMBER — the chips have to agree with the page.
+function wvReelList(questions) {
+  const out = [];
+  questions.forEach((q, i) => {
+    const s = _wvSolutions[q.id] || {};
+    const url = String(s.videoExplanationUrl || "").trim();
+    if (!url || !normalizeVideoExplanationUrl(url)) return;
+    out.push({ qid: q.id, no: i + 1, title: q.title || "Question", url, overlays: s.videoOverlays });
+  });
+  return out;
+}
+function wvReelHtml(questions) {
+  // Solutions still loading, hidden by the owner, or nothing to play: no reel.
+  if (_wvSolutionState !== "ready") return "";
+  const list = wvReelList(questions);
+  if (!list.length) return "";
+  const without = questions.map((q, i) => i + 1).filter(n => !list.some(v => v.no === n));
+  const missingNote = without.length
+    ? `<div class="wv-reel-note">No video yet on ${without.length === 1 ? "Q" + without[0] : "Q" + without.slice(0, -1).join(", Q") + " and Q" + without[without.length - 1]} — ${without.length === 1 ? "that question still has its" : "those questions still have their"} written answer key below.</div>`
+    : "";
+  return `<div class="wv-reel" id="wvReel">
+    <div class="wv-reel-head">
+      <h4>▶ Every video solution, back to back</h4>
+      <span class="wv-reel-sub">${list.length} video${list.length === 1 ? "" : "s"} on this sheet</span>
+    </div>
+    <div class="wv-reel-sub">Press play once and it works through the sheet in order, moving on by itself. Tap a number to jump straight to that question's video.</div>
+    <div class="wv-reel-stage" id="wvReelStage"></div>
+    <div class="wv-reel-now" id="wvReelNow"></div>
+    <div class="wv-reel-chips" id="wvReelChips"></div>
+    <div class="wv-reel-controls">
+      <button class="btn btn-primary btn-sm" type="button" id="wvReelPlayBtn">▶ Play them all</button>
+      <button class="btn btn-ghost btn-sm" type="button" id="wvReelPrevBtn">← Previous</button>
+      <button class="btn btn-ghost btn-sm" type="button" id="wvReelNextBtn">Next →</button>
+    </div>
+    ${missingNote}
+  </div>`;
+}
+// Put question `i` of the reel in the player. `autoplay` is true whenever the
+// student asked for motion — pressing play, or the previous video ending — and
+// false for the first, silent load of the page.
+function wvReelShow(i, autoplay) {
+  if (!_wvReel) return;
+  const item = _wvReel.list[i];
+  if (!item) return;
+  _wvReel.idx = i;
+  const stage = $("wvReelStage");
+  if (!stage) return;
+  stage.innerHTML = videoExplanationFrameHtml(item.url, item.overlays);
+  voBindIn(stage);   // the teacher's amendments play over the reel too
+  const video = stage.querySelector("video");
+  if (video) {
+    // Only a real <video> tells us it finished, so only a real <video> can
+    // hand over by itself. An embedded player (YouTube, a Drive preview) has
+    // to be moved on with the Next button, which is why it is always there.
+    video.addEventListener("ended", () => {
+      if (_wvReel && _wvReel.idx === i && i + 1 < _wvReel.list.length) wvReelShow(i + 1, true);
+    });
+    if (autoplay) { const p = video.play(); if (p && p.catch) p.catch(() => {}); }
+  }
+  wvReelSyncChips();
+}
+function wvReelSyncChips() {
+  if (!_wvReel) return;
+  const chips = $("wvReelChips");
+  if (chips) {
+    chips.innerHTML = _wvReel.list.map((v, i) =>
+      `<button class="wv-chip${i === _wvReel.idx ? " playing" : ""}" type="button" data-wv-reel="${i}" title="${escapeHtml(v.title)}">Q${v.no}</button>`).join("");
+    chips.querySelectorAll("[data-wv-reel]").forEach(b =>
+      b.addEventListener("click", () => wvReelShow(Number(b.dataset.wvReel), true)));
+  }
+  const now = $("wvReelNow");
+  const item = _wvReel.list[_wvReel.idx];
+  if (now && item) {
+    now.innerHTML = `<span>Now playing <b>Q${item.no} · ${escapeHtml(item.title)}</b></span>`
+      + `<a href="#wvq${item.no}">↓ read this question &amp; its answer key</a>`;
+  }
+  const prev = $("wvReelPrevBtn"), next = $("wvReelNextBtn");
+  if (prev) prev.disabled = _wvReel.idx <= 0;
+  if (next) next.disabled = _wvReel.idx >= _wvReel.list.length - 1;
+}
+function wvReelWire(questions) {
+  const stage = $("wvReelStage");
+  if (!stage) { _wvReel = null; return; }
+  _wvReel = { list: wvReelList(questions), idx: 0 };
+  if (!_wvReel.list.length) { _wvReel = null; return; }
+  wvReelShow(0, false);
+  // "Play them all" means all of them: back to the first, whatever chip the
+  // student wandered off to. Resuming the one on screen is what the player's
+  // own play button is for.
+  $("wvReelPlayBtn").addEventListener("click", () => wvReelShow(0, true));
+  $("wvReelPrevBtn").addEventListener("click", () => wvReelShow(Math.max(0, _wvReel.idx - 1), true));
+  $("wvReelNextBtn").addEventListener("click", () => wvReelShow(Math.min(_wvReel.list.length - 1, _wvReel.idx + 1), true));
+}
+
 // The worked solution for ONE question: the video first (it is the thing a
 // student came here for), then the answer and the marking guide.
 function wvSolutionBodyHtml(q) {
@@ -13726,10 +13864,11 @@ function renderWorksheetOverview() {
         <button class="btn btn-ghost btn-sm" type="button" id="wvPrintBtn">🖨️ Print / PDF</button>
         <button class="btn btn-ghost btn-sm" type="button" id="wvBackBtn">← My Worksheets</button>
       </div>
-      <div class="wv-note">Everything on this sheet is on this one page — tap a question's button to watch its video and read its answer. No scanning a code per question.</div>
+      <div class="wv-note">Everything on this sheet is on this one page — press play on the reel to watch every video solution in order, or tap a question's own button to read its answer key. No scanning a code per question. The link below opens exactly this page.</div>
       ${questions.length > 1 ? `<div class="wv-jump">${questions.map((q, i) => `<a href="#wvq${i + 1}">${i + 1}</a>`).join("")}</div>` : ""}
       ${share}
     </div>
+    ${wvReelHtml(questions)}
     ${questions.length ? questions.map((q, i) => `<div class="wv-q" id="wvq${i + 1}">
       <div class="wv-q-head">
         <span class="wv-q-no">Q${i + 1}</span>
@@ -13759,6 +13898,7 @@ function renderWorksheetOverview() {
     $("wvRevealAllBtn").textContent = openThem ? "🙈 Hide every solution" : "🎬 Show every solution";
   });
   voBindIn(wrap);   // start every solution video's amendment layer
+  wvReelWire(questions);
   $("wvPractiseBtn").addEventListener("click", () => practiseWorksheet(ws.id));
   $("wvPrintBtn").addEventListener("click", () => openSavedWorksheet(ws.id, true));
   $("wvBackBtn").addEventListener("click", () => navigateTo("myworksheets"));
@@ -19847,7 +19987,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.20.0 · 2026-08-09";
+const APP_VERSION = "v1.21.0 · 2026-08-09";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
