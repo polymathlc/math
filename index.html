@@ -10145,6 +10145,25 @@ function wsHeaderHtml(title, noFields) {
   </div>
   ${noFields ? "" : `<div class="ws-head-fields"><span>Name: ______________________</span><span>Class: ____________</span><span>Date: ____________</span></div>`}`;
 }
+// The footer that prints at the bottom LEFT of every sheet — the Polymath mark
+// and the copyright notice, the same pair the Science portal prints.
+//
+// It is carried by a <tfoot>, and that is not decoration: this document is
+// paginated by the browser, so there is no per-page element to hang a footer
+// on. A `position: fixed` footer does repeat on every printed page in Chrome,
+// but it reserves NO space — content flows underneath it, and a packed sheet
+// prints the last answer straight through the footer's rule. A table footer
+// repeats *and* reserves its own band on every page, which is the whole job.
+// The price is that a forced page break may not sit inside the cell (Chrome
+// then stops repeating the footer at all), so the breaks live on the ROWS —
+// see `.ws-newpage` and wsBuildDocumentHtml.
+const WS_COPYRIGHT = "© Polymath Learning Centre LLP. No parts of the intellectual property of Polymath Learning Centre can be reproduced in any form without permission from Polymath Learning Centre LLP.";
+function wsFooterHtml() {
+  return `<div class="ws-footer">
+    <img src="${WS_COVER_LOGO}" alt="Polymath" onerror="this.onerror=null;this.src='${WS_LOGO_FALLBACK}';">
+    <span>${escapeHtml(WS_COPYRIGHT)}</span>
+  </div>`;
+}
 // How many ruled lines to give a question's answer. Sized from the MODEL
 // ANSWER, because a one-number answer and a five-step working need very
 // different amounts of paper. An MCQ needs none — it needs its options.
@@ -10206,9 +10225,17 @@ function wsPrintCss() {
     * { box-sizing: border-box; }
     @page { size: A4; margin: 14mm 13mm; }
     body { margin: 0; color: #2c2a27; font-family: Arial, Helvetica, sans-serif; background: #fff; font-size: 12pt; }
-    /* The cover and the answer key are whole pages of their own. */
-    .ws-page { page-break-after: always; break-after: page; }
-    .ws-page:last-child { page-break-after: auto; break-after: auto; }
+    /* The cover and the answer key are whole pages of their own. The break sits
+       on the table ROW, not on the section: a forced break INSIDE the footer
+       table's cell makes Chrome stop repeating the <tfoot>, and the copyright
+       footer then prints on the last sheet only. */
+    .ws-doc { width: 100%; border-collapse: collapse; }
+    .ws-doc > tbody > tr > td, .ws-doc > tfoot > tr > td { padding: 0; }
+    .ws-doc > tbody > tr.ws-newpage { break-before: page; page-break-before: always; }
+    /* Bottom-left of every sheet: the mark, then the copyright notice. */
+    .ws-footer { display: flex; align-items: center; gap: 3mm; padding-top: 2mm; border-top: 0.5pt solid #ded8ce; }
+    .ws-footer img { width: 9mm; height: 9mm; object-fit: contain; flex-shrink: 0; }
+    .ws-footer span { max-width: 135mm; font-size: 5.5pt; font-style: italic; color: #8d887f; line-height: 1.35; }
     .ws-cover { display: flex; align-items: center; justify-content: center; min-height: 250mm; text-align: center; }
     .ws-cover-inner { max-width: 130mm; }
     .ws-cover-logo { width: 26mm; height: auto; margin: 0 auto 10mm; display: block; }
@@ -10278,7 +10305,12 @@ function wsPrintCss() {
       body { background: #f4f1ec; padding: 20px 20px 40px; }
       .ws-sheet { background: #fff; width: 210mm; max-width: 100%; margin: 0 auto 20px; padding: 14mm 13mm; box-shadow: 0 4px 20px rgba(0,0,0,0.12); }
       .ws-page { border-bottom: 1px dashed #cfc8bc; padding-bottom: 12mm; margin-bottom: 12mm; }
-      .ws-page:last-child { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+      /* Each section now sits alone in its own table row, so "the last one" is
+         the last ROW — a :last-child on .ws-page would match every one of them. */
+      .ws-doc > tbody > tr:last-child .ws-page { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+      /* On screen the sheet is one long strip, so the footer can only be shown
+         once, under it — on paper it repeats. */
+      .ws-footer { margin-top: 12mm; }
       .ws-printbar { position: fixed; top: 14px; right: 18px; z-index: 9; display: flex; gap: 8px; }
       .ws-printbar button { font: 600 0.9rem/1 Arial, sans-serif; padding: 11px 16px; border-radius: 10px; border: 0; background: #4a7c59; color: #fff; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.18); }
       .ws-printbar button.ghost { background: #fff; color: #2c2a27; border: 1.5px solid #e2ddd5; }
@@ -10291,10 +10323,17 @@ function wsPrintCss() {
 async function wsBuildDocumentHtml(questions, title, opts) {
   let qrMap = {};
   if (opts.withQr) { try { qrMap = await buildQrMap(questions); } catch (e) { console.warn("qr map failed", e); } }
-  const body =
-    (opts.cover ? wsCoverHtml(title, `${questions.length} question${questions.length > 1 ? "s" : ""}`, !opts.fields) : "") +
-    `<section class="ws-page">${wsHeaderHtml(title, !opts.fields)}${questions.map((q, i) => wsQuestionChunkHtml(q, i + 1, qrMap[q.id] || "")).join("")}</section>` +
-    (opts.withAnswers ? wsAnswerKeyHtml(questions) : "");
+  // One table row per whole-page section, so the forced page breaks sit between
+  // ROWS and the copyright <tfoot> keeps repeating (see wsFooterHtml).
+  const sections = [
+    ...(opts.cover ? [wsCoverHtml(title, `${questions.length} question${questions.length > 1 ? "s" : ""}`, !opts.fields)] : []),
+    `<section class="ws-page">${wsHeaderHtml(title, !opts.fields)}${questions.map((q, i) => wsQuestionChunkHtml(q, i + 1, qrMap[q.id] || "")).join("")}</section>`,
+    ...(opts.withAnswers ? [wsAnswerKeyHtml(questions)] : []),
+  ];
+  const body = `<table class="ws-doc">
+    <tfoot><tr><td>${wsFooterHtml()}</td></tr></tfoot>
+    <tbody>${sections.map((s, i) => `<tr${i ? ` class="ws-newpage"` : ""}><td>${s}</td></tr>`).join("")}</tbody>
+  </table>`;
   // The floating bar is `ws-noprint`, so the printed sheet never carries it.
   const bar = `<div class="ws-printbar ws-noprint"><button class="ghost" onclick="window.close()">Close</button><button onclick="window.print()">🖨️ Print / Save PDF</button></div>`;
   return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
@@ -15638,7 +15677,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.9.0 · 2026-08-09";
+const APP_VERSION = "v1.10.0 · 2026-08-09";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
