@@ -18833,7 +18833,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.17.0 · 2026-08-09";
+const APP_VERSION = "v1.17.1 · 2026-08-09";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
@@ -26198,39 +26198,39 @@ const DUEL_POWER_COST = 2;        // every basic hero power, exactly as Hearthst
 const DUEL_HERO_DEFAULT = 'warden';
 const DUEL_HEROES = [
   {
-    id: 'warden', name: 'Warden Elowen', title: 'Keeper of the Bulwark', em: '🛡️', tier: 'basic',
+    id: 'warden', name: 'Aegis-Sergeant Toren', title: 'Wall of the Ninth Lane', em: '🛡️', tier: 'basic',
     safe: true, screen: 'magenta', el: 'metal',
-    blurb: 'Holds the line while your board grows. Armour stacks up turn after turn, and nothing you press can ever be wasted — which is why she is the hero you start with.',
-    look: 'a calm young woman in dented silver POWERED ARMOUR with heavy shoulder plates and a deep blue shoulder-drape, a projected hard-light round shield held steady in front of her, short dark hair, a warm patient expression',
-    power: { name: 'Bulwark', icon: '🛡️', kind: 'armor', v: 2, text: 'Gain 2 Armor.' }
+    blurb: 'Holds the gate while your board grows. Armour stacks up turn after turn, and nothing you press can ever be wasted — which is why she is the hero you start with.',
+    look: 'a calm young woman in dented ceramite POWERED ARMOUR with heavy shoulder plates and a deep blue drape, a projected hard-light barrier standing steady off her raised gauntlet, cropped dark hair, an unhurried patient expression, gate-station gantries lit behind her',
+    power: { name: 'Barrier Layer', icon: '🛡️', kind: 'armor', v: 2, text: 'Gain 2 Armor.' }
   },
   {
-    id: 'ember', name: 'Plasmafist Rook', title: 'Of the Burning Road', em: '🔥', tier: 'basic',
+    id: 'ember', name: 'Ignition-Corporal Kaz', title: 'Of the Burning Approach', em: '🔥', tier: 'basic',
     screen: 'green', el: 'flame',
     blurb: 'One point of damage a turn does not sound like much — until it is the point that finishes a minion your board could not quite kill, every single turn.',
-    look: 'a broad-shouldered young man in scorched flight leathers over light armour plate with a red half-cape, one armoured gauntlet wrapped in burning orange plasma held up in front of him, cropped hair, a grin like he enjoys this',
-    power: { name: 'Ignition Spark', icon: '🔥', kind: 'dmgAny', v: 1, need: 'any', text: 'Deal 1 damage to any target.' }
+    look: 'a wiry young man in a scorched orange void-suit with the sealed helm clamped at his hip and a heat-scarred breacher gauntlet, a thruster pack venting behind him, one hand cupping a small ball of white plasma, close-cropped hair and a crooked confident grin',
+    power: { name: 'Muzzle Flash', icon: '🔥', kind: 'dmgAny', v: 1, need: 'any', text: 'Deal 1 damage to any target.' }
   },
   {
-    id: 'grove', name: 'Adept Wren', title: 'Voice of the Biosphere', em: '🌿', tier: 'basic',
+    id: 'grove', name: 'Bio-Adept Sennah', title: 'Keeper of the Green Vats', em: '🧬', tier: 'basic',
     screen: 'blue', el: 'flora',
     blurb: 'Makes one of your minions a little better every turn. Put it on something with Taunt or Lifesteal and the rival has to answer a card that keeps growing.',
-    look: 'a slender older woman in a flowing green-and-brown field coat over a light exo-frame, a woven bio-mantle across the shoulders, long grey hair, one hand open with small glowing green shoots curling up out of her palm, kind eyes',
-    power: { name: 'Biograft', icon: '🌿', kind: 'grow', v: 1, need: 'friendlyMinion', text: 'Give a friendly minion +1/+1.' }
+    look: 'a tall older person in a sealed green field-suit under a mantle of living cabling and grown fibre, a rack of sample canisters across the chest, silver-grey hair tied back, one open palm with small glowing engineered shoots curling out of a wrist unit, calm kind eyes',
+    power: { name: 'Graft Protocol', icon: '🧬', kind: 'grow', v: 1, need: 'friendlyMinion', text: 'Give a friendly minion +1/+1.' }
   },
   {
-    id: 'frost', name: 'Tidecaller Nell', title: 'Of the Deep Cryo', em: '❄️', tier: 'basic',
+    id: 'frost', name: 'Cryo-Warrant Ilva', title: 'Of the Slow Orbit', em: '❄️', tier: 'basic',
     screen: 'magenta', el: 'frost',
     blurb: 'Take the rival\'s best attacker out of the fight for a turn, every turn. It deals no damage at all — it simply means their biggest minion never gets to swing.',
-    look: 'a young woman in a pale blue-and-white sealed void-suit with silver clasps and a high collar, long white braided hair, both hands cupped around a slowly turning shard of cryo-ice, a quiet unbothered face',
-    power: { name: 'Chill Touch', icon: '❄️', kind: 'chill', need: 'enemyMinion', v: 0, text: 'Freeze an enemy minion.' }
+    look: 'a young woman in a pale blue-and-white sealed voidsuit with a high ribbed collar and a mirrored visor pushed up, long white braided hair, both gauntlets cupped around a slowly turning cryo-shard shedding vapour, a quiet unbothered face',
+    power: { name: 'Coolant Lock', icon: '❄️', kind: 'chill', need: 'enemyMinion', v: 0, text: 'Freeze an enemy minion.' }
   },
   {
-    id: 'scribe', name: 'Ashen Scribe Pip', title: 'Reader of Cinders', em: '📖', tier: 'basic',
+    id: 'scribe', name: 'Signal-Cadet Marek', title: 'Reader of the Old Light', em: '📡', tier: 'basic',
     screen: 'green', el: 'cosmic',
     blurb: 'More cards than anybody else — at a price. One life a turn is cheap early and expensive late, so this hero is about knowing when to stop.',
-    look: 'a small studious young person in a soot-smudged grey tech-adept coat with stained fingers, round lens goggles pushed up on the forehead, a data-slate hovering open in front of them with glowing plasma-orange characters drifting off the screen',
-    power: { name: 'Ashen Study', icon: '📖', kind: 'study', v: 1, text: 'Draw a card. Your hero takes 1 damage.' }
+    look: 'a slight studious young cadet in a grey signals coat with rolled sleeves and ink-stained fingers, a bank of thin holographic panels fanned open in the air around their head, a folded antenna array on their back, a lens visor pushed up into untidy hair',
+    power: { name: 'Deep Scan', icon: '📡', kind: 'study', v: 1, text: 'Draw a card. Your hero takes 1 damage.' }
   }
 ];
 const DUEL_HERO_BY_ID = {};
