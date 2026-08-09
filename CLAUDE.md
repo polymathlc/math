@@ -191,6 +191,25 @@ or a scribble at a given second, at a given spot, for a given number of seconds.
   to the `/preview` iframe on `error`, and an iframe player gets the ⏱ stopwatch
   the student starts by hand. Videos with no amendments never take that path.
 
+## 📖 The worksheet overview page — 🎬 Solutions & videos
+`?ws=<id>&owner=<uid>` **is** the page: `openWorksheetOverview` puts that address
+in the bar (and `navigateTo` takes it out again on the way to any other page), so
+the link a teacher shares, the sheet's QR and a refresh all land in the same
+place. `wvLoadSolutions` gates it — an admin's own bank already holds the private
+half, a student goes through `getWorksheetSolutions` and gets nothing when the
+owner turned sharing off.
+- **▶ The reel (`wvReel*`) is a PLAYLIST, not a concatenation.** The files live on
+  Dropbox and Drive; nothing in a browser splices them without re-encoding. One
+  player, one video at a time, advanced on `ended`.
+- **Only a real `<video>` reports that it ended**, so only `kind: 'video'` hands
+  over by itself — an embedded player (YouTube, a Drive preview) needs the Next
+  button, which is why it is always on show.
+- **A chip carries the question's number on the SHEET, not its index in the
+  reel** — the numbers have to agree with the page you scroll to. Questions with
+  no video are named in one line rather than silently missing.
+- `wvReelShow` checks `_wvReel.idx === i` before advancing: a superseded player
+  firing `ended` late must not drag a student back to where they were.
+
 ## 📝 Worksheets — the ✎ Questions drawer
 A saved worksheet is an ordered **list of question ids**, so `wsEditOverlay`
 (`wse*`) edits that list and nothing else. Both its columns share one row
