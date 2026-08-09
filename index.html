@@ -865,6 +865,91 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .bank-item-actions { display: flex; gap: 6px; flex-shrink: 0; }
 .bank-item-actions { flex-wrap: wrap; justify-content: flex-end; }
 
+/* ── Question Bank: list ↔ grid ──────────────────────────────────────────────
+   The list is the READING view — full titles and every action on each row. The
+   grid is the PICKING view: square picture tiles laid across the whole screen,
+   so a diagram is recognised at a glance and clicked straight into a worksheet
+   selection. The tiles need room, so the page widens when they are showing. */
+#page-bank.bank-wide { max-width: 1560px; }
+
+.bank-filter-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.bank-filter-bar select, .bank-filter-bar input {
+  font-family: inherit; font-size: 0.85rem; padding: 9px 11px;
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--text);
+}
+.bank-filter-bar .bank-search { width: auto; flex: 1; min-width: 170px; margin-bottom: 0; font-size: 0.85rem; padding: 9px 11px; border-radius: var(--radius-sm); }
+.bank-filter-bar select:focus, .bank-filter-bar input:focus { outline: none; border-color: var(--border-focus); }
+
+.view-toggle { display: inline-flex; margin-left: auto; border: 1.5px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--surface); }
+.view-toggle button { display: inline-flex; align-items: center; gap: 7px; padding: 9px 15px; border: none; background: transparent; font-family: inherit; font-size: 0.84rem; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: all var(--transition); }
+.view-toggle button svg { width: 15px; height: 15px; }
+.view-toggle button + button { border-left: 1.5px solid var(--border); }
+.view-toggle button:hover { color: var(--text); background: var(--bg); }
+.view-toggle button.active { background: var(--primary); color: #fff; }
+
+/* What you have picked, and what you can do with it. Shown in BOTH views — a
+   selection you can no longer see must not feel lost. */
+.bank-pick-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; padding: 14px 18px; border: 1.5px solid var(--primary); border-radius: var(--radius-md); background: var(--primary-light); }
+.bank-pick-count { font-size: 0.88rem; font-weight: 700; color: var(--primary); }
+
+.bank-list.as-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 18px; }
+.qb-tile { display: flex; flex-direction: column; background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-md); overflow: hidden; cursor: pointer; transition: all var(--transition); }
+.qb-tile:hover { border-color: var(--primary); box-shadow: var(--shadow-sm); transform: translateY(-2px); }
+.qb-tile.picked { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
+.qb-tile-thumb { position: relative; aspect-ratio: 4 / 3; background: var(--bg); border-bottom: 1px solid var(--border); overflow: hidden; }
+.qb-tile-thumb img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
+/* A broken link says so rather than leaving a blank rectangle. */
+.qb-tile-thumb.no-img img { display: none; }
+.qb-tile-thumb.no-img::after { content: '🖼 image unavailable'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 0.76rem; color: var(--text-muted); }
+.qb-tile-text {
+  height: 100%;
+  /* Clears the pick badge in the corner so the first line isn't sitting under it. */
+  padding: 44px 18px 16px;
+  overflow: hidden; font-size: 0.84rem; line-height: 1.6; color: var(--text-muted);
+  display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical;
+}
+/* The badge is the question's POSITION on the sheet once it is picked — the
+   worksheet prints in the order you clicked them, so that order is worth seeing. */
+.qb-tile-check {
+  position: absolute; top: 10px; left: 10px; min-width: 24px; height: 24px; padding: 0 6px;
+  border-radius: 999px; border: 1.5px solid var(--border); background: rgba(255,255,255,0.92);
+  color: transparent; font-size: 0.78rem; font-weight: 700; line-height: 21px; text-align: center;
+}
+.qb-tile.picked .qb-tile-check { background: var(--primary); border-color: var(--primary); color: #fff; }
+.qb-tile-edit {
+  position: absolute; top: 10px; right: 10px; width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border); border-radius: 8px; background: rgba(255,255,255,0.92);
+  color: var(--text-muted); font-size: 0.85rem; cursor: pointer; opacity: 0; transition: all var(--transition);
+}
+.qb-tile:hover .qb-tile-edit { opacity: 1; }
+.qb-tile-edit:hover { color: var(--primary); border-color: var(--primary); }
+.qb-tile-body { padding: 14px 16px 16px; }
+.qb-tile-title { font-size: 0.9rem; font-weight: 700; line-height: 1.45; margin-bottom: 10px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.qb-tile-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* Rest on a tile and the whole question opens beside the cursor. It never takes
+   the pointer (`pointer-events: none`) — the tile underneath is what you click. */
+.qb-hover-card {
+  position: fixed; z-index: 400; width: min(460px, 92vw); max-height: 62vh;
+  display: flex; flex-direction: column;
+  padding: 16px 18px; background: var(--surface); border: 1.5px solid var(--primary);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
+  font-size: 0.88rem; line-height: 1.6; pointer-events: none;
+}
+/* The question is what may overrun; the hint under it must stay put, or a long
+   question quietly eats the one line telling you what a click does. */
+.qb-hover-body { flex: 1; min-height: 0; overflow: hidden; }
+.qb-hover-card img { max-width: 100%; max-height: 34vh; height: auto; object-fit: contain; }
+.qb-hover-title { font-weight: 700; margin-bottom: 8px; }
+.qb-hover-hint { flex: 0 0 auto; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); font-size: 0.72rem; color: var(--text-muted); }
+
+@media (max-width: 640px) {
+  .bank-list.as-tiles { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .view-toggle { margin-left: 0; }
+}
+
 /* ========== OVERLAYS ========== */
 .overlay { display: none; position: fixed; inset: 0; background: rgba(20,18,16,0.5); z-index: 300; align-items: center; justify-content: center; padding: 20px; }
 .overlay.show { display: flex; }
@@ -1716,11 +1801,38 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 
     <!-- ================= BANK PAGE (admin) ================= -->
     <div class="page" id="page-bank">
-      <div class="page-head"><h3>Question Bank</h3><p>All questions your students will practise. <span id="bankCount"></span></p></div>
+      <div class="page-head"><h3>Question Bank</h3><p>All questions your students will practise. Switch to the grid to pick questions by eye, then build a worksheet from them. <span id="bankCount"></span></p></div>
       <div class="card card-pad">
-        <input id="bankSearch" type="search" class="bank-search" autocomplete="off"
-          placeholder="Search questions by title, level, topic, concept, answer or text…">
-        <div id="bankList"></div>
+        <div class="bank-filter-bar">
+          <input id="bankSearch" type="search" class="bank-search" autocomplete="off"
+            placeholder="Search questions by title, level, topic, concept, answer or text…">
+          <select id="bankFilterLevel"><option value="">All levels</option></select>
+          <select id="bankFilterTopic"><option value="">All topics</option></select>
+          <select id="bankFilterConcept"><option value="">All concepts</option></select>
+          <select id="bankFilterFormat">
+            <option value="">All formats</option>
+            <option value="mcq">MCQ only</option>
+            <option value="written">Open-ended only</option>
+          </select>
+          <select id="bankSortBy" title="Order the questions below">
+            <option value="bank">↕ Bank order</option>
+            <option value="newest">🕑 Newest first</option>
+            <option value="oldest">🕑 Oldest first</option>
+            <option value="title">🔤 Title A–Z</option>
+          </select>
+          <div class="view-toggle" id="bankViewToggle" role="group" aria-label="Question bank view">
+            <button type="button" data-bank-view="list" title="List view — full titles and every action">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+              List
+            </button>
+            <button type="button" data-bank-view="grid" title="Grid view — picture tiles across the screen; click one to add it to a worksheet">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+              Grid
+            </button>
+          </div>
+        </div>
+        <div class="bank-pick-bar" id="bankPickBar" style="display:none;"></div>
+        <div class="bank-list" id="bankList"></div>
       </div>
     </div>
 
@@ -4371,17 +4483,299 @@ function bankSearchHaystack(q) {
     (q.blocks || []).filter(b => b.type === "text").map(b => stripHtml(b.content)).join(" ")
   ].filter(Boolean).join(" ").toLowerCase();
 }
+// =====================================================================
+// QUESTION BANK — list ↔ grid
+//
+// "list" is the original stacked-row bank: the READING view, where every row
+// carries the full title and every action. "grid" lays the same questions out
+// as picture tiles across the full width — the PICKING view, where a diagram is
+// recognised at a glance and clicked straight into a worksheet selection. The
+// bank remembers which one you left it on.
+//
+// The grid writes into the SAME selection the worksheet builder uses
+// (`wsSelectedIds` + `wsOrder`), so a pick made here is already ticked there,
+// in the order it was picked — which is the order it prints in.
+// =====================================================================
+const BANK_VIEW_KEY = "mathBankView";
+const BANK_SORT_KEY = "mathBankSort";
+let bankView = (() => { try { return localStorage.getItem(BANK_VIEW_KEY) === "grid" ? "grid" : "list"; } catch (_) { return "list"; } })();
+let bankSort = (() => { try { return localStorage.getItem(BANK_SORT_KEY) || "bank"; } catch (_) { return "bank"; } })();
+
+function setBankView(mode) {
+  bankView = mode === "grid" ? "grid" : "list";
+  try { localStorage.setItem(BANK_VIEW_KEY, bankView); } catch (_) {}
+  renderBank();
+}
+function setBankSort(value) {
+  bankSort = value || "bank";
+  try { localStorage.setItem(BANK_SORT_KEY, bankSort); } catch (_) {}
+  renderBank();
+}
+// The toggle buttons' pressed state, and the wider page the tiles need.
+function _syncBankViewChrome() {
+  document.querySelectorAll("#bankViewToggle [data-bank-view]").forEach(b => {
+    b.classList.toggle("active", b.dataset.bankView === bankView);
+  });
+  const page = $("page-bank");
+  if (page) page.classList.toggle("bank-wide", bankView === "grid");
+  const sortSel = $("bankSortBy");
+  if (sortSel && sortSel.value !== bankSort) sortSel.value = bankSort;
+}
+function _questionRecency(q) { return parseTimeMs(q && q.createdAt); }
+
+// The three "what kind of question" filters, built from what the bank actually
+// holds — same shape as the worksheet builder's, so the two always agree.
+// A select that currently has focus is left alone: rebuilding the options under
+// an open dropdown closes it mid-choice.
+function bankPopulateFilters() {
+  const fill = (id, values, allLabel) => {
+    const sel = $(id);
+    if (!sel || document.activeElement === sel) return;
+    const keep = sel.value;
+    sel.innerHTML = `<option value="">${allLabel}</option>` +
+      [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b))
+        .map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+    if ([...sel.options].some(o => o.value === keep)) sel.value = keep;
+  };
+  fill("bankFilterLevel", questionBank.map(q => String(q.level || "").trim()), "All levels");
+  fill("bankFilterTopic", questionBank.flatMap(questionTopics), "All topics");
+  fill("bankFilterConcept", questionBank.map(conceptLabel), "All concepts");
+}
+
+// Exactly what the bank is showing right now — the search box, every filter and
+// the chosen order. The list, the tiles and "pick all shown" all read this one
+// function, so a button can never act on a different set than the eye sees.
+function _bankFilteredQuestions() {
+  const term = bankSearchTerm.trim().toLowerCase();
+  const level = ($("bankFilterLevel") || {}).value || "";
+  const topic = ($("bankFilterTopic") || {}).value || "";
+  const concept = ($("bankFilterConcept") || {}).value || "";
+  const format = ($("bankFilterFormat") || {}).value || "";
+  const out = questionBank.filter(q => {
+    if (level && String(q.level || "").trim() !== level) return false;
+    if (topic && !questionTopics(q).includes(topic)) return false;
+    if (concept && conceptLabel(q) !== concept) return false;
+    if (format === "mcq" && !wsHasMcq(q)) return false;
+    if (format === "written" && !wsHasWritten(q)) return false;
+    if (term && !bankSearchHaystack(q).includes(term)) return false;
+    return true;
+  });
+  if (bankSort === "newest") out.sort((a, b) => _questionRecency(b) - _questionRecency(a));
+  else if (bankSort === "oldest") out.sort((a, b) => _questionRecency(a) - _questionRecency(b));
+  else if (bankSort === "title") out.sort((a, b) => String(a.title || "").localeCompare(String(b.title || "")));
+  return out;
+}
+
+// The picture a question is recognised by: its first image block, else its
+// answer-key picture. A question with neither gets a text tile instead.
+function _qThumbUrl(q) {
+  const b = ((q && q.blocks) || []).find(x => x && x.type === "image" && String(x.url || "").trim());
+  if (b) return String(b.url).trim();
+  return String((q && q.answerKeyImageUrl) || "").trim();
+}
+function _qTileText(q) {
+  const firstText = ((q && q.blocks) || []).find(b => b.type === "text");
+  return firstText ? stripHtml(firstText.content).slice(0, 160) : "(no text)";
+}
+
+// ── Grid view: one question as a picture tile ────────────────────────────────
+// A square card you can scan a screenful of at a time: the question's diagram
+// (or its opening words when it has none) above the title and its chips. Click
+// picks it; the badge shows its position on the sheet; the pencil edits it;
+// double-click edits too, and resting on it reads the whole question.
+function bankTileHtml(q) {
+  const id = escapeHtml(String(q.id));
+  const picked = wsSelectedIds.has(q.id);
+  const pos = picked ? wsOrder.indexOf(q.id) + 1 : 0;
+  const thumb = _qThumbUrl(q);
+  return `<div class="qb-tile${picked ? " picked" : ""}" data-qb-tile="${id}"
+       title="Click to add this question to your worksheet selection · double-click to edit · rest on it to read it">
+    <div class="qb-tile-thumb">
+      ${thumb
+        ? `<img src="${escapeHtml(thumb)}" alt="" loading="lazy" decoding="async" data-qb-img>`
+        : `<div class="qb-tile-text">${escapeHtml(_qTileText(q))}</div>`}
+      <span class="qb-tile-check" aria-hidden="true">${pos || "✓"}</span>
+      <button class="qb-tile-edit" type="button" data-qb-edit="${id}" title="Edit this question">✎</button>
+    </div>
+    <div class="qb-tile-body">
+      <div class="qb-tile-title">${escapeHtml(q.title || "Untitled")}</div>
+      <div class="qb-tile-meta">
+        <span class="chip">${escapeHtml(q.level || "—")}</span>
+        <span class="chip topic">${escapeHtml(adminTopicsLabel(q))}</span>
+        ${wsHasMcq(q) ? `<span class="chip">MCQ</span>` : ""}
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderBankTiles(list, matches) {
+  list.innerHTML = matches.map(bankTileHtml).join("");
+  list.querySelectorAll("[data-qb-img]").forEach(img => img.addEventListener("error", () => {
+    const thumb = img.closest(".qb-tile-thumb");
+    if (thumb) thumb.classList.add("no-img");
+  }));
+  list.querySelectorAll("[data-qb-edit]").forEach(b => b.addEventListener("click", e => {
+    e.stopPropagation(); qbHoverHide(); editQuestion(b.dataset.qbEdit);
+  }));
+  list.querySelectorAll("[data-qb-tile]").forEach(tile => {
+    const id = tile.dataset.qbTile;
+    tile.addEventListener("click", () => toggleBankPick(id));
+    tile.addEventListener("dblclick", () => { qbHoverHide(); editQuestion(id); });
+    tile.addEventListener("mouseenter", e => qbHoverEnter(e, id));
+    tile.addEventListener("mousemove", qbHoverMove);
+    tile.addEventListener("mouseleave", qbHoverHide);
+  });
+}
+
+// ── Rest on a tile to read the question ─────────────────────────────────────
+// A thumbnail tells you WHICH question it is; it does not tell you what the
+// question ASKS. Resting on a tile opens the whole question beside the cursor,
+// so a sheet can be chosen without opening anything. The delay is what makes it
+// usable: sweeping across a screenful of tiles on the way somewhere else must
+// not strobe previews open behind the cursor.
+const BANK_HOVER_MS = 800;
+let _qbHoverTimer = null;
+let _qbHoverId = null;   // the tile the pending preview belongs to
+let _qbHoverPt = null;   // latest cursor position, so the card opens where the cursor IS
+
+function qbHoverHide() {
+  clearTimeout(_qbHoverTimer);
+  _qbHoverTimer = null;
+  _qbHoverId = null;
+  const card = $("qbHoverCard");
+  if (card) card.remove();
+}
+function qbHoverMove(ev) { _qbHoverPt = { clientX: ev.clientX, clientY: ev.clientY }; }
+function qbHoverEnter(ev, id) {
+  // Touch devices synthesise a mouseenter on tap — there is no "resting" there,
+  // and a card that opens under the finger only gets in the way.
+  if (window.matchMedia && !window.matchMedia("(hover: hover)").matches) return;
+  qbHoverHide();
+  _qbHoverId = id;
+  _qbHoverPt = { clientX: ev.clientX, clientY: ev.clientY };
+  _qbHoverTimer = setTimeout(() => {
+    if (_qbHoverId !== id) return;
+    const q = questionBank.find(x => x.id === id);
+    if (q) _qbHoverOpen(q);
+  }, BANK_HOVER_MS);
+}
+function _qbHoverOpen(q) {
+  const card = document.createElement("div");
+  card.id = "qbHoverCard";
+  card.className = "qb-hover-card";
+  card.innerHTML =
+    `<div class="qb-hover-body">
+       <div class="qb-hover-title">${escapeHtml(q.title || "Untitled")}</div>
+       <div class="q-body">${renderQuestionBlocksHtml(q.blocks || [])}</div>
+       ${mcqOptionsPreviewHtml(q, true)}
+     </div>
+     <div class="qb-hover-hint">Click the tile to add this question to your worksheet selection.</div>`;
+  document.body.appendChild(card);
+  _qbHoverPlace(card);
+  // The diagram inside is still loading when we first measure, so the card grows
+  // after it has been placed — anchor it again once it has its real height.
+  setTimeout(() => { if ($("qbHoverCard") === card) _qbHoverPlace(card); }, 400);
+}
+function _qbHoverPlace(card) {
+  const pt = _qbHoverPt || { clientX: 40, clientY: 40 };
+  const r = card.getBoundingClientRect();
+  const pad = 12;
+  let left = pt.clientX + 18;
+  let top = pt.clientY + 18;
+  if (left + r.width + pad > window.innerWidth) left = Math.max(pad, pt.clientX - r.width - 18);
+  if (top + r.height + pad > window.innerHeight) top = Math.max(pad, window.innerHeight - r.height - pad);
+  card.style.left = left + "px";
+  card.style.top = top + "px";
+}
+
+// Clicking a tile adds the question to — or takes it out of — the selection the
+// worksheet builder uses. Only the badges are repainted, never the whole grid:
+// re-rendering would reload every thumbnail under the cursor.
+function toggleBankPick(id) {
+  if (wsSelectedIds.has(id)) { wsSelectedIds.delete(id); wsOrder = wsOrder.filter(x => x !== id); }
+  else { wsSelectedIds.add(id); wsOrder.push(id); }
+  _qbSyncPicks();
+  _renderBankPickBar();
+  updateWsCount();
+}
+function _qbSyncPicks() {
+  document.querySelectorAll("#bankList .qb-tile").forEach(tile => {
+    const id = tile.dataset.qbTile;
+    const on = wsSelectedIds.has(id);
+    tile.classList.toggle("picked", on);
+    const badge = tile.querySelector(".qb-tile-check");
+    if (badge) badge.textContent = on ? String(wsOrder.indexOf(id) + 1) : "✓";
+  });
+}
+function clearBankPicks() {
+  wsSelectedIds.clear();
+  wsOrder = [];
+  _qbSyncPicks();
+  _renderBankPickBar();
+  updateWsCount();
+}
+// Take everything currently on screen, so a filtered search can be picked whole.
+function pickAllBankVisible() {
+  _bankFilteredQuestions().forEach(q => {
+    if (!wsSelectedIds.has(q.id)) { wsSelectedIds.add(q.id); wsOrder.push(q.id); }
+  });
+  _qbSyncPicks();
+  _renderBankPickBar();
+  updateWsCount();
+}
+function bankPicksToWorksheet() {
+  if (!wsSelectedIds.size) { toast("Pick some questions first", "error"); return; }
+  qbHoverHide();
+  navigateTo("worksheet");
+}
+function bankPicksToPractice() {
+  if (!wsSelectedIds.size) { toast("Pick some questions first", "error"); return; }
+  qbHoverHide();
+  practiseCurrentWorksheet();
+}
+
+// The bar that says what you have picked and what you can do with it. It shows
+// in BOTH views — switching back to the list must not make a selection you can
+// no longer see feel lost.
+function _renderBankPickBar(filtered) {
+  const bar = $("bankPickBar");
+  if (!bar) return;
+  const n = wsSelectedIds.size;
+  if (!n) { bar.style.display = "none"; bar.innerHTML = ""; return; }
+  const shown = filtered || _bankFilteredQuestions();
+  const allPicked = shown.length > 0 && shown.every(q => wsSelectedIds.has(q.id));
+  bar.style.display = "";
+  bar.innerHTML =
+    `<span class="bank-pick-count">${n} question${n === 1 ? "" : "s"} picked</span>
+     ${allPicked ? "" : `<button class="btn btn-ghost btn-sm" type="button" data-bank-pickall>Pick all ${shown.length} shown</button>`}
+     <button class="btn btn-ghost btn-sm" type="button" data-bank-clearpicks>Clear</button>
+     <span style="flex:1;"></span>
+     <button class="btn btn-blue btn-sm" type="button" data-bank-practise>✍️ Practise these</button>
+     <button class="btn btn-primary btn-sm" type="button" data-bank-worksheet>📄 Build worksheet</button>`;
+  const on = (sel, fn) => { const b = bar.querySelector(sel); if (b) b.addEventListener("click", fn); };
+  on("[data-bank-pickall]", pickAllBankVisible);
+  on("[data-bank-clearpicks]", clearBankPicks);
+  on("[data-bank-practise]", bankPicksToPractice);
+  on("[data-bank-worksheet]", bankPicksToWorksheet);
+}
+
 function renderBank() {
   if (!canManageQuestions()) { navigateTo("practice"); return; }
+  // A preview left open would be pointing at a tile that is about to be replaced.
+  qbHoverHide();
   const list = $("bankList");
   const total = questionBank.length;
-  const term = bankSearchTerm.trim();
-  const matches = term ? questionBank.filter(q => bankSearchHaystack(q).includes(term.toLowerCase())) : questionBank;
+  bankPopulateFilters();
+  const matches = _bankFilteredQuestions();
+  _syncBankViewChrome();
+  _renderBankPickBar(matches);
+  list.classList.toggle("as-tiles", bankView === "grid");
   $("bankCount").textContent = !total ? ""
-    : term ? `${matches.length} of ${total} match “${term}”.`
-    : `${total} question${total > 1 ? "s" : ""}.`;
+    : matches.length === total ? `${total} question${total > 1 ? "s" : ""}.`
+    : `${matches.length} of ${total} shown.`;
   if (!total) { list.innerHTML = `<div class="empty-note">No questions yet. Go to <b>Create Question</b> to add one ✦</div>`; return; }
-  if (!matches.length) { list.innerHTML = `<div class="empty-note">No questions match “${escapeHtml(term)}”.</div>`; return; }
+  if (!matches.length) { list.innerHTML = `<div class="empty-note">No questions match these filters.</div>`; return; }
+  if (bankView === "grid") { renderBankTiles(list, matches); return; }
   list.innerHTML = "";
   matches.forEach(q => {
     const firstText = (q.blocks || []).find(b => b.type === "text");
@@ -15244,11 +15638,19 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.8.0 · 2026-08-09";
+const APP_VERSION = "v1.9.0 · 2026-08-09";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
 { const _bs = $("bankSearch"); if (_bs) _bs.addEventListener("input", e => { bankSearchTerm = e.target.value; renderBank(); }); }
+["bankFilterLevel", "bankFilterTopic", "bankFilterConcept", "bankFilterFormat"].forEach(id => {
+  const el = $(id); if (el) el.addEventListener("change", renderBank);
+});
+{ const _bsort = $("bankSortBy"); if (_bsort) _bsort.addEventListener("change", e => setBankSort(e.target.value)); }
+document.querySelectorAll("#bankViewToggle [data-bank-view]").forEach(b => b.addEventListener("click", () => setBankView(b.dataset.bankView)));
+// A hover card is anchored to a viewport point, so scrolling the page away from
+// the tile would leave it floating over nothing.
+window.addEventListener("scroll", () => { if ($("qbHoverCard")) qbHoverHide(); }, true);
 
 // =====================================================================
 // DEPENDENCY BOARD — an infinite, pannable/zoomable canvas where each
