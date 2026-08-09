@@ -503,7 +503,7 @@ a { color: var(--primary); }
 .wse-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 @media (max-width: 720px) { .wse-cols { grid-template-columns: 1fr; } }
 .wse-col-head { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; }
-.wse-list { display: grid; gap: 8px; max-height: 420px; overflow-y: auto; padding-right: 4px; }
+.wse-list { display: grid; gap: 10px; max-height: min(560px, 56vh); overflow-y: auto; padding-right: 6px; }
 .wse-row {
   display: flex;
   align-items: flex-start;
@@ -518,6 +518,41 @@ a { color: var(--primary); }
 .wse-row-title { font-size: 0.87rem; font-weight: 600; line-height: 1.45; }
 .wse-row-meta { font-size: 0.76rem; color: var(--text-muted); margin-top: 3px; }
 .wse-row-tools { display: flex; gap: 4px; flex: 0 0 auto; }
+/* A row that can be opened to READ the question it names. The header and the
+   panel under it are one card: the header loses its bottom corners while it is
+   open so the two never look like two separate things. */
+.wse-item { display: grid; }
+.wse-item > .wse-row { cursor: default; }
+.wse-item.open > .wse-row { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom-color: transparent; }
+.wse-twist {
+  flex: 0 0 auto; width: 24px; height: 24px; margin-top: 1px; padding: 0;
+  border: 1px solid var(--border); border-radius: var(--radius-sm); background: #fff;
+  color: var(--text-muted); font-size: 0.7rem; line-height: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.wse-twist:hover { color: var(--primary); border-color: var(--primary); }
+.wse-open-target { cursor: pointer; }
+.wse-preview {
+  border: 1.5px solid var(--border); border-top: 0;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  background: var(--surface);
+  padding: 4px 18px 20px;
+}
+.wse-preview .q-body { font-size: 0.92rem; line-height: 1.7; }
+.wse-preview .q-body p { margin: 0 0 10px; }
+/* A diagram keeps the width the question author gave it, but is capped to the
+   column — .question-image allows up to 150%, which would spill out of a
+   half-width drawer. */
+.wse-preview img { max-width: 100%; height: auto; max-height: 32vh; object-fit: contain; }
+/* The answer is the thing being checked, so it is the one that carries the
+   colour; the guide and the key sit quietly beside it rather than turning the
+   panel into a wall of green. */
+.wse-answer { margin-top: 14px; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--primary-light); font-size: 0.84rem; line-height: 1.65; }
+.wse-answer.muted { background: var(--surface-alt); border: 1px solid var(--border); }
+.wse-answer b { display: block; font-size: 0.7rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--primary); margin-bottom: 5px; }
+.wse-answer.muted b { color: var(--text-muted); }
+.wse-answer img { margin-top: 4px; }
+.wse-preview-foot { margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* ========== QUESTION (student practice) ========== */
 .q-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex: 1; }
@@ -4573,7 +4608,7 @@ body.lore-reading { overflow: hidden; }
     <div class="overlay-head"><h3>✎ Worksheet questions</h3><button class="close" data-close="wsEditOverlay">×</button></div>
     <div class="overlay-body">
       <p style="color:var(--text-muted);font-size:0.88rem;margin-bottom:6px;line-height:1.65;" id="wseSubtitle"></p>
-      <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:18px;line-height:1.6;">Adding and removing here only changes what is <em>on this sheet</em> — the questions themselves stay in your bank exactly as they are. Every change saves straight away.</p>
+      <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:18px;line-height:1.6;">Adding, removing and reordering here only changes what is <em>on this sheet</em>, and saves straight away. Tap a question to read it. <b>✎ Edit</b> opens it in the question bank — that changes the question itself, everywhere it is used — and saving brings you straight back here.</p>
       <div class="wse-cols">
         <div>
           <div class="wse-col-head">On this worksheet (<span id="wseOnCount">0</span>)</div>
@@ -6581,12 +6616,19 @@ let wsSelectedIds = new Set();
 let wsOrder = [];
 let savedWorksheets = [];
 let _wseId = null;               // the saved worksheet open in the editor drawer
+let _wseOpenIds = new Set();     // …and which of its rows are expanded to show the question
 let studentGeneratedQuestions = [];
 let qIndex = 0;
 let editorBlocks = [];           // editor block list
 let editorOptions = [];          // MCQ option rows: [{ id, text }]
 let editorCorrectId = null;      // id of the option row marked correct
 let currentEditingId = null;
+// Where the editor was opened FROM, when that is somewhere other than the bank.
+// The worksheet question drawer sets it, so Save and Cancel land the teacher
+// back on the sheet they were building instead of dropping them on the bank
+// page. Every entry into the editor clears it (loadQuestionIntoEditor and
+// resetEditor both do), so it can never redirect a later, unrelated save.
+let qEditReturn = null;
 // When saving a regenerated variant, the original/root question id so the new
 // question records `variantOf` — letting practice serve a variant of a question
 // the student got wrong. Set by Regenerate, cleared on reset / edit.
@@ -10648,6 +10690,7 @@ document.addEventListener("click", e => {
 
 function resetEditor() {
   currentEditingId = null;
+  qEditReturn = null;   // an abandoned edit must not redirect the NEXT save
   pendingVariantOf = null;
   _vetPendingPromote = null;   // abandoning the edit leaves the vetting entry alone
   graphPendingSpawn = null;
@@ -10666,7 +10709,7 @@ function resetEditor() {
   clearCheckAiPanel();
 }
 $("clearQBtn").addEventListener("click", () => { if (confirm("Clear the editor?")) resetEditor(); });
-$("cancelEditBtn").addEventListener("click", () => { resetEditor(); navigateTo("bank"); });
+$("cancelEditBtn").addEventListener("click", () => qEditLeave());
 $("mcqAddOptionBtn").addEventListener("click", mcqAddOption);
 
 function editQuestion(id) {
@@ -10680,6 +10723,10 @@ function editQuestion(id) {
 // leaves nothing behind for the bank page to show.
 function loadQuestionIntoEditor(q) {
   currentEditingId = q.id;
+  // Every route into the editor lands here, so this is the one place that can
+  // promise the return is the CURRENT one: openers that want to come back
+  // somewhere other than the bank set qEditReturn straight after calling this.
+  qEditReturn = null;
   pendingVariantOf = null;
   imgChoices.clear();
   editorBlocks = JSON.parse(JSON.stringify(q.blocks || []));
@@ -10761,8 +10808,9 @@ $("saveQBtn").addEventListener("click", async () => {
     graphOnQuestionSaved(q, isNewQuestion);
     if (isNewQuestion) await notifyQuestionSubscribers(q);
     toast(currentEditingId ? "Question updated" : "Question added to bank", "success");
-    resetEditor();
-    navigateTo("bank");
+    // Back to wherever the edit came from — the bank, or the worksheet drawer
+    // this question was opened from.
+    qEditLeave();
   } catch (e) { toast("Save failed: " + e.message, "error"); }
   finally { btn.disabled = false; btn.textContent = orig; }
 });
@@ -13726,6 +13774,10 @@ function wseOpen(id) {
   const ws = wsFind(id);
   if (!ws) return;
   if (!wsMine(ws)) { toast("That worksheet belongs to your teacher — you can print or practise it, but not change it", "error"); return; }
+  // Opening a DIFFERENT sheet starts closed; reopening the same one (coming
+  // back from an edit) keeps whatever was open, so the teacher lands on the
+  // question they were just looking at.
+  if (_wseId !== id) _wseOpenIds = new Set();
   _wseId = id;
   $("wseSubtitle").textContent = `“${ws.title || "Untitled worksheet"}” — ${(ws.questionIds || []).length} question(s) on the sheet.`;
   wsePopulateFilters();
@@ -13781,6 +13833,89 @@ function wseMove(qid, dir) {
   [ids[i], ids[j]] = [ids[j], ids[i]];
   wseCommit(ws, "");
 }
+// ---- Reading a question without leaving the drawer -----------------------
+// A title tells you WHICH question is on the sheet; it does not tell you what
+// the question asks. Every row here opens to show the question exactly as it
+// reads on the sheet, so a sheet can be checked over — and a wrong question
+// spotted — without closing the drawer and hunting through the bank.
+function wseToggle(qid) {
+  if (_wseOpenIds.has(qid)) _wseOpenIds.delete(qid); else _wseOpenIds.add(qid);
+  wseRender();
+  // An opened row can start below the fold of the list's own scroller.
+  if (_wseOpenIds.has(qid)) {
+    const el = [...document.querySelectorAll("[data-wse-item]")].find(n => n.dataset.wseItem === qid);
+    if (el) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+}
+// The answers are the admin-only half of a question, so they are shown only to
+// someone who can already see them — a student may own a worksheet of their own
+// and open this same drawer.
+function wsePreviewHtml(q) {
+  const admin = canManageQuestions();
+  const bits = [
+    `<div class="q-body">${renderQuestionBlocksHtml(q.blocks || [])}</div>`,
+    mcqOptionsPreviewHtml(q, admin)
+  ];
+  if (admin) {
+    const answer = String(q.expected || "").trim();
+    const guide = String(q.markingGuide || "").trim();
+    const key = String(q.answerKeyImageUrl || "").trim();
+    if (answer) bits.push(`<div class="wse-answer"><b>Answer</b>${renderMathBlock(answer)}</div>`);
+    if (guide) bits.push(`<div class="wse-answer muted"><b>Marking guide</b>${renderMathBlock(guide)}</div>`);
+    if (key) bits.push(`<div class="wse-answer muted"><b>Answer key</b><img src="${escapeHtml(key)}" alt="answer key"></div>`);
+    bits.push(`<div class="wse-preview-foot">
+      <button class="btn btn-ghost btn-sm" type="button" data-wse-edit="${escapeHtml(q.id)}">✎ Edit this question</button>
+    </div>`);
+  }
+  return bits.filter(Boolean).join("");
+}
+// One row in either column of the drawer: a header that opens to the question
+// itself, and the column's own tools on the right (reorder + remove on the
+// sheet side, Add on the bank side).
+function wseRowHtml(q, index, tools) {
+  const open = _wseOpenIds.has(q.id);
+  const id = escapeHtml(q.id);
+  const meta = [q.level, adminTopicsLabel(q)].filter(Boolean).join(" · ");
+  const edit = canManageQuestions()
+    ? `<button class="mini-btn" data-wse-edit="${id}" title="Edit this question in the question bank — saving brings you back to this worksheet">✎</button>`
+    : "";
+  return `<div class="wse-item${open ? " open" : ""}" data-wse-item="${id}">
+    <div class="wse-row">
+      <button class="wse-twist" data-wse-toggle="${id}" aria-expanded="${open ? "true" : "false"}" title="${open ? "Hide the question" : "Read the question"}">${open ? "▾" : "▸"}</button>
+      <div class="wse-row-main wse-open-target" data-wse-toggle="${id}" title="${open ? "Hide the question" : "Read the question"}">
+        <div class="wse-row-title">${index ? index + ". " : ""}${escapeHtml(q.title || "Untitled")}</div>
+        <div class="wse-row-meta">${escapeHtml(meta)}</div>
+      </div>
+      <div class="wse-row-tools">${edit}${tools}</div>
+    </div>
+    ${open ? `<div class="wse-preview">${wsePreviewHtml(q)}</div>` : ""}
+  </div>`;
+}
+// Open a question from the drawer in the full editor. The sheet is remembered
+// first, so Save (or Cancel) comes back to this drawer rather than leaving the
+// teacher on the bank page wondering what happened to their worksheet.
+function wseEditQuestion(qid) {
+  if (!canManageQuestions()) { toast("Only admin accounts can edit questions", "error"); return; }
+  const q = questionBank.find(x => x.id === qid);
+  if (!q) { toast("That question is no longer in the bank", "error"); return; }
+  const wsId = _wseId;
+  closeOverlay("wsEditOverlay");   // the drawer must not float over the editor
+  loadQuestionIntoEditor(q);       // clears qEditReturn, so it is set after
+  qEditReturn = { wsId, openId: qid };
+}
+// Leave the editor for wherever the edit came from: the bank normally, the
+// worksheet drawer when that is where ✎ Edit was pressed.
+function qEditLeave() {
+  const back = qEditReturn;
+  resetEditor();
+  if (back && back.wsId && wsFind(back.wsId)) {
+    navigateTo("myworksheets");
+    if (back.openId) _wseOpenIds.add(back.openId);   // reopen on the question just edited
+    wseOpen(back.wsId);
+    return;
+  }
+  navigateTo("bank");
+}
 function wseRender() {
   const ws = wseWs();
   if (!ws) return;
@@ -13798,14 +13933,10 @@ function wseRender() {
         <div class="wse-row-tools"><button class="btn btn-danger btn-sm" data-wse-rm="${escapeHtml(id)}" title="Drop it from this sheet">✕</button></div>
       </div>`;
     }
-    return `<div class="wse-row">
-      <div class="wse-row-main"><div class="wse-row-title">${i + 1}. ${escapeHtml(q.title || "Untitled")}</div><div class="wse-row-meta">${escapeHtml([q.level, adminTopicsLabel(q)].filter(Boolean).join(" · "))}</div></div>
-      <div class="wse-row-tools">
-        <button class="mini-btn" data-wse-up="${escapeHtml(id)}" title="Move up"${i === 0 ? " disabled" : ""}>↑</button>
-        <button class="mini-btn" data-wse-down="${escapeHtml(id)}" title="Move down"${i === ids.length - 1 ? " disabled" : ""}>↓</button>
-        <button class="mini-btn" data-wse-rm="${escapeHtml(id)}" title="Remove from this worksheet">✕</button>
-      </div>
-    </div>`;
+    return wseRowHtml(q, i + 1,
+      `<button class="mini-btn" data-wse-up="${escapeHtml(id)}" title="Move up"${i === 0 ? " disabled" : ""}>↑</button>
+       <button class="mini-btn" data-wse-down="${escapeHtml(id)}" title="Move down"${i === ids.length - 1 ? " disabled" : ""}>↓</button>
+       <button class="mini-btn" data-wse-rm="${escapeHtml(id)}" title="Remove from this worksheet">✕</button>`);
   }).join("") : `<div class="empty-note">Nothing on this sheet yet — add questions from the bank on the right.</div>`;
 
   const level = ($("wseFilterLevel") || {}).value || "";
@@ -13819,16 +13950,20 @@ function wseRender() {
     return true;
   });
   const bankList = $("wseBankList");
-  bankList.innerHTML = pool.length ? pool.slice(0, 200).map(q => `<div class="wse-row">
-      <div class="wse-row-main"><div class="wse-row-title">${escapeHtml(q.title || "Untitled")}</div><div class="wse-row-meta">${escapeHtml([q.level, adminTopicsLabel(q)].filter(Boolean).join(" · "))}</div></div>
-      <div class="wse-row-tools"><button class="btn btn-ghost btn-sm" data-wse-add="${escapeHtml(q.id)}">＋ Add</button></div>
-    </div>`).join("") + (pool.length > 200 ? `<div class="empty-note">${pool.length - 200} more — narrow the filters to see them.</div>` : "")
+  bankList.innerHTML = pool.length ? pool.slice(0, 200).map(q =>
+      wseRowHtml(q, 0, `<button class="btn btn-ghost btn-sm" data-wse-add="${escapeHtml(q.id)}">＋ Add</button>`)
+    ).join("") + (pool.length > 200 ? `<div class="empty-note">${pool.length - 200} more — narrow the filters to see them.</div>` : "")
     : `<div class="empty-note">No other questions match these filters.</div>`;
 
   on.querySelectorAll("[data-wse-up]").forEach(b => b.addEventListener("click", () => wseMove(b.dataset.wseUp, -1)));
   on.querySelectorAll("[data-wse-down]").forEach(b => b.addEventListener("click", () => wseMove(b.dataset.wseDown, 1)));
   on.querySelectorAll("[data-wse-rm]").forEach(b => b.addEventListener("click", () => wseRemoveFrom(_wseId, b.dataset.wseRm)));
   bankList.querySelectorAll("[data-wse-add]").forEach(b => b.addEventListener("click", () => wseAdd(b.dataset.wseAdd)));
+  // Both columns share the row component, so both get the same wiring.
+  [on, bankList].forEach(col => {
+    col.querySelectorAll("[data-wse-toggle]").forEach(b => b.addEventListener("click", () => wseToggle(b.dataset.wseToggle)));
+    col.querySelectorAll("[data-wse-edit]").forEach(b => b.addEventListener("click", () => wseEditQuestion(b.dataset.wseEdit)));
+  });
 }
 
 // ---- Worksheet wiring ---------------------------------------------------
@@ -18939,7 +19074,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.18.0 · 2026-08-09";
+const APP_VERSION = "v1.19.0 · 2026-08-09";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type

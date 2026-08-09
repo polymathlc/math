@@ -168,6 +168,21 @@ is what lets a fix in one app be copied to the other. Only the *world* differs.
     transparency visible, and its tile is sized from `_annotUpdateTransform` so
     it stays put on screen at any zoom.
 
+## 📝 Worksheets — the ✎ Questions drawer
+A saved worksheet is an ordered **list of question ids**, so `wsEditOverlay`
+(`wse*`) edits that list and nothing else. Both its columns share one row
+component, `wseRowHtml` — expand to read the question, ✎ to edit it.
+- **The drawer is not admin-only.** A student can own a worksheet and open it, so
+  `wsePreviewHtml` gates the answer, the marking guide, the answer key and every
+  ✎ button behind `canManageQuestions()`. The blocks themselves are the public
+  half of the bank and are safe to show.
+- **✎ Edit leaves the list and changes the QUESTION**, everywhere it is used —
+  the one thing in this drawer that does. `qEditReturn` is what brings the
+  teacher back: `wseEditQuestion` sets it *after* `loadQuestionIntoEditor`,
+  because every entry into the editor clears it, and `qEditLeave` (Save **and**
+  Cancel) consumes it. Clearing it on the way in is what stops a later,
+  unrelated save bouncing to a worksheet someone abandoned an hour ago.
+
 ## 📐 The syllabus map
 `MOE_SYLLABUS` is the **Content** column of the MOE Primary Mathematics Syllabus
 (Primary 1 to 6, 2021), read out of the published PDF: 6 levels → strands →
