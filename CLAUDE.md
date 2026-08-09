@@ -156,6 +156,17 @@ is what lets a fix in one app be copied to the other. Only the *world* differs.
   back — `{ blockId }` for a question's image block, `{ artSlot }` for a game art
   slot. Add a destination by adding a branch in `applyAnnotTool`, never by forking
   the tool.
+  - **🗑️ Delete cuts pixels OUT, so the editor's canvas can be genuinely
+    see-through** — 🪄 Wand the background, press Delete, Apply, and the slot gets
+    a PNG with a transparent background, which is the manual twin of 🧼 Remove
+    background. `_annot.hasAlpha` is the flag every "put something behind it" site
+    asks first (`_annotScanAlpha` on the way in, set true by `annotSelDelete`):
+    the hole Move leaves and the ground `_annotXformPreview` lays down are paper
+    **white** on a scan and **another hole** on a cut-out. Paint white
+    unconditionally anywhere in this editor and one rotate silently fills in
+    every cut. The checkerboard under `#annotCanvas` is what makes the
+    transparency visible, and its tile is sized from `_annotUpdateTransform` so
+    it stays put on screen at any zoom.
 
 ## 📐 The syllabus map
 `MOE_SYLLABUS` is the **Content** column of the MOE Primary Mathematics Syllabus

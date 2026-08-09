@@ -4640,7 +4640,7 @@ body.lore-reading { overflow: hidden; }
         <button type="button" class="annot-tool" data-atool="history" title="History brush (Y) — brush the ORIGINAL picture back wherever you drag, undoing your edits by hand, one stroke at a time">🕘 History</button>
         <button type="button" class="annot-tool" data-atool="select" title="Rectangle select (M): drag a box around an area, then fill it, move it, or use AI content-aware fill">⬚ Select</button>
         <button type="button" class="annot-tool" data-atool="lasso" title="Lasso select (L): draw freehand around an area, then fill it, move it, or use AI content-aware fill">➰ Lasso</button>
-        <button type="button" class="annot-tool" data-atool="wand" title="Magic wand (W): click a colour to select every pixel like it. Alt+click selects that colour across the WHOLE picture, not just the patch you clicked. Use the ± slider to widen or tighten what counts as the same colour.">🪄 Wand</button>
+        <button type="button" class="annot-tool" data-atool="wand" title="Magic wand (W): click a colour to select every pixel like it, then 🗑️ Delete (or the Delete key) to cut it out to a transparent background. Alt+click selects that colour across the WHOLE picture, not just the patch you clicked. Use the ± slider to widen or tighten what counts as the same colour.">🪄 Wand</button>
         <button type="button" class="annot-tool" data-atool="move" title="Move (V): drag inside a selection to cut it out and drop it anywhere — hold Alt to copy instead of cut. Also drags text labels around.">✥ Move</button>
         <button type="button" class="annot-tool" data-atool="rotate" title="Rotate (R): drag on the image to turn it — hold Shift to snap to 15°. With an area selected it turns just that object; with nothing selected it straightens the whole picture. Use 📐 Straighten to trace a crooked edge and level it automatically.">🔄 Rotate</button>
         <button type="button" class="annot-tool" data-atool="scale" title="Resize / free transform (F): drag the handles round the box to make the selected object bigger or smaller — corners resize both ways, edges one way, and the opposite corner stays put. Drag inside the box to move it. Shift swaps between keeping the shape and stretching it freely. With nothing selected it resizes the whole picture.">⤢ Resize</button>
@@ -4663,6 +4663,7 @@ body.lore-reading { overflow: hidden; }
         <button type="button" class="annot-tool" onclick="annotSelFillColour()" title="Fill the selected area with the chosen colour">🎨 Fill colour</button>
         <button type="button" class="annot-tool" onclick="annotSelPatchFill()" title="Fill the selected area by extending the surrounding pixels inwards (fast, no AI)">🧵 Fill from surroundings</button>
         <button type="button" class="annot-tool" onclick="annotSelAiFill()" title="AI content-aware fill: the AI removes what is selected and seamlessly reconstructs the background / surrounding texture">✨ AI content-aware fill</button>
+        <button type="button" class="annot-tool annot-danger" onclick="annotSelDelete()" title="Delete the selection (Delete / Backspace) — the pixels are CUT OUT, leaving see-through nothing behind them, shown as a checkerboard. This is how you cut a card, avatar or pack out of its background: 🪄 Wand the background, press Delete, then Apply — it saves as a PNG with a transparent background, so it stands on the game screens with no white box round it.">🗑️ Delete (transparent)</button>
         <button type="button" class="annot-tool" data-atool="move" title="Move (V) — drag inside the selection to cut it out and drop it anywhere; hold Alt to copy instead">✥ Move it</button>
         <button type="button" class="annot-tool" data-atool="scale" title="Resize (F) — lift this object out and drag the handles to make it bigger or smaller; drag inside the box to move it">⤢ Resize it</button>
         <button type="button" class="annot-tool" data-atool="rotate" title="Rotate (R) — lift this object out and turn it; drag on the image or use the sliders">🔄 Turn it</button>
@@ -4713,8 +4714,8 @@ body.lore-reading { overflow: hidden; }
         </span>
       </div>
       <div id="annotStage"><canvas id="annotCanvas"></canvas><canvas id="annotSelCanvas"></canvas></div>
-      <p class="hint" style="margin-top:10px;">Erase / Paint: drag over the image — <b>click then Shift-click</b> joins the two points with a straight line (Photoshop style), and <b>Shift-drag</b> locks the stroke to horizontal / vertical. <b>Fill</b>: click inside a shape to flood it with colour. <b>Clone</b>: click to set the source, then drag to stamp that area elsewhere (Alt+click re-sets the source). <b>History</b>: brush the original picture back by hand. <b>Select / Lasso / Wand</b>: mark out an area, then fill it, move it, or use AI content-aware fill (Esc deselects). <b>Move</b>: drag inside a selection to cut it out and drop it anywhere (Alt to copy), or drag a text label to reposition it. <b>Resize</b>: drag the handles round the box to make the selected object bigger or smaller — corners resize both ways, edges one way, and the corner opposite the one you drag stays exactly where it is. Drag inside the box to move it, hold <b>Shift</b> to swap between keeping the shape and stretching it freely, or type a width / height percentage in the panel. <b>Rotate / Skew</b>: turn or slant the selected object — or, with nothing selected, the whole picture, which is how you straighten a page that went into the scanner crooked. Drag on the image (Shift snaps to 15°) or use the sliders, and <b>📐 Straighten</b> lets you trace a line along a crooked edge to level it in one go. Enter applies the turn, Esc cancels it. Line: drag from start to end. Text: click, type, then Enter.<br><b>📋 Paste a picture:</b> press <kbd>Ctrl</kbd>+<kbd>V</kbd> (⌘V) — or the 📋 button — to drop whatever picture is on the clipboard straight onto this one. It lands scaled to fit inside the picture, with the <b>resize handles already on it</b>: drag a corner to size it, drag the middle to move it, turn or slant it if you want, then <b>✓ Apply</b> to burn it in (<b>Esc</b> takes it away again).<br><b>Scroll</b> over the image to zoom (down to single pixels); <b>hold Space</b> (or the middle mouse button) and drag to pan; <b>scroll over either slider</b> to change it. Set the brush to <b>1&nbsp;px</b> for pixel-perfect edits.<br><b>Brush size:</b> Erase, Paint, Clone, History and Line draw a <b>ring around your pointer at the exact size of the mark</b> they will make, at whatever zoom you are on — so you can see the brush before you use it. Change the size with the slider, the wheel over it, or <kbd>[</kbd> and <kbd>]</kbd>, and the size is shown on the picture as you change it.
-        <br><b>Keys:</b> <kbd>E</kbd> erase · <kbd>B</kbd> paint · <kbd>G</kbd> fill · <kbd>S</kbd> clone · <kbd>Y</kbd> history · <kbd>M</kbd> select · <kbd>L</kbd> lasso · <kbd>W</kbd> wand · <kbd>V</kbd> move · <kbd>R</kbd> rotate · <kbd>K</kbd> skew · <kbd>F</kbd> resize · <kbd>U</kbd> line · <kbd>T</kbd> text · <kbd>[</kbd> <kbd>]</kbd> brush size · <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo · <kbd>+</kbd> <kbd>−</kbd> zoom · <kbd>0</kbd> fit · <kbd>Esc</kbd> deselect / cancel the transform · <kbd>Enter</kbd> apply</p>
+      <p class="hint" style="margin-top:10px;">Erase / Paint: drag over the image — <b>click then Shift-click</b> joins the two points with a straight line (Photoshop style), and <b>Shift-drag</b> locks the stroke to horizontal / vertical. <b>Fill</b>: click inside a shape to flood it with colour. <b>Clone</b>: click to set the source, then drag to stamp that area elsewhere (Alt+click re-sets the source). <b>History</b>: brush the original picture back by hand. <b>Select / Lasso / Wand</b>: mark out an area, then fill it, move it, use AI content-aware fill, or <b>🗑️ Delete</b> it (Esc deselects).<br><b>🗑️ Cutting a picture out:</b> pick <b>🪄 Wand</b>, click the background, then press <b>🗑️ Delete</b> (or the <kbd>Delete</kbd> key). Those pixels are taken away rather than painted over, so what is left is see-through — shown as a <b>checkerboard</b>, which is nothing, not a grey pattern. Alt+click the wand to take that colour across the whole picture at once, widen <b>Match ±</b> if a fringe is left behind, and <b>Apply</b> saves a <b>PNG with a transparent background</b> — which is what makes a card, avatar, artifact or pack frame sit on the game screens with no white box round it. <b>Move</b>: drag inside a selection to cut it out and drop it anywhere (Alt to copy), or drag a text label to reposition it. <b>Resize</b>: drag the handles round the box to make the selected object bigger or smaller — corners resize both ways, edges one way, and the corner opposite the one you drag stays exactly where it is. Drag inside the box to move it, hold <b>Shift</b> to swap between keeping the shape and stretching it freely, or type a width / height percentage in the panel. <b>Rotate / Skew</b>: turn or slant the selected object — or, with nothing selected, the whole picture, which is how you straighten a page that went into the scanner crooked. Drag on the image (Shift snaps to 15°) or use the sliders, and <b>📐 Straighten</b> lets you trace a line along a crooked edge to level it in one go. Enter applies the turn, Esc cancels it. Line: drag from start to end. Text: click, type, then Enter.<br><b>📋 Paste a picture:</b> press <kbd>Ctrl</kbd>+<kbd>V</kbd> (⌘V) — or the 📋 button — to drop whatever picture is on the clipboard straight onto this one. It lands scaled to fit inside the picture, with the <b>resize handles already on it</b>: drag a corner to size it, drag the middle to move it, turn or slant it if you want, then <b>✓ Apply</b> to burn it in (<b>Esc</b> takes it away again).<br><b>Scroll</b> over the image to zoom (down to single pixels); <b>hold Space</b> (or the middle mouse button) and drag to pan; <b>scroll over either slider</b> to change it. Set the brush to <b>1&nbsp;px</b> for pixel-perfect edits.<br><b>Brush size:</b> Erase, Paint, Clone, History and Line draw a <b>ring around your pointer at the exact size of the mark</b> they will make, at whatever zoom you are on — so you can see the brush before you use it. Change the size with the slider, the wheel over it, or <kbd>[</kbd> and <kbd>]</kbd>, and the size is shown on the picture as you change it.
+        <br><b>Keys:</b> <kbd>E</kbd> erase · <kbd>B</kbd> paint · <kbd>G</kbd> fill · <kbd>S</kbd> clone · <kbd>Y</kbd> history · <kbd>M</kbd> select · <kbd>L</kbd> lasso · <kbd>W</kbd> wand · <kbd>V</kbd> move · <kbd>R</kbd> rotate · <kbd>K</kbd> skew · <kbd>F</kbd> resize · <kbd>U</kbd> line · <kbd>T</kbd> text · <kbd>[</kbd> <kbd>]</kbd> brush size · <kbd>Delete</kbd> cut the selection out · <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo · <kbd>+</kbd> <kbd>−</kbd> zoom · <kbd>0</kbd> fit · <kbd>Esc</kbd> deselect / cancel the transform · <kbd>Enter</kbd> apply</p>
     </div>
     <div class="overlay-foot">
       <button class="btn btn-ghost" onclick="closeAnnotTool()" type="button">Cancel</button>
@@ -8589,6 +8590,10 @@ async function applyCropTool() {
   .annot-tool { padding:6px 12px; border:1.5px solid var(--border,#e3e6e4); background:#fff; border-radius:8px; cursor:pointer; font-size:0.82rem; }
   .annot-tool:hover { border-color:var(--primary,#0b6b4f); }
   .annot-tool.active { border-color:var(--primary,#0b6b4f); background:var(--primary-light,#e8f3ec); color:var(--primary,#0b6b4f); font-weight:700; }
+  /* 🗑️ Delete takes pixels away for good (bar an undo), so it reads as the one
+     destructive button in a bar of fills. */
+  .annot-tool.annot-danger { border-color:#e5b4b4; color:#a12b2b; font-weight:700; }
+  .annot-tool.annot-danger:hover { border-color:#c0392b; background:#fdecea; }
   /* The paint bucket shows what it will pour: the strip along its base (and the
      drip) are the exact colour currently chosen, updated live with the picker. */
   .annot-bucket { width:17px; height:18px; vertical-align:-4px; margin-right:2px; overflow:visible; }
@@ -8597,7 +8602,19 @@ async function applyCropTool() {
     border-bottom-width:2px; border-radius:4px; background:var(--surface,#fff); white-space:nowrap; }
   #annotStage.moving #annotCanvas { cursor:move; }
   #annotStage { position:relative; display:block; margin:0 auto; width:86vw; max-width:1080px; height:56vh; overflow:hidden; line-height:0; background:#eef0ee; border:1px solid var(--border,#e3e6e4); border-radius:6px; touch-action:none; }
-  #annotCanvas { position:absolute; top:0; left:0; transform-origin:0 0; touch-action:none; cursor:crosshair; image-rendering:auto; }
+  /* The canvas sits on a CHECKERBOARD, so a transparent pixel looks transparent.
+     🗑️ Delete clears pixels rather than painting over them, and without a checker
+     behind the picture a hole punched in a dark sprite is indistinguishable from
+     a black patch. The tile is painted UNDER the canvas bitmap, so it only ever
+     shows where the picture itself is see-through. Its size is set from JS in
+     _annotUpdateTransform so the squares stay the same size on screen at any
+     zoom — the canvas element is scaled by a transform, and a fixed
+     background-size would balloon with it. */
+  #annotCanvas { position:absolute; top:0; left:0; transform-origin:0 0; touch-action:none; cursor:crosshair; image-rendering:auto;
+    background-color:#ffffff; background-repeat:repeat, repeat;
+    background-image:
+      linear-gradient(45deg, #d5dad7 25%, transparent 25%, transparent 75%, #d5dad7 75%),
+      linear-gradient(45deg, #d5dad7 25%, transparent 25%, transparent 75%, #d5dad7 75%); }
   #annotSelCanvas { position:absolute; top:0; left:0; transform-origin:0 0; pointer-events:none; z-index:4; }
   #annotCanvas.pixelated { image-rendering:pixelated; image-rendering:crisp-edges; }
   #annotStage.panning, #annotStage.panning #annotCanvas { cursor:grabbing; }
@@ -8648,6 +8665,23 @@ function openAnnotTool(blockId) {
 // back: { blockId } for a question's image block, { artSlot } for a Nova
 // Protocol art slot. Adding a destination means adding a branch in
 // applyAnnotTool — never forking the tool, or the two copies drift.
+// ---- TRANSPARENCY ---------------------------------------------------------
+// 🗑️ Delete cuts pixels out rather than painting over them, so a picture in
+// this editor can genuinely be see-through — which is the whole point for
+// Nova Protocol art, where a card, an avatar or a pack frame has to stand on
+// the game screen with nothing behind it. Once that is true, every place that
+// used to paint white "to put something there" has to ask first: a hole in a
+// cut-out PNG must be another hole, not a white patch that undoes the cut.
+// One flag answers that question, scanned once when the picture opens and set
+// the moment anything is deleted.
+function _annotScanAlpha(canvas) {
+  try {
+    const d = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+    for (let i = 3; i < d.length; i += 4) if (d[i] < 255) return true;
+  } catch (_) { return false; }   // tainted canvas — assume opaque, which is the old behaviour
+  return false;
+}
+function _annotHasAlpha() { return !!(_annot && _annot.hasAlpha); }
 function _annotOpenSrc(srcP, target, title) {
   const blockId = (target && target.blockId) || null;
   const artSlot = (target && target.artSlot) || null;
@@ -8668,6 +8702,12 @@ function _annotOpenSrc(srcP, target, title) {
     orig.width = canvas.width; orig.height = canvas.height;
     orig.getContext('2d').drawImage(canvas, 0, 0);
     _annot = { blockId, artSlot, canvas, ctx, tool: 'erase', color: '#e23c3c', size: 6, tol: 32, drawing: false, history: [], start: null, snap: null,
+      // Does this picture carry transparency? Everything that has to put
+      // something behind a hole — the hole Move leaves, the corners a rotate
+      // exposes — asks this, because a cut-out PNG wants MORE transparency
+      // there and a scanned page wants paper white. Scanned once on the way in
+      // and set true the moment anything is deleted; see _annotHasAlpha.
+      hasAlpha: _annotScanAlpha(canvas),
       zoom: 1, fit: 1, panX: 0, panY: 0, space: false, panning: false, cloneSrc: null, cloneSnap: null, cloneOff: null,
       anchor: null, sel: null, selPts: null, selCanvas, aiFillBusy: false, origSnap: orig, float: null, xform: null, xfStart: null,
       // Where the pointer is, in STAGE coordinates, and how long the size badge
@@ -8753,6 +8793,12 @@ function _annotUpdateTransform() {
   const c = _annot.canvas, s = _annotDisplayScale();
   c.style.transform = 'translate(' + _annot.panX + 'px,' + _annot.panY + 'px) scale(' + s + ')';
   c.classList.toggle('pixelated', s >= 3);   // crisp pixels once magnified
+  // The transparency checker is painted behind the bitmap and is therefore
+  // scaled by the same transform, so its tile is sized in IMAGE pixels to come
+  // out a constant ~16 screen px however far in you zoom.
+  const tile = 16 / (s || 1);
+  c.style.backgroundSize = tile + 'px ' + tile + 'px, ' + tile + 'px ' + tile + 'px';
+  c.style.backgroundPosition = '0 0, ' + (tile / 2) + 'px ' + (tile / 2) + 'px';
   if (_annot.selCanvas) _annot.selCanvas.style.transform = c.style.transform;   // marching ants ride along
   const zl = document.getElementById('annotZoomVal');
   if (zl) zl.textContent = Math.round(s * 100) + '%';
@@ -8919,10 +8965,16 @@ function _annotSelLift(copy) {
   }
   lx.putImageData(cut, 0, 0);
   if (!copy) {
+    // What goes in the hole. A scanned page wants paper white; a picture that
+    // already has transparency in it (anything 🗑️ Delete has been used on, or a
+    // cut-out PNG opened from an art slot) wants another hole, or moving one
+    // piece of a cut-out sprite would silently paste a white block back into
+    // the background that was just removed.
+    const clear = _annotHasAlpha(), v = clear ? 0 : 255;
     for (let k = 0; k < m.mask.length; k++) {
       if (!m.mask[k]) continue;
       const i = k * 4;
-      src.data[i] = 255; src.data[i + 1] = 255; src.data[i + 2] = 255; src.data[i + 3] = 255;
+      src.data[i] = v; src.data[i + 1] = v; src.data[i + 2] = v; src.data[i + 3] = v;
     }
     ctx.putImageData(src, m.x, m.y);
   }
@@ -9212,8 +9264,17 @@ function _annotXformPreview() {
   if (cv.width !== W || cv.height !== H) { _annotResizeCanvas(W, H); refit = true; }
   const ctx = _annot.ctx;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, W, H);
+  // The ground each preview frame is drawn on. White is right for a scanned
+  // page — the corners a turn exposes should look like more paper — but laying
+  // white under a cut-out picture would fill in every hole 🗑️ Delete made the
+  // instant anything is turned, resized or pasted. So a picture that carries
+  // transparency is cleared instead, and its holes stay holes.
+  if (_annotHasAlpha()) {
+    ctx.clearRect(0, 0, W, H);
+  } else {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, W, H);
+  }
   if (x.base) ctx.drawImage(x.base, offX, offY);
   _annotXformDrawInto(ctx, x, offX, offY);
   x.offX = offX; x.offY = offY;
@@ -9629,6 +9690,9 @@ function _annotKeyDown(e) {
   if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); annotUndo(); return; }
   if (_annotTypingInField(e) || e.ctrlKey || e.metaKey || e.altKey) return;
   const k = e.key;
+  // Delete / Backspace cuts the selection out, the way it does in every editor.
+  // Guarded on there being a selection, so the keys stay inert otherwise.
+  if ((k === 'Delete' || k === 'Backspace') && _annot.sel && !_annot.xform) { e.preventDefault(); annotSelDelete(); return; }
   // [ and ] step the brush the way every paint program does. Shift jumps by 5.
   if (k === '[' || k === '{') { e.preventDefault(); _annotStepSize(k === '{' ? -5 : -1); return; }
   if (k === ']' || k === '}') { e.preventDefault(); _annotStepSize(k === '}' ? 5 : 1); return; }
@@ -9805,9 +9869,14 @@ function _annotMagicWand(sx, sy, global) {
   const d = _annot.ctx.getImageData(0, 0, W, H).data;
   const at = (x, y) => (y * W + x) * 4;
   const s0 = at(sx, sy);
-  const tr = d[s0], tg = d[s0 + 1], tb = d[s0 + 2];
+  const tr = d[s0], tg = d[s0 + 1], tb = d[s0 + 2], ta = d[s0 + 3];
   const t = Math.max(1, _annot.tol || 32), TOL = t * t * 3;
-  const near = i => { const dr = d[i] - tr, dg = d[i + 1] - tg, db = d[i + 2] - tb; return dr * dr + dg * dg + db * db <= TOL; };
+  // Alpha counts as a fourth channel, the same yardstick the paint bucket uses.
+  // Without it an already-deleted area (rgba 0,0,0,0) reads as pure black, so a
+  // second wand click on anything dark would flood straight through the hole
+  // the first Delete made — and on a fully opaque picture nothing changes,
+  // because every alpha is 255.
+  const near = i => { const dr = d[i] - tr, dg = d[i + 1] - tg, db = d[i + 2] - tb, da = d[i + 3] - ta; return dr * dr + dg * dg + db * db + da * da <= TOL; };
   const mask = new Uint8Array(W * H);
   if (global) {
     for (let k = 0; k < mask.length; k++) if (near(k * 4)) mask[k] = 1;
@@ -9968,6 +10037,42 @@ function annotSelFillColour() {
     else c.fillRect(sel.x, sel.y, sel.w, sel.h);
   });
   showToast('Selection filled ✓', 'success');
+}
+// 🗑️ Delete the selection. Every other action in this bar puts something in
+// the selection's place; this one takes the pixels away and puts NOTHING there,
+// leaving real transparency — which is what a 🪄 Wand click on a background
+// followed by Delete is for. Apply then writes a PNG, and PNG carries the alpha
+// channel all the way to Storage, so the picture arrives on the game screens
+// cut out, with no white box around it.
+//
+// A polygon selection is cut with `destination-out`, so the edge is
+// anti-aliased exactly as the marching ants drew it; a wand mask is cut
+// pixel-by-pixel, because it can be full of holes and islands. The selection
+// SURVIVES the cut (Photoshop's habit) so the same area can be nudged, undone
+// or filled back in without re-selecting it.
+function annotSelDelete() {
+  if (!_annot || !_annot.sel) return;
+  const sel = _annot.sel, ctx = _annot.ctx;
+  _annotPushHistory();
+  if (sel.pts) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = '#000';
+    ctx.fill(_annotSelPath(sel.pts));
+    ctx.restore();
+  } else {
+    const img = ctx.getImageData(sel.x, sel.y, sel.w, sel.h), d = img.data;
+    for (let k = 0; k < sel.mask.length; k++) {
+      if (!sel.mask[k]) continue;
+      const i = k * 4;
+      d[i] = 0; d[i + 1] = 0; d[i + 2] = 0; d[i + 3] = 0;
+    }
+    ctx.putImageData(img, sel.x, sel.y);
+  }
+  // From here on the picture has holes: Move must not plug them with white and
+  // a rotate must not lay white behind them.
+  _annot.hasAlpha = true;
+  showToast('Deleted — that area is transparent now (the checkerboard is nothing)', 'success');
 }
 // "Fill from surroundings" — onion-peel inpainting: BFS inwards from the
 // selection edge, each unknown pixel takes the average of its already-known
@@ -10510,6 +10615,7 @@ window._annotSyncControls = _annotSyncControls;
 window.annotSelFillColour = annotSelFillColour;
 window.annotSelPatchFill = annotSelPatchFill;
 window.annotSelAiFill = annotSelAiFill;
+window.annotSelDelete = annotSelDelete;
 window.annotSelClear = annotSelClear;
 window.annotXformApply = annotXformApply;
 window.annotPasteFromClipboard = annotPasteFromClipboard;
@@ -18833,7 +18939,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.17.1 · 2026-08-09";
+const APP_VERSION = "v1.18.0 · 2026-08-09";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
