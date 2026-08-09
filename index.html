@@ -8914,8 +8914,8 @@ async function aiRunImprove(el, btn) {
 
 // ---- ✂️ Shorten: fewer words, same numbers and same meaning ----
 // Not the same job as Improve, and the distinction matters on a worksheet: a
-// question that runs three lines longer than it needs to costs a whole extra
-// ruled line on every printed copy.
+// question that runs three lines longer than it needs to eats into the blank
+// working space on every printed copy.
 async function aiShortenValue(text) {
   const t = String(text || "").trim();
   if (!t) return "";
@@ -10164,10 +10164,18 @@ function wsFooterHtml() {
     <span>${escapeHtml(WS_COPYRIGHT)}</span>
   </div>`;
 }
-// How many ruled lines to give a question's answer. Sized from the MODEL
+// How much blank working space to give a question. Sized from the MODEL
 // ANSWER, because a one-number answer and a five-step working need very
 // different amounts of paper. An MCQ needs none — it needs its options.
+//
+// The space is deliberately UNRULED: maths working is diagrams, models, long
+// division and algebra, none of which sit on a ruled line, and printed rules
+// only get in the way of it. The line count below is therefore a unit of
+// HEIGHT (one handwritten line each), not something that gets drawn.
 const WS_LINES_MIN = 3, WS_LINES_MAX = 14, WS_LINE_CHARS = 46, WS_HAND_ALLOWANCE = 1.2;
+const WS_LINE_MM = 8.5;          // height of one handwritten line
+const WS_ANSWER_ROW_MM = 9;      // the "Answer: ______" row at the bottom right
+const WS_WORK_MIN_MM = 20;       // never squeeze the working space below this
 function wsAnswerLines(q) {
   if (wsHasMcq(q)) return 0;
   const plain = String(q.markingGuide || q.expected || "").replace(/\s+/g, " ").trim();
@@ -10175,8 +10183,19 @@ function wsAnswerLines(q) {
   const need = Math.ceil((plain.length * WS_HAND_ALLOWANCE) / WS_LINE_CHARS);
   return Math.max(WS_LINES_MIN, Math.min(WS_LINES_MAX, need));
 }
+// Height of the blank working area. The answer row is carved OUT of the
+// question's total allowance rather than added on top of it, so switching from
+// ruled lines to blank space did not make every sheet a page longer.
+function wsWorkingSpaceMm(q) {
+  const total = wsAnswerLines(q) * WS_LINE_MM;
+  return Math.max(WS_WORK_MIN_MM, total - WS_ANSWER_ROW_MM);
+}
+// The one place a student writes their final answer: bottom right, under the
+// working. Printed on every non-MCQ, non-annotation question.
+function wsAnswerBlankHtml() {
+  return `<div class="ws-answer-final"><span>Answer:</span><i></i></div>`;
+}
 function wsQuestionChunkHtml(q, n, qrSvg) {
-  const lines = wsAnswerLines(q);
   const meta = [q.level, studentTopicsLabel(q)].filter(Boolean).join(" · ");
   const qr = qrSvg ? `<div class="ws-qr">${qrSvg}<div class="ws-qr-cap">📱 Scan to AI-mark<br>&amp; watch the solution</div></div>` : "";
   const opts = wsHasMcq(q)
@@ -10184,12 +10203,13 @@ function wsQuestionChunkHtml(q, n, qrSvg) {
     // other preview in this app uses — a printed sheet numbered differently
     // from the screen is a sheet the class answers in the wrong notation.
     ? `<div class="ws-mcq">${q.options.map((o, i) => `<div class="ws-mcq-opt"><span class="l">${String.fromCharCode(65 + i)}.</span><span>${escapeHtml(o)}</span></div>`).join("")}<div class="ws-mcq-answer">Answer: <span class="ws-mcq-box"></span></div></div>`
-    // An annotation question is answered ON the diagram, so ruled lines are
+    // An annotation question is answered ON the diagram, so a working area is
     // both wrong and a waste of the sheet — the picture printed above IS the
     // answer space. It gets a bigger cap for the same reason.
     : questionIsAnnotation(q)
     ? `<div class="ws-annot-note">✍️ Write and draw your answer directly on the diagram above.</div>`
-    : `<div class="ws-answer-box">${Array.from({ length: lines }, () => `<div class="ws-rule"></div>`).join("")}</div>`;
+    // Blank working space, then the answer blank at the bottom right.
+    : `<div class="ws-answer-box"><div class="ws-work" style="height:${wsWorkingSpaceMm(q)}mm"></div>${wsAnswerBlankHtml()}</div>`;
   return `<section class="ws-chunk${questionIsAnnotation(q) ? " ws-chunk-annot" : ""}">
     ${qr}
     <div class="ws-q-no">${n}.${meta ? ` <span class="ws-q-metatext">${escapeHtml(meta)}</span>` : ""}</div>
@@ -10272,13 +10292,19 @@ function wsPrintCss() {
     .math-sqrt { display: inline-flex; align-items: flex-start; vertical-align: -0.1em; margin: 0 0.08em; }
     .math-sqrt .root { font-size: 1.1em; line-height: 1; }
     .math-sqrt .radicand { border-top: 1.2pt solid currentColor; padding: 0.02em 0.18em 0; }
-    /* An annotation question is answered ON the diagram, so it gets no ruled
-       lines and a taller picture — the figure IS the answer space. */
+    /* An annotation question is answered ON the diagram, so it gets no working
+       area and a taller picture — the figure IS the answer space. */
     .ws-chunk-annot .ws-q-body img { max-height: 150mm; }
     .ws-annot-note { margin-top: 3mm; font-size: 10pt; font-style: italic; color: #514d47; }
-    /* Ruled working space, sized from the model answer. */
+    /* Blank (unruled) working space, sized from the model answer, closed off by
+       a single answer blank at the bottom right. Nothing is drawn inside the
+       working area on purpose — see wsWorkingSpaceMm. */
     .ws-answer-box { margin-top: 3mm; }
-    .ws-rule { border-bottom: 0.7pt solid #c9c3b8; height: 8.5mm; }
+    .ws-work { width: 100%; }
+    /* clear:right keeps the blank clear of the question's QR float, so it is
+       always the full width on the right edge instead of being narrowed. */
+    .ws-answer-final { clear: right; display: flex; justify-content: flex-end; align-items: baseline; gap: 3mm; font-size: 11pt; color: #514d47; }
+    .ws-answer-final i { display: block; width: 55mm; height: 7mm; border-bottom: 0.7pt solid #514d47; font-style: normal; }
     /* MCQ: the options ARE the answer space. */
     .ws-mcq { margin-top: 3mm; }
     .ws-mcq-opt { display: flex; gap: 3mm; font-size: 11.5pt; line-height: 1.5; margin-bottom: 1.6mm; }
