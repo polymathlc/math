@@ -68,11 +68,24 @@ is what lets a fix in one app be copied to the other. Only the *world* differs.
   defence), ⚔️ **Nova Legends** (arena survival), the Battle Arena and the infinite
   **Derelict**. The lore is 📜 **The Nexus Codex** (`TCG_LORE_SAGAS`) — 4 books,
   31 illustrated pages.
-- **Two sets, 201 cards.** `TCG_GEN1` (151 xeno war-forms, *The Prime Index ·
-  Xenocline Dominion*) then `TCG_GEN2` (50 human heroes, *Aegis Vanguard · Rise of
-  Humanity*). **Ids are positional and live in every student's save** (`s.cards`,
-  `merges`, `levels`, `team`, the `tcgArt` overrides) — a new set must be APPENDED
-  and gen 1 flattened first, or every collection re-points at different cards.
+- **Two expansions, 101 cards.** `TCG_GEN1` (c001–c051, 51 xeno war-forms, *The
+  Prime Index · Xenocline Dominion*) then `TCG_GEN2` (c052–c101, 50 human heroes,
+  *Aegis Vanguard · Rise of Humanity*). **Ids are positional and live in every
+  student's save** (`s.cards`, `merges`, `levels`, `team`, the `tcgArt` overrides)
+  — a new set must be APPENDED and gen 1 flattened first, or every collection
+  re-points at different cards.
+- **Every name in the card tables is written for the ART GENERATOR.** Designations
+  and strain names for the xenos (`Vexil-9`, `Sludgeform-04`, `Cogitor-Zero`), rank
+  plus call-sign for the humans (`Castellan`, `Marshal`, `Archmagos`, `Arch-Psion`)
+  — never a fantasy honorific, never an earthly animal. A name is half the prompt,
+  so a "Sir" or a "Magus" in the table puts chainmail in the picture no matter what
+  `TCG_ART_WORLD` says afterwards. The same rule binds `TCG_SKILLS`, `TCG_ARTIFACTS`
+  and `DUEL_SPELLS`, which also feed prompts.
+- **The Nexus Codex names its cast by NAME** (`cards: [...]` per chapter, resolved
+  against `TCG_CARDS` by `tcgLoreCards`). Rename or retire a card and its chip
+  silently disappears from the story page — so a rename has to be carried into
+  `TCG_LORE_SAGAS` too. Chapter `id`s are the lore ART SLOT (`lore:<saga>:<id>`)
+  and must never be renamed with the character.
 - **Adding a skill `kind` touches FIVE places** and `tcgStats` **throws** if you miss
   one: `TCG_SKILLS`, `TCG_ROLE_MODS[kind]` (the one that throws), the arena
   resolver's chain in `_tcgAct`, `ELG_ROLE_BY_KIND` and `EMS_SKILL_FX[kind]`.

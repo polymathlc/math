@@ -18833,7 +18833,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.14.0 · 2026-08-09";
+const APP_VERSION = "v1.15.0 · 2026-08-09";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
@@ -19749,7 +19749,7 @@ async function _getBoardBans() {
 
 
 // =====================================================================
-// NOVA PROTOCOL TCG (beta) — 201 collectible war-forms.
+// NOVA PROTOCOL TCG (beta) — 101 collectible war-forms across two expansions.
 // Cards come ONLY from booster packs bought with the hero's gold (the
 // points students earn answering questions). Students build a team of 3
 // and auto-battle other trainers' published teams, Final-Science-fiction style.
@@ -19777,40 +19777,40 @@ const TCG_ELEMENTS = {
 // heal/healall = restore HP · shield = absorb barrier · rage = team ATK buff
 // stun = hit + skip target's turn · poison = hit + damage over time.
 const TCG_SKILLS = {
-  scratch: { name: 'Wild Swipes',      icon: '💢', kind: 'strike',  pow: 1.85, desc: 'Slashes one foe for 185% ATK.' },
-  smash:   { name: 'Boulder Smash',    icon: '🪨', kind: 'strike',  pow: 2.15, desc: 'Crushes one foe for 215% ATK.' },
-  bite:    { name: 'Crunch Bite',      icon: '🦷', kind: 'strike',  pow: 1.95, desc: 'Chomps one foe for 195% ATK.' },
-  horn:    { name: 'Horn Rush',        icon: '🌀', kind: 'strike',  pow: 2.05, desc: 'Charges one foe for 205% ATK.' },
-  inferno: { name: 'Inferno Burst',    icon: '🔥', kind: 'blast',   pow: 1.10, desc: 'Scorches ALL foes for 110% ATK.' },
-  tidal:   { name: 'Tidal Wave',       icon: '🌊', kind: 'blast',   pow: 1.10, desc: 'Floods ALL foes for 110% ATK.' },
-  storm:   { name: 'Chain Lightning',  icon: '⚡', kind: 'blast',   pow: 1.15, desc: 'Zaps ALL foes for 115% ATK.' },
-  quake:   { name: 'Quake Stomp',      icon: '💥', kind: 'blast',   pow: 1.05, desc: 'Shakes ALL foes for 105% ATK.' },
+  scratch: { name: 'Monoblade Swipes', icon: '💢', kind: 'strike',  pow: 1.85, desc: 'Slashes one foe for 185% ATK.' },
+  smash:   { name: 'Kinetic Slam',     icon: '🪨', kind: 'strike',  pow: 2.15, desc: 'Crushes one foe for 215% ATK.' },
+  bite:    { name: 'Mandible Crush',   icon: '🦷', kind: 'strike',  pow: 1.95, desc: 'Chomps one foe for 195% ATK.' },
+  horn:    { name: 'Ram Charge',       icon: '🌀', kind: 'strike',  pow: 2.05, desc: 'Charges one foe for 205% ATK.' },
+  inferno: { name: 'Plasma Burst',     icon: '🔥', kind: 'blast',   pow: 1.10, desc: 'Scorches ALL foes for 110% ATK.' },
+  tidal:   { name: 'Nanotide Surge',   icon: '🌊', kind: 'blast',   pow: 1.10, desc: 'Floods ALL foes for 110% ATK.' },
+  storm:   { name: 'Arc Cascade',      icon: '⚡', kind: 'blast',   pow: 1.15, desc: 'Zaps ALL foes for 115% ATK.' },
+  quake:   { name: 'Seismic Stomp',    icon: '💥', kind: 'blast',   pow: 1.05, desc: 'Shakes ALL foes for 105% ATK.' },
   solar:   { name: 'Solar Flare',      icon: '☀️', kind: 'blast',   pow: 1.20, desc: 'Sears ALL foes for 120% ATK.' },
   nova:    { name: 'Supernova',        icon: '🌟', kind: 'blast',   pow: 1.35, desc: 'Detonates on ALL foes for 135% ATK.' },
-  fang:    { name: 'Piercing Fang',    icon: '🗡️', kind: 'pierce',  pow: 1.50, desc: 'Hits one foe for 150% ATK — ignores DEF.' },
-  arrow:   { name: 'Photon Arrow',     icon: '🏹', kind: 'pierce',  pow: 1.60, desc: 'Hits one foe for 160% ATK — ignores DEF.' },
-  drain:   { name: 'Life Drain',       icon: '🩸', kind: 'drain',   pow: 1.45, desc: 'Hits one foe for 145% ATK and heals self for 35% of the damage.' },
+  fang:    { name: 'Monofang Pierce',  icon: '🗡️', kind: 'pierce',  pow: 1.50, desc: 'Hits one foe for 150% ATK — ignores DEF.' },
+  arrow:   { name: 'Photon Lance',     icon: '🏹', kind: 'pierce',  pow: 1.60, desc: 'Hits one foe for 160% ATK — ignores DEF.' },
+  drain:   { name: 'Bio-Siphon',       icon: '🩸', kind: 'drain',   pow: 1.45, desc: 'Hits one foe for 145% ATK and heals self for 35% of the damage.' },
   eclipse: { name: 'Umbral Feast',     icon: '🌑', kind: 'drain',   pow: 1.55, desc: 'Hits one foe for 155% ATK and heals self for 35% of the damage.' },
-  bloom:   { name: 'Soothing Bloom',   icon: '🌸', kind: 'heal',    pow: 1.80, desc: 'Restores the weakest ally for 180% HEAL.' },
+  bloom:   { name: 'Nanobloom Repair', icon: '🌸', kind: 'heal',    pow: 1.80, desc: 'Restores the weakest ally for 180% HEAL.' },
   aurora:  { name: 'Aurora Mend',      icon: '🌈', kind: 'heal',    pow: 2.00, desc: 'Restores the weakest ally for 200% HEAL.' },
-  rain:    { name: 'Renewal Rain',     icon: '💧', kind: 'healall', pow: 0.90, desc: 'Restores the whole team for 90% HEAL.' },
-  chorus:  { name: 'Healing Chorus',   icon: '🎶', kind: 'healall', pow: 1.00, desc: 'Restores the whole team for 100% HEAL.' },
-  aegis:   { name: 'Crystal Aegis',    icon: '🛡️', kind: 'shield',  pow: 2.40, desc: 'Shields the weakest ally for 240% DEF.' },
-  bark:    { name: 'Ironbark Guard',   icon: '🌳', kind: 'shield',  pow: 2.20, desc: 'Shields the weakest ally for 220% DEF.' },
-  warcry:  { name: 'War Cry',          icon: '📣', kind: 'rage',    pow: 0.30, desc: "Raises the whole team's ATK by 30% for 2 rounds." },
-  roar:    { name: 'Primal Roar',      icon: '🦁', kind: 'rage',    pow: 0.35, desc: "Raises the whole team's ATK by 35% for 2 rounds." },
-  jolt:    { name: 'Paralyzing Jolt',  icon: '⚡', kind: 'stun',    pow: 1.25, desc: 'Hits one foe for 125% ATK — it skips its next turn.' },
-  freeze:  { name: 'Flash Freeze',     icon: '❄️', kind: 'stun',    pow: 1.20, desc: 'Hits one foe for 120% ATK — it skips its next turn.' },
-  venomf:  { name: 'Venom Fang',       icon: '☠️', kind: 'poison',  pow: 1.00, desc: 'Hits one foe for 100% ATK and poisons it (40% ATK/turn, 3 turns).' },
-  spores:  { name: 'Toxic Spores',     icon: '🍄', kind: 'poison',  pow: 0.95, desc: 'Hits one foe for 95% ATK and poisons it (40% ATK/turn, 3 turns).' },
+  rain:    { name: 'Renewal Mist',     icon: '💧', kind: 'healall', pow: 0.90, desc: 'Restores the whole team for 90% HEAL.' },
+  chorus:  { name: 'Resonance Chorus', icon: '🎶', kind: 'healall', pow: 1.00, desc: 'Restores the whole team for 100% HEAL.' },
+  aegis:   { name: 'Hard-Light Aegis', icon: '🛡️', kind: 'shield',  pow: 2.40, desc: 'Shields the weakest ally for 240% DEF.' },
+  bark:    { name: 'Hullplate Guard',  icon: '🛡️', kind: 'shield',  pow: 2.20, desc: 'Shields the weakest ally for 220% DEF.' },
+  warcry:  { name: 'Rally Signal',     icon: '📣', kind: 'rage',    pow: 0.30, desc: "Raises the whole team's ATK by 30% for 2 rounds." },
+  roar:    { name: 'Warhorn Surge',    icon: '🦁', kind: 'rage',    pow: 0.35, desc: "Raises the whole team's ATK by 35% for 2 rounds." },
+  jolt:    { name: 'Stun Arc',         icon: '⚡', kind: 'stun',    pow: 1.25, desc: 'Hits one foe for 125% ATK — it skips its next turn.' },
+  freeze:  { name: 'Cryo Lock',        icon: '❄️', kind: 'stun',    pow: 1.20, desc: 'Hits one foe for 120% ATK — it skips its next turn.' },
+  venomf:  { name: 'Toxin Fang',       icon: '☠️', kind: 'poison',  pow: 1.00, desc: 'Hits one foe for 100% ATK and poisons it (40% ATK/turn, 3 turns).' },
+  spores:  { name: 'Spore Cloud',      icon: '🍄', kind: 'poison',  pow: 0.95, desc: 'Hits one foe for 95% ATK and poisons it (40% ATK/turn, 3 turns).' },
   // Signature skills — one-of-a-kind mechanics reserved for the 7★ legendary trio.
-  sunrise: { name: 'Dawnfather Judgement', icon: '🌅', kind: 'dawn',   pow: 1.20, heal: 0.60, desc: 'Signature: sears ALL foes for 120% ATK while dawnlight washes over the team, healing every ally for 60% HEAL.' },
-  doom:    { name: 'Worldsend Curse',      icon: '🕯️', kind: 'curse',  pow: 1.30, desc: 'Signature: the end of the world falls on ALL foes for 130% ATK and brands every one of them — for 3 turns each takes +25% damage and cannot be healed.' },
+  sunrise: { name: 'Dawnbreak Protocol', icon: '🌅', kind: 'dawn',   pow: 1.20, heal: 0.60, desc: 'Signature: sears ALL foes for 120% ATK while dawnlight washes over the team, healing every ally for 60% HEAL.' },
+  doom:    { name: 'Entropy Cascade',    icon: '🕯️', kind: 'curse',  pow: 1.30, desc: 'Signature: the end of the world falls on ALL foes for 130% ATK and brands every one of them — for 3 turns each takes +25% damage and cannot be healed.' },
   chrono:  { name: 'Time Fracture',        icon: '⌛', kind: 'chrono', pow: 1.30, desc: 'Signature: shatters time over ALL foes for 130% ATK (ignores DEF) and freezes their clocks — every foe loses 2 turns of skill charge.' },
-  // National Day set — the two 7★ signatures. Same rule as the trio above:
+  // Aegis Vanguard set — the two 7★ signatures. Same rule as the trio above:
   // a one-of-a-kind mechanic nothing else in the dex can do.
-  dragonfall: { name: 'Titanfall Execution', icon: '🗡️', kind: 'slay',       pow: 2.30, exec: 0.15, desc: 'Signature: one titanic blow on a single foe for 230% ATK — ignores DEF and carves away another 15% of that foe\'s MAXIMUM health. The bigger they are, the harder it lands.' },
-  winter:     { name: "Winter's Crown",       icon: '👑', kind: 'frostreign', pow: 1.35, desc: 'Signature: a killing winter falls on ALL foes for 135% ATK and freezes every one of them solid — each skips its next turn.' }
+  dragonfall: { name: 'Titanfall Strike', icon: '🗡️', kind: 'slay',       pow: 2.30, exec: 0.15, desc: 'Signature: one titanic blow on a single foe for 230% ATK — ignores DEF and carves away another 15% of that foe\'s MAXIMUM health. The bigger they are, the harder it lands.' },
+  winter:     { name: 'Absolute Zero Crown', icon: '👑', kind: 'frostreign', pow: 1.35, desc: 'Signature: a killing winter falls on ALL foes for 135% ATK and freezes every one of them solid — each skips its next turn.' }
 };
 // How a unit's skill shapes its stat spread (role identity).
 const TCG_ROLE_MODS = {
@@ -19827,7 +19827,7 @@ const TCG_ROLE_MODS = {
   dawn:    { atk: 1.12, def: 0.95, heal: 1.05, hp: 1.00, spd: 2 },
   curse:   { atk: 1.15, def: 0.95, heal: 0.70, hp: 1.00, spd: 6 },
   chrono:  { atk: 1.18, def: 0.92, heal: 0.65, hp: 0.98, spd: 10 },
-  // National Day 7★ signatures. tcgStats() reads this map by kind and would
+  // Aegis Vanguard 7★ signatures. tcgStats() reads this map by kind and would
   // throw on a missing entry — a new kind MUST be added here.
   slay:       { atk: 1.28, def: 0.94, heal: 0.60, hp: 1.02, spd: 6 },
   frostreign: { atk: 1.16, def: 0.96, heal: 0.72, hp: 1.00, spd: 4 }
@@ -19866,42 +19866,42 @@ function tcgElemMult(attCard, defCard) {
 // effect in _tcgApplyArtifact. Do not reuse ids — they live in student saves.
 const TCG_ARTIFACTS = [
   // 1★ — trinkets
-  { id: 'pin',       name: 'Iron Pin',        icon: '📌', stars: 1, kind: 'def',         pow: 0.08, blurb: 'Your whole team takes a little less damage (Defence +8%).' },
-  { id: 'flint',     name: 'Flint Charm',     icon: '🧱', stars: 1, kind: 'atk',         pow: 0.06, blurb: 'Your whole team hits a little harder (Attack +6%).' },
-  { id: 'moss',      name: 'Moss Band',       icon: '🌿', stars: 1, kind: 'regen',       pow: 0.02, blurb: 'Every unit regrows 2% of its max HP at the start of its turn.' },
-  { id: 'pebble',    name: 'Pebble Ward',     icon: '🪨', stars: 1, kind: 'shieldstart', pow: 0.06, blurb: 'Every unit starts the battle with a small shield (6% of its max HP).' },
-  { id: 'vial',      name: 'Glow Vial',       icon: '🧪', stars: 1, kind: 'healamp',     pow: 0.10, blurb: 'Healing skills restore 10% more HP.' },
-  { id: 'feather',   name: 'Feather Token',   icon: '🪽', stars: 1, kind: 'swift',       pow: 0.08, blurb: 'Your whole team is a touch quicker (Speed +8%).' },
+  { id: 'pin',       name: 'Ferro Pin',       icon: '📌', stars: 1, kind: 'def',         pow: 0.08, blurb: 'Your whole team takes a little less damage (Defence +8%).' },
+  { id: 'flint',     name: 'Ignition Chip',   icon: '🔶', stars: 1, kind: 'atk',         pow: 0.06, blurb: 'Your whole team hits a little harder (Attack +6%).' },
+  { id: 'moss',      name: 'Biograft Band',   icon: '🧬', stars: 1, kind: 'regen',       pow: 0.02, blurb: 'Every unit regrows 2% of its max HP at the start of its turn.' },
+  { id: 'pebble',    name: 'Ablative Chip',   icon: '🪨', stars: 1, kind: 'shieldstart', pow: 0.06, blurb: 'Every unit starts the battle with a small shield (6% of its max HP).' },
+  { id: 'vial',      name: 'Medi-Vial',       icon: '🧪', stars: 1, kind: 'healamp',     pow: 0.10, blurb: 'Healing skills restore 10% more HP.' },
+  { id: 'feather',   name: 'Thruster Token',  icon: '🪽', stars: 1, kind: 'swift',       pow: 0.08, blurb: 'Your whole team is a touch quicker (Speed +8%).' },
   // 2★ — charms
-  { id: 'swift',     name: 'Swift Sigil',     icon: '⏳', stars: 2, kind: 'swift',       pow: 0.25, blurb: 'Your whole team is faster (Speed +25%), so your units act sooner each round.' },
-  { id: 'oak',       name: 'Oakheart Plate',  icon: '🪵', stars: 2, kind: 'def',         pow: 0.14, blurb: 'Your whole team takes less damage (Defence +14%).' },
+  { id: 'swift',     name: 'Impulse Coil',    icon: '⏳', stars: 2, kind: 'swift',       pow: 0.25, blurb: 'Your whole team is faster (Speed +25%), so your units act sooner each round.' },
+  { id: 'oak',       name: 'Ceramite Plate',  icon: '🛡️', stars: 2, kind: 'def',         pow: 0.14, blurb: 'Your whole team takes less damage (Defence +14%).' },
   { id: 'emberdrop', name: 'Ignition Cell',      icon: '🔶', stars: 2, kind: 'atk',         pow: 0.10, blurb: 'Your whole team hits harder (Attack +10%).' },
-  { id: 'bud',       name: 'Spring Bud',      icon: '🌱', stars: 2, kind: 'regen',       pow: 0.03, blurb: 'Every unit regrows 3% of its max HP at the start of its turn.' },
-  { id: 'bead',      name: 'Aegis Bead',      icon: '📿', stars: 2, kind: 'shieldstart', pow: 0.10, blurb: 'Every unit starts the battle with a shield worth 10% of its max HP.' },
-  { id: 'sunchip',   name: 'Sun Chip',        icon: '☀️', stars: 2, kind: 'healamp',     pow: 0.18, blurb: 'Healing skills restore 18% more HP.' },
+  { id: 'bud',       name: 'Regen Sprout',    icon: '🌱', stars: 2, kind: 'regen',       pow: 0.03, blurb: 'Every unit regrows 3% of its max HP at the start of its turn.' },
+  { id: 'bead',      name: 'Aegis Node',      icon: '🔵', stars: 2, kind: 'shieldstart', pow: 0.10, blurb: 'Every unit starts the battle with a shield worth 10% of its max HP.' },
+  { id: 'sunchip',   name: 'Solar Chip',      icon: '☀️', stars: 2, kind: 'healamp',     pow: 0.18, blurb: 'Healing skills restore 18% more HP.' },
   // 3★ — relics
-  { id: 'keen',      name: 'Keen Lens',       icon: '🎯', stars: 3, kind: 'crit',        pow: 0.18, blurb: 'Your team lands critical hits far more often (+18% crit chance).' },
-  { id: 'leech',     name: 'Leech Fang',      icon: '🩸', stars: 3, kind: 'lifesteal',   pow: 0.12, blurb: 'Every attack heals the attacker for 12% of the damage dealt.' },
-  { id: 'bramble',   name: 'Bramble Vest',    icon: '🌵', stars: 3, kind: 'thorns',      pow: 0.12, blurb: 'Foes that hit your units take 12% of the damage back.' },
-  { id: 'idol',      name: 'Stoneheart Idol', icon: '🗿', stars: 3, kind: 'hp',          pow: 0.10, blurb: 'Your whole team is beefier (Max HP +10%).' },
-  { id: 'gale',      name: 'Gale Feather',    icon: '🌬️', stars: 3, kind: 'swift',       pow: 0.40, blurb: 'Your whole team is much faster (Speed +40%).' },
+  { id: 'keen',      name: 'Targeting Lens',  icon: '🎯', stars: 3, kind: 'crit',        pow: 0.18, blurb: 'Your team lands critical hits far more often (+18% crit chance).' },
+  { id: 'leech',     name: 'Siphon Fang',     icon: '🩸', stars: 3, kind: 'lifesteal',   pow: 0.12, blurb: 'Every attack heals the attacker for 12% of the damage dealt.' },
+  { id: 'bramble',   name: 'Thornplate Vest', icon: '🌵', stars: 3, kind: 'thorns',      pow: 0.12, blurb: 'Foes that hit your units take 12% of the damage back.' },
+  { id: 'idol',      name: 'Adamant Core',    icon: '🪨', stars: 3, kind: 'hp',          pow: 0.10, blurb: 'Your whole team is beefier (Max HP +10%).' },
+  { id: 'gale',      name: 'Gale Thruster',   icon: '🌬️', stars: 3, kind: 'swift',       pow: 0.40, blurb: 'Your whole team is much faster (Speed +40%).' },
   // 4★ — treasures
-  { id: 'ward',      name: 'Warding Charm',   icon: '🧿', stars: 4, kind: 'ward',        pow: 1,    blurb: 'Your team is immune to stun and poison — no more skipped turns or damage-over-time.' },
-  { id: 'banner',    name: 'War Banner',      icon: '🚩', stars: 4, kind: 'atk',         pow: 0.16, blurb: 'Your whole team hits much harder (Attack +16%).' },
-  { id: 'torc',      name: 'Lifebloom Torc',  icon: '🌺', stars: 4, kind: 'regen',       pow: 0.05, blurb: 'Every unit regrows 5% of its max HP at the start of its turn.' },
-  { id: 'bulwark',   name: 'Bulwark Plate',   icon: '🏰', stars: 4, kind: 'shieldstart', pow: 0.16, blurb: 'Every unit starts the battle with a big shield (16% of its max HP).' },
-  { id: 'falcon',    name: 'Falcon Eye',      icon: '👁️', stars: 4, kind: 'crit',        pow: 0.26, blurb: 'Your team lands critical hits constantly (+26% crit chance).' },
+  { id: 'ward',      name: 'Null Field Emitter', icon: '🚫', stars: 4, kind: 'ward',        pow: 1,    blurb: 'Your team is immune to stun and poison — no more skipped turns or damage-over-time.' },
+  { id: 'banner',    name: 'Rally Beacon',    icon: '🚩', stars: 4, kind: 'atk',         pow: 0.16, blurb: 'Your whole team hits much harder (Attack +16%).' },
+  { id: 'torc',      name: 'Bioweave Torc',   icon: '🌺', stars: 4, kind: 'regen',       pow: 0.05, blurb: 'Every unit regrows 5% of its max HP at the start of its turn.' },
+  { id: 'bulwark',   name: 'Bulwark Barrier', icon: '🧱', stars: 4, kind: 'shieldstart', pow: 0.16, blurb: 'Every unit starts the battle with a big shield (16% of its max HP).' },
+  { id: 'falcon',    name: 'Raptor Optic',    icon: '👁️', stars: 4, kind: 'crit',        pow: 0.26, blurb: 'Your team lands critical hits constantly (+26% crit chance).' },
   // 5★ — wonders
   { id: 'battery',   name: 'Battery Core',    icon: '🔋', stars: 5, kind: 'battery',     pow: 2,    blurb: 'Skills charge one turn faster, so your units unleash their special skills sooner.' },
   { id: 'ember',     name: 'Catalyst Prism',  icon: '🔺', stars: 5, kind: 'ember',       pow: 2.5,  blurb: 'Super-effective element hits deal ×2.5 instead of ×2 — reward good matchups even more.' },
-  { id: 'chalice',   name: 'Reaper Chalice',  icon: '🏺', stars: 5, kind: 'lifesteal',   pow: 0.22, blurb: 'Every attack heals the attacker for 22% of the damage dealt.' },
-  { id: 'titan',     name: 'Titan Heart',     icon: '🫀', stars: 5, kind: 'hp',          pow: 0.18, blurb: 'Your whole team is far beefier (Max HP +18%).' },
+  { id: 'chalice',   name: 'Siphon Reservoir', icon: '🧪', stars: 5, kind: 'lifesteal',   pow: 0.22, blurb: 'Every attack heals the attacker for 22% of the damage dealt.' },
+  { id: 'titan',     name: 'Titan Reactor',   icon: '🫀', stars: 5, kind: 'hp',          pow: 0.18, blurb: 'Your whole team is far beefier (Max HP +18%).' },
   // 6★ — legends
   { id: 'phoenix',   name: 'Reignition Vane',   icon: '🪶', stars: 6, kind: 'phoenix',     pow: 0.35, blurb: 'The first ally to faint is revived once at 35% HP. A second chance every battle.' },
-  { id: 'mirror',    name: 'Mirror Shell',    icon: '🐚', stars: 6, kind: 'thorns',      pow: 0.30, blurb: 'Foes that hit your units take 30% of the damage back.' },
+  { id: 'mirror',    name: 'Reflector Shell', icon: '💠', stars: 6, kind: 'thorns',      pow: 0.30, blurb: 'Foes that hit your units take 30% of the damage back.' },
   // 7★ — myths
-  { id: 'wyrm',      name: 'Drakeheart Core',  icon: '💎', stars: 7, kind: 'ember',       pow: 3,    blurb: 'Super-effective element hits deal ×3 damage instead of ×2 — devastating matchups.' },
-  { id: 'ankh',      name: 'Eternity Sigil',   icon: '☥', stars: 7, kind: 'phoenix',     pow: 0.60, blurb: 'The first ally to faint is reborn at 60% HP. Fainting is only a suggestion.' }
+  { id: 'wyrm',      name: 'Singularity Core', icon: '💎', stars: 7, kind: 'ember',       pow: 3,    blurb: 'Super-effective element hits deal ×3 damage instead of ×2 — devastating matchups.' },
+  { id: 'ankh',      name: 'Eternity Protocol', icon: '♾️', stars: 7, kind: 'phoenix',     pow: 0.60, blurb: 'The first ally to faint is reborn at 60% HP. Fainting is only a suggestion.' }
 ];
 function tcgArtifactById(id) { return TCG_ARTIFACTS.find(a => a.id === id) || null; }
 
@@ -19997,168 +19997,73 @@ const TCG_STRATS_HEAL = [
   { id: 'carry',    name: 'Protect Carry', icon: '⚔️', blurb: 'Heal your highest-attack ally so your damage dealer stays alive.' },
   { id: 'tank',     name: 'Bastion',   icon: '🛡️', blurb: 'Heal your toughest ally (highest max HP) to keep the wall standing.' }
 ];
-// ---- Generation 1: all 151 units. [name, emoji, element, skill] per star tier.
-// Do not reorder existing entries — a card's id (c001…c151) is its position.
+// ---- Generation 1: all 51 xeno war-forms. [name, emoji, element, skill] per star tier.
+// Do not reorder existing entries — a card's id (c001…c051) is its position.
+// EVERY name here is written for the ART GENERATOR: designations, strain names
+// and hard alien syllables, so a prompt built from a row reads as science
+// fiction before the world fragment has even been added. Nothing in this table
+// may sound like a fantasy beast — that is what put chainmail and dragons in
+// the slots the last time round.
 const TCG_GEN1 = {
-  1: [ // 30 × 1★ — spawn, drones and scrap-forms. 5th column: the unit's unique skill name (mechanics from column 4)
-    ['Cinderjack, the Slag Spawn', '🔥', 'flame', 'scratch', 'Slag Swipes'],
-    ['Dewpod, the Coolant Drone', '💧', 'aqua', 'rain', 'Coolant Mist'],
-    ['Voltmite, the Arc Seed', '⚡', 'spark', 'jolt', 'Static Sting'],
-    ['Ballast, the Rubble Unit', '🪨', 'terra', 'bark', 'Rubble Palisade'],
-    ['Sprigling, the Vat Sprout', '🌱', 'flora', 'bloom', 'Vatlight Bloom'],
-    ['Rimegnat, the Chill Swarmer', '🦟', 'frost', 'freeze', 'Rimebite Chill'],
-    ['Runoff, the Vat Sludgeling', '🟢', 'venom', 'spores', 'Sludge Burst'],
-    ['Oneira, the Dream Moth', '🦋', 'psychic', 'arrow', 'Dreamdust Dart'],
-    ['Lumen-1, the Dawn Scarab', '🐞', 'light', 'bloom', 'Photon Mend'],
-    ['Nullpaw, the Shadeling', '🐾', 'shadow', 'drain', 'Shade Siphon'],
-    ['Cogsworn, the Servitor Whelp', '⚙️', 'metal', 'aegis', 'Cogwork Bulwark'],
-    ['Astrel, the Star Probe', '🌟', 'cosmic', 'arrow', 'Starlit Dart'],
-    ['Riptide, the Tidefin Drone', '🐟', 'aqua', 'fang', 'Riptide Nip'],
-    ['Zephyr, the Arc Hatchling', '🐤', 'spark', 'jolt', 'Hatchling Zap'],
-    ['Rustwurm, the Corrosion Crawler', '🪱', 'terra', 'venomf', 'Corrosion Bite'],
-    ['Morel, the Spore Culture', '🍄', 'venom', 'spores', 'Spore Puff'],
-    ['Thornwing, the Hive Drone', '🐝', 'flora', 'fang', 'Thornstinger'],
-    ['Carapax, the Shell Crawler', '🐌', 'terra', 'bark', 'Shellwarden Guard'],
-    ['Furnax, the Furnace Rat', '🐁', 'flame', 'scratch', 'Furnace Scratch'],
-    ['Vaporis, the Mist Caller', '💦', 'aqua', 'rain', 'Misting Call'],
-    ['Mosswhisker, the Gene-Cat', '🐈', 'flora', 'bloom', 'Mosslight Purr'],
-    ['Hailpup, the Cryo Whelp', '🐶', 'frost', 'freeze', 'Hailstone Nip'],
-    ['Gloamworm, the Photon Leech', '✨', 'light', 'drain', 'Gloamglow Leech'],
-    ['Vesper, the Night Scout', '🦇', 'shadow', 'drain', 'Nightwing Sip'],
-    ['Tinforge, the Scrap Servitor', '🤖', 'metal', 'aegis', 'Tinplate Wall'],
-    ['Cometmite, the Void Gnat', '🪰', 'cosmic', 'arrow', 'Comet Dart'],
-    ['Arcscale, the Static Lizard', '🦎', 'spark', 'storm', 'Scaleshock Surge'],
-    ['Cogitor, the Owl Adept', '🦉', 'psychic', 'bloom', 'Cogitant Remedy'],
-    ['Thornvein, the Bramble Rat', '🐀', 'flora', 'venomf', 'Thornvein Prick'],
-    ['Moltenborn, the Vent Whelp', '🌋', 'flame', 'inferno', 'Magma Spittle']
+  1: [ // 12 × 1★ — the Spawn Strain: hatchlings, drones and scrap-forms, one per element. 5th column: the unit's unique skill name (mechanics from column 4)
+    ['Vexil-9, the Ember Spawn', '🔥', 'flame', 'scratch', 'Emberspark Rake'],
+    ['Kryodrix, the Coolant Drone', '💧', 'aqua', 'rain', 'Coolant Mist'],
+    ['Zappik, the Arc Seedling', '⚡', 'spark', 'jolt', 'Arcseed Sting'],
+    ['Ferrolith, the Rubble Unit', '🪨', 'terra', 'bark', 'Ferroplate Screen'],
+    ['Sporelet, the Vat Sprout', '🌱', 'flora', 'bloom', 'Vatlight Bloom'],
+    ['Rimnid, the Cryo Swarmer', '🦟', 'frost', 'freeze', 'Rimebite Lock'],
+    ['Sludgeform-04, the Vat Runoff', '🟢', 'venom', 'spores', 'Bioslurry Burst'],
+    ['Oneirix, the Dream Moth', '🦋', 'psychic', 'arrow', 'Dreamdust Lance'],
+    ['Lumen-1, the Photon Scarab', '🐞', 'light', 'bloom', 'Photon Mend'],
+    ['Nullpaw, the Umbral Whelp', '🐾', 'shadow', 'drain', 'Umbral Siphon'],
+    ['Cogitor-Zero, the Servitor Whelp', '⚙️', 'metal', 'aegis', 'Servitor Bulwark'],
+    ['Astrel-7, the Star Probe', '🌟', 'cosmic', 'arrow', 'Starlance Dart']
   ],
-  2: [ // 35 × 2★ — pack predators and line units
-    ['Pyrrhos, the Slaghound', '🐕', 'flame', 'bite', 'Slagfang Crunch'],
-    ['Maren, the Waverider', '🐠', 'aqua', 'tidal', 'Curling Breaker'],
-    ['Voltara, the Hex Hare', '🐇', 'spark', 'jolt', 'Hexspark Kick'],
-    ['Tarn, the Shell Bastion', '🐢', 'terra', 'bark', 'Bastion Shell'],
-    ['Ivessa, the Strangler Vine', '🌿', 'flora', 'venomf', 'Strangling Coils'],
-    ['Kitsa, the Rime Fox', '🦊', 'frost', 'freeze', 'Rimefox Kiss'],
-    ['Bufo, the Blight Croaker', '🐸', 'venom', 'venomf', 'Blightcroak'],
-    ['Mesmeron, the Mind Gnawer', '🐭', 'psychic', 'arrow', 'Mindgnaw Bolt'],
-    ['Soleil, the Dawn Herald', '🐥', 'light', 'solar', 'Heralded Sunburst'],
-    ['Nyra, the Dusk Prowler', '🐈‍⬛', 'shadow', 'drain', 'Duskstalk Drain'],
-    ['Brakk, the Ironshell', '🪲', 'metal', 'smash', 'Ironshell Slam'],
-    ['Orbys, the Star Puffer', '🐡', 'cosmic', 'arrow', 'Starneedle Shot'],
-    ['Malzar, the Furnace Fiend', '👺', 'flame', 'inferno', 'Fiendfire Storm'],
-    ['Zelka, the Storm Jelly', '🪼', 'spark', 'jolt', 'Jellyshock Tangle'],
-    ['Coralia, the Reef Warden', '🪸', 'aqua', 'aegis', 'Reefshield Bloom'],
-    ['Skarn, the Dune Breaker', '🦀', 'terra', 'smash', 'Dunecrusher Claw'],
-    ['Quilla, the Barbback', '🦔', 'flora', 'fang', 'Quillpierce'],
-    ['Eirwen, the Snow Fawn', '🦌', 'frost', 'aurora', 'Snowlight Mend'],
-    ['Mephit, the Smog Bringer', '🌫️', 'venom', 'spores', 'Choking Smog'],
-    ['Echora, the Lost Signal', '👻', 'psychic', 'drain', 'Whispered Woe'],
-    ['Aurelin, the Lightbearer', '🐦', 'light', 'bloom', 'Lightbearer Grace'],
-    ['Noctys, the Midnight Talon', '🦉', 'shadow', 'eclipse', 'Midnight Talons'],
-    ['Gnawrim, the Rustwright', '🦫', 'metal', 'bark', 'Rustwright Rampart'],
-    ['Perseon, the Skyfallen', '☄️', 'cosmic', 'smash', 'Skyfall Impact'],
-    ['Vulkor, the Ashfang', '🐺', 'flame', 'bite', 'Ashfang Maul'],
-    ['Lutra, the Tidesinger', '🦦', 'aqua', 'rain', 'Tidesong Shower'],
-    ['Felyx, the Staticlaw', '🐱', 'spark', 'storm', 'Staticlaw Tempest'],
-    ['Grond, the Stone Toad', '🗿', 'terra', 'smash', 'Stonetongue Slam'],
-    ['Ferna, the Glade Watcher', '🦊', 'flora', 'bloom', 'Gladelight Mend'],
-    ['Skadia, the Floeborn', '🦭', 'frost', 'freeze', 'Floe Lock'],
-    ['Vyxen, the Venomlash', '🦂', 'venom', 'venomf', 'Venomlash Sting'],
-    ['Somnia, the Dream Herd', '🐑', 'psychic', 'chorus', 'Lullaby Chorus'],
-    ['Irisyl, the Prism Hound', '🌈', 'light', 'aurora', 'Prismlight Glow'],
-    ['Murgrim, the Gutter King', '🐀', 'shadow', 'drain', 'Gutter Tithe'],
-    ['Ferrugo, the Rustshell', '🐌', 'metal', 'aegis', 'Rustshell Redoubt']
+  2: [ // 11 × 2★ — the Pack Strain: hunt-forms and line units
+    ['Pyrrhax, the Slaghound', '🐕', 'flame', 'bite', 'Slagfang Crunch'],
+    ['Marendel, the Waverider', '🐠', 'aqua', 'tidal', 'Nanotide Breaker'],
+    ['Voltarra, the Hexcoil Leaper', '🐇', 'spark', 'jolt', 'Hexcoil Kick'],
+    ['Tarnok, the Shell Bastion', '🐢', 'terra', 'bark', 'Bastion Hullplate'],
+    ['Ivessa, the Strangler Growth', '🌿', 'flora', 'venomf', 'Strangler Coils'],
+    ['Kitsavex, the Rime Stalker', '🦊', 'frost', 'freeze', 'Rimestalk Lock'],
+    ['Bufonyx, the Blight Croaker', '🐸', 'venom', 'venomf', 'Blightcroak Spray'],
+    ['Mesmeryn, the Mind Gnawer', '🐭', 'psychic', 'arrow', 'Mindgnaw Bolt'],
+    ['Solvane, the Dawn Herald', '🐥', 'light', 'solar', 'Herald Sunburst'],
+    ['Nyrakh, the Dusk Prowler', '🐈‍⬛', 'shadow', 'drain', 'Duskstalk Drain'],
+    ['Brakkis, the Ironshell', '🪲', 'metal', 'smash', 'Ironshell Slam']
   ],
-  3: [ // 35 × 3★ — the veterans of the Xenocline
-    ['Bandyr, the Ash-Masked', '🦝', 'flame', 'scratch', 'Ashmask Ambush'],
-    ['Galapos, the Tide Bastion', '🐢', 'aqua', 'aegis', 'Tidewall Aegis'],
+  3: [ // 8 × 3★ — the veterans of the Xenocline
+    ['Bandrax, the Ashmask', '🦝', 'flame', 'scratch', 'Ashmask Ambush'],
+    ['Cerulax, the Spearfin', '🐬', 'aqua', 'fang', 'Spearfin Skewer'],
     ['Voltram, the Thunderhorn', '🐏', 'spark', 'horn', 'Thunderhorn Charge'],
-    ['Golgar, the Cragheart', '🧱', 'terra', 'aegis', 'Cragheart Bulwark'],
-    ['Elowen, the Bloomtender', '🦌', 'flora', 'rain', 'Petal Rainfall'],
-    ['Fenris, the Glacier Howl', '🐺', 'frost', 'freeze', 'Glacier Howl'],
+    ['Golgarr, the Cragheart Construct', '🧱', 'terra', 'aegis', 'Cragheart Bulwark'],
+    ['Fenrisk, the Glacier Howl', '🐺', 'frost', 'freeze', 'Glacier Howl'],
     ['Vissera, the Coilblight', '🐍', 'venom', 'venomf', 'Coilblight Bite'],
-    ['Mirren, the Psywhisker', '🐈', 'psychic', 'arrow', 'Psywhisker Lance'],
-    ['Helion, the Sun-Crowned', '🌞', 'light', 'solar', 'Crownfire Blaze'],
-    ['Nocturne, the Veilwing', '🦇', 'shadow', 'eclipse', 'Veilwing Feast'],
-    ['Ferrox, the Steel Antler', '🫎', 'metal', 'horn', 'Steelantler Rush'],
-    ['Lyrax, the Voidstalker', '🐆', 'cosmic', 'arrow', 'Voidpounce Bolt'],
-    ['Brann, the Flamefist', '🐒', 'flame', 'scratch', 'Flamefist Flurry'],
-    ['Cerulos, the Spearfin', '🐬', 'aqua', 'fang', 'Spearfin Skewer'],
-    ['Zarrak, the Livewire', '🐟', 'spark', 'fang', 'Livewire Lunge'],
-    ['Tuskar, the Basalt Breaker', '🐗', 'terra', 'smash', 'Basaltbreaker Tusk'],
-    ['Salix, the Willowshade', '🍃', 'flora', 'drain', 'Willowshade Sap'],
-    ['Cervyn, the Rime Antler', '❄️', 'frost', 'horn', 'Rimeantler Charge'],
-    ['Pestis, the Miasma Wing', '🦟', 'venom', 'spores', 'Miasma Cloud'],
-    ['Delphyne, the Farseer', '🦊', 'psychic', 'bloom', 'Farseer Blessing'],
-    ['Selura, the Radiant Veil', '🦋', 'light', 'aurora', 'Radiantveil Shimmer'],
-    ['Grimjaw, the Gloomfang', '🐺', 'shadow', 'bite', 'Gloomfang Crush'],
-    ['Brontes, the Bronzehide', '🦬', 'metal', 'bark', 'Bronzehide Guard'],
-    ['Lepus, the Star Bounder', '🐇', 'cosmic', 'jolt', 'Starbound Kick'],
-    ['Salvax, the Flamecaller', '🦎', 'flame', 'inferno', 'Called Flamestorm'],
-    ['Skallag, the Deep Coiler', '🦑', 'aqua', 'tidal', 'Deepcoil Undertow'],
-    ['Aquilus, the Storm Talon', '🦅', 'spark', 'storm', 'Stormtalon Dive'],
-    ['Terrag, the Spineshield', '🦔', 'terra', 'aegis', 'Spineshield Wall'],
-    ['Mantissa, the Bladepetal', '🦗', 'flora', 'fang', 'Bladepetal Slice'],
-    ['Jorgun, the Berg Breaker', '🧊', 'frost', 'smash', 'Bergbreaker Blow'],
-    ['Sobrak, the Mirefang', '🐊', 'venom', 'bite', 'Mirefang Deathroll'],
-    ['Lunara, the Moonveil', '🌙', 'psychic', 'chorus', 'Moonveil Serenade'],
-    ['Aurion, the Dawnstrider', '🐴', 'light', 'rain', 'Dawnstride Shower'],
-    ['Corvax, the Carrion Signal', '🐦‍⬛', 'shadow', 'drain', 'Carrion Whisper'],
-    ['Vulcanis, the Forgeshell', '🐢', 'metal', 'aegis', 'Forgeshell Ward']
+    ['Psivex, the Whisker Lance', '🐈', 'psychic', 'arrow', 'Psilance Volley'],
+    ['Helion Prime, the Sun-Crowned', '🌞', 'light', 'solar', 'Crownfire Blaze']
   ],
-  4: [ // 25 × 4★ — apex war-forms
+  4: [ // 5 × 4★ — apex war-forms
     ['Pyrothane, the Ashen Cogitant', '🦉', 'flame', 'inferno', 'Sagefire Cataclysm'],
-    ['Vortessa, the Maelstrom Queen', '🌀', 'aqua', 'tidal', 'Royal Maelstrom'],
-    ['Kirrag, the Storm Tiger', '🐅', 'spark', 'storm', 'Tigerstorm Barrage'],
-    ['Atlan, the Worldshell', '🐢', 'terra', 'aegis', 'Worldshell Aegis'],
-    ['Cernun, the Sylvan Overmind', '🦌', 'flora', 'rain', 'Sylvan Renewal'],
-    ['Bjornak, the Permafrost', '🐻‍❄️', 'frost', 'smash', 'Permafrost Maul'],
-    ['Nagrith, the Rot Crawler', '🐛', 'venom', 'venomf', 'Rotcrawler Gnaw'],
-    ['Psyrix, the Mindrender', '🧠', 'psychic', 'arrow', 'Mindrend Spike'],
-    ['Lumessa, the Purelight', '🦄', 'light', 'aurora', 'Purelight Halo'],
+    ['Vortessa, the Maelstrom Sovereign', '🌀', 'aqua', 'tidal', 'Sovereign Maelstrom'],
+    ['Cernunax, the Sylvan Overmind', '🦌', 'flora', 'rain', 'Sylvan Renewal'],
     ['Nyxara, the Dusk Empress', '🐈‍⬛', 'shadow', 'eclipse', 'Imperial Duskfeast'],
-    ['Ferrogar, the Siegehorn', '🦏', 'metal', 'horn', 'Siegehorn Ram'],
-    ['Stellarion, the Nightwatcher', '🌠', 'cosmic', 'arrow', 'Nightwatch Starshot'],
-    ['Drakov, the Plasmascale', '🐲', 'flame', 'bite', 'Plasmascale Snap'],
-    ['Abyssia, the Depthcoil', '🐍', 'aqua', 'drain', 'Depthcoil Squeeze'],
-    ['Fulgar, the Skypiercer', '🦅', 'spark', 'jolt', 'Skypiercer Bolt'],
-    ['Obsidius, the Molten Core', '🌋', 'terra', 'smash', 'Moltencore Eruption'],
-    ['Rosaria, the Bloomcaller', '🌺', 'flora', 'chorus', 'Bloomcall Chorale'],
-    ['Borvina, the Whiteout', '❄️', 'frost', 'freeze', 'Total Whiteout'],
-    ['Vipraxa, the Mire Queen', '🐍', 'venom', 'venomf', 'Mirequeen Kiss'],
-    ['Enigmus, the Riddlekeeper', '🦁', 'psychic', 'bloom', 'Riddlelight Boon'],
-    ['Solarius, the Reignition Raptor', '🐦‍🔥', 'light', 'solar', 'Reignition Sunflare'],
-    ['Morthul, the Dusk Reaper', '💀', 'shadow', 'eclipse', 'Duskreap Harvest'],
-    ['Gryphus, the Steelwing', '🦅', 'metal', 'fang', 'Steelwing Shear'],
-    ['Quasara, the Fallen Star', '🐠', 'cosmic', 'rain', 'Fallen Starlight'],
-    ['Leovar, the Cinder King', '🦁', 'flame', 'roar', 'Cinderking Decree']
+    ['Stellarion, the Nightwatcher', '🌠', 'cosmic', 'arrow', 'Nightwatch Starshot']
   ],
-  5: [ // 15 × 5★ — the sovereigns
+  5: [ // 6 × 5★ — the sovereigns
     ['Volkarrion, the Plasma Tyrant', '🐉', 'flame', 'inferno', 'Tyrannic Firestorm'],
     ['Nereth, the Deep Sovereign', '🐋', 'aqua', 'tidal', 'Sovereign Depthsurge'],
-    ['Raivo, the Tempest Incarnate', '⛈️', 'spark', 'storm', 'Incarnate Tempest'],
-    ['Gaiagor, the Earthshaker', '🦬', 'terra', 'quake', 'Continental Shatter'],
-    ['Amara, the Everbloom', '🌸', 'flora', 'chorus', 'Everbloom Hymn'],
     ['Cryvexa, the Frozen Warden', '🧊', 'frost', 'freeze', 'Absolute Permafreeze'],
-    ['Sythrax, the Rot Monarch', '🐍', 'venom', 'spores', 'Monarch Rotcloud'],
-    ['Illithar, the Thoughtdrinker', '🦑', 'psychic', 'drain', 'Thoughtdrink Feast'],
-    ['Solandra, the Lightmother', '🦌', 'light', 'aurora', 'Motherlight Aurora'],
-    ['Erevos, the Void Prowler', '🐆', 'shadow', 'eclipse', 'Voidprowl Feast'],
     ['Vulcanor, the Worldforge', '🤖', 'metal', 'aegis', 'Worldforge Rampart'],
-    ['Andrella, the Startide', '🌌', 'cosmic', 'nova', 'Startide Cascade'],
     ['Pyrelia, the Undying Flame', '🐦‍🔥', 'flame', 'aurora', 'Undying Flamelight'],
-    ['Thalassor, the Tidal Colossus', '🐳', 'aqua', 'smash', 'Colossal Wavebreak'],
-    ['Yggdris, the Elder Grove', '🌳', 'flora', 'bark', 'Elderroot Bastion']
+    ['Mammorak, the Walking Mountain', '🦣', 'terra', 'quake', 'Mountainfall Stomp']
   ],
-  6: [ // 8 × 6★ — the Extinction Class
+  6: [ // 6 × 6★ — the Extinction Class, and the cast the Nexus Codex is written around
     ['Ignarok, the Extinction Flame', '🦖', 'flame', 'roar', 'Extinction Roar'],
     ['Dagrath, the Abyssal King', '🐙', 'aqua', 'tidal', 'Abyssal Dominion'],
     ['Voltrannus, the Storm Eternal', '🐲', 'spark', 'storm', 'Eternal Stormfury'],
-    ['Mammorak, the Walking Mountain', '🦣', 'terra', 'quake', 'Mountainfall Stomp'],
     ['Celestine, the First Light', '🦌', 'light', 'chorus', 'First Light Chorale'],
-    ['Nyxthara, the Endless Night', '🐍', 'shadow', 'eclipse', 'Endless Nightfeast'],
     ['Chromagog, the Iron Colossus', '🦾', 'metal', 'smash', 'Colossus Ironfall'],
-    ['Sera, the Seraph Engine', '👼', 'cosmic', 'nova', 'Seraphic Judgement']
+    ['Sera, the Seraph Engine', '👼', 'cosmic', 'nova', 'Seraphic Verdict']
   ],
   7: [ // 3 × 7★ — the Prime Trinity, each with a signature one-of-a-kind skill
     ['Auros, the Dawn Sovereign', '☀️', 'light', 'sunrise', 'Dawnfire Verdict'],
@@ -20166,9 +20071,9 @@ const TCG_GEN1 = {
     ['Aeonyx, the Timeless One', '🐉', 'cosmic', 'chrono', 'Causality Fracture']
   ]
 };
-// ── National Day expansion — the Aegis Vanguard (50 cards) ──────────────────
+// ── Second expansion — the Aegis Vanguard (50 cards) ───────────────────────
 // The first set is xeno war-forms; this one is entirely HUMAN — troopers,
-// sentinels, technomancers, psions, void-callers, riftbinders and reanimators,
+// sentinels, technomancers, psions, void-callers, riftbinders and salvagers,
 // an order raised under a red-and-white lion standard. That difference is not
 // just flavour: the art generator draws a PERSON instead of a creature for
 // anything in this set (see tcgCardArtPrompt), so every row carries its CLASS
@@ -20177,78 +20082,81 @@ const TCG_GEN1 = {
 // The optional art note is extra direction for that one character — the two
 // 7★ legends are the face of the set, so they are described rather than left
 // to whatever the class default produces.
-// Appended AFTER gen 1 so the existing ids (c001…c151) never move — students'
+// Names are RANK + call-sign, never a fantasy honorific: a Castellan, a
+// Marshal, an Archmagos or an Arch-Psion, so the prompt reads far-future the
+// moment the name lands in it.
+// Appended AFTER gen 1 so the existing ids (c001…c051) never move — students'
 // collections, merge levels and card levels are all keyed by id.
 const TCG_GEN2 = {
   1: [ // 4 × 1★ — the conscripts
-    ['Tam, the Shield Conscript', '🛡️', 'metal', 'aegis', 'Conscript\'s Guard', 'trooper', 'male'],
-    ['Mira, the Hearth Medicae', '🕯️', 'light', 'bloom', 'Hearthlight Mend', 'voidcaller', 'female'],
-    ['Bram, the Field Technomat', '🪄', 'flora', 'spores', 'Fieldwork Spores', 'technomancer', 'male'],
-    ['Sela, the Ash Cadet', '🔥', 'flame', 'scratch', 'Cadet Plasmalash', 'psion', 'female']
+    ['Tam Kessel, the Shield Conscript', '🛡️', 'metal', 'aegis', 'Conscript Bulwark', 'trooper', 'male'],
+    ['Mira Vance, the Field Medicae', '💠', 'light', 'bloom', 'Medicae Nanomend', 'voidcaller', 'female'],
+    ['Bram Ochre, the Field Technomat', '🔧', 'flora', 'spores', 'Bioform Spore Cloud', 'technomancer', 'male'],
+    ['Sela Ryn, the Ash Cadet', '🔥', 'flame', 'scratch', 'Cadet Plasmalash', 'psion', 'female']
   ],
   2: [ // 6 × 2★ — the rank and file
-    ['Corin, the Dawn Squire', '🛡️', 'light', 'aegis', 'Dawnsquire Bulwark', 'sentinel', 'male'],
-    ['Ysolde, the Cryo Apprentice', '❄️', 'frost', 'freeze', 'Apprentice Rimelock', 'voidcaller', 'female'],
-    ['Havel, the Ironfist', '⚔️', 'metal', 'smash', 'Ironfist Hammerfall', 'trooper', 'male'],
-    ['Nerin, the Gravewatch Adept', '💀', 'shadow', 'drain', 'Gravewatch Tithe', 'reanimator', 'male'],
-    ['Talia, the Plasmaweaver', '🪄', 'flame', 'inferno', 'Plasmaweave Flare', 'psion', 'female'],
-    ['Odric, the Pactbound', '🔮', 'venom', 'venomf', 'Pactbound Bite', 'riftbinder', 'male']
+    ['Corin Vale, the Dawnwatch', '🛡️', 'light', 'aegis', 'Dawnwatch Bulwark', 'sentinel', 'male'],
+    ['Ysolde Kray, the Cryo Adept', '❄️', 'frost', 'freeze', 'Cryo-Lock Protocol', 'voidcaller', 'female'],
+    ['Havel Drexx, the Ironfist', '⚔️', 'metal', 'smash', 'Ironfist Hammerfall', 'trooper', 'male'],
+    ['Nerin Halcy, the Nightwatch Adept', '🌑', 'shadow', 'drain', 'Nightwatch Siphon', 'salvager', 'male'],
+    ['Talia Rhen, the Plasmaweaver', '🔥', 'flame', 'inferno', 'Plasmaweave Flare', 'psion', 'female'],
+    ['Odric Sarn, the Riftbound', '🌀', 'venom', 'venomf', 'Riftbound Corrosion', 'riftbinder', 'male']
   ],
   3: [ // 12 × 3★ — the line officers
-    ['Sir Aldric, the Lionshield', '🦁', 'metal', 'aegis', 'Lionshield Wall', 'sentinel', 'male'],
-    ['Marisol, the Tidecaller', '🌊', 'aqua', 'rain', 'Tidecall Rainfall', 'voidcaller', 'female'],
-    ['Garruk, the Redbanner', '⚔️', 'flame', 'warcry', 'Redbanner Rally', 'trooper', 'male'],
-    ['Ilvane, the Starscribe', '📜', 'cosmic', 'arrow', 'Starscribe Bolt', 'technomancer', 'female'],
-    ['Dessa, the Rimeveil', '❄️', 'frost', 'freeze', 'Rimeveil Lock', 'psion', 'female'],
-    ['Malric, the Bonepiper', '💀', 'shadow', 'eclipse', 'Bonepipe Harvest', 'reanimator', 'male'],
-    ['Ravenna, the Hexbinder', '🔮', 'psychic', 'arrow', 'Hexbind Lance', 'riftbinder', 'female'],
-    ['Bastion, the Wallwarden', '🛡️', 'terra', 'bark', 'Wallwarden Guard', 'sentinel', 'male'],
-    ['Kell, the Plasmablade', '🗡️', 'flame', 'scratch', 'Plasmablade Flurry', 'trooper', 'male'],
-    ['Nimue, the Springtender', '🌿', 'flora', 'bloom', 'Springtender Grace', 'voidcaller', 'female'],
-    ['Aurin, the Sparkwright', '⚡', 'spark', 'jolt', 'Sparkwright Arc', 'technomancer', 'male'],
-    ['Vessa, the Blightsower', '🧪', 'venom', 'spores', 'Blightsown Cloud', 'riftbinder', 'female']
+    ['Castellan Aldric, the Lionshield', '🦁', 'metal', 'aegis', 'Lionshield Wall', 'sentinel', 'male'],
+    ['Marisol Tyde, the Tidecaller', '🌊', 'aqua', 'rain', 'Nanotide Rainfall', 'voidcaller', 'female'],
+    ['Sergeant Garruk, the Redbanner', '⚔️', 'flame', 'warcry', 'Redbanner Rally', 'trooper', 'male'],
+    ['Ilvane Cassk, the Starscribe', '📡', 'cosmic', 'arrow', 'Starscribe Bolt', 'technomancer', 'female'],
+    ['Dessa Vray, the Rimeveil', '❄️', 'frost', 'freeze', 'Rimeveil Lock', 'psion', 'female'],
+    ['Malric Kord, the Signalpiper', '🛰️', 'shadow', 'eclipse', 'Signalpipe Harvest', 'salvager', 'male'],
+    ['Ravenna Sylt, the Hexbinder', '🌀', 'psychic', 'arrow', 'Hexbind Lance', 'riftbinder', 'female'],
+    ['Bastion Orr, the Wallwarden', '🛡️', 'terra', 'bark', 'Wallwarden Guard', 'sentinel', 'male'],
+    ['Kell Vantor, the Plasmablade', '🗡️', 'flame', 'scratch', 'Plasmablade Flurry', 'trooper', 'male'],
+    ['Nimue Sett, the Biotender', '🧬', 'flora', 'bloom', 'Biotender Grace', 'voidcaller', 'female'],
+    ['Aurin Vex, the Sparkwright', '⚡', 'spark', 'jolt', 'Sparkwright Arc', 'technomancer', 'male'],
+    ['Vessa Thorn, the Blightsower', '☣️', 'venom', 'spores', 'Blightsown Cloud', 'riftbinder', 'female']
   ],
   4: [ // 12 × 4★ — the decorated
-    ['Dame Elowyn, the Sunbulwark', '🛡️', 'light', 'aegis', 'Sunbulwark Aegis', 'sentinel', 'female'],
-    ['Rhogar, the Stormbreaker', '⚔️', 'spark', 'storm', 'Stormbreaker Barrage', 'trooper', 'male'],
-    ['Selune, the Moonwrought', '🌙', 'cosmic', 'aurora', 'Moonwrought Mending', 'psion', 'female'],
-    ['Thane Kaidos, the Ashenguard', '🔥', 'flame', 'roar', 'Ashenguard Decree', 'trooper', 'male'],
-    ['Verity, the Glasswind Adept', '🪄', 'frost', 'freeze', 'Glasswind Shatter', 'voidcaller', 'female'],
-    ['Morgrave, the Coffinbearer', '⚰️', 'shadow', 'drain', 'Coffinbearer Toll', 'reanimator', 'male'],
-    ['Isolde, the Thornqueen', '🌹', 'flora', 'chorus', 'Thornqueen Hymn', 'psion', 'female'],
-    ['Cassian, the Runeforged', '⚙️', 'metal', 'smash', 'Runeforged Crash', 'technomancer', 'male'],
-    ['Lyra, the Voidwhisper', '🔮', 'psychic', 'drain', 'Voidwhisper Feast', 'riftbinder', 'female'],
-    ['Dorian, the Tidebreaker', '🌊', 'aqua', 'tidal', 'Tidebreaker Surge', 'voidcaller', 'male'],
-    ['Serrath, the Graveknight', '💀', 'terra', 'quake', 'Graveknight Stomp', 'reanimator', 'male'],
-    ['Auriel, the Lanternbearer', '🕯️', 'light', 'solar', 'Lanternbearer Blaze', 'sentinel', 'female']
+    ['Marshal Elowyn, the Sunbulwark', '🛡️', 'light', 'aegis', 'Sunbulwark Aegis', 'sentinel', 'female'],
+    ['Rhogar Steel, the Stormbreaker', '⚡', 'spark', 'storm', 'Stormbreaker Barrage', 'trooper', 'male'],
+    ['Selune Ayr, the Moonwrought', '🌙', 'cosmic', 'aurora', 'Moonwrought Mending', 'psion', 'female'],
+    ['Commander Kaidos, the Ashenguard', '🔥', 'flame', 'roar', 'Ashenguard Decree', 'trooper', 'male'],
+    ['Verity Kaine, the Glasswind Adept', '❄️', 'frost', 'freeze', 'Glasswind Shatter', 'voidcaller', 'female'],
+    ['Morgrave Cyn, the Hullbearer', '🛰️', 'shadow', 'drain', 'Hullbearer Toll', 'salvager', 'male'],
+    ['Isolde Vane, the Thornqueen', '🧬', 'flora', 'chorus', 'Thornqueen Hymn', 'psion', 'female'],
+    ['Cassian Vorn, the Coreforged', '⚙️', 'metal', 'smash', 'Coreforged Crash', 'technomancer', 'male'],
+    ['Lyra Solen, the Voidwhisper', '🌀', 'psychic', 'drain', 'Voidwhisper Feast', 'riftbinder', 'female'],
+    ['Dorian Thal, the Tidebreaker', '🌊', 'aqua', 'tidal', 'Tidebreaker Surge', 'voidcaller', 'male'],
+    ['Serrath Kade, the Quakeframe', '🪨', 'terra', 'quake', 'Quakeframe Stomp', 'salvager', 'male'],
+    ['Auriel Sonn, the Lanternbearer', '💡', 'light', 'solar', 'Lanternbearer Blaze', 'sentinel', 'female']
   ],
   5: [ // 8 × 5★ — the command staff
-    ['High Templar Roland', '🛡️', 'light', 'aurora', 'Templar Radiance', 'sentinel', 'male'],
+    ['High Castellan Roland', '🛡️', 'light', 'aurora', 'Castellan Radiance', 'sentinel', 'male'],
     ['Archmagos Ysera, the Starloom', '🌌', 'cosmic', 'nova', 'Starloom Detonation', 'voidcaller', 'female'],
     ['Warlord Kestrel, the Redmane', '🦁', 'flame', 'roar', 'Redmane Warcall', 'trooper', 'male'],
-    ['Seraphine, the Wintersong', '❄️', 'frost', 'chorus', 'Wintersong Chorale', 'psion', 'female'],
-    ['Necrarch Vayne, the Gravecrown', '💀', 'shadow', 'eclipse', 'Gravecrown Feast', 'reanimator', 'male'],
-    ['Malachar, the Doomspeaker', '🔮', 'venom', 'spores', 'Doomspoken Rot', 'riftbinder', 'male'],
-    ['Sable, the Ironvow', '⚔️', 'metal', 'aegis', 'Ironvow Rampart', 'trooper', 'female'],
-    ['Evanthe, the Stormsinger', '⚡', 'spark', 'storm', 'Stormsinger Fury', 'psion', 'female']
+    ['Seraphine Ico, the Wintersong', '❄️', 'frost', 'chorus', 'Wintersong Chorale', 'psion', 'female'],
+    ['Overseer Vayne, the Nullcrown', '🌑', 'shadow', 'eclipse', 'Nullcrown Feast', 'salvager', 'male'],
+    ['Malachar Zeth, the Blightspeaker', '☣️', 'venom', 'spores', 'Blightspoken Cloud', 'riftbinder', 'male'],
+    ['Sable Renn, the Ironvow', '⚔️', 'metal', 'aegis', 'Ironvow Rampart', 'trooper', 'female'],
+    ['Evanthe Sol, the Stormsinger', '⚡', 'spark', 'storm', 'Stormsinger Fury', 'psion', 'female']
   ],
   6: [ // 6 × 6★ — the Lords Vanguard
-    ['Grandmaster Valdren, the Unbroken', '🛡️', 'metal', 'aegis', 'Unbroken Bastion', 'sentinel', 'male'],
+    ['Grand Castellan Valdren, the Unbroken', '🛡️', 'metal', 'aegis', 'Unbroken Bastion', 'sentinel', 'male'],
     ['Arch-Psion Nyx, the Starfall', '🌠', 'cosmic', 'nova', 'Starfall Verdict', 'psion', 'female'],
-    ['Warmaster Thorne, the Bloodbanner', '⚔️', 'flame', 'roar', 'Bloodbanner Onslaught', 'trooper', 'male'],
-    ['Lich-Queen Morrigane', '💀', 'shadow', 'eclipse', 'Soulharvest Requiem', 'reanimator', 'female'],
-    ['Archbinder Belial, the Pactmaker', '🔮', 'venom', 'venomf', 'Pactmaker\'s Bargain', 'riftbinder', 'male'],
-    ['Magus Cyrene, the Everflame', '🔥', 'flame', 'inferno', 'Everflame Cataclysm', 'voidcaller', 'female']
+    ['Warmaster Thorne, the Emberbanner', '⚔️', 'flame', 'roar', 'Emberbanner Onslaught', 'trooper', 'male'],
+    ['Void-Queen Morrigane, the Nullsong', '🌑', 'shadow', 'eclipse', 'Nullsong Requiem', 'salvager', 'female'],
+    ['Archbinder Belial, the Pactmaker', '🌀', 'venom', 'venomf', 'Pactmaker Protocol', 'riftbinder', 'male'],
+    ['Magos Cyrene, the Everflame', '🔥', 'flame', 'inferno', 'Everflame Cataclysm', 'voidcaller', 'female']
   ],
-  7: [ // 2 × 7★ — the National Day legends, each with a one-of-a-kind signature
-    ['Kaelen Draxmoor, the Titan Slayer', '🗡️', 'metal', 'dragonfall', 'Titanfall Execution', 'trooper', 'male',
-      'THE legendary titan slayer of the set — a broad-shouldered human man in scarred, ornate POWERED BATTLE-PLATE with enormous shoulder guards, a red battle-cloak and a sealed helm clamped at his hip, gripping a colossal two-handed ENERGY SABRE whose blade is a bar of white plasma. Behind and above him, the vast shadow, wing and horned silhouette of the armoured bio-titan he hunts looms through smoke and burning promethium, dwarfing him — he stands his ground unafraid. Make him look utterly legendary and awe-inspiring.'],
-    ['Ariselle, the Winter Sovereign', '👑', 'frost', 'winter', 'Absolute Zero Crown', 'psion', 'female',
+  7: [ // 2 × 7★ — the Vanguard legends, each with a one-of-a-kind signature
+    ['Kaelen Draxmoor, the Titan Breaker', '🗡️', 'metal', 'dragonfall', 'Titanfall Strike', 'trooper', 'male',
+      'THE legendary titan breaker of the set — a broad-shouldered human man in scarred, ornate POWERED BATTLE-PLATE with enormous shoulder guards, a red battle-cloak and a sealed helm clamped at his hip, gripping a colossal two-handed ENERGY SABRE whose blade is a bar of white plasma. Behind and above him, the vast shadow, wing and horned silhouette of the armoured bio-titan he stands against looms through smoke and reactor haze, dwarfing him — he holds his ground unafraid. Make him look utterly legendary and awe-inspiring.'],
+    ['Ariselle Vayr, the Winter Sovereign', '👑', 'frost', 'winter', 'Absolute Zero Crown', 'psion', 'female',
       'THE legendary winter sovereign of the set — a strikingly beautiful, regal human woman with pale skin and long silver-white hair, wearing a magnificent floor-length ceremonial void-mantle of frost-white and ice-blue over a slender filigreed powered exo-frame, with a high crystalline armoured collar, a circlet of machined cryo-shards, and a long cape of falling frost. Shards of cryo-ice orbit her raised gauntlets. Serene, elegant and utterly commanding, on the frost-rimed bridge of a starship under an aurora. Make her look breathtakingly beautiful and legendary.']
   ]
 };
-// Flatten to the master dex: gen 1 takes c001…c151 by position, the National
-// Day set continues from c152. Gen 1 MUST be flattened first — the ids are
+// Flatten to the master dex: gen 1 takes c001…c051 by position, the Aegis
+// Vanguard set continues from c052. Gen 1 MUST be flattened first — the ids are
 // positional and they live in every student's save.
 const TCG_CARDS = [];
 [1, 2, 3, 4, 5, 6, 7].forEach(stars => {
@@ -20272,26 +20180,26 @@ const TCG_CARDS = [];
 // Each set has a NAME (short, used in headings, toasts and admin lists) and a
 // BILLING — the series line over the set title, laid out the way a real trading
 // card set is billed on its packet: the line the sets share small on top, the
-// set's own name big underneath. The National Day expansion is entirely human,
-// so its title says so: the Aegis Vanguard, and the Rise of Humanity.
+// set's own name big underneath. The second expansion is entirely human, so its
+// title says so: the Aegis Vanguard, and the Rise of Humanity.
 // `art` is the art direction for the set's own banner picture (slot `set:<key>`).
 const TCG_SETS = {
   gen1: {
     key: 'gen1', name: 'Prime Index', em: '👾',
     series: 'The Prime Index', title: 'Xenocline Dominion',
-    sub: '151 war-forms — where every collection begins',
+    sub: '51 xeno war-forms — where every collection begins',
     art: 'A horde of colossal SCIENCE-FICTION WAR-FORMS — bio-titans, void drakes, war machines and elemental xeno-horrors — bursting forward together out of a burning orbital skyline, claws and gun-barrels and armour plate filling the frame.'
   },
   nd: {
-    key: 'nd', name: 'National Day — the Aegis Vanguard', em: '🦁',
+    key: 'nd', name: 'Aegis Vanguard', em: '🦁',
     series: 'Aegis Vanguard', title: 'Rise of Humanity',
-    sub: '50 human heroes — the National Day expansion',
+    sub: '50 human heroes — the second expansion',
     art: 'A band of HUMAN HEROES in the far future — armoured troopers, technomancers and psions in gleaming powered plate and flowing robes — standing shoulder to shoulder and charging forward together, red-and-white lion standards flying, under a sky of golden light and falling drop-ships. Humanity rising: no xenos among them, people are the heroes here.'
   }
 };
 function tcgSetOf(c) { return TCG_SETS[(c && c.set) || 'gen1'] || TCG_SETS.gen1; }
 // The set's 7★ cards — the faces a set is sold on (the legendary trio in the
-// original dex, the legendary pair in the National Day expansion). They
+// original dex, the legendary pair in the Aegis Vanguard expansion). They
 // headline the set banner on the Packs tab, and the set's own artwork is drawn
 // from them, so the legends on the banner are the same characters as the cards.
 function tcgSetHeroes(setKey) {
@@ -20463,7 +20371,7 @@ function _tcgRollStars(odds) {
   return +Object.keys(odds)[0];
 }
 // A pack belongs to a card SET, and pulls only from that set — that is what
-// lets a student chase the National Day cards instead of hoping. An empty
+// lets a student chase the Aegis Vanguard cards instead of hoping. An empty
 // pool (a set with nothing at that rarity) falls back to the whole dex rather
 // than returning undefined and killing the pack open.
 function _tcgRollCard(odds, setKey) {
@@ -21103,9 +21011,9 @@ function _tcgTierMood(stars) {
     'a confident mid-tier fighter', 'a battle-hardened veteran', 'a powerful elite boss',
     'an awe-inspiring legendary titan', 'a mythic, world-shaping god-tier being'][stars] || 'a fighter';
 }
-// The National Day set is people, not beasts, so it needs its own subject
+// The Aegis Vanguard set is people, not beasts, so it needs its own subject
 // wording — but it must come out looking like it belongs in the SAME box as
-// the original 151. The COMPOSITION / STYLE / HARD RULES lines below are held
+// the original 51. The COMPOSITION / STYLE / HARD RULES lines below are held
 // deliberately identical to the unit prompt, and the style line says out
 // loud that this is one card in an existing set, because a model handed
 // "science-fiction warrior" with no other steer will drift into a different rendering
@@ -21117,7 +21025,7 @@ const TCG_CLASS_LOOK = {
   psion:        'a human psion in a sleek armoured void-suit with a fine filigreed psi-focus halo of metal ringing the head, raw psychic energy arcing between open armoured gauntlets',
   voidcaller:   'a human void-caller in a layered sealed voidsuit with a heavy ribbed collar and a mirrored visor, pouring a beam out of a hand-held focus lance',
   riftbinder:   'a human riftbinder in dark hooded battle-plate hung with containment sigil-plates, rift energy coiling out of the gauntlets and being forced back down into a caged wrist unit',
-  reanimator:   'a human reanimator in a scarred surgical exo-frame and a heavy respirator mask, bone-and-chrome trophies bolted to the plating, pale reactor-light and drifting repair drones at their command'
+  salvager:     'a human salvage-adept in a battered armoured work-frame with a heavy sealed rebreather mask, magnetic grapples and cutting tools racked across the plating, a swarm of small repair drones rebuilding wrecked machines around them under pale reactor-light'
 };
 function _tcgHumanArtPrompt(c) {
   const el = TCG_ELEMENTS[c.element] || { name: 'Elemental' };
@@ -21188,7 +21096,7 @@ const TCG_SCREEN_BY_ELEMENT = {
 };
 function tcgScreenForElement(el) { return TCG_SCREEN_BY_ELEMENT[el] || 'magenta'; }
 // Packs: the original set is gold/silver/bronze foil over a dark starry field —
-// magenta is nowhere near any of it. The National Day set is red-and-white
+// magenta is nowhere near any of it. The Aegis Vanguard set is red-and-white
 // heraldry, and red sits close enough to magenta to be worth avoiding.
 function tcgScreenForSet(setKey) { return setKey === 'nd' ? 'green' : 'magenta'; }
 function _screenRules(subject, screen, harder) {
@@ -22926,7 +22834,7 @@ const TCG_LORE_SAGAS = [
       },
       {
         id: 'drownedcrown', title: 'The Drowned Crown of Dagrath',
-        cards: ['Dagrath, the Abyssal King', 'Nereth, the Deep Sovereign', 'Thalassor, the Tidal Colossus'],
+        cards: ['Dagrath, the Abyssal King', 'Nereth, the Deep Sovereign'],
         scene: 'A vast eight-armed abyssal leviathan wearing a crown of black coral on the floor of a lightless ocean trench, bioluminescent light in the water; an enormous whale-like sovereign and a colossal wave-shaped titan rising behind him in the gloom.',
         text: [
           "The sparks that fell in the sea sank for eleven days before they landed.",
@@ -22937,7 +22845,7 @@ const TCG_LORE_SAGAS = [
       },
       {
         id: 'stormmountain', title: 'The Storm and the Mountain',
-        cards: ['Voltrannus, the Storm Eternal', 'Raivo, the Tempest Incarnate', 'Mammorak, the Walking Mountain', 'Gaiagor, the Earthshaker'],
+        cards: ['Voltrannus, the Storm Eternal', 'Mammorak, the Walking Mountain'],
         scene: 'A titanic lightning-wreathed sky-drake and a living thunderhead battling above the clouds, while far below an immense mountain-sized armoured mammoth and a colossal horned earth-titan brace against the storm, the ground splitting in rings around their feet.',
         text: [
           "The sparks that stayed in the air never touched down at all.",
@@ -22948,7 +22856,7 @@ const TCG_LORE_SAGAS = [
       },
       {
         id: 'nightanswered', title: 'Celestine, and the Night That Answered',
-        cards: ['Celestine, the First Light', 'Nyxthara, the Endless Night', 'Erevos, the Void Prowler', 'Solandra, the Lightmother'],
+        cards: ['Celestine, the First Light'],
         scene: 'A luminous white stag-formed being of pure first light standing in a moonlit clearing, facing an enormous serpent of living darkness coiled through the trees behind her; a sleek void-panther prowling the shadows and a radiant antlered mother-of-light watching from a hill of stars.',
         text: [
           "Auros could not be everywhere, so he made someone who could be somewhere gently.",
@@ -22959,7 +22867,7 @@ const TCG_LORE_SAGAS = [
       },
       {
         id: 'ironandgreen', title: 'The Iron Song and the Green',
-        cards: ['Vulcanor, the Worldforge', 'Chromagog, the Iron Colossus', 'Yggdris, the Elder Grove', 'Amara, the Everbloom'],
+        cards: ['Vulcanor, the Worldforge', 'Chromagog, the Iron Colossus'],
         scene: 'An immense forge-god of living metal hammering a mountain into shape while an equally immense iron colossus stands guard; opposite them an ancient world-tree with a city in its branches and a serene blossom-crowned spirit standing in its roots, green pushing up through the iron floor.',
         text: [
           "Two of the elder powers built things instead of ruling them.",
@@ -22970,7 +22878,7 @@ const TCG_LORE_SAGAS = [
       },
       {
         id: 'starcourt', title: 'The Court of Falling Stars',
-        cards: ['Sera, the Seraph Engine', 'Andrella, the Startide', 'Illithar, the Thoughtdrinker', 'Sythrax, the Rot Monarch', 'Cryvexa, the Frozen Warden'],
+        cards: ['Sera, the Seraph Engine', 'Cryvexa, the Frozen Warden'],
         scene: 'A vast hall built out of drifting nebulae and broken orbital rings, where a winged seraph-engine of white fire, a tide of living starlight, a great psychic leviathan, a crowned serpent of rot and an armoured warden of blue ice sit at a round table made of a shattered planet.',
         text: [
           "Once every long age the elder powers meet, and the meeting is called the Court of Falling Stars because it is held in the wreckage of whatever fell last.",
@@ -22999,7 +22907,7 @@ const TCG_LORE_SAGAS = [
     chapters: [
       {
         id: 'valley', title: 'The Sparks That Fell in the Valley',
-        cards: ['High Templar Roland', 'Sable, the Ironvow'],
+        cards: ['High Castellan Roland', 'Sable Renn, the Ironvow'],
         scene: 'A green colony valley at dawn under an alien double moon, with hundreds of tiny points of light drifting down out of the sky like burning snow; ordinary settlers in work clothes standing in the fields with their faces turned up, one young woman catching a spark on her open palm.',
         text: [
           "The elder powers had a whole Nexus and they spent an age arguing about who owned the sky. The people had one valley on one colony world and they were rather more practical about it.",
@@ -23010,7 +22918,7 @@ const TCG_LORE_SAGAS = [
       },
       {
         id: 'banner', title: 'The Lion Standard',
-        cards: ['Grandmaster Valdren, the Unbroken', 'Sir Aldric, the Lionshield', 'Warlord Kestrel, the Redmane'],
+        cards: ['Grand Castellan Valdren, the Unbroken', 'Castellan Aldric, the Lionshield', 'Warlord Kestrel, the Redmane'],
         scene: 'A red-and-white lion standard raised over a fortress wall of ferrocrete and steel at sunset, with armoured human sentinels in powered plate forming up beneath it; a scarred grandmaster in battered armour holding the standard pole with both hands.',
         text: [
           "For a hundred years the sparked went about their lives quietly, and then Ignarok woke up under the Ashfall Ridge and stopped being anyone's rumour.",
@@ -23021,18 +22929,18 @@ const TCG_LORE_SAGAS = [
       },
       {
         id: 'dragonfall', title: 'Kaelen and the Bio-Titan',
-        cards: ['Kaelen Draxmoor, the Titan Slayer', 'Volkarrion, the Plasma Tyrant'],
+        cards: ['Kaelen Draxmoor, the Titan Breaker', 'Volkarrion, the Plasma Tyrant'],
         scene: 'A single armoured human man in scarred ornate powered plate with a red cloak standing on a broken ridge, holding a colossal two-handed energy sabre in both hands, its blade a bar of white plasma, facing the vast horned silhouette of a plasma-breathing bio-titan looming out of smoke and firelight above him. Awe-inspiring, heroic, not gory.',
         text: [
           "Volkarrion had burned four settlements and was walking towards a fifth when Kaelen Draxmoor went up the ridge alone to meet him.",
           "He was not the strongest of the Vanguard. He was not the fastest. What Kaelen had was a habit that his instructors had spent nine years failing to train out of him: he did not move when things got large.",
           "The fight lasted from the middle of the afternoon until well after dark, and there is no honest record of it, because everyone who could see it was running the other way.",
-          "What is certain is that Kaelen came down the ridge at sunrise with the sword over his shoulder, and that Volkarrion has never gone near that valley again. Slayers do not kill titans, whatever the songs say. They persuade them, very loudly, to be somewhere else."
+          "What is certain is that Kaelen came down the ridge at sunrise with the sword over his shoulder, and that Volkarrion has never gone near that valley again. Titan Breakers do not kill titans, whatever the songs say. They persuade them, very loudly, to be somewhere else."
         ]
       },
       {
         id: 'wintercrown', title: 'The Winter Crown',
-        cards: ['Ariselle, the Winter Sovereign', 'Seraphine, the Wintersong', 'Cryvexa, the Frozen Warden'],
+        cards: ['Ariselle Vayr, the Winter Sovereign', 'Seraphine Ico, the Wintersong', 'Cryvexa, the Frozen Warden'],
         scene: 'A beautiful regal silver-haired woman in a floor-length gown of frost-white and ice-blue over a filigreed exo-frame, wearing a crown of ice shards, standing on the bridge of a frozen starship under an aurora; behind her an armoured warden of ancient blue ice bows its head.',
         text: [
           "Ariselle was a psion of the fourth intake and by every account an unremarkable one, until the winter that Cryvexa came south.",
@@ -23043,7 +22951,7 @@ const TCG_LORE_SAGAS = [
       },
       {
         id: 'starloom', title: 'The Starloom and the Everflame',
-        cards: ['Archmagos Ysera, the Starloom', 'Magus Cyrene, the Everflame', 'Arch-Psion Nyx, the Starfall'],
+        cards: ['Archmagos Ysera, the Starloom', 'Magos Cyrene, the Everflame', 'Arch-Psion Nyx, the Starfall'],
         scene: 'A vast observatory of brass, glass and holographic light built into a mountain peak, with a woman in a circuit-stitched void-coat weaving threads of starlight on an enormous loom of light; a second woman wreathed in white-gold fire and a third standing at a window with a falling star reflected in her eyes.',
         text: [
           "The Vanguard needed to know things, so it built a place for knowing them, and Ysera ran it for sixty years.",
@@ -23053,8 +22961,8 @@ const TCG_LORE_SAGAS = [
         ]
       },
       {
-        id: 'bloodbanner', title: 'The Bloodbanner Charge',
-        cards: ['Warmaster Thorne, the Bloodbanner', 'Rhogar, the Stormbreaker', 'Warlord Kestrel, the Redmane'],
+        id: 'bloodbanner', title: 'The Emberbanner Charge',
+        cards: ['Warmaster Thorne, the Emberbanner', 'Rhogar Steel, the Stormbreaker', 'Warlord Kestrel, the Redmane'],
         scene: 'A massed charge of armoured human troopers behind a huge crimson banner across a burning plain, drop-ships streaking overhead; at the front a warmaster in blood-red powered plate with a two-handed chainblade raised.',
         text: [
           "Thorne is the part of the Vanguard that Valdren was afraid of, and Thorne knows it, and has never once pretended otherwise.",
@@ -23065,8 +22973,8 @@ const TCG_LORE_SAGAS = [
       },
       {
         id: 'requiem', title: 'The Requiem of Morrigane',
-        cards: ['Lich-Queen Morrigane', 'Necrarch Vayne, the Gravecrown', 'Morgrave, the Coffinbearer'],
-        scene: 'A pale crowned queen in a tattered dark void-mantle standing in a vast silent hall of stasis caskets lit by cold blue reactor-light, drifting servo-wisps around her; two hooded reanimators in scarred exo-frames standing at the doors with their heads bowed.',
+        cards: ['Void-Queen Morrigane, the Nullsong', 'Overseer Vayne, the Nullcrown', 'Morgrave Cyn, the Hullbearer'],
+        scene: 'A pale crowned sovereign in a long dark void-mantle standing in a vast silent hall of stasis caskets lit by cold blue reactor-light, drifting servo-wisps around her; two hooded salvage-adepts in scarred work-frames standing at the doors with their heads bowed.',
         text: [
           "Not every spark landed in someone who wanted it.",
           "Morrigane was the Vanguard's chief archivist of the dead — the person who kept the names — and she kept them so well and so long that she stopped being able to let any of them go.",
@@ -23076,7 +22984,7 @@ const TCG_LORE_SAGAS = [
       },
       {
         id: 'keeps', title: 'What the Vanguard Keeps',
-        cards: ['Grandmaster Valdren, the Unbroken', 'Dame Elowyn, the Sunbulwark', 'Sable, the Ironvow'],
+        cards: ['Grand Castellan Valdren, the Unbroken', 'Marshal Elowyn, the Sunbulwark', 'Sable Renn, the Ironvow'],
         scene: 'The great hall of a fortress-station at night, its walls covered floor to ceiling in thousands of small brass name-plates; three armoured figures standing quietly among them, one running a gauntleted hand along a row.',
         text: [
           "People ask what the Vanguard is for, now that there are titans it cannot fight and elder powers it cannot argue with.",
@@ -23094,7 +23002,7 @@ const TCG_LORE_SAGAS = [
     chapters: [
       {
         id: 'everflame', title: 'The Theft of the Everflame',
-        cards: ['Magus Cyrene, the Everflame', 'Pyrelia, the Undying Flame', 'Ignarok, the Extinction Flame'],
+        cards: ['Magos Cyrene, the Everflame', 'Pyrelia, the Undying Flame', 'Ignarok, the Extinction Flame'],
         scene: 'A woman wreathed in white-gold fire standing in a shattered reliquary vault at night, a stolen containment flask of undying plasma in her hands; a radiant plasma-raptor rising in alarm behind her and the burning eye of a vast saurian titan filling a broken window.',
         text: [
           "The war did not start with a battle. It started with a theft, and the thief thought she was doing the right thing.",
@@ -23105,7 +23013,7 @@ const TCG_LORE_SAGAS = [
       },
       {
         id: 'ashfall', title: 'The Council at Ashfall',
-        cards: ['Grandmaster Valdren, the Unbroken', 'Sera, the Seraph Engine', 'Aeonyx, the Timeless One'],
+        cards: ['Grand Castellan Valdren, the Unbroken', 'Sera, the Seraph Engine', 'Aeonyx, the Timeless One'],
         scene: 'A tense parley on a plain of grey ash beneath a black sky: a small delegation of armoured humans on one side, an enormous winged seraph-engine of white fire on the other, and a vast star-scaled cosmic drake coiled watchfully between them.',
         text: [
           "Sera came to Ashfall to demand the ember back, and Valdren went out to meet her with six people and no weapons.",
@@ -23116,18 +23024,18 @@ const TCG_LORE_SAGAS = [
       },
       {
         id: 'redbanner', title: 'The Burning of the Redbanner Fields',
-        cards: ['Ignarok, the Extinction Flame', 'Warmaster Thorne, the Bloodbanner', 'Volkarrion, the Plasma Tyrant'],
+        cards: ['Ignarok, the Extinction Flame', 'Warmaster Thorne, the Emberbanner', 'Volkarrion, the Plasma Tyrant'],
         scene: 'A vast plain of burning grain under a red sky, an enormous saurian extinction-titan wading through the fire, and a thin line of armoured human troopers with a crimson banner holding the ridge in front of a fleeing column of civilians.',
         text: [
           "Ignarok did not come for the flame. Ignarok came because the fire had moved and he wanted to know who had moved it, and he asked the question by walking across four hundred miles of farmland.",
-          "The Vanguard put the Bloodbanner in his way. It is the only time in recorded history that infantry have held ground against an extinction-class titan, and they held it for six hours.",
+          "The Vanguard put the Emberbanner in his way. It is the only time in recorded history that infantry have held ground against an extinction-class titan, and they held it for six hours.",
           "They did not beat him. Nobody beats him. They made him stop and look down, and while he was looking down the column got over the river.",
           "Volkarrion arrived at dusk expecting a battlefield and found a wheat field with a line of people still standing in it. Some accounts say he laughed. Most say he simply left."
         ]
       },
       {
         id: 'irongate', title: 'The Siege of the Iron Gate',
-        cards: ['Chromagog, the Iron Colossus', 'Grandmaster Valdren, the Unbroken', 'Cassian, the Runeforged'],
+        cards: ['Chromagog, the Iron Colossus', 'Grand Castellan Valdren, the Unbroken', 'Cassian Vorn, the Coreforged'],
         scene: 'A colossal iron war-machine of ancient design assaulting an enormous fortress gate of layered adamantium, siege-fire everywhere; a grandmaster in dented armour braced in the gateway with a technomancer working frantically at a glowing sigil-panel behind him.',
         text: [
           "Chromagog was not sent. Chromagog decided. That is the trouble with a colossus that would rather guard than obey — it picks its own things to guard, and it had decided to guard the principle of the thing.",
@@ -23138,7 +23046,7 @@ const TCG_LORE_SAGAS = [
       },
       {
         id: 'straits', title: 'The Storm Over the Straits',
-        cards: ['Voltrannus, the Storm Eternal', 'Evanthe, the Stormsinger', 'Rhogar, the Stormbreaker'],
+        cards: ['Voltrannus, the Storm Eternal', 'Evanthe Sol, the Stormsinger', 'Rhogar Steel, the Stormbreaker'],
         scene: 'An enormous lightning-wreathed sky-drake filling a black storm-sky above a narrow sea, with a lone woman standing on the prow of a warship with both arms raised into the lightning and a trooper in storm-scarred plate bracing beside her.',
         text: [
           "The Vanguard fleet had to cross the Straits, and Voltrannus had made a very clear statement about that by sinking the first nine ships that tried.",
@@ -23149,7 +23057,7 @@ const TCG_LORE_SAGAS = [
       },
       {
         id: 'deepbargain', title: 'The Pactmaker Goes Down to the Deep',
-        cards: ['Archbinder Belial, the Pactmaker', 'Dagrath, the Abyssal King', 'Malachar, the Doomspeaker'],
+        cards: ['Archbinder Belial, the Pactmaker', 'Dagrath, the Abyssal King', 'Malachar Zeth, the Blightspeaker'],
         scene: 'A hooded riftbinder in a pressure suit standing on the floor of a lightless ocean trench, lit only by his own sigils, negotiating with a vast crowned abyssal leviathan; a second robed figure waiting behind him at the edge of the light.',
         text: [
           "Somebody had to talk to the deep, and the Vanguard sent the worst person available, because he was the only one who would go.",
@@ -23160,7 +23068,7 @@ const TCG_LORE_SAGAS = [
       },
       {
         id: 'wintertruce', title: 'The Winter Truce',
-        cards: ['Ariselle, the Winter Sovereign', 'Cryvexa, the Frozen Warden', 'Seraphine, the Wintersong'],
+        cards: ['Ariselle Vayr, the Winter Sovereign', 'Cryvexa, the Frozen Warden', 'Seraphine Ico, the Wintersong'],
         scene: 'A vast plain of blue ice under an aurora, where a silver-haired sovereign in a frost-white gown and an ancient armoured warden of ice stand facing one another at a table carved from a single block of ice; ranks of frozen war-machines behind each of them.',
         text: [
           "Half the elder powers were at war with the Vanguard and half of them had not decided, and the whole thing turned on the north.",
@@ -23171,7 +23079,7 @@ const TCG_LORE_SAGAS = [
       },
       {
         id: 'cinderthrone', title: 'The Duel at the Cinder Throne',
-        cards: ['Kaelen Draxmoor, the Titan Slayer', 'Ignarok, the Extinction Flame', 'Leovar, the Cinder King'],
+        cards: ['Kaelen Draxmoor, the Titan Breaker', 'Ignarok, the Extinction Flame'],
         scene: 'A single armoured human man with an enormous energy sabre standing at the foot of a command throne of black slag and molten rock, facing a colossal saurian extinction-titan seated upon it; a great maned cinder-lion pacing between them as a witness.',
         text: [
           "The truce ran out in spring, and Kaelen went to the Cinder Throne to ask Ignarok for one more season.",
@@ -23193,18 +23101,18 @@ const TCG_LORE_SAGAS = [
       },
       {
         id: 'twoarmies', title: 'Two Armies, One Enemy',
-        cards: ['Sera, the Seraph Engine', 'Grandmaster Valdren, the Unbroken', 'Vulcanor, the Worldforge', 'Warmaster Thorne, the Bloodbanner'],
+        cards: ['Sera, the Seraph Engine', 'Grand Castellan Valdren, the Unbroken', 'Vulcanor, the Worldforge', 'Warmaster Thorne, the Emberbanner'],
         scene: 'An enormous armoured host of human troopers and war-machines forming up alongside a host of colossal elder war-forms — a seraph-engine, a forge-god, a titan — all facing the same direction across a plain, towards a wall of advancing darkness on the horizon.',
         text: [
           "The war ended in an afternoon, because both armies were suddenly needed somewhere else.",
           "Sera came to Ardan under a white flag she did not really understand the meaning of, and said the shortest sentence of her long life: *He is coming back tonight.*",
-          "Vulcanor opened the Worldforge to the Vanguard's smiths, which he had refused for two centuries. Thorne put the Bloodbanner under Sera's command, which he had sworn on his own name never to do.",
+          "Vulcanor opened the Worldforge to the Vanguard's smiths, which he had refused for two centuries. Thorne put the Emberbanner under Sera's command, which he had sworn on his own name never to do.",
           "Nobody signed anything. There was no time. Eleven thousand people and nine elder powers simply turned to face the same way, which is the only definition of an alliance that has ever actually mattered."
         ]
       },
       {
         id: 'brokensky', title: 'The Battle of the Broken Sky',
-        cards: ['Draxx, the Entropy King', 'Auros, the Dawn Sovereign', 'Aeonyx, the Timeless One', 'Kaelen Draxmoor, the Titan Slayer', 'Ariselle, the Winter Sovereign'],
+        cards: ['Draxx, the Entropy King', 'Auros, the Dawn Sovereign', 'Aeonyx, the Timeless One', 'Kaelen Draxmoor, the Titan Breaker', 'Ariselle Vayr, the Winter Sovereign'],
         scene: 'A colossal battle across a cracked and shattered sky: a golden dawn-god and a dark entropy-titan locked together above the clouds, a star-scaled cosmic drake winding between them slowing time itself, and far below, tiny by comparison, a single armoured man with an energy sabre and a silver-haired sovereign in white holding a line of light across the ground.',
         text: [
           "It was fought in the sky and won on the ground, and everybody who was there agrees about that and about nothing else.",
@@ -23215,7 +23123,7 @@ const TCG_LORE_SAGAS = [
       },
       {
         id: 'accord', title: 'The Titan Accord',
-        cards: ['Aeonyx, the Timeless One', 'Grandmaster Valdren, the Unbroken', 'Sera, the Seraph Engine', 'Ariselle, the Winter Sovereign', 'Kaelen Draxmoor, the Titan Slayer'],
+        cards: ['Aeonyx, the Timeless One', 'Grand Castellan Valdren, the Unbroken', 'Sera, the Seraph Engine', 'Ariselle Vayr, the Winter Sovereign', 'Kaelen Draxmoor, the Titan Breaker'],
         scene: 'A great treaty signing on a plain of new grass: colossal elder war-forms on one side, a delegation of armoured humans on the other, and an immense star-scaled cosmic drake coiled around both, its head resting on the ground between them. Dawn light, banners, quiet.',
         text: [
           "The Accord is four lines long. Aeonyx wrote it, and the Timeless One does not waste words.",
@@ -23575,7 +23483,7 @@ function tcgLoreArtAdminHtml() {
 // pack, the first nick, the tear running across it, the light bursting out,
 // the cards coming free, the empty wrapper falling away. Each pack TIER
 // (bronze / silver / gold) has its own seven, and each card SET has its own
-// again — the National Day pack is not the original pack in different
+// again — the Aegis Vanguard pack is not the original pack in different
 // colours. 2 sets × 3 tiers × 7 frames = 42 pictures.
 // Same rules as the element FX above: every frame is drawn FROM the one
 // before it, so the run stays one continuous animation rather than seven
@@ -23599,7 +23507,7 @@ const TCG_PACK_LOOK = {
 // look like two different products rather than one recoloured one.
 const TCG_PACK_SET_LOOK = {
   gen1: 'The wrapper carries the ORIGINAL xeno set: a bold alien war-form emblem — chitin plating, horns and hooked claws — over a dark starfield, in the style of a painted science-fiction card game.',
-  nd:   'The wrapper carries the NATIONAL DAY set, the Aegis Vanguard: a LION insignia stencilled on a red-and-white hull plate, flanked by a crossed energy sabre and beam-lance, in the style of a painted science-fiction card game. Regal and ceremonial.'
+  nd:   'The wrapper carries the SECOND set, the Aegis Vanguard: a LION insignia stencilled on a red-and-white hull plate, flanked by a crossed energy sabre and beam-lance, in the style of a painted science-fiction card game. Regal and ceremonial.'
 };
 // The knock-out in _tcgArtStore runs when a frame is SAVED, so any frame drawn
 // before it learned about packs still has its plate baked into the PNG sitting
@@ -23726,7 +23634,7 @@ function tcgPackRowInnerHtml(setKey, tier) {
 function tcgPackArtAdminHtml() {
   const miss = tcgPackMissing();
   let html = '<h3 class="ga-cat">🎁 Booster pack opening animation</h3>'
-    + '<div class="tcg-section-note">Each booster pack is <b>torn open</b> on screen before the cards are revealed — <b>' + TCG_PACK_FRAMES + ' frames</b> from sealed packet to empty wrapper. Every pack tier has its own run, and <b>each card set has its own again</b>, so the ' + TCG_SETS.nd.em + ' National Day pack is a different packet rather than the original one recoloured. Every frame is drawn <b>from the one before it</b>, so the pack stays the same pack all the way through the tear. A run with any frame missing simply doesn\'t animate — the pack opens straight to the cards, so you can do one run at a time.</div>'
+    + '<div class="tcg-section-note">Each booster pack is <b>torn open</b> on screen before the cards are revealed — <b>' + TCG_PACK_FRAMES + ' frames</b> from sealed packet to empty wrapper. Every pack tier has its own run, and <b>each card set has its own again</b>, so the ' + TCG_SETS.nd.em + ' Aegis Vanguard pack is a different packet rather than the original one recoloured. Every frame is drawn <b>from the one before it</b>, so the pack stays the same pack all the way through the tear. A run with any frame missing simply doesn\'t animate — the pack opens straight to the cards, so you can do one run at a time.</div>'
     + '<div class="tcg-section-note">The pack stands on <b>nothing</b> — just its own tier glow behind it — so every frame has its background knocked out before it is saved. Frames drawn before that existed still carry the black plate, white card or chequerboard the model painted: press <b>🧽 Clean painted backgrounds</b> once and they are cut out and written back, no re-drawing and no cost.</div>'
     + '<div class="tcg-gen-actions" style="margin-bottom:20px;">'
     +   '<button type="button" class="btn btn-primary" id="tcgPackAllBtn" onclick="tcgGenAllPackArt()"' + (miss ? '' : ' disabled') + '>✨ Generate every pack animation'
@@ -25774,8 +25682,8 @@ function tcgGuideHtml() {
 
   + _tcgGuideSection('🃏', 'The cards',
       'There are <b>' + TCG_CARDS.length + '</b> cards in the dex, numbered #001–#' + String(TCG_CARDS.length).padStart(3, '0') + ', across <b>two sets</b>: '
-        + '<b>' + TCG_SETS.gen1.em + ' the original dex</b> (#001–#' + String(TCG_CARDS.filter(c => (c.set || 'gen1') === 'gen1').length).padStart(3, '0') + ', units), and '
-        + '<b>' + TCG_SETS.nd.em + ' ' + TCG_SETS.nd.series + ' — ' + TCG_SETS.nd.title + '</b> (the National Day expansion, ' + TCG_CARDS.filter(c => c.set === 'nd').length + ' cards), which is entirely <b>human</b>: warriors, paladins, wizards, sorceresses, mages, warlocks and necromancers. '
+        + '<b>' + TCG_SETS.gen1.em + ' ' + TCG_SETS.gen1.series + ' — ' + TCG_SETS.gen1.title + '</b> (#001–#' + String(TCG_CARDS.filter(c => (c.set || 'gen1') === 'gen1').length).padStart(3, '0') + ', units), and '
+        + '<b>' + TCG_SETS.nd.em + ' ' + TCG_SETS.nd.series + ' — ' + TCG_SETS.nd.title + '</b> (the second expansion, ' + TCG_CARDS.filter(c => c.set === 'nd').length + ' cards), which is entirely <b>human</b>: troopers, sentinels, technomancers, psions, void-callers, riftbinders and salvage-adepts. '
         + 'Rarity runs 1★ to 7★ — higher stars mean bigger base stats, and only <b>' + TCG_CARDS.filter(c => c.stars === 7).length + '</b> 7★ legends exist across both sets. '
         + 'Both sets drop from the same booster packs, and the Collection tab has a chip for each.',
       _tcgGuideTable(['Rarity', 'How many'], cardCounts)
@@ -25841,7 +25749,7 @@ function tcgGuideHtml() {
         + Math.round(TCG_SKILLS.dragonfall.exec * 100) + '% of the target\'s maximum health, so the bigger the enemy, the more it hurts.</p>')
 
   + _tcgGuideSection('⚔️', 'Nova Legends — become your unit',
-      'The arena mode. You pick ONE unit from your collection and play <i>as</i> it: its stars, training level and merge level are your stats, and the rest of the 151 are the horde coming for you.',
+      'The arena mode. You pick ONE unit from your collection and play <i>as</i> it: its stars, training level and merge level are your stats, and the rest of the dex are the horde coming for you.',
       _tcgGuideRows([
         ['Playing', 'Drag (or use WASD / the arrow keys) to move. Your unit attacks the nearest enemy by itself — your job is where to stand and when to fire a skill. Keys <b>1–9</b> fire your learned actives in bar order, and <b>T</b> opens the skill tree mid-fight.'],
         ['✦ Skill points', 'A maths question arrives every ' + ELG_Q_EVERY + ' seconds and freezes the battle while it is up: a correct answer is <b>+' + ELG_SP_CORRECT + ' point</b>, and clearing a wave is <b>+' + ELG_SP_WAVE + '</b>. Points are spent in the skill tree, which you can open mid-fight.'],
@@ -25935,7 +25843,7 @@ function tcgGuideHtml() {
 //  1. A card keeps the skill it already has. The arena skill is not touched —
 //     every card simply GAINS a duel ability, generated from the same
 //     `TCG_SKILLS[...].kind` its arena skill already uses (DUEL_ABILITIES).
-//     So a card is one idea across every mode, all 201 of them are covered
+//     So a card is one idea across every mode, all 101 of them are covered
 //     the moment they exist, and a future set needs nothing added here.
 //  2. Rarity IS power. The ability's numbers come out of `card.stars`, so a
 //     7★ legend's battlecry is several times a 1★'s, and its mana cost is
@@ -26134,7 +26042,7 @@ const DUEL_ABILITIES = {
       ? 'Poisonous — any minion it damages is destroyed outright.'
       : 'Deathrattle: deal ' + v + ' damage to all enemy minions when it dies.'
   },
-  // ---- Signature kinds: the 7★ legends and the National Day pair. One of a
+  // ---- Signature kinds: the 7★ legends and the Aegis Vanguard pair. One of a
   // kind in the arena, one of a kind here. ----
   dawn: {
     icon: '🌅', kind: 'dawn', trig: 'battlecry', v: st => 2 + Math.floor(st / 2),
@@ -26210,13 +26118,13 @@ const DUEL_SPELLS = [
   { id: 'sp_lance', name: 'Cinder Lance', icon: '🗡️', cost: 3, kind: 'dmgAny', v: 4, text: 'Deal 4 damage to any target.' },
   { id: 'sp_meteor', name: 'Meteor', icon: '☄️', cost: 6, kind: 'dmgAny', v: 8, text: 'Deal 8 damage to any target.' },
   { id: 'sp_ashfall', name: 'Ashfall', icon: '🌋', cost: 4, kind: 'sweep', v: 3, text: 'Deal 3 damage to ALL enemy minions.' },
-  { id: 'sp_scry', name: 'Scrying Flame', icon: '🔮', cost: 2, kind: 'draw', v: 2, text: 'Draw 2 cards.' },
+  { id: 'sp_scry', name: 'Sensor Sweep', icon: '📡', cost: 2, kind: 'draw', v: 2, text: 'Draw 2 cards.' },
   { id: 'sp_study', name: 'Data Study', icon: '📖', cost: 4, kind: 'draw', v: 3, text: 'Draw 3 cards.' },
-  { id: 'sp_mend', name: 'Mending Light', icon: '💚', cost: 2, kind: 'heal', v: 6, text: 'Restore 6 health to your hero.' },
+  { id: 'sp_mend', name: 'Nanomend Pulse', icon: '💚', cost: 2, kind: 'heal', v: 6, text: 'Restore 6 health to your hero.' },
   { id: 'sp_frost', name: 'Frost Lock', icon: '❄️', cost: 2, kind: 'freeze', v: 1, text: 'Freeze an enemy minion and deal 1 damage to it.' },
-  { id: 'sp_warcall', name: 'War Call', icon: '📣', cost: 3, kind: 'buff', v: 2, text: 'Give your minions +2 Attack.' },
+  { id: 'sp_warcall', name: 'Rally Call', icon: '📣', cost: 3, kind: 'buff', v: 2, text: 'Give your minions +2 Attack.' },
   { id: 'sp_bulwark', name: 'Aegis Bulwark', icon: '🛡️', cost: 2, kind: 'guard', v: 4, text: 'Give a friendly minion +4 Health and Taunt.' },
-  { id: 'sp_siphon', name: 'Soul Siphon', icon: '🩸', cost: 4, kind: 'siphon', v: 3, text: 'Deal 3 damage to a minion and draw a card.' },
+  { id: 'sp_siphon', name: 'Bio-Siphon', icon: '🩸', cost: 4, kind: 'siphon', v: 3, text: 'Deal 3 damage to a minion and draw a card.' },
   { id: 'sp_judgement', name: 'Dawn Judgement', icon: '🌅', cost: 7, kind: 'judge', v: 5, text: 'Deal 5 damage to ALL enemy minions and restore 5 health to your hero.' }
 ];
 const DUEL_SPELL_BY_ID = {};
@@ -26273,7 +26181,7 @@ const DUEL_POWER_COST = 2;        // every basic hero power, exactly as Hearthst
 const DUEL_HERO_DEFAULT = 'warden';
 const DUEL_HEROES = [
   {
-    id: 'warden', name: 'Warden Elowen', title: 'Keeper of the Hearth', em: '🛡️', tier: 'basic',
+    id: 'warden', name: 'Warden Elowen', title: 'Keeper of the Bulwark', em: '🛡️', tier: 'basic',
     safe: true, screen: 'magenta', el: 'metal',
     blurb: 'Holds the line while your board grows. Armour stacks up turn after turn, and nothing you press can ever be wasted — which is why she is the hero you start with.',
     look: 'a calm young woman in dented silver POWERED ARMOUR with heavy shoulder plates and a deep blue shoulder-drape, a projected hard-light round shield held steady in front of her, short dark hair, a warm patient expression',
@@ -26287,14 +26195,14 @@ const DUEL_HEROES = [
     power: { name: 'Ignition Spark', icon: '🔥', kind: 'dmgAny', v: 1, need: 'any', text: 'Deal 1 damage to any target.' }
   },
   {
-    id: 'grove', name: 'Sage Wren', title: 'Voice of the Green', em: '🌿', tier: 'basic',
+    id: 'grove', name: 'Adept Wren', title: 'Voice of the Biosphere', em: '🌿', tier: 'basic',
     screen: 'blue', el: 'flora',
     blurb: 'Makes one of your minions a little better every turn. Put it on something with Taunt or Lifesteal and the rival has to answer a card that keeps growing.',
     look: 'a slender older woman in a flowing green-and-brown field coat over a light exo-frame, a woven bio-mantle across the shoulders, long grey hair, one hand open with small glowing green shoots curling up out of her palm, kind eyes',
-    power: { name: 'Green Gift', icon: '🌿', kind: 'grow', v: 1, need: 'friendlyMinion', text: 'Give a friendly minion +1/+1.' }
+    power: { name: 'Biograft', icon: '🌿', kind: 'grow', v: 1, need: 'friendlyMinion', text: 'Give a friendly minion +1/+1.' }
   },
   {
-    id: 'frost', name: 'Tidecaller Nell', title: 'Daughter of the Deep Frost', em: '❄️', tier: 'basic',
+    id: 'frost', name: 'Tidecaller Nell', title: 'Of the Deep Cryo', em: '❄️', tier: 'basic',
     screen: 'magenta', el: 'frost',
     blurb: 'Take the rival\'s best attacker out of the fight for a turn, every turn. It deals no damage at all — it simply means their biggest minion never gets to swing.',
     look: 'a young woman in a pale blue-and-white sealed void-suit with silver clasps and a high collar, long white braided hair, both hands cupped around a slowly turning shard of cryo-ice, a quiet unbothered face',
@@ -29129,7 +29037,7 @@ const EMS_SKILL_FX = {
   dawn:    { mode: 'dawn',    label: '🌅 Dawnfire',    atk: 0.85, rate: 1.05, range: 4.8, desc: 'Strikes a foe and mends the nearest hurt defender with the same light.' },
   curse:   { mode: 'curse',   label: '💀 Curse',       atk: 0.82, rate: 1.00, range: 4.8, desc: 'Marks what it hits — the cursed take 40% more damage from everything.' },
   chrono:  { mode: 'chrono',  label: '⏳ Time fracture', atk: 0.90, rate: 1.00, range: 6.0, desc: 'Bends time around the lane: pierces every enemy and slows them all.' },
-  // National Day 7★ signatures. Both reuse an EXISTING lane `mode` — the mode
+  // Aegis Vanguard 7★ signatures. Both reuse an EXISTING lane `mode` — the mode
   // is what the siege engine actually implements, so a new kind gets its own
   // label and tuning without needing new lane behaviour written for it.
   slay:       { mode: 'pierce', label: '🗡️ Dragonsbane',  atk: 1.15, rate: 0.85, range: 6.5, desc: 'One enormous swing that carves straight down the lane through everything in it.' },
@@ -29906,7 +29814,7 @@ function emsBurst(lane, x, sp, element) {
   setTimeout(() => d.remove(), 460);
 }
 // Cooldown veils and "can I afford this?" dimming. Deliberately NOT part of
-// the frame loop — a collection can run to 151 cards, and touching every deck
+// the frame loop — a collection can run to the whole dex, and touching every deck
 // tile 60 times a second is the one thing that would make this stutter on a
 // school phone. Four times a second is plenty for a seconds countdown.
 function emsRefreshDeckState() {
@@ -34092,7 +34000,7 @@ window.renderSyllabusPage = renderSyllabusPage;
   <!-- The emoji sits OUTSIDE the gradient span: -webkit-text-fill-color:transparent
        applies to it too, and a gradient-filled 🦁 comes out as a pale blob. -->
   <div style="font-family:'Cinzel',Georgia,serif;font-weight:700;font-size:1.3rem;line-height:1.3;margin-bottom:12px;"><span style="margin-right:8px;">🦁</span><span style="background:linear-gradient(100deg,#e9fbff,#4de3ff 48%,#0f89ab);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;">The Aegis Vanguard has arrived</span></div>
-  <div style="color:#c3d1f2;font-size:0.92rem;line-height:1.7;margin-bottom:20px;"><b style="color:#d9f2ff;">50 brand-new human heroes</b> — sentinels, troopers, technomancers, psions, riftbinders and reanimators — join the dex, led by two 7★ legends: <b style="color:#d9f2ff;">Kaelen Draxmoor, the Titan Slayer</b> and <b style="color:#d9f2ff;">Ariselle, the Winter Sovereign</b>. Choose which set you open, watch the packet <b>tear open</b> in your hands, and read their whole story in the new <b>📜 Nexus Codex</b>.<br><br>Your points are already waiting. <b style="color:#4de3ff;">Go and open a pack.</b></div>
+  <div style="color:#c3d1f2;font-size:0.92rem;line-height:1.7;margin-bottom:20px;"><b style="color:#d9f2ff;">50 brand-new human heroes</b> — sentinels, troopers, technomancers, psions, riftbinders and salvage-adepts — join the dex, led by two 7★ legends: <b style="color:#d9f2ff;">Kaelen Draxmoor, the Titan Breaker</b> and <b style="color:#d9f2ff;">Ariselle Vayr, the Winter Sovereign</b>. Choose which set you open, watch the packet <b>tear open</b> in your hands, and read their whole story in the new <b>📜 Nexus Codex</b>.<br><br>Your points are already waiting. <b style="color:#4de3ff;">Go and open a pack.</b></div>
   <div style="display:flex;gap:12px;flex-wrap:wrap;">
     <button id="tcgExpAnnounceOpen" style="background:linear-gradient(135deg,#4de3ff,#12a3cc);color:#14161a;border:none;border-radius:10px;padding:12px 22px;font-weight:800;font-size:0.92rem;cursor:pointer;">🎁 Open a Vanguard pack</button>
     <button id="tcgExpAnnounceLore" style="background:transparent;color:#cfe8f7;border:1px solid rgba(77,227,255,0.5);border-radius:10px;padding:12px 18px;font-weight:600;font-size:0.92rem;cursor:pointer;">📜 Read the story</button>
