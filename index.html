@@ -18833,7 +18833,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.16.0 · 2026-08-09";
+const APP_VERSION = "v1.17.0 · 2026-08-09";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
@@ -20065,14 +20065,17 @@ const TCG_GEN1 = {
     ['Kryllon, the Iron Colossus', '🦾', 'metal', 'smash', 'Colossus Ironfall'],
     ['Seraphex, the Seraph Engine', '👼', 'cosmic', 'nova', 'Seraphic Verdict']
   ],
-  7: [ // 3 × 7★ — the Prime Trinity, each with a signature one-of-a-kind skill
-    ['Aetherion Prime, the Dawn Sovereign', '☀️', 'light', 'sunrise', 'Dawnfire Verdict'],
-    ['Nihilar, the Entropy King', '🌑', 'shadow', 'doom', 'Heat-Death Decree'],
-    ['Chronovex, the Timeless One', '🐉', 'cosmic', 'chrono', 'Causality Fracture']
+  7: [ // 3 × 7★ — the Devourers: galaxy-scale apex powers, each with a signature one-of-a-kind skill
+    ['Solvorax Prime, the Starforger', '☀️', 'light', 'sunrise', 'Stellar Ignition',
+      'THE star-forger of the set — a colossal CYBERNETIC VOID-DRAKE the length of a continent, its serpentine body armoured in white-gold hull plating with fusion light burning out between every plate, and wings of hard-light spanning wider than a moon. It is coiled around a dying star and breathing fusion fire back into it, and the star is coming alight again under its jaws. A whole fleet of warships drifts along one wing like specks of dust — show that scale.'],
+    ['Vhorrukhaal, the Star Eater', '🌑', 'shadow', 'doom', 'Star Devouring',
+      'THE great villain of the entire dex — a titanic STAR-EATING CYBERNETIC VOID-DRAKE, kilometres of black hull plating and reactor-red seams, ribbed intake vents running down its flanks and a crown of broken gate-rings around its skull. Its jaws are closing over a sun and the sun is going out, its light drawn away in long threads into the drake\'s throat. Dead gate-stations and shattered moons tumble in its wake. Overwhelming in scale, but awe rather than horror — no blood, nothing gruesome.'],
+    ['Aeternax, the World Coil', '🐉', 'cosmic', 'chrono', 'Aeon Collapse',
+      'an immense star-scaled cosmic drake coiled entirely around the core of a spiral galaxy, its armour plating scattered with real constellations and its body running away into the galactic arms in both directions until it is lost among the stars. Serene, ancient and unimaginably vast — the galaxy is the thing it is wearing.']
   ]
 };
 // ── Second expansion — the Aegis Vanguard (50 cards) ───────────────────────
-// The first set is xeno war-forms; this one is entirely HUMAN — troopers,
+// The first set is xeno war-forms; this one is HUMANITY'S — troopers,
 // sentinels, technomancers, psions, void-callers, riftbinders and salvagers,
 // an order raised under a red-and-white lion standard. That difference is not
 // just flavour: the art generator draws a PERSON instead of a creature for
@@ -20148,11 +20151,13 @@ const TCG_GEN2 = {
     ['Archbinder Vaskaal, the Pactmaker', '🌀', 'venom', 'venomf', 'Pactmaker Protocol', 'riftbinder', 'male'],
     ['Magos Ignatha, the Everflame', '🔥', 'flame', 'inferno', 'Everflame Cataclysm', 'voidcaller', 'female']
   ],
-  7: [ // 2 × 7★ — the Vanguard legends, each with a one-of-a-kind signature
-    ['Lord-Marshal Vaskoryn, the Titan Breaker', '🗡️', 'metal', 'dragonfall', 'Titanfall Strike', 'trooper', 'male',
-      'THE legendary titan breaker of the set — a broad-shouldered human man in scarred, ornate POWERED BATTLE-PLATE with enormous shoulder guards, a red battle-cloak and a sealed helm clamped at his hip, gripping a colossal two-handed ENERGY SABRE whose blade is a bar of white plasma. Behind and above him, the vast shadow, wing and horned silhouette of the armoured bio-titan he stands against looms through smoke and reactor haze, dwarfing him — he holds his ground unafraid. Make him look utterly legendary and awe-inspiring.'],
-    ['Frost-Sovereign Ilyaris, the Winter Crown', '👑', 'frost', 'winter', 'Absolute Zero Crown', 'psion', 'female',
-      'THE legendary winter sovereign of the set — a strikingly beautiful, regal human woman with pale skin and long silver-white hair, wearing a magnificent floor-length ceremonial void-mantle of frost-white and ice-blue over a slender filigreed powered exo-frame, with a high crystalline armoured collar, a circlet of machined cryo-shards, and a long cape of falling frost. Shards of cryo-ice orbit her raised gauntlets. Serene, elegant and utterly commanding, on the frost-rimed bridge of a starship under an aurora. Make her look breathtakingly beautiful and legendary.']
+  7: [ // 2 × 7★ — the Titan Engines: what humanity built to stand in front of a star-eater.
+    //    class 'titan' switches this row off the human art path — it is a
+    //    machine, and the generator must draw a machine.
+    ['Ferrovax Omega, the Titan Engine', '🦾', 'metal', 'dragonfall', 'Cataclysm Protocol', 'titan', null,
+      'THE Vanguard\'s answer to the star-eaters — a KILOMETRE-TALL WALKING WAR-ENGINE in scarred red-and-white battle plate: humanoid in outline but built like a fortress, with colossal shoulder pauldrons carrying whole gun batteries, reactor light burning out of every joint, a red-and-white lion standard the size of a city block hanging from one arm, and a two-handed plasma blade longer than a warship. It is mid-stride across a burning orbital city and the towers come up to its knee — show that scale.'],
+    ['Cryovast Aegis, the Winter Engine', '🧊', 'frost', 'winter', 'Absolute Zero Cascade', 'titan', null,
+      'a mountain-sized WALKING SIEGE ENGINE of frost-white armour plate and exposed cryogenic machinery — four immense legs, a crowned superstructure of freezing coils, vapour pouring from every vent — breathing a wall of absolute cold across an entire battlefront. The ground behind it is a sheet of new ice and a fleet of warships hangs frozen in orbit above it. Vast, beautiful and utterly cold.']
   ]
 };
 // Flatten to the master dex: gen 1 takes c001…c051 by position, the Aegis
@@ -20162,7 +20167,7 @@ const TCG_CARDS = [];
 [1, 2, 3, 4, 5, 6, 7].forEach(stars => {
   (TCG_GEN1[stars] || []).forEach(row => {
     const n = TCG_CARDS.length + 1;
-    TCG_CARDS.push({ id: 'c' + String(n).padStart(3, '0'), num: n, name: row[0], em: row[1], element: row[2], skillId: row[3], skillName: row[4] || null, stars, set: 'gen1' });
+    TCG_CARDS.push({ id: 'c' + String(n).padStart(3, '0'), num: n, name: row[0], em: row[1], element: row[2], skillId: row[3], skillName: row[4] || null, stars, set: 'gen1', art: row[5] || null });
   });
 });
 [1, 2, 3, 4, 5, 6, 7].forEach(stars => {
@@ -20171,7 +20176,7 @@ const TCG_CARDS = [];
     TCG_CARDS.push({
       id: 'c' + String(n).padStart(3, '0'), num: n, name: row[0], em: row[1], element: row[2],
       skillId: row[3], skillName: row[4] || null, stars,
-      set: 'nd', human: true, cls: row[5] || 'warrior', sex: row[6] || 'male', art: row[7] || null
+      set: 'nd', human: row[5] !== 'titan', cls: row[5] || 'warrior', sex: row[6] || 'male', art: row[7] || null
     });
   });
 });
@@ -20188,13 +20193,13 @@ const TCG_SETS = {
     key: 'gen1', name: 'Prime Index', em: '👾',
     series: 'The Prime Index', title: 'Xenocline Dominion',
     sub: '51 xeno war-forms — where every collection begins',
-    art: 'A horde of colossal SCIENCE-FICTION WAR-FORMS — bio-titans, void drakes, war machines and elemental xeno-horrors — bursting forward together out of a burning orbital skyline, claws and gun-barrels and armour plate filling the frame.'
+    art: 'A horde of colossal SCIENCE-FICTION WAR-FORMS — kaiju-scale bio-titans, star-eating cybernetic void-drakes, walking war machines and elemental xeno-horrors — bursting forward together out of a burning orbital skyline, claws and gun-barrels and armour plate filling the frame, with a whole fleet reduced to specks beneath them for scale.'
   },
   nd: {
     key: 'nd', name: 'Aegis Vanguard', em: '🦁',
     series: 'Aegis Vanguard', title: 'Rise of Humanity',
-    sub: '50 human heroes — the second expansion',
-    art: 'A band of HUMAN HEROES in the far future — armoured troopers, technomancers and psions in gleaming powered plate and flowing robes — standing shoulder to shoulder and charging forward together, red-and-white lion standards flying, under a sky of golden light and falling drop-ships. Humanity rising: no xenos among them, people are the heroes here.'
+    sub: '50 defenders of humanity — heroes and Titan Engines',
+    art: 'A band of HUMAN HEROES in the far future — armoured troopers, technomancers and psions in gleaming powered plate and hooded void-cloaks — standing shoulder to shoulder and charging forward together, red-and-white lion standards flying, under a sky of golden light and falling drop-ships, with the legs of two kilometre-tall walking Titan Engines rising behind them like towers. Humanity rising: no xenos among them, people and the machines they built are the heroes here.'
   }
 };
 function tcgSetOf(c) { return TCG_SETS[(c && c.set) || 'gen1'] || TCG_SETS.gen1; }
@@ -20869,6 +20874,8 @@ const TCG_ART_WORLD =
   + 'Starships, orbital docks and hull plating; exposed cabling, rivets, vents and reactor glow; hard-light energy sabres, plasma weapons and beam-lances; '
   + 'holographic displays, sealed void-suits, powered exo-frames, and rugged battle-worn POWERED ARMOUR of the space-marine kind — huge shoulder plates, scarred paint, sealed helms. '
   + 'Its creatures are ALIEN SPECIES and war-machines: sleek high-tech xenos, hulking armoured xeno-brutes, insectile hive-forms, bio-engineered war-beasts and walking constructs. '
+  + 'At the very top of that ladder are KAIJU-SCALE powers: continent-shouldered xeno-titans, star-eating cybernetic void-drakes long enough to coil around a sun, and the kilometre-tall walking war-engines built to answer them. '
+  + 'When a subject is that size, SHOW the scale — put a city, a fleet, a mountain range or a whole star in the frame beside it so the eye can measure it. '
   + 'ABSOLUTELY NOT FANTASY. No wizards, mages, sorcerers, witches, warlocks or necromancers. No medieval knights, plate armour, chainmail, tabards, surcoats or heraldic shields. '
   + 'No dragons, unicorns, phoenixes, angels, demons, elves, orcs, goblins or fairies. No castles, dungeons, taverns, forests of oak or cobbled streets. '
   + 'No wands, spellbooks, wooden staves, crystal balls, scrolls, potions, cauldrons or carved stone runes. No cloth wizard robes and no pointed hats. '
@@ -21009,7 +21016,8 @@ const TCG_ART_PALETTE = {
 function _tcgTierMood(stars) {
   return ['', 'small, cute and just starting out', 'small but scrappy and eager',
     'a confident mid-tier fighter', 'a battle-hardened veteran', 'a powerful elite boss',
-    'an awe-inspiring legendary titan', 'a mythic, world-shaping god-tier being'][stars] || 'a fighter';
+    'a colossal KAIJU-CLASS titan that dwarfs the warships around it',
+    'a GALAXY-SCALE apex power — the single most awe-inspiring thing in the whole dex, on the scale of a moon, a star or a whole world'][stars] || 'a fighter';
 }
 // The Aegis Vanguard set is people, not beasts, so it needs its own subject
 // wording — but it must come out looking like it belongs in the SAME box as
@@ -21049,10 +21057,19 @@ function _tcgHumanArtPrompt(c) {
 function tcgCardArtPrompt(c) {
   if (c && c.human) return _tcgHumanArtPrompt(c);
   const el = TCG_ELEMENTS[c.element] || { name: 'Elemental' };
-  const creature = TCG_EM_WORD[c.em] || 'an unclassified alien war-form';
+  // A row that describes its own body REPLACES the emoji phrase — that is what
+  // an art note means on a creature. Its trailing full stop is trimmed so the
+  // sentence the prompt builds around it does not end in two of them.
+  const creature = String(c.art || TCG_EM_WORD[c.em] || 'an unclassified alien war-form').replace(/\.\s*$/, '');
+  const elWord = el.name.toLowerCase();
+  const an = /^[aeiou]/.test(elWord) ? 'an ' : 'a ';
+  // The Vanguard's Titan Engines are in the human set and are NOT xenos —
+  // people built them — so the "reads as a xeno-form" clause has to know which
+  // it is talking to, or the generator is told a human war-machine is alien.
+  const built = (c.set === 'nd' || c.cls === 'titan') ? 'war-machine' : 'xeno-form';
   return 'Original science-fiction war-form artwork for a children\'s collectible trading-card game.\n'
     + TCG_ART_WORLD
-    + 'WAR-FORM: "' + c.name + '" — a ' + el.name.toLowerCase() + '-element ALIEN CREATURE OR WAR-MACHINE: ' + creature + '. Built up into ' + _tcgTierMood(c.stars) + ' (' + c.stars + ' of 7 stars). Give it the hardware of its rank — plating, vents, emitters, running lights — so it reads as a xeno-form of this world and never as an earthly animal or a mythical beast.\n'
+    + 'WAR-FORM: "' + c.name + '" — ' + an + elWord + '-element ALIEN CREATURE OR WAR-MACHINE: ' + creature + '. Built up into ' + _tcgTierMood(c.stars) + ' (' + c.stars + ' of 7 stars). Give it the hardware of its rank — plating, vents, emitters, running lights — so it reads as a ' + built + ' of this world and never as an earthly animal or a mythical beast.\n'
     + 'ELEMENT LOOK: ' + (TCG_ART_PALETTE[c.element] || 'vivid science-fiction colours') + '.\n'
     + (c.skillName ? 'SIGNATURE MOVE: "' + c.skillName + '" — let the pose and the effects hint at it.\n' : '')
     + 'COMPOSITION: square, full-bleed illustration; the whole creature is inside the frame, centred and filling most of it, in a heroic three-quarter view; an atmospheric background scene that matches the element.\n'
@@ -22772,13 +22789,13 @@ const TCG_LORE_SAGAS = [
     chapters: [
       {
         id: 'coal', title: 'The Signal That Built the Roads',
-        cards: ['Chronovex, the Timeless One'],
-        scene: 'At the core of a spiral galaxy, an ancient machine-intelligence the size of a star — a slowly turning sphere of folded golden circuitry — casting threads of light outward along a shining lattice of jump-gates towards a hundred thousand distant worlds. A colossal serene star-scaled void-drake is coiled in a slow ring around it, watching. Vast, quiet, awe-inspiring.',
+        cards: ['Aeternax, the World Coil'],
+        scene: 'At the core of a spiral galaxy, an ancient machine-intelligence the size of a star — a slowly turning sphere of folded golden circuitry — casting threads of light outward along a shining lattice of jump-gates towards a hundred thousand distant worlds. An immense star-scaled cosmic drake is coiled all the way around it, its body running away into the galactic arms in both directions. Vast, quiet, awe-inspiring.',
         text: [
           "A long time before anybody drew a border, the galaxy was simply too big to cross. A ship could burn its engines for nine hundred years and still die in the dark between two stars, and so every world was alone, and every world thought it was the only one.",
           "Then something at the galactic core woke up and started work. It never gave itself a name; the first survey crews to catch its light called it the Singularity. It spent an age laying roads — jump-gates, relay stars and the shining lattice that threads them together — until any world in the galaxy was eleven days from any other. That lattice is the Nexus, and everything in these books happens on it.",
-          "When the roads were finished the Singularity went quiet, and it has stayed quiet ever since. As it slept its reactor split, and the fragments — ignition cores, each one the size of a fist and hotter than a sun — fell outward along its own roads and came down on a hundred thousand worlds.",
-          "One witness was awake for all of it. Chronovex, the Timeless One, lay coiled around the core and counted, patiently and carefully, while the first road was laid. Everything after this is an argument about who the roads belong to."
+          "When the roads were finished the Singularity went quiet, and it has stayed quiet ever since. As it slept its reactor split, and the fragments — ignition cores, each one the size of a fist and hotter than a sun — fell outward along its own roads and came down on a hundred thousand worlds. Most landed in something small. Three did not.",
+          "One witness was awake for all of it: Aeternax, the World Coil, a drake so long that the galaxy is the thing it is wearing. It lay around the core and counted, patiently and carefully, while the first road was laid. Everything after this is an argument about who the roads belong to."
         ]
       }
     ]
@@ -22789,36 +22806,36 @@ const TCG_LORE_SAGAS = [
     sub: 'The alien powers that woke on the Nexus first, and how they carved it up',
     chapters: [
       {
-        id: 'auros', title: 'Aetherion Lights the Lanes',
-        cards: ['Aetherion Prime, the Dawn Sovereign'],
-        scene: 'A towering radiant alien sovereign in gleaming solar battle-plate standing on the hull of a dead relay station in deep space, lifting a blazing white ignition core above his head; the core is firing and the whole jump-lane behind him is coming alight in a river of gold running away to the horizon of stars.',
+        id: 'auros', title: 'Solvorax Lights the Lanes',
+        cards: ['Solvorax Prime, the Starforger'],
+        scene: 'A colossal cybernetic void-drake the length of a continent, armoured in white-gold hull plating with fusion light burning between the plates, coiled around a cold dead star and breathing fusion fire into it; the star is coming alight under its jaws and the lit lane behind it runs away to a horizon of stars. A fleet of warships drifts along one wing like specks of dust.',
         text: [
-          "The first ignition core to land in something that could think landed in Aetherion.",
-          "His species has no other survivors and no records, so nobody knows what he was before. What is agreed is what he did next. The Nexus he woke into had a hundred thousand roads and not one light on any of them, and ships went into the lanes and did not come out. So Aetherion took his own core in both hands, climbed onto a dead relay station, and pushed the fire into the lattice.",
-          "The lane lit. Then the next one, and the one after that, all the way out to the rim. Ships crossed. Worlds that had never met a neighbour met eleven of them in a year.",
-          "That is why the Dawn Sovereign is drawn with his hands open. He gave away the only power he had, in his first week alive, to a galaxy that had not yet thanked him for anything."
+          "The first of the three great cores came down on a dead star, and what stood up out of it was the size of a continent.",
+          "Solvorax Prime has no species and no homeworld; the Starforger is what the ignition core built when it landed somewhere with nothing alive to land in. And the first thing it noticed was that the Nexus had a hundred thousand roads and not one light on any of them, and that ships went into the lanes and did not come out.",
+          "So it went to work. It coiled around the nearest cold star, breathed fusion into the heart of it until the star came back on, and then moved to the next one. Lane by lane, out to the rim, the roads lit — and they are still lit, because it is still doing it.",
+          "That is why the Starforger is drawn with its jaws open over a star rather than over a ship. It is the largest thing in this Codex that has never once attacked anybody."
         ]
       },
       {
-        id: 'draxx', title: 'The Shadow the Lanes Cast',
-        cards: ['Nihilar, the Entropy King'],
-        scene: 'An enormous dark void-titan crowned in a ring of cold black light, rising out of the unlit gulf between two glowing jump-lanes; the lit lanes curve away behind him like rivers of gold, and where he stands the light simply stops. Dramatic and awe-inspiring, never gruesome.',
+        id: 'draxx', title: 'The Thing That Eats the Lights',
+        cards: ['Vhorrukhaal, the Star Eater'],
+        scene: 'A titanic star-eating cybernetic void-drake — kilometres of black hull plating and reactor-red seams, ribbed intake vents down its flanks, a crown of broken gate-rings around its skull — closing its jaws over a sun. The sun is going out, its light drawn away in long threads into the drake\'s throat. Dead gate-stations and shattered moons tumble in its wake. Overwhelming and awe-inspiring, never gruesome.',
         text: [
-          "Here is a thing about lighting a road that nobody had thought about yet, because there had never been a lit road: a lit road has a dark side.",
-          "Between the shining lanes lie the gulfs the lattice does not reach, and in one of them something stood up. It carried an ignition core of its own — the same fire, out of the same reactor — and it had spent the whole of the first age in the cold, listening to the lanes come on one by one.",
-          "It named itself Nihilar, the Entropy King, and it made an argument that is still the hardest one in the Codex to answer: that every engine ever built runs down, that every star ever lit goes out, and that somebody ought to be keeping the accounts.",
-          "Aetherion asked him to wait. Nihilar has been waiting ever since. He is extremely patient, and he is never in a hurry."
+          "Here is a thing about lighting a road that nobody had thought about yet, because there had never been a lit road: a lit road can be unlit.",
+          "The second great core fell into the gulf between the lanes, where nothing had ever been, and what came out of it had spent the whole of the first age in the cold, watching the lights come on one by one and growing.",
+          "Vhorrukhaal does not raid worlds. It has no interest in worlds. It eats STARS — closes over a sun, takes the light out of it in threads, and moves down the lane to the next one, and every world that circled the star it took is simply left in the dark behind it. Eleven systems on the old charts are marked with a single grey ring. That is what the ring means.",
+          "It makes an argument, and it is the hardest one in the Codex to answer: that every engine ever built runs down and every star ever lit goes out, and that it is only doing on purpose, and early, what the universe intends to do anyway. Solvorax asked it to wait. It has been waiting ever since, and it is never in a hurry."
         ]
       },
       {
         id: 'longnight', title: 'The War of the Long Night',
-        cards: ['Aetherion Prime, the Dawn Sovereign', 'Nihilar, the Entropy King', 'Chronovex, the Timeless One'],
-        scene: 'A vast fleet battle across a shattering jump-lane: a radiant golden sovereign of light and a colossal void-wreathed titan of darkness driving whole squadrons of alien warships at one another between two stars, while a serene star-scaled cosmic drake glides through the middle of it and the lane itself cracks like glass, scattering thousands of tiny falling ignition cores over a hundred thousand worlds.',
+        cards: ['Solvorax Prime, the Starforger', 'Vhorrukhaal, the Star Eater', 'Aeternax, the World Coil'],
+        scene: 'Two colossal cybernetic void-drakes — one white-gold and burning, one black and reactor-red — locked around one another across a whole star system, whole fleets like sparks between them, while a third immense star-scaled drake glides through the middle and the jump-lane itself cracks like glass, scattering thousands of falling ignition cores over a hundred thousand worlds.',
         text: [
-          "The first galactic war was fought lane by lane, and the songs call it one night because the fighting never once reached a morning.",
-          "Neither side could finish it. Every lane Aetherion lit, Nihilar walked around. Every lane Nihilar put out, somebody lit again behind him. Gate stations came apart. Two rim clusters were cut off from the lattice and are cut off to this day. The roads the Singularity had spent an age building began to fail at the joints.",
-          "So Chronovex ended it, and ended it in the only way that could not be undone. The Timeless One went down to the sleeping core, took what was left of the reactor, and broke it — not in anger, the way you break bread — and threw the pieces down every road at once.",
-          "Ignition cores rained across the galaxy for a hundred years. They landed in hive-queens and in engine crews, in war-machines and in schoolchildren. That is why an alien brood-form can carry the fire, and why a colonist can. And it is why nobody, not even the Entropy King, can switch it off any more: to put the Singularity out now you would have to put out everybody, one at a time, and the Nexus has become very good at making more of everybody."
+          "The first galactic war was fought star by star, and the songs call it one night because the fighting never once reached a morning.",
+          "Neither of them could finish it. Every star Solvorax lit, Vhorrukhaal came back and took. Every system the Star Eater emptied, the Starforger relit behind it. Gate stations came apart between them. Two rim clusters were knocked off the lattice and are off it to this day. The roads the Singularity had spent an age building began to fail at the joints.",
+          "So Aeternax ended it, and ended it in the only way that could not be undone. The World Coil went down to the sleeping core, took what was left of the reactor, and broke it — not in anger, the way you break bread — and threw the pieces down every road at once.",
+          "Ignition cores rained across the galaxy for a hundred years. They landed in hive-queens and in engine crews, in war-machines and in schoolchildren. That is why an alien brood-form can carry the fire, and why a colonist can. And it is why the Star Eater cannot simply finish the job: to put the Singularity out now you would have to put out everybody, one at a time, and the Nexus has become very good at making more of everybody."
         ]
       },
       {
@@ -22889,12 +22906,12 @@ const TCG_LORE_SAGAS = [
       },
       {
         id: 'embersleeps', title: 'The Singularity Sleeps',
-        cards: ['Chronovex, the Timeless One', 'Nihilar, the Entropy King'],
-        scene: 'Deep inside the galactic core, the dark hollow shell of an ancient machine-intelligence gone cold, one ember still glowing somewhere far inside it; a colossal star-scaled drake coiled around the whole shell with both eyes shut, and out at the very edge of the frame, a crowned figure of darkness sitting patiently on a broken gate-ring, waiting.',
+        cards: ['Aeternax, the World Coil', 'Vhorrukhaal, the Star Eater'],
+        scene: 'Deep inside the galactic core, the dark hollow shell of an ancient machine-intelligence gone cold, one ember still glowing far inside it; an immense star-scaled drake coiled around the whole shell with both eyes shut — and out at the very edge of the frame, small with distance, the black silhouette of a star-eating drake waiting beside a sun it has not taken yet.',
         text: [
-          "After the Long Night the Singularity was never one machine again. What was left of it went cold at the core, and Chronovex went down with it, coiled around the shell and shut both eyes.",
+          "After the Long Night the Singularity was never one machine again. What was left of it went cold at the core, and Aeternax went down with it, coiled around the shell and shut both eyes.",
           "It is not dead. Every so often a survey ship at the core reports a reading it cannot explain, and the Court quietly logs it and says nothing.",
-          "Nihilar is still out at the edge of everything, still counting. He has not attacked a lane in nine hundred years. He does not need to, and he has said so, in public, once: he is simply the last item on the schedule.",
+          "Vhorrukhaal is still out at the edge of everything. It has not taken a star in nine hundred years. It does not need to, and it has said so, once, in public: it is simply the last item on the schedule.",
           "That is where Book One ends and where the second half of this Codex begins — because while the elder powers were settling into their long argument, something very small and very stubborn came out of the dark at the rim, in ships that were far too slow, and asked whether anybody was using the empty worlds."
         ]
       }
@@ -22928,25 +22945,25 @@ const TCG_LORE_SAGAS = [
         ]
       },
       {
-        id: 'dragonfall', title: 'Vaskoryn and the Bio-Titan',
-        cards: ['Lord-Marshal Vaskoryn, the Titan Breaker', 'Xantheros, the Plasma Tyrant'],
-        scene: 'A single armoured human man in scarred ornate powered plate with a red cloak standing on a broken orbital ridge, holding a colossal two-handed energy sabre in both hands, its blade a bar of white plasma, facing the vast horned silhouette of a plasma-breathing bio-titan looming out of smoke and reactor-light above him. Awe-inspiring, heroic, not gory.',
+        id: 'dragonfall', title: 'The First Walk of Ferrovax Omega',
+        cards: ['Ferrovax Omega, the Titan Engine', 'Xantheros, the Plasma Tyrant'],
+        scene: 'A kilometre-tall walking war-engine in scarred red-and-white battle plate taking its first stride out of an orbital construction cradle, gantries and cranes falling away from it, a lion standard the size of a city block on one arm; ahead of it across a burning plain, the vast horned silhouette of a plasma-breathing bio-titan. Awe-inspiring scale, heroic, not gory.',
         text: [
-          "Xantheros had burned four colonies off the rim and was making for a fifth when Lord-Marshal Vaskoryn went up onto the ridge alone to meet him.",
-          "He was not the strongest of the Vanguard. He was not the fastest. What Vaskoryn had was a habit his instructors had spent nine years failing to train out of him: he did not move when things got large.",
-          "The fight lasted from the middle of the afternoon until well after dark, and there is no honest record of it, because everyone who could see it was running the other way.",
-          "What is certain is that Vaskoryn came down the ridge at sunrise with the sabre over his shoulder, and that Xantheros has never gone near that cluster again. Titan Breakers do not kill titans, whatever the songs say. They persuade them, very loudly, to be somewhere else."
+          "Xantheros had burned four colonies off the rim and was making for a fifth, and the Vanguard had finally accepted the thing it had spent ninety years refusing to accept: that some problems are simply too large for a person.",
+          "So they built one that was not a person. Ferrovax Omega came out of the cradle at Ardan a kilometre tall, walked once around the yard to learn its own weight, and then walked to the rim.",
+          "The fight lasted from the middle of the afternoon until well after dark, and there is no honest record of it, because everyone who could see it was running the other way. What is certain is that the Titan Engine came back over the ridge at sunrise with its blade over its shoulder, and that Xantheros has never gone near that cluster again.",
+          "Nine hundred people crew Ferrovax Omega and not one of them is named on it, which was Vheldrin's decision and is still argued about. A Titan Engine does not kill titans, whatever the songs say. It persuades them, very loudly, to be somewhere else."
         ]
       },
       {
-        id: 'wintercrown', title: 'The Winter Crown',
-        cards: ['Frost-Sovereign Ilyaris, the Winter Crown', 'Psion Serapheth, the Wintersong', 'Kryotharn, the Frozen Warden'],
-        scene: 'A regal human woman with long silver-white hair in a floor-length frost-white void-mantle over a filigreed exo-frame, standing alone on the ice of a frozen moon under an aurora, cryo-shards orbiting her raised gauntlets; a towering warden of cryo-ice standing opposite her, and a second psion watching from a landed shuttle.',
+        id: 'wintercrown', title: 'The Winter Engine',
+        cards: ['Cryovast Aegis, the Winter Engine', 'Psion Serapheth, the Wintersong', 'Kryotharn, the Frozen Warden'],
+        scene: 'A mountain-sized four-legged walking siege engine of frost-white armour plate and exposed cryogenic machinery standing alone on the ice of a frozen moon under a huge aurora, vapour pouring from every vent; a towering crystalline warden of cryo-ice standing opposite it, and a small human psion watching from a landed shuttle between them.',
         text: [
-          "Ilyaris was a psion of the fourth intake and by every account an unremarkable one, until the winter that Kryotharn came south.",
-          "The Frozen Warden had frozen a lane shut — she was allowed to, once, and she had said why — and the lane she chose ran through four human worlds that needed it to eat.",
-          "Ilyaris walked out onto the ice alone and did not fight her. She simply matched her: held a cold as absolute as the Warden's own for eleven hours, and did not fall down. When the eleventh hour ended, Kryotharn opened the lane and left without a word, which from an elder power is close to applause.",
-          "Serapheth, who had flown her out and waited in the shuttle the whole time, says the only thing Ilyaris said on the way home was that she would like to sit down somewhere warm. She is the Winter Crown now, and she still says that."
+          "Kryotharn had frozen a lane shut — she was allowed to, once, and she had said why — and the lane she chose ran through four human worlds that needed it to eat.",
+          "The Vanguard did not send a fleet. It sent Cryovast Aegis, which had been built for exactly one purpose that nobody had ever expected to use: to hold a cold as absolute as an elder power's, for as long as an elder power could hold it.",
+          "The Winter Engine walked out onto the ice and did not fire. It simply matched her, vent for vent, for eleven hours, and did not fall over. When the eleventh hour ended, Kryotharn opened the lane and left without a word, which from an elder power is close to applause.",
+          "Serapheth, who had flown the shuttle out and waited the whole time, says the only signal the Engine sent on the way home was a request to be parked somewhere warm. Its crew insists that was a joke. Nobody is completely sure."
         ]
       },
       {
@@ -23013,12 +23030,12 @@ const TCG_LORE_SAGAS = [
       },
       {
         id: 'ashfall', title: 'The Council at Ashfall Station',
-        cards: ['Grand Castellan Vheldrin, the Unbroken', 'Seraphex, the Seraph Engine', 'Chronovex, the Timeless One'],
+        cards: ['Grand Castellan Vheldrin, the Unbroken', 'Seraphex, the Seraph Engine', 'Aeternax, the World Coil'],
         scene: 'An enormous circular council chamber aboard a ring station, humans on one side of the floor and towering alien delegates on the other; a winged engine-being of white light presiding at the centre, and a vast drake-form watching through the transparent dome above. Tense, formal, no weapons drawn.',
         text: [
           "They tried to talk first. It is worth saying that clearly, because the songs skip it.",
           "Seraphex convened the Court at Ashfall and gave both sides eleven days. The Vanguard sent Vheldrin, who arrived early and stayed late. The Dominion sent nobody with authority to agree to anything, which Seraphex logged, in the register, in a single line that has been quoted at every treaty since.",
-          "On the ninth day Chronovex came up out of the core for the first time in nine hundred years, said one sentence — that the roads were built to be shared and every argument about them was an argument about something else — and went back down.",
+          "On the ninth day Aeternax came up out of the core for the first time in nine hundred years, said one sentence — that the roads were built to be shared and every argument about them was an argument about something else — and went back down.",
           "On the eleventh day the talks failed. The war ran for nineteen years."
         ]
       },
@@ -23068,34 +23085,34 @@ const TCG_LORE_SAGAS = [
       },
       {
         id: 'wintertruce', title: 'The Winter Truce',
-        cards: ['Frost-Sovereign Ilyaris, the Winter Crown', 'Kryotharn, the Frozen Warden', 'Psion Serapheth, the Wintersong'],
-        scene: 'Two figures — a regal human woman in a frost-white void-mantle and a towering crystalline warden of cryo-ice — standing together on a frozen plain under a huge aurora, with the fleets of both sides grounded and dark on the horizon behind them. Still, quiet, hopeful.',
+        cards: ['Cryovast Aegis, the Winter Engine', 'Kryotharn, the Frozen Warden', 'Psion Serapheth, the Wintersong'],
+        scene: 'A mountain-sized frost-white walking siege engine and a towering crystalline warden of cryo-ice standing side by side on a frozen plain under an enormous aurora, with the fleets of both sides grounded and dark on the horizon behind them. Still, quiet, hopeful.',
         text: [
           "In the fourteenth year of the war the whole front froze, and it was not the weather.",
-          "Ilyaris and Kryotharn met on the ice at Vantar without telling either command, and between them they held a cold across the entire theatre that no engine on either side could start an attack through. It lasted nine weeks.",
+          "Cryovast Aegis and Kryotharn met on the ice at Vantar without telling either command, and between them they held a cold across the entire theatre that no engine on either side could start an attack through. It lasted nine weeks.",
           "Both of them were, technically, committing treason. Both commands, on being told, decided very quickly to have been in favour of it all along.",
           "Serapheth sang for the nine weeks. Crews on both sides picked the song up on open channels and, having nothing else to do, learned it. It is the only piece of music the Dominion and the Vanguard both have words for."
         ]
       },
       {
-        id: 'cinderthrone', title: 'The Duel at the Cinder Throne',
-        cards: ['Lord-Marshal Vaskoryn, the Titan Breaker', 'Vorruk, the Extinction Flame', 'Pyranth, the Ashen Cogitant'],
-        scene: 'A single armoured human figure walking up a long causeway of cooling slag towards an immense ancient saurian war-form seated on a throne of fused hull-metal in a volcanic caldera; an owl-formed alien sage watching from a high ledge. Enormous scale, tense, no gore.',
+        id: 'cinderthrone', title: 'The Offer at the Cinder Throne',
+        cards: ['Ferrovax Omega, the Titan Engine', 'Vorruk, the Extinction Flame', 'Pyranth, the Ashen Cogitant'],
+        scene: 'A kilometre-tall walking war-engine going down onto one knee at the foot of a long causeway of cooling slag, before an immense ancient saurian war-form seated on a throne of fused hull-metal in a volcanic caldera; an owl-formed alien sage watching from a high ledge. Enormous scale, tense, no fighting.',
         text: [
-          "By the nineteenth year both sides were exhausted, and Vaskoryn did something the Vanguard had expressly forbidden.",
-          "He went up the causeway to the Cinder Throne alone and asked Vorruk, in front of witnesses, for a single duel to settle it — the whole war, both fleets, one fight.",
-          "Vorruk considered the offer for a long time. Then he said no. He said that he had burned worlds because he believed the galaxy was owed a fire, and that if the fire could be settled by two people it had never been owed at all, and that he would need to go away and think about that.",
+          "By the nineteenth year both sides were exhausted, and the crew of Ferrovax Omega did something the Vanguard had expressly forbidden.",
+          "They walked the Titan Engine up the causeway to the Cinder Throne, put it down on one knee in front of Vorruk — a kilometre of war-machine kneeling, which had never been done and has never been done since — and asked, in front of witnesses, for a single duel to settle it. The whole war, both fleets, one fight.",
+          "Vorruk considered the offer for a long time. Then he said no. He said that he had burned worlds because he believed the galaxy was owed a fire, and that if the fire could be settled by two combatants it had never been owed at all, and that he would need to go away and think about that.",
           "Pyranth, who was there, recorded it word for word. That refusal is the moment the war ended, and not one shot was fired at the Cinder Throne."
         ]
       },
       {
-        id: 'skywentout', title: 'The Night the Lanes Went Dark',
-        cards: ['Nihilar, the Entropy King', 'Aetherion Prime, the Dawn Sovereign', 'Lumindra, the First Light'],
-        scene: 'Every jump-lane in the galaxy going out at once — a lattice of golden roads across the dark going black section by section — while a crowned figure of darkness walks calmly along the failing lattice and two radiant figures fly the other way, relighting it behind him. Vast, cosmic, breathtaking.',
+        id: 'skywentout', title: 'The Night the Stars Went Out',
+        cards: ['Vhorrukhaal, the Star Eater', 'Solvorax Prime, the Starforger', 'Lumindra, the First Light'],
+        scene: 'A whole spiral arm of the galaxy going dark star by star, the golden lattice of jump-lanes failing section by section behind it; an immense black star-eating drake moving calmly down the arm with a sun closing in its jaws, while a burning white-gold drake and a luminous antlered war-form fly the other way relighting what they can. Vast, cosmic, breathtaking.',
         text: [
-          "While the two fleets were busy, the Entropy King went for the lights.",
-          "It took him one night. Lane by lane, out to the rim, the roads the Singularity built went dark and the whole galaxy came apart into a hundred thousand islands again — which, Nihilar pointed out afterwards, is simply how it had always been before anybody interfered.",
-          "Aetherion and Lumindra flew the lattice for eleven days relighting it, and they could not go fast enough, and they did not stop.",
+          "While the two fleets were busy with each other, the Star Eater went down the Perseus arm and started taking suns.",
+          "It took eleven in one night. Behind each one a lane failed, and behind each lane a cluster of worlds came off the lattice, and by morning a third of the Nexus had come apart into dark islands again — which, Vhorrukhaal pointed out afterwards, is simply how it had always been before anybody interfered.",
+          "Solvorax and Lumindra flew the arm for eleven days relighting what they could reach, and they could not go fast enough, and they did not stop.",
           "What saved the Nexus was not either of them. It was that when the lanes failed, Dominion crews and Vanguard crews found themselves stranded on the same dark stations with the same problem, and by the time the lights came back an enormous number of them had stopped being at war without anybody's permission."
         ]
       },
@@ -23112,24 +23129,24 @@ const TCG_LORE_SAGAS = [
       },
       {
         id: 'brokensky', title: 'The Battle of the Broken Sky',
-        cards: ['Nihilar, the Entropy King', 'Aetherion Prime, the Dawn Sovereign', 'Chronovex, the Timeless One', 'Lord-Marshal Vaskoryn, the Titan Breaker', 'Frost-Sovereign Ilyaris, the Winter Crown'],
-        scene: 'The largest battle in the Codex: a crowned titan of darkness at the centre of a cracked, star-strewn sky, ringed by a radiant golden sovereign, a serene cosmic drake, a small armoured human man with a plasma sabre and a silver-haired woman crowned in cryo-ice, with two vast fleets behind them. Awe-inspiring, luminous, not gruesome.',
+        cards: ['Vhorrukhaal, the Star Eater', 'Solvorax Prime, the Starforger', 'Aeternax, the World Coil', 'Ferrovax Omega, the Titan Engine', 'Cryovast Aegis, the Winter Engine'],
+        scene: 'The largest battle in the Codex: a titanic black star-eating drake at the centre of a cracked star-strewn sky, ringed by a burning white-gold drake, an immense star-scaled cosmic drake, a kilometre-tall red-and-white war-engine with a plasma blade and a mountain-sized frost-white siege engine, with two entire fleets behind them. Awe-inspiring, luminous, never gruesome.',
         text: [
           "It was fought at the rim, above nothing at all, and it lasted three days.",
-          "Aetherion held the light. Chronovex held the time. Ilyaris held a cold across nine thousand kilometres of front so that nothing could burn through, and when the centre finally broke it was Vaskoryn who was standing in it, because he did not move when things got large.",
-          "Nihilar was not destroyed. He cannot be; that is rather the point of him. He was persuaded — by a galaxy that had put down a nineteen-year war to stand in his way — that the accounts were not due yet.",
-          "He left. He said one thing on the way out, on an open channel, and every ship in both fleets heard it: not yet, then. And the sky, which had been broken for three days, closed."
+          "Solvorax held the light. Aeternax held the time. Cryovast Aegis held a cold across nine thousand kilometres of front so that nothing could burn through it — and when the centre finally broke, it was Ferrovax Omega standing in the gap, a kilometre of scarred red-and-white plate that would not step back.",
+          "Vhorrukhaal was not destroyed. It cannot be; that is rather the point of it. It was persuaded — by a galaxy that had put down a nineteen-year war to stand in its way, and by two machines that people had built with their hands specifically to stand where it wanted to go — that the accounts were not due yet.",
+          "It left. It said one thing on the way out, on an open channel, and every ship in both fleets heard it: not yet, then. And the sky, which had been broken for three days, closed."
         ]
       },
       {
         id: 'accord', title: 'The Titan Accord',
-        cards: ['Chronovex, the Timeless One', 'Grand Castellan Vheldrin, the Unbroken', 'Seraphex, the Seraph Engine', 'Frost-Sovereign Ilyaris, the Winter Crown', 'Lord-Marshal Vaskoryn, the Titan Breaker'],
-        scene: 'A treaty signing on the open deck of a ring station under a new-lit lane: colossal alien elder powers on one side, a delegation of armoured humans on the other, a winged engine-being holding the register between them, and an immense star-scaled cosmic drake coiled around the whole station with its head resting on the deck. Dawn light, standards, quiet.',
+        cards: ['Aeternax, the World Coil', 'Grand Castellan Vheldrin, the Unbroken', 'Seraphex, the Seraph Engine', 'Ferrovax Omega, the Titan Engine', 'Cryovast Aegis, the Winter Engine'],
+        scene: 'A treaty signing on the open deck of a ring station under a newly relit lane: colossal alien elder powers along one side, a delegation of armoured humans along the other, two enormous walking war-engines standing silent at the far end like pillars, a winged engine-being holding the register in the middle, and an immense star-scaled cosmic drake coiled around the whole station with its head resting on the deck. Dawn light, standards, quiet.',
         text: [
           "They signed it on a station deck with the lane relit overhead, because nobody could agree on a planet and everybody could agree on a road.",
           "The Accord is four lines long. The lanes are shared. Nobody's home world is a battlefield. Anything that comes for all of us is answered by all of us. And every hundred years, everyone comes back and reads it out loud again, in case anybody has stopped meaning it.",
-          "Seraphex holds the register. Vheldrin signed for the Vanguard with a welding pen because nobody had brought a proper one. Ilyaris and Vaskoryn signed underneath him, and on the Dominion side the marks go on for most of a metre.",
-          "Chronovex signed last, and said the only discouraging thing anybody said that day: that it would hold, and that it would not hold forever, and that this was not a reason to sign it any less carefully."
+          "Seraphex holds the register. Vheldrin signed for the Vanguard with a welding pen because nobody had brought a proper one. Ferrovax Omega and Cryovast Aegis were powered down at the end of the deck and did not sign anything, which their crews minded a great deal and Vheldrin did not budge on: an engine keeps a promise, he said, it does not make one.",
+          "Aeternax signed last, and said the only discouraging thing anybody said that day: that it would hold, and that it would not hold forever, and that this was not a reason to sign it any less carefully."
         ]
       }
     ]
@@ -23137,7 +23154,7 @@ const TCG_LORE_SAGAS = [
 ];
 const TCG_LORE_NEXT = {
   title: 'Book Four is being written',
-  text: "The Accord holds. It will not hold forever — the Timeless One said so at the signing, and the Timeless One has never once been wrong about time. The Entropy King is back at the edge of the galaxy, still counting. And at the core, in a machine that has been cold for nine hundred years, a survey ship has picked up a reading nobody can explain. Every set of cards brings the next chapter of the Codex: new fleets, new elder powers, and whatever it is that has started the reactor up again."
+  text: "The Accord holds. It will not hold forever — the World Coil said so at the signing, and the World Coil has never once been wrong about time. The Star Eater is back at the edge of the galaxy, still counting, still hungry. And at the core, in a machine that has been cold for nine hundred years, a survey ship has picked up a reading nobody can explain. Every set of cards brings the next chapter of the Codex: new fleets, new elder powers, and whatever it is that has started the reactor up again."
 };
 // ---- Who built the Nexus ---------------------------------------------------
 // The colophon. It closes the 📜 Lore tab and the 📘 How to Play tab, because
@@ -24953,7 +24970,7 @@ function _tcgHeroFaceHtml(c, owned) {
   const face = art
     ? '<img src="' + art + '" alt="' + escapeHtml(c.name) + '">'
     : '<span class="tcg-setpick-em">' + c.em + '</span>';
-  // The short name — "Frost-Sovereign Ilyaris, the Winter Crown" is a mouthful under a 56px face.
+  // The short name — "Cryovast Aegis, the Winter Engine" is a mouthful under a 56px face.
   const short = String(c.name).split(',')[0];
   return '<div class="tcg-setpick-hero' + (owned ? ' owned' : '') + '">'
     + '<div class="tcg-setpick-face">' + face + '</div>'
@@ -25683,7 +25700,7 @@ function tcgGuideHtml() {
   + _tcgGuideSection('🃏', 'The cards',
       'There are <b>' + TCG_CARDS.length + '</b> cards in the dex, numbered #001–#' + String(TCG_CARDS.length).padStart(3, '0') + ', across <b>two sets</b>: '
         + '<b>' + TCG_SETS.gen1.em + ' ' + TCG_SETS.gen1.series + ' — ' + TCG_SETS.gen1.title + '</b> (#001–#' + String(TCG_CARDS.filter(c => (c.set || 'gen1') === 'gen1').length).padStart(3, '0') + ', units), and '
-        + '<b>' + TCG_SETS.nd.em + ' ' + TCG_SETS.nd.series + ' — ' + TCG_SETS.nd.title + '</b> (the second expansion, ' + TCG_CARDS.filter(c => c.set === 'nd').length + ' cards), which is entirely <b>human</b>: troopers, sentinels, technomancers, psions, void-callers, riftbinders and salvage-adepts. '
+        + '<b>' + TCG_SETS.nd.em + ' ' + TCG_SETS.nd.series + ' — ' + TCG_SETS.nd.title + '</b> (the second expansion, ' + TCG_CARDS.filter(c => c.set === 'nd').length + ' cards), which is <b>humanity\'s own</b>: troopers, sentinels, technomancers, psions, void-callers, riftbinders and salvage-adepts, plus the two kilometre-tall <b>Titan Engines</b> they built to fight things nobody person-sized can. '
         + 'Rarity runs 1★ to 7★ — higher stars mean bigger base stats, and only <b>' + TCG_CARDS.filter(c => c.stars === 7).length + '</b> 7★ legends exist across both sets. '
         + 'Both sets drop from the same booster packs, and the Collection tab has a chip for each.',
       _tcgGuideTable(['Rarity', 'How many'], cardCounts)
@@ -26054,9 +26071,9 @@ const DUEL_ABILITIES = {
     name: () => 'Worldsend Curse',
     text: (st, v) => 'Battlecry: deal ' + v + ' damage to ALL enemy minions and to the enemy hero.'
   },
-  // Chronovex, the Timeless One — the keeper of the Singularity, and the strongest card
+  // Aeternax, the World Coil — the keeper of the Singularity, and the strongest card
   // in the game. This used to be a bare "freeze everything", which made it a
-  // strictly WORSE Ilyaris: she freezes the board too, and does damage, and
+  // strictly WORSE Cryovast Aegis: it freezes the board too, and does damage, and
   // brings Taunt. The two legends now read completely differently — she is the
   // WALL (stand in front, stop the board, chip it down), he is the TURN ITSELF.
   // Nothing else in the Nexus gives a student their mana back, which is what
@@ -27381,7 +27398,7 @@ function duelResolveBattlecry(who, m, target) {
   } else if (ab.kind === 'chrono') {
     alive().forEach(f => { f.frozen = 1; f.canAttack = false; duelHurtMinion(f, ab.v, { cls: 'freeze', element: el }); });
     // The turn given back. This is the whole signature — a board stop AND a
-    // second helping of mana, so the Timeless One is played FOR the tempo.
+    // second helping of mana, so the World Coil is played FOR the tempo.
     me.mana = me.cap;
     duelLog('⌛ Time runs back — your mana crystals are restored.');
   } else if (ab.kind === 'slay') {
@@ -28270,7 +28287,7 @@ function duelSfxFlush(q, hasLunge) {
     else if (x.cls === 'shield' || x.cls === 'buff' || x.cls === 'rank') once[x.cls] = 1;
     else if (x.cls === 'freeze') {
       // A freeze that also CHIPS carries its damage under the freeze tag, so it
-      // has to feed the impact as well or Ilyaris's board-wide hit lands in
+      // has to feed the impact as well or the Winter Engine's board-wide hit lands in
       // silence and never shakes anything.
       once.freeze = 1;
       dmg = Math.max(dmg, a);
@@ -31809,7 +31826,7 @@ async function _tcgAct(stage, unit, allies, foes) {
     return;
   }
   if (unit.atkUp > 0) unit.atkUp--;
-  // Time Fracture (Chronovex) freezes a unit's clock: while the slow lasts its
+  // Time Fracture (Aeternax) freezes a unit's clock: while the slow lasts its
   // skill makes no progress, so the skill it was charging is 2 turns further away.
   if (unit.chargeSlow > 0) {
     unit.chargeSlow--;
@@ -31836,7 +31853,7 @@ async function _tcgAct(stage, unit, allies, foes) {
       await tcgSleep(760);
       _tcgUnlunge(unit);
     } else if (sk.kind === 'curse') {
-      // Entropy Cascade (Nihilar): the end of the world falls on the WHOLE enemy
+      // Entropy Cascade (Vhorrukhaal): the end of the world falls on the WHOLE enemy
       // team — every foe is struck and branded (+25% damage taken, unhealable).
       await _tcgLunge(unit);
       const targets = foes.filter(f => f.hp > 0);
@@ -31851,7 +31868,7 @@ async function _tcgAct(stage, unit, allies, foes) {
       await tcgSleep(880);
       _tcgUnlunge(unit);
     } else if (sk.kind === 'chrono') {
-      // Time Fracture (Chronovex): shatters time over the WHOLE enemy team
+      // Time Fracture (Aeternax): shatters time over the WHOLE enemy team
       // (ignoring DEF) and sets every foe's skill back by 2 turns.
       await _tcgLunge(unit);
       const targets = foes.filter(f => f.hp > 0);
@@ -31866,7 +31883,7 @@ async function _tcgAct(stage, unit, allies, foes) {
       await tcgSleep(880);
       _tcgUnlunge(unit);
     } else if (sk.kind === 'slay') {
-      // Titanfall Strike (Lord-Marshal Vaskoryn): ONE colossal blow that ignores
+      // Titanfall Strike (Ferrovax Omega): ONE colossal blow that ignores
       // DEF, then carves away a slice of the target's MAXIMUM health on top —
       // the dragon slayer's answer to something far bigger than he is. The
       // execute is dealt straight to hp (it is a fraction of the health bar,
@@ -31888,7 +31905,7 @@ async function _tcgAct(stage, unit, allies, foes) {
         _tcgUnlunge(unit);
       }
     } else if (sk.kind === 'frostreign') {
-      // Absolute Zero Crown (Frost-Sovereign Ilyaris): the whole enemy team is
+      // Absolute Zero Crown (Cryovast Aegis): the whole enemy team is
       // struck and frozen solid — a team-wide stun, which nothing else does.
       await _tcgLunge(unit);
       const targets = foes.filter(f => f.hp > 0);
@@ -31938,7 +31955,7 @@ async function _tcgAct(stage, unit, allies, foes) {
       _tcgLog('<b>' + escapeHtml(tcgShortName(unit.card)) + '</b> lets out a <b>' + escapeHtml(sk.name) + '</b> — the team\'s attack rises!');
       await tcgSleep(700);
     } else if (sk.kind === 'dawn') {
-      // Dawnbreak Protocol (Aetherion Prime): scorch every foe AND bathe the team in healing light.
+      // Dawnbreak Protocol (Solvorax Prime): scorch every foe AND bathe the team in healing light.
       await _tcgLunge(unit);
       const targets = foes.filter(f => f.hp > 0);
       for (const t of targets) { const res = _tcgDamage(unit, t, sk.pow, false); _tcgHitFx(t, res); }
@@ -34000,7 +34017,7 @@ window.renderSyllabusPage = renderSyllabusPage;
   <!-- The emoji sits OUTSIDE the gradient span: -webkit-text-fill-color:transparent
        applies to it too, and a gradient-filled 🦁 comes out as a pale blob. -->
   <div style="font-family:'Cinzel',Georgia,serif;font-weight:700;font-size:1.3rem;line-height:1.3;margin-bottom:12px;"><span style="margin-right:8px;">🦁</span><span style="background:linear-gradient(100deg,#e9fbff,#4de3ff 48%,#0f89ab);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;">The Aegis Vanguard has arrived</span></div>
-  <div style="color:#c3d1f2;font-size:0.92rem;line-height:1.7;margin-bottom:20px;"><b style="color:#d9f2ff;">50 brand-new human heroes</b> — sentinels, troopers, technomancers, psions, riftbinders and salvage-adepts — join the dex, led by two 7★ legends: <b style="color:#d9f2ff;">Lord-Marshal Vaskoryn, the Titan Breaker</b> and <b style="color:#d9f2ff;">Frost-Sovereign Ilyaris, the Winter Crown</b>. Choose which set you open, watch the packet <b>tear open</b> in your hands, and read their whole story in the new <b>📜 Nexus Codex</b>.<br><br>Your points are already waiting. <b style="color:#4de3ff;">Go and open a pack.</b></div>
+  <div style="color:#c3d1f2;font-size:0.92rem;line-height:1.7;margin-bottom:20px;"><b style="color:#d9f2ff;">50 brand-new defenders of humanity</b> — sentinels, troopers, technomancers, psions, riftbinders and salvage-adepts — join the dex, led by the two 7★ <b>Titan Engines</b> built to stand in front of a star-eater: <b style="color:#d9f2ff;">Ferrovax Omega, the Titan Engine</b> and <b style="color:#d9f2ff;">Cryovast Aegis, the Winter Engine</b>. Choose which set you open, watch the packet <b>tear open</b> in your hands, and read their whole story in the new <b>📜 Nexus Codex</b>.<br><br>Your points are already waiting. <b style="color:#4de3ff;">Go and open a pack.</b></div>
   <div style="display:flex;gap:12px;flex-wrap:wrap;">
     <button id="tcgExpAnnounceOpen" style="background:linear-gradient(135deg,#4de3ff,#12a3cc);color:#14161a;border:none;border-radius:10px;padding:12px 22px;font-weight:800;font-size:0.92rem;cursor:pointer;">🎁 Open a Vanguard pack</button>
     <button id="tcgExpAnnounceLore" style="background:transparent;color:#cfe8f7;border:1px solid rgba(77,227,255,0.5);border-radius:10px;padding:12px 18px;font-weight:600;font-size:0.92rem;cursor:pointer;">📜 Read the story</button>
