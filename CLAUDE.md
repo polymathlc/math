@@ -130,6 +130,28 @@ is what lets a fix in one app be copied to the other. Only the *world* differs.
     gate the bank's questions go through. A row with no `lo` reaches no page.
   - They stay `db: false`, so they never write a `questionAttempts` row or a
     teacher-visible mark — a built-in question is practice, not an attempt.
+  - **📥 Import to bank** (`sylImportQuizToBank`, v1.23.0) writes the whole set
+    into the bank as REAL questions, so they reach worksheets, the practice
+    queue and the marking record too. Ids are derived from the positional qid
+    (`tcgq:<n>` → **`tcgq_<n>`**), which is what makes a second press rewrite
+    the same 800 documents instead of minting a copy of every one.
+    - **The prefix is a DEDUPE KEY in two places**, and both are load-bearing:
+      `_tcgBankQuestions` skips `tcgq_<n>` (in the games the built-in row is
+      canonical — it carries the rotation's qid and stays `db: false`), and
+      `sylQuizFor` drops a row whose twin is in the bank (or every badge on the
+      map doubles the moment an admin imports).
+    - The answer goes in the ADMIN-ONLY half: `correctOption`, `expected` and
+      the worked explanation in `markingGuide`. `blocks` and `options` are
+      student-readable, so an explanation showing the working may never be
+      written into a block.
+    - It calls `saveQuestionDoc` and nothing else — not the editor's
+      `notifyQuestionSubscribers` (800 notifications) or `graphOnQuestionSaved`.
+  - **A bank question keeps its MCQ on the QUESTION** (`options` +
+    `correctOption`), which is what the editor writes — there is no `mcq` block
+    type. `correctOption` is a `QUESTION_KEY_FIELD`, so `_tcgBankQuestions`
+    only ever yields anything for an admin. That is the point: a student's
+    browser must not hold the answer to a question they can be marked on, which
+    is why the built-in pool has to stand on its own.
 - **The theme is ONE class on `<body>`.** `navigateTo` toggles `nova-protocol` and
   everything else is CSS: the tokens (`--surface` / `--border` / `--text` /
   `--primary`) are redefined inside `#page-tcg`, which re-skins every `.tcg-*`
@@ -281,6 +303,9 @@ the tree would be one nobody here could ever fill.
   ▶ Try panel (`sylQuiz*`, its own overlay reusing the `.tcg-quiz-*` skin) only
   teaches the working — and it deliberately **pays nothing**: the faucet lives
   inside the games, never on a page a student can reopen at will.
+  - …until an admin presses **📥 Import to bank** in the coverage card, which
+    makes them ordinary bank questions and retires the card-game panel for
+    every objective it covered. See `sylImportQuizToBank` under Nova Protocol.
 
 ## The game economy — every faucet is gated
 🪙 points buy booster packs, so **no repeatable button may ever pay**. Every faucet
