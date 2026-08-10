@@ -178,6 +178,45 @@ is what lets a fix in one app be copied to the other. Only the *world* differs.
     stops a sweep carpet-bombing three lanes on each of its five passes.
   - `laneOff` is a FRACTIONAL lane handed to `emsPositionUnit`, which is how the
     ring swings above and below its host and a flame jet fans out.
+  - **⚔️ Nova Legends flies the same five** (`elgFireApex` / `elgApexMove`,
+    v1.25.0), off `r.apex` resolved once at `elgStart` — the hero is one card,
+    so it cannot change mid-run. The identity table is shared; the GEOMETRY is
+    per-game (`ELG_APEX_REACH`, `ELG_ORBIT_*`, `ELG_FLAME_*`), because the two
+    games have completely different enemy density and one set of numbers cannot
+    serve both. `elgFireApex` takes the hero's multi-shot count — drop it and a
+    whole skill node silently stops working for every apex hero.
+
+## ⚔️ Nova Legends — the swarm (v1.25.0)
+Waves are `ELG_SWARM_COUNT`× the old horde (wave 1 fields **500**), each body a
+mote a fraction of the size, with a tenth the hit points and a scratch for
+damage. The four numbers move TOGETHER — change one alone and the mode breaks:
+- **Ten times the enemies at the old HP is a wave that never ends** (the clear
+  gate wants `!enemies.length`), so `ELG_SWARM_HP` came with the count.
+- **Enemies have no separation from one another.** They always overlapped;
+  with fifty it was invisible. Five hundred motes all walk to the same 35px
+  contact ring and STACK inside it, and every body in there swings on its own
+  timer. `ELG_SWARM_HITCAP` is a shared bucket of landed hits per second for
+  the swarm — bosses and kings sit outside it and always connect. Without it
+  the hero dies in the first second of every wave, whatever its stats.
+- **`ELG_MAX_ALIVE` caps live bodies, not wave size.** The queue waits. It is
+  what bounds the DOM, the frame cost and the O(shots × enemies) sweep — wave
+  20 is three thousand strong.
+- **A mote does not stop a projectile** (the `!e.swarm` term in the shot
+  collision). A bolt that stops at the first body is one kill per shot, and one
+  kill per shot against five hundred is a six-minute wave — the mode would be
+  unplayable for every hero that has not bought pierce. Bosses still catch a
+  shot, so pierce is still worth having.
+- **A swarm member is ONE DOM node** — a coloured mote sized from `e.r` via
+  `--sz`, no card art, no health bar, no `will-change`. Five nodes apiece across
+  five hundred bodies is what drops the frame rate, a 26px health bar would
+  dwarf a 7px enemy, and five hundred compositor layers is a GPU-memory
+  problem. `e.bar` is looked up ONCE at creation for the ones that keep a bar.
+- **`elgPop` and `elgImpactFx` are rationed** (`ELG_POP_MAX`, `ELG_HITFX_MAX`),
+  and swarm deaths skip the popup entirely. Each carries a timer, and a lance
+  through forty motes would otherwise start dozens at once.
+- `e.r` is the single source of truth for size: gameplay reads it, and the mote
+  is drawn at `e.r * ELG_SPRITE_K`. The old sprite sizes were CSS literals that
+  only coincidentally matched the radius.
 - **The theme is ONE class on `<body>`.** `navigateTo` toggles `nova-protocol` and
   everything else is CSS: the tokens (`--surface` / `--border` / `--text` /
   `--primary`) are redefined inside `#page-tcg`, which re-skins every `.tcg-*`

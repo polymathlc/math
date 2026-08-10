@@ -1784,6 +1784,13 @@ body.practising-as .page-body { padding-bottom: 64px; }
   border: 1px solid rgba(255,255,255,0.12); box-shadow: inset 0 0 60px rgba(0,0,0,0.6); }
 .elg-units { position: absolute; inset: 0; }
 .elg-unit { position: absolute; left: 0; top: 0; will-change: transform; }
+/* A swarm mote: ONE element, sized from the enemy's real radius so what you
+   can see and what you can hit are the same circle. No will-change — the hero
+   and the bosses earn a compositor layer each, five hundred motes asking for
+   one apiece is a GPU-memory problem, not an optimisation. */
+.elg-unit.swarm { width: var(--sz, 7px); height: var(--sz, 7px); margin: calc(var(--sz, 7px) / -2) 0 0 calc(var(--sz, 7px) / -2); border-radius: 50%; will-change: auto;
+  background: radial-gradient(circle at 34% 32%, #fff 0%, var(--mote, #f97316) 42%, var(--moteb, #7c2d12) 100%);
+  box-shadow: 0 0 4px 1px var(--mote, #f97316); }
 /* Sprites are the card art itself — background-keyed cut-outs standing free
    on the arena, no circular frame over the character. Status reads as a
    coloured glow on the art (drop-shadow follows the cut-out's silhouette).
@@ -1829,6 +1836,18 @@ body.practising-as .page-body { padding-bottom: 64px; }
 .elg-shot.framed.mighty { width: 54px; height: 54px; margin: -27px 0 0 -27px; }
 .elg-hitfx.mighty { width: 64px; height: 64px; }
 .elg-shot.framed img { width: 100%; height: 100%; object-fit: contain; transform: rotate(var(--a, 0rad)); filter: drop-shadow(0 0 8px var(--trail, rgba(255,200,120,0.6))); }
+/* The five 6★/7★ signatures. Flight is in the JS; this is only what each one
+   looks like, so the weapon is readable across a field full of motes. */
+.elg-shot.p-lance { width: 40px; height: 14px; margin: -7px 0 0 -20px; }
+.elg-shot.p-lance .elg-orb { border-radius: 999px; animation: none; }
+.elg-shot.p-flame { width: 15px; height: 15px; margin: -7.5px 0 0 -7.5px; }
+.elg-shot.p-flame .elg-orb { animation: elgFlameLick 0.22s ease-in-out infinite alternate; }
+.elg-shot.p-flame::after { display: none; }
+.elg-shot.p-orbit::after { display: none; }
+.elg-shot.p-orbit .elg-orb { animation: elgOrb 0.4s ease-in-out infinite alternate; }
+.elg-shot.p-boomerang .elg-orb, .elg-shot.p-sweep .elg-orb { animation: elgShotSpin 0.36s linear infinite; }
+@keyframes elgShotSpin { to { transform: rotate(360deg); } }
+@keyframes elgFlameLick { from { transform: scale(0.72); opacity: 0.85; } to { transform: scale(1.2); opacity: 1; } }
 .elg-hitfx { position: absolute; left: 0; top: 0; width: 42px; height: 42px; pointer-events: none; z-index: 6; }
 .elg-hitfx img { width: 100%; height: 100%; object-fit: contain; }
 .elg-orbit { position: absolute; left: 0; top: 0; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; pointer-events: none; box-shadow: 0 0 12px rgba(255,190,90,0.8); mix-blend-mode: screen; }
@@ -20016,7 +20035,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.24.0 · 2026-08-10";
+const APP_VERSION = "v1.25.0 · 2026-08-10";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
@@ -21039,7 +21058,7 @@ const TCG_ROLE_MODS = {
 // measurably WEAKER than before they had a signature at all.
 const TCG_APEX_PATHS = {
   orbit:     { icon: '🌀', label: 'Orbital ring',   dmg: 0.38, dmgMulti: 0.90, desc: 'Latches onto the first enemy it reaches and circles it, striking again on every pass.' },
-  boomerang: { icon: '🪃', label: 'Boomerang',      dmg: 0.33, dmgMulti: 0.60, desc: 'Thrown out down the lane, then turns and carves back through everything a second time.' },
+  boomerang: { icon: '🪃', label: 'Boomerang',      dmg: 0.50, dmgMulti: 0.60, desc: 'Thrown out down the lane, then turns and carves back through everything a second time.' },
   sweep:     { icon: '↔️', label: 'Tidal sweep',    dmg: 0.33, dmgMulti: 0.74, desc: 'Runs to and fro across the lane, catching everything again on every pass.' },
   lance:     { icon: '🏹', label: 'Piercing lance', dmg: 0.85, dmgMulti: 1.00, desc: 'Flies further and far faster than a bolt, and never stops at a body.' },
   flame:     { icon: '🔥', label: 'Flamethrower',   dmg: 1.00, dmgMulti: 1.00, desc: 'A jet of fire rather than a shot — short range, but it washes over everything in front of it.' }
@@ -27829,7 +27848,7 @@ function tcgGuideHtml() {
         ['✦ Skill points', 'A maths question arrives every ' + ELG_Q_EVERY + ' seconds and freezes the battle while it is up: a correct answer is <b>+' + ELG_SP_CORRECT + ' point</b>, and clearing a wave is <b>+' + ELG_SP_WAVE + '</b>. Points are spent in the skill tree, which you can open mid-fight.'],
         ['The four trees', ELG_ROLE_ORDER.map(r => ELG_ROLES[r].icon + ' <b>' + ELG_ROLES[r].name + '</b> — ' + escapeHtml(ELG_ROLES[r].blurb)).join('<br>')
           + '<br><span class="tcg-guide-dim">Your unit\'s battle skill decides its role, and every unit of that role shares the same tree — so swapping hero never means learning a new game. Each tree is a <b>wheel of ' + (ELG_TREES.striker || []).length + ' skills over ' + ELG_TIERS.length + ' rings</b> around the role\'s heart, and most skills level <b>1→5</b> (actives to 3, each level +30% power and −8% cooldown) — far more than any run can afford, so every run is a build. Skills unlock along the links: each grows from the one before it, out to two capstones you choose between. Roughly a third of every tree is an <b>active skill</b> with its own button, hotkey and cooldown — lances, dashes, orbiting blades, chain lightning, auras, summons, buffs and arena-wide storms.</span>'],
-        ['The horde', 'Enemies are drawn from the other cards, and the further you get the rarer they are. Wave 1 fields <b>' + ELG_WAVE_BASE + ' enemies</b> and every wave after it is <b>10% bigger than the last</b> — compounding, with no final wave: the run only ends when your unit falls. <b>Every fifth wave</b> promotes part of the horde to elites and sends a king to lead it.'],
+        ['The swarm', 'Enemies are drawn from the other cards, and the further you get the rarer they are. Wave 1 fields <b>' + elgWaveCount(1) + ' enemies</b> and every wave after it is <b>10% bigger than the last</b> — compounding, with no final wave: the run only ends when your unit falls. They come as a <b>swarm</b>: each one is a mote that dies to a single hit and only scratches you, and the danger is how many of them reach you at once. <b>Every fifth wave</b> promotes part of the horde to full-size elites and sends a king to lead it.'],
         ['7★ passives', 'A 7★ hero fights with a run-changing rule of its own:<br>'
           + Object.keys(ELG_LEGEND_PASSIVES).map(k => ELG_LEGEND_PASSIVES[k].icon + ' <b>' + escapeHtml(ELG_LEGEND_PASSIVES[k].name) + '</b> — ' + escapeHtml(ELG_LEGEND_PASSIVES[k].desc)).join('<br>')],
         ['Training', 'Every correct answer trains the unit you are playing as, exactly like the Siege — those levels are kept for good.'],
@@ -32484,6 +32503,57 @@ const ELG_SP_WAVE = 1;           // …and for clearing a wave
 const ELG_HERO_R = 22;           // hero radius in px
 const ELG_SHOT_SPEED = 430;      // px/second
 const ELG_CONTACT = 34;          // how close an enemy gets before it swings
+// ---- The swarm ----------------------------------------------------------
+// Ten times the horde, each body a fraction of the size and hitting for a
+// scratch. The three numbers move together on purpose: ten times as many
+// enemies at the old size is a solid wall you cannot see through, at the old
+// hit points is a wave that never ends, and at the old damage is ten times the
+// incoming DPS — because the contact ring is a fixed 34px, so shrinking the
+// bodies packs far MORE of them against the hero at once, not fewer.
+const ELG_SWARM_COUNT = 10;      // ten times as many enemies per wave
+const ELG_SWARM_HP    = 0.10;    // …each a tenth as tough, so a wave still ends
+const ELG_SWARM_DMG   = 0.10;    // …and hitting for a scratch (floored at 1)
+// Body radii. A boss and a king shrink by less than the swarm does: flatten
+// all three to a tenth and the horde becomes an undifferentiated field of
+// identical specks with nothing in it worth aiming at.
+const ELG_FOE_R  = 3;            // was 14 — about a tenth of the old area
+const ELG_BOSS_R = 8;            // was 19
+const ELG_KING_R = 14;           // was 26
+const ELG_SPRITE_K = 2.3;        // drawn size = radius × this, so e.r is the one source of truth
+const ELG_WAVE_DEPLOY = 14;      // seconds to pour a whole wave in, however big it is
+// Two safety valves, and the game does not survive without either.
+//
+// Enemies have no separation from one another — they always overlapped, but
+// with fifty of them that was invisible. Five hundred motes all walk to the
+// same 35px contact ring and STACK there, and every body inside it swings on
+// its own timer: five hundred scratches a second, which is not a swarm, it is
+// an instant loss. So the swarm shares one bucket of landed hits per second;
+// bosses and kings are outside it and always connect.
+const ELG_SWARM_HITCAP = 26;     // swarm hits a second that actually land
+// And a ceiling on live bodies. A wave keeps its full count — the queue simply
+// waits — but the field never holds more than this, which bounds the DOM, the
+// per-frame cost and the O(shots × enemies) collision sweep. At wave 20 the
+// wave is three thousand strong; without this the frame rate dies long before
+// the hero does.
+const ELG_MAX_ALIVE = 700;
+// ---- 6★/7★ signature projectiles ----------------------------------------
+// The same five signatures the cards carry everywhere (TCG_APEX_PATHS), flown
+// in the arena's 2D space instead of a lane. The hero is one card here, so the
+// path is resolved once when the run starts and lives on `r.apex`.
+// 420, not the siege's tighter turn: against a swarm the ground a shot covers
+// IS its damage, and a boomerang that turned at 260px swept less than a plain
+// bolt flying its full 2.4 seconds — strictly worse than having no signature.
+const ELG_APEX_REACH   = 620;    // px a boomerang or a sweep runs before it turns
+const ELG_ORBIT_R      = 44;     // px — the radius the ring circles its host at
+const ELG_ORBIT_SPIN   = 2.4;    // revolutions per second
+const ELG_ORBIT_LIFE   = 2.0;    // seconds a ring keeps circling
+const ELG_ORBIT_HIT    = 0.32;   // seconds between strikes while it circles
+const ELG_SWEEP_LIFE   = 3.0;    // seconds a sweep keeps running to and fro
+const ELG_LANCE_SPEED  = 760;    // px/second — a lance outruns a bolt
+const ELG_FLAME_JET    = 7;      // embers per burst
+const ELG_FLAME_REACH  = 200;    // px before an ember burns out
+const ELG_FLAME_SPEED  = 340;
+const ELG_FLAME_SPREAD = 0.5;    // radians across the whole jet
 let elgRun = null;
 
 // RELEASED BY DEFAULT: students see Nova Legends unless the admin has
@@ -32746,11 +32816,13 @@ function elgStart(cardId) {
   const field = document.getElementById('elgField');
   const box = field ? field.getBoundingClientRect() : { width: 900, height: 500 };
   elgRun = {
-    card, role: elgRoleId(card), base: st, legend: elgLegendPassive(card),
+    // The hero's signature flight path, resolved once — it cannot change
+    // mid-run, and elgFireApex is asked for it on every auto-attack.
+    card, role: elgRoleId(card), base: st, legend: elgLegendPassive(card), apex: tcgApexPath(card),
     fw: box.width || 900, fh: box.height || 500,
     x: (box.width || 900) / 2, y: (box.height || 500) / 2, tx: null, ty: null,
     hp: st.maxHp, maxHp: st.maxHp, shield: 0, shieldT: 0,
-    enemies: [], shots: [], zones: [], nextId: 1,
+    enemies: [], shots: [], zones: [], nextId: 1, spawnBatch: 1,
     wave: 0, waveLeft: 0, spawnQ: [], spawnT: 0, breather: 2.2,
     kills: 0, sp: 1, tree: {}, cds: {}, keys: {},
     t: 0, last: 0, raf: 0, over: false, paused: false, qPause: false,
@@ -32839,9 +32911,12 @@ function elgBindInput() {
 // wave: the run only ends when the hero falls. Individual enemies are tuned
 // lighter than the old small-pack numbers so the threat is the CROWD, not
 // five bags of hit points.
-const ELG_WAVE_BASE = 50;      // a wall of them from the first wave
+const ELG_WAVE_BASE = 50;      // a wall of them from the first wave…
 const ELG_WAVE_GROWTH = 1.10;  // +10% enemies per wave, compounding
-function elgWaveCount(wave) { return Math.round(ELG_WAVE_BASE * Math.pow(ELG_WAVE_GROWTH, wave - 1)); }
+// …and ELG_SWARM_COUNT times that once the swarm rework landed: wave 1 fields
+// 500. The multiplier is applied here rather than baked into the base so the
+// swarm can be turned off in one place if it ever has to be.
+function elgWaveCount(wave) { return Math.round(ELG_WAVE_BASE * ELG_SWARM_COUNT * Math.pow(ELG_WAVE_GROWTH, wave - 1)); }
 function elgWavePool(wave, boss) {
   const maxStars = Math.min(7, 1 + Math.floor(wave / 3));
   const minStars = boss ? Math.max(4, maxStars - 1) : 1;
@@ -32871,7 +32946,12 @@ function elgStartWave() {
   r.waveLeft = r.spawnQ.length;
   r.spawnT = 0;
   // Bigger waves pour in faster, or late waves would spend minutes trickling.
+  // The gap alone can't do it any more: floored at 0.12s, a 500-strong swarm
+  // would take a full minute to walk on. So the tick stays put and the BATCH
+  // grows, which keeps a whole wave deploying in about ELG_WAVE_DEPLOY seconds
+  // however big it is.
   r.spawnGap = Math.max(0.12, Math.min(0.45, 12 / count));
+  r.spawnBatch = Math.max(1, Math.ceil(count / (ELG_WAVE_DEPLOY / r.spawnGap)));
   elgBanner(boss ? '👑 Wave ' + r.wave + ' — a legend leads the horde!' : 'Wave ' + r.wave + ' — ' + r.waveLeft + ' enemies!', 1800);
   const el = document.getElementById('elgWave'); if (el) el.textContent = 'Wave ' + r.wave;
 }
@@ -32880,7 +32960,11 @@ function elgSpawn(spec) {
   const c = spec.card;
   const wv = r.wave;
   const king = !!spec.king;
-  const hp = Math.round((15 + c.stars * 11 + wv * 5) * (king ? 14 : spec.boss ? 4.5 : 1));
+  // A swarm member has to die to roughly one hit, or ten times the horde is
+  // ten times the health pool and the wave-clear gate never opens. Bosses and
+  // kings keep their weight — they are the thing you actually fight.
+  const bulk = king ? 14 : spec.boss ? 4.5 : ELG_SWARM_HP;
+  const hp = Math.max(1, Math.round((15 + c.stars * 11 + wv * 5) * bulk));
   const edge = Math.floor(Math.random() * 4);
   const m = 26;
   const pos = edge === 0 ? { x: Math.random() * r.fw, y: -m }
@@ -32890,10 +32974,16 @@ function elgSpawn(spec) {
   const e = {
     id: r.nextId++, card: c, king, boss: !!spec.boss,
     x: pos.x, y: pos.y, hp, maxHp: hp,
-    dmg: Math.round((2 + c.stars * 0.8 + wv * 0.38) * (king ? 3.2 : spec.boss ? 1.8 : 1)),
+    // Floored at 1: a swarm member that rounds to 0 is a body with nothing to
+    // fear in it, and the danger here is meant to be the number of them.
+    dmg: Math.max(1, Math.round((2 + c.stars * 0.8 + wv * 0.38) * (king ? 3.2 : spec.boss ? 1.8 : ELG_SWARM_DMG))),
     speed: (king ? 40 : spec.boss ? 52 : 62) + Math.min(38, wv * 1.1) + c.stars * 2,
-    r: king ? 26 : spec.boss ? 19 : 14,
-    swing: 0, stun: 0, cursed: 0, node: null
+    r: king ? ELG_KING_R : spec.boss ? ELG_BOSS_R : ELG_FOE_R,
+    // A swarm member is a coloured mote: one DOM node, no card art, no health
+    // bar. At seven pixels across none of that is legible anyway, and five
+    // nodes apiece across five hundred bodies is what makes the frame drop.
+    swarm: !spec.boss && !king,
+    swing: 0, stun: 0, cursed: 0, node: null, bar: null
   };
   r.enemies.push(e);
 }
@@ -32930,7 +33020,10 @@ function elgUpdate(dt) {
   }
   if (r.spawnQ.length) {
     r.spawnT -= dt;
-    if (r.spawnT <= 0) { elgSpawn(r.spawnQ.shift()); r.spawnT = r.spawnGap || 0.45; }
+    if (r.spawnT <= 0) {
+      for (let i = 0; i < (r.spawnBatch || 1) && r.spawnQ.length && r.enemies.length < ELG_MAX_ALIVE; i++) elgSpawn(r.spawnQ.shift());
+      r.spawnT = r.spawnGap || 0.45;
+    }
   }
 
   // Hero movement — pointer target first, keys second.
@@ -33016,7 +33109,7 @@ function elgUpdate(dt) {
       if (t) {
         const ang = Math.atan2(t.y - pet.y, t.x - pet.x);
         r.shots.push({ id: r.nextId++, x: pet.x, y: pet.y, vx: Math.cos(ang) * ELG_SHOT_SPEED, vy: Math.sin(ang) * ELG_SHOT_SPEED,
-                       dmg: pet.dmg, pierce: 0, hit: {}, t: 0, node: null });
+                       dmg: pet.dmg, pierce: 0, hit: {}, t: 0, node: null, rad: elgShotRad() });
       }
       if (pet.heal) elgHeal(r.maxHp * pet.heal, true);
     }
@@ -33035,26 +33128,51 @@ function elgUpdate(dt) {
       r.atkT = 0;
       r.atkN = (r.atkN | 0) + 1;
       if (p.capCyclone && r.atkN % 5 === 0) elgAreaHit(r.x, r.y, 150, r.base.dmg * 2.4 * (1 + p.dmg), 'nova');
+      const aim = Math.atan2(target.y - r.y, target.x - r.x);
       const shots = 1 + (p.shots | 0);
-      for (let i = 0; i < shots; i++) {
-        const ang = Math.atan2(target.y - r.y, target.x - r.x) + (i ? (Math.random() - 0.5) * 0.35 : 0);
-        r.shots.push({ id: r.nextId++, x: r.x, y: r.y, vx: Math.cos(ang) * ELG_SHOT_SPEED, vy: Math.sin(ang) * ELG_SHOT_SPEED,
-                       dmg: elgHitDamage(p), pierce: p.pierce | 0, hit: {}, t: 0, node: null });
+      if (r.apex) elgFireApex(aim, p, shots);
+      else {
+        for (let i = 0; i < shots; i++) {
+          const ang = aim + (i ? (Math.random() - 0.5) * 0.35 : 0);
+          r.shots.push({ id: r.nextId++, x: r.x, y: r.y, vx: Math.cos(ang) * ELG_SHOT_SPEED, vy: Math.sin(ang) * ELG_SHOT_SPEED,
+                         dmg: elgHitDamage(p), pierce: p.pierce | 0, hit: {}, t: 0, node: null, rad: elgShotRad() });
+        }
       }
     }
   }
 
   // Shots
+  //
+  // A shot's contact radius. The +8/+13 is what keeps a swarm mote hittable:
+  // the mote's own radius is 3px, so the shot's generosity is now nearly the
+  // whole hitbox — which is exactly right, or the swarm would be untouchable.
+  // (elgShotRad and the apex flight live just below elgFireApex.)
   r.shots = r.shots.filter(s => {
-    s.t += dt; s.x += s.vx * dt; s.y += s.vy * dt;
-    if (s.t > 2.4 || s.x < -40 || s.y < -40 || s.x > r.fw + 40 || s.y > r.fh + 40) { elgDropNode(s); return false; }
+    s.t += dt;
+    if (s.path) { if (elgApexMove(s, dt)) { elgDropNode(s); return false; } }
+    else { s.x += s.vx * dt; s.y += s.vy * dt; }
+    // A ring rides its host and is exempt from the edge sweep — a host driven
+    // to the rim would otherwise reap it the moment it latched on.
+    if (!s.orbiting && (s.t > (s.life || 2.4) || s.x < -40 || s.y < -40 || s.x > r.fw + 40 || s.y > r.fh + 40)) { elgDropNode(s); return false; }
     for (const e of r.enemies) {
       if (s.hit[e.id] || e.hp <= 0) continue;
-      if (Math.hypot(e.x - s.x, e.y - s.y) <= e.r + (r.card.stars >= 7 ? 13 : 8)) {
+      if (Math.hypot(e.x - s.x, e.y - s.y) <= e.r + s.rad) {
         s.hit[e.id] = 1;
         elgDamage(e, s.dmg);
-        elgImpactFx(e.x, e.y);
-        if (s.pierce-- <= 0) { elgDropNode(s); return false; }
+        // Sparse across the swarm, every time on something that matters — the
+        // impact ration is small and a lance through forty motes would spend
+        // all of it before it reached the king.
+        if (!e.swarm || Math.random() < 0.15) elgImpactFx(e.x, e.y);
+        // A mote does not stop a projectile. Without this the swarm is
+        // unplayable for every hero that hasn't bought pierce: a bolt that
+        // stops at the first body is one kill per shot, and one kill per shot
+        // against five hundred of them is a wave that takes six minutes.
+        // Bosses and kings still catch a shot, so pierce is still worth having.
+        //
+        // An apex path flies on through everything regardless — carving a
+        // second rank is the whole point of a boomerang, a sweep and a lance,
+        // and the per-hit damage in TCG_APEX_PATHS is what pays for it.
+        if (!s.path && !e.swarm && s.pierce-- <= 0) { elgDropNode(s); return false; }
       }
     }
     return true;
@@ -33075,6 +33193,8 @@ function elgUpdate(dt) {
 
   // Enemies
   const slow = (r.frostT > 0 ? 0.35 : 1) * (r.card.skillId === 'chrono' && r.legend ? 0.7 : 1);
+  // The swarm's shared allowance of landed hits, refilled every frame.
+  r.swarmHits = Math.min(ELG_SWARM_HITCAP, (r.swarmHits || 0) + ELG_SWARM_HITCAP * dt);
   r.enemies = r.enemies.filter(e => {
     if (e.hp <= 0) return false;
     if (e.stun > 0) { e.stun -= dt; return true; }
@@ -33086,7 +33206,12 @@ function elgUpdate(dt) {
       e.swing -= dt * slow;
       if (e.swing <= 0) {
         e.swing = 1.15;
-        elgHurt(e.dmg, e);
+        // Bosses and kings always connect. The swarm draws from a shared
+        // bucket — see ELG_SWARM_HITCAP: without separation every mote piled
+        // into the contact disc swings, and five hundred of them landing at
+        // once is not difficulty, it is a coin flip you always lose.
+        if (!e.swarm) elgHurt(e.dmg, e);
+        else if (r.swarmHits >= 1) { r.swarmHits -= 1; elgHurt(e.dmg, e); }
       }
     }
     // Worldsend Aura curses whatever comes close
@@ -33109,6 +33234,85 @@ function elgHitDamage(p) {
   if (Math.random() < (0.05 + p.crit)) d *= 2;
   return d;
 }
+// ---- The 6★/7★ signature projectiles, flown in the arena ----------------
+// TCG_APEX_PATHS says which card flies how and what a hit is worth; this is
+// the same five signatures in 2D. A path is MOTION only — elgDamage still
+// decides what landing does, so a hero's passives, curse and lifesteal all
+// behave exactly as they did.
+function elgShotRad() {
+  const r = elgRun;
+  return (r && r.card && r.card.stars >= 7) ? 13 : 8;
+}
+// `shots` is 1 + the hero's multi-shot passive, threaded through so a build
+// that earned extra projectiles keeps them: a jet simply gets wider, and the
+// other four fire that many with a little spread, exactly as an ordinary hero
+// would. Dropping it here would have silently retired a whole skill node for
+// every apex hero.
+function elgFireApex(aim, p, shots) {
+  const r = elgRun; if (!r) return;
+  const info = TCG_APEX_PATHS[r.apex];
+  // A hero that already pierces gains far less from a path that adds passes,
+  // so it is charged the multi-hit rate — the same split the siege uses.
+  const dmg = elgHitDamage(p) * tcgApexDmgMult(info, (p.pierce | 0) > 0 ? 'pierce' : 'bolt');
+  const rad = elgShotRad();
+  const n = Math.max(1, shots | 0);
+  const base = { pierce: 0, t: 0, node: null, rad: rad, path: r.apex, x0: r.x, y0: r.y, aim: aim, x: r.x, y: r.y };
+  if (r.apex === 'flame') {
+    // A jet, not a shot: the attack is split across the embers, so a wall of
+    // fire is not a free damage multiplier however wide it gets.
+    const jet = ELG_FLAME_JET + n - 1;
+    for (let i = 0; i < jet; i++) {
+      const a = aim + (jet === 1 ? 0 : (i / (jet - 1) - 0.5) * ELG_FLAME_SPREAD);
+      const sp = ELG_FLAME_SPEED * (0.88 + (i % ELG_FLAME_JET) * 0.05);
+      r.shots.push(Object.assign({}, base, { id: r.nextId++, hit: {},
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, dmg: Math.max(1, dmg / jet), life: ELG_FLAME_REACH / sp }));
+    }
+    return;
+  }
+  const sp = r.apex === 'lance' ? ELG_LANCE_SPEED : ELG_SHOT_SPEED;
+  const life = r.apex === 'sweep' ? ELG_SWEEP_LIFE : r.apex === 'orbit' ? ELG_ORBIT_LIFE + 1.5 : 2.4;
+  for (let i = 0; i < n; i++) {
+    const a = aim + (i ? (Math.random() - 0.5) * 0.35 : 0);
+    r.shots.push(Object.assign({}, base, { id: r.nextId++, hit: {}, dmg: dmg, aim: a,
+      vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: life }));
+  }
+}
+// One frame of an apex shot's flight. Returns true when it is spent.
+function elgApexMove(s, dt) {
+  const r = elgRun; if (!r) return true;
+  if (s.path === 'orbit') {
+    // Fly straight until it reaches a body, then latch on and circle it. If
+    // the host dies the ring takes the nearest other body rather than hanging
+    // in the air where the last one was — in a swarm that is almost instant.
+    let host = s.host != null ? r.enemies.find(e => e.id === s.host && e.hp > 0) : null;
+    if (!host) {
+      host = elgNearest(s.x, s.y, s.orbiting ? 260 : 40);
+      s.host = host ? host.id : null;
+      if (!host) { s.orbiting = false; s.x += s.vx * dt; s.y += s.vy * dt; return false; }
+      if (s.orbiting) s.ang = Math.atan2(s.y - host.y, s.x - host.x);
+    }
+    s.orbiting = true;
+    s.orbT = (s.orbT || 0) + dt;
+    s.ang = (s.ang || s.aim || 0) + ELG_ORBIT_SPIN * Math.PI * 2 * dt;
+    s.x = host.x + Math.cos(s.ang) * ELG_ORBIT_R;
+    s.y = host.y + Math.sin(s.ang) * ELG_ORBIT_R;
+    s.hitT = (s.hitT || 0) - dt;
+    if (s.hitT <= 0) { s.hitT = ELG_ORBIT_HIT; s.hit = {}; }   // the next pass is a fresh strike
+    return s.orbT >= ELG_ORBIT_LIFE;
+  }
+  s.x += s.vx * dt; s.y += s.vy * dt;
+  if (s.path === 'boomerang' || s.path === 'sweep') {
+    const out = Math.hypot(s.x - s.x0, s.y - s.y0);
+    const going = (s.x - s.x0) * s.vx + (s.y - s.y0) * s.vy > 0;   // travelling away?
+    if (going && out >= ELG_APEX_REACH) { s.vx = -s.vx; s.vy = -s.vy; s.hit = {}; }
+    else if (!going && out < 12) {
+      if (s.path === 'boomerang') return true;                     // caught again
+      s.vx = -s.vx; s.vy = -s.vy; s.hit = {};
+    }
+    return false;
+  }
+  return false;   // lance and flame die on the shared lifetime / edge sweep
+}
 function elgNearest(x, y, range) {
   const r = elgRun; let best = null, bd = range;
   r.enemies.forEach(e => { const d = Math.hypot(e.x - x, e.y - y); if (d < bd) { bd = d; best = e; } });
@@ -33122,7 +33326,9 @@ function elgDamage(e, dmg) {
   if (p.execute && e.hp < e.maxHp / 2) d *= 1 + p.execute;
   d = Math.max(1, Math.round(d));
   e.hp -= d;
-  elgPop(e.x, e.y, '-' + d, 'dmg');
+  // A number floating off a seven-pixel mote is noise, and it would spend the
+  // whole popup ration before a boss ever got one.
+  if (!e.swarm) elgPop(e.x, e.y, '-' + d, 'dmg');
   if (p.lifesteal) elgHeal(d * p.lifesteal, true);
   if (e.hp <= 0) {
     r.kills++;
@@ -33219,7 +33425,7 @@ function elgCast(id) {
     for (let i = 0; i < a.count; i++) {
       const ang = base + ((i - (a.count - 1) / 2) / Math.max(1, a.count - 1)) * a.spread;
       r.shots.push({ id: r.nextId++, x: r.x, y: r.y, vx: Math.cos(ang) * ELG_SHOT_SPEED, vy: Math.sin(ang) * ELG_SHOT_SPEED,
-                     dmg: power * a.dmg, pierce: 1 + (p.pierce | 0), hit: {}, t: 0, node: null });
+                     dmg: power * a.dmg, pierce: 1 + (p.pierce | 0), hit: {}, t: 0, node: null, rad: elgShotRad() });
     }
   } else if (a.kind === 'dash') {
     // Blink through the horde, cutting everything on the way.
@@ -33526,18 +33732,34 @@ function elgRender() {
   // Enemies
   r.enemies.forEach(e => {
     if (!e.node) {
-      const url = tcgAvatarUrl(e.card.id);
       const d = document.createElement('div');
-      d.className = 'elg-unit foe' + (e.king ? ' king' : e.boss ? ' boss' : '') + (e.card.stars >= 7 ? ' star7' : '');
-      d.innerHTML = '<span class="elg-sprite">' + (url ? '<img alt="">' : e.card.em) + '</span>'
-        + '<i class="elg-ehp"><b></b></i>';
-      if (url) elgSpriteArt(d.querySelector('img'), url);
+      if (e.swarm) {
+        // One node, a coloured mote, sized from e.r so the body you can be hit
+        // by and the body you can see are the same thing. No card art and no
+        // health bar: at seven pixels neither is legible, the bar is a fixed
+        // 26px and would dwarf its own enemy, and five nodes apiece across
+        // five hundred bodies is exactly what drops the frame rate.
+        const efx = TCG_ELEM_FX[e.card.element] || TCG_ELEM_FX.flame;
+        d.className = 'elg-unit foe swarm';
+        d.style.setProperty('--sz', (e.r * ELG_SPRITE_K).toFixed(1) + 'px');
+        d.style.setProperty('--mote', efx.a);
+        d.style.setProperty('--moteb', efx.b);
+      } else {
+        const url = tcgAvatarUrl(e.card.id);
+        d.className = 'elg-unit foe' + (e.king ? ' king' : e.boss ? ' boss' : '') + (e.card.stars >= 7 ? ' star7' : '');
+        d.innerHTML = '<span class="elg-sprite">' + (url ? '<img alt="">' : e.card.em) + '</span>'
+          + '<i class="elg-ehp"><b></b></i>';
+        if (url) elgSpriteArt(d.querySelector('img'), url);
+        // Looked up ONCE. A querySelector per enemy per frame is the single
+        // worst thing in this loop when the field holds hundreds of bodies.
+        e.bar = d.querySelector('.elg-ehp > b');
+      }
       host.appendChild(d);
       e.node = d;
     }
     e.node.style.transform = 'translate(' + Math.round(e.x) + 'px,' + Math.round(e.y) + 'px) translate(-50%,-50%)';
-    const bar = e.node.querySelector('.elg-ehp > b');
-    if (bar) bar.style.width = Math.max(0, Math.round(e.hp / e.maxHp * 100)) + '%';
+    if (e.swarm) return;   // a mote has no bar and carries no status skin
+    if (e.bar) e.bar.style.width = Math.max(0, Math.round(e.hp / e.maxHp * 100)) + '%';
     e.node.classList.toggle('cursed', e.cursed > 0);
     e.node.classList.toggle('stunned', e.stun > 0);
   });
@@ -33548,7 +33770,7 @@ function elgRender() {
   r.shots.forEach(s => {
     if (!s.node) {
       const d = document.createElement('div');
-      d.className = 'elg-shot' + (r.card.stars >= 7 ? ' mighty' : '');
+      d.className = 'elg-shot' + (r.card.stars >= 7 ? ' mighty' : '') + (s.path ? ' p-' + s.path : '');
       d.style.setProperty('--trail', fx.glow);
       d.style.setProperty('--a', Math.atan2(s.vy, s.vx).toFixed(3) + 'rad');
       if (r.flyFrames) { d.classList.add('framed'); d.innerHTML = '<img alt="">'; }
@@ -33636,8 +33858,17 @@ function elgDropNode(o) { if (o && o.node) { o.node.remove(); o.node = null; } }
 // upward slowly enough to actually read. Keeping the two transforms on
 // separate elements matters: an animated transform on the positioned element
 // would override the x/y placement and fling the number across the arena.
+// A floating number per damage instance was affordable against a pack. Against
+// a swarm — a piercing shot through forty motes, forty motes swinging back —
+// it is hundreds of nodes a second, each holding a 1450ms timer. So the field
+// is rationed: ELG_POP_MAX live at once, and the caller decides what deserves
+// one (a boss does, a mote does not).
+const ELG_POP_MAX = 22;
+let _elgPops = 0;
 function elgPop(x, y, text, cls) {
   const host = document.getElementById('elgUnits'); if (!host) return;
+  if (_elgPops >= ELG_POP_MAX) return;
+  _elgPops++;
   const d = document.createElement('div');
   d.className = 'elg-pop ' + (cls || '');
   const jx = Math.round(x + (Math.random() - 0.5) * 30);
@@ -33646,13 +33877,19 @@ function elgPop(x, y, text, cls) {
   span.textContent = text;
   d.appendChild(span);
   host.appendChild(d);
-  setTimeout(() => d.remove(), 1450);
+  setTimeout(() => { d.remove(); _elgPops = Math.max(0, _elgPops - 1); }, 1450);
 }
 // The element's impact frames from the Card Art page, played once where a
 // shot lands. Skipped silently until the frames are keyed and cached.
+// Same rationing as elgPop, and for the same reason: each of these carries an
+// 80ms setInterval, and a lance through a swarm would start dozens at once.
+const ELG_HITFX_MAX = 14;
+let _elgHitFx = 0;
 function elgImpactFx(x, y) {
   const r = elgRun; if (!r || !r.hitFrames) return;
   const host = document.getElementById('elgUnits'); if (!host) return;
+  if (_elgHitFx >= ELG_HITFX_MAX) return;
+  _elgHitFx++;
   const d = document.createElement('div');
   d.className = 'elg-hitfx' + (r.card.stars >= 7 ? ' mighty' : '');
   d.innerHTML = '<img alt="">';
@@ -33663,7 +33900,7 @@ function elgImpactFx(x, y) {
   img.src = r.hitFrames[0];
   const iv = setInterval(() => {
     i++;
-    if (i >= r.hitFrames.length || !d.isConnected) { clearInterval(iv); d.remove(); }
+    if (i >= r.hitFrames.length || !d.isConnected) { clearInterval(iv); d.remove(); _elgHitFx = Math.max(0, _elgHitFx - 1); }
     else img.src = r.hitFrames[i];
   }, 80);
 }
