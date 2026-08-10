@@ -3831,6 +3831,13 @@ body.lore-reading { overflow: hidden; }
 .syl-quiz .syl-lo-tools { margin-top: 14px; }
 .syl-quiz-note { font-size: 0.76rem; color: var(--text-muted); line-height: 1.65; margin-top: 12px; }
 
+/* Admin: put the card game's own questions into the bank. */
+.syl-import { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; margin-top: 20px; padding: 18px 20px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface-alt); }
+.syl-import-main { flex: 1 1 320px; min-width: 240px; }
+.syl-import-title { font-size: 0.88rem; font-weight: 700; margin-bottom: 6px; }
+.syl-import-sub { font-size: 0.79rem; color: var(--text-muted); line-height: 1.65; }
+.syl-import .btn { flex: 0 0 auto; }
+
 /* ---- The learning-objective chips on a question (editor + pickers) ---- */
 .lo-chips { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .lo-chip { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; font-size: 0.78rem; line-height: 1.4; border: 1px solid var(--border); background: var(--surface-alt); border-radius: 999px; padding: 6px 8px 6px 12px; }
@@ -19994,7 +20001,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.22.0 · 2026-08-10";
+const APP_VERSION = "v1.23.0 · 2026-08-10";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
@@ -26717,16 +26724,45 @@ function _tcgBankQuestions() {
   try {
     (typeof questionBank !== 'undefined' && Array.isArray(questionBank) ? questionBank : []).forEach(q => {
       if (!q || (q.status && q.status !== 'approved') || !Array.isArray(q.blocks)) return;
+      // A question imported from the built-in set (📥 on the Syllabus page,
+      // TCG_IMPORT_PREFIX) is the SAME question as a row of TCG_QUIZ. It is in
+      // the bank so it can reach worksheets, the practice queue and the marking
+      // record — but in the games the built-in row is the canonical one: it
+      // carries the qid the rotation is keyed on and stays db:false, so no
+      // question answered inside a game becomes a teacher-visible attempt.
+      // Without this an admin — the only role that holds the answer key, and so
+      // the only one this pool ever yields anything for — would meet all 800
+      // twice.
+      if (/^tcgq_\d+$/.test(String(q.id || ''))) return;
       if (!qInSyllabus(q)) return;   // retired topics never reach the Nova Protocol TCG quiz
       // Never above the pupil's level. This one pool feeds the unit trainer,
       // Orbital Siege AND Nova Legends, so leaving it uncapped served P5/P6
       // questions to P3/P4 students in all three modes at once.
       if (!qWithinStudentLevel(q)) return;
-      const mcq = q.blocks.find(b => b && b.type === 'mcq' && b.correctId && Array.isArray(b.options) && b.options.length >= 2);
-      if (!mcq) return;
-      const ai = mcq.options.findIndex(o => o.id === mcq.correctId);
-      if (ai < 0) return;
-      const opts = mcq.options.map(o => stripHtml(o.text || '').trim());
+      // A bank question keeps its options on the QUESTION (`options` +
+      // `correctOption`), which is what the editor writes. `correctOption` is a
+      // QUESTION_KEY_FIELD, so it is only ever in hand for an admin — which is
+      // exactly right: a student's browser must not hold the answer to a
+      // question they can be marked on. For them the built-in pool is the whole
+      // pool, and it is 800 questions deep.
+      let opts = null, ai = -1, ex = '';
+      if (Array.isArray(q.options) && q.options.length >= 2 && Number.isInteger(q.correctOption)) {
+        opts = q.options.map(o => stripHtml(String(o == null ? '' : o)).trim());
+        ai = q.correctOption;
+        // The worked answer lives in the admin-only half beside the key, so the
+        // modes that teach after the answer have it whenever the key is there.
+        ex = _htmlPlainText(q.markingGuide || '');
+      } else {
+        // The older block-borne shape, kept so a question authored that way
+        // still reaches the games.
+        const mcq = q.blocks.find(b => b && b.type === 'mcq' && b.correctId && Array.isArray(b.options) && b.options.length >= 2);
+        if (!mcq) return;
+        ai = mcq.options.findIndex(o => o.id === mcq.correctId);
+        opts = mcq.options.map(o => stripHtml(o.text || '').trim());
+        const exB = q.blocks.find(b => b && b.type === 'explanation' && b.content && stripHtml(b.content).trim());
+        ex = exB ? _htmlPlainText(exB.content) : '';
+      }
+      if (ai < 0 || ai >= opts.length) return;
       if (opts.some(t => !t)) return;
       let html = '', hasStem = false;
       q.blocks.forEach(b => {
@@ -26735,12 +26771,7 @@ function _tcgBankQuestions() {
         else if (b.type === 'image' && b.url) { html += '<div class="tcg-quiz-img"><img src="' + escapeHtml(transformImageUrl(b.url)) + '" onerror="handleImgError(this)" loading="lazy" decoding="async" style="' + imgSizeStyle(b) + '"></div>'; hasStem = true; }
       });
       if (!hasStem) return;
-      // The question's explanation block rides along so the modes that teach
-      // after the answer (the Legends arena and the trainer) can show it.
-      // Decoded to real text — stripHtml would leave &amp;/&lt; entities in,
-      // and the consumers escapeHtml the string again on render.
-      const exB = q.blocks.find(b => b && b.type === 'explanation' && b.content && stripHtml(b.content).trim());
-      out.push({ id: q.id || '', html: html, opts: opts, a: ai, ex: exB ? _htmlPlainText(exB.content) : '', db: true });
+      out.push({ id: q.id || '', html: html, opts: opts, a: ai, ex: ex, db: true });
     });
   } catch (e) {}
   return out;
@@ -35626,6 +35657,7 @@ function sylMatches(lo) {
 function renderSyllabusPage() {
   const host = $("syllabusBody");
   if (!host) return;
+  _sylImportedCache = null;   // one scan of the bank per render, no more
   const idx = sylBuildIndex();
   const level = MOE_SYLLABUS.find(L => L.lv === sylLevel) || MOE_SYLLABUS[0];
   // Coverage is counted over the WHOLE syllabus, not the level on screen —
@@ -35649,6 +35681,7 @@ function renderSyllabusPage() {
       <div class="syl-cover-note">${canManageQuestions()
         ? `Open a question in <b>Create Question</b> to file it, or use <b>＋ Add questions</b> on any objective below. The <b>✨ Suggest</b> button reads the question and proposes the objectives it assesses.`
         : `Every objective in the Primary Mathematics syllabus. Open one to practise the questions filed under it.`}</div>
+      ${canManageQuestions() ? sylImportPanelHtml() : ''}
     </div>`;
 
   html += `<div class="syl-controls">`
@@ -35771,9 +35804,32 @@ function sylLoBodyHtml(lo, qs) {
 // TCG_QUIZ_BY_LO is built where the questions are, far above this block, so it
 // is long initialised by the time anything here renders. An objective the tree
 // no longer has drops its questions at READ time, exactly as qLos does.
+//
+// A row whose imported twin is already in the bank is dropped here as well: it
+// is then a bank question, listed above with ✎ Edit and an answer key, and
+// showing it a second time in the card-game panel would double every badge on
+// the map the moment an admin pressed 📥 Import.
 function sylQuizFor(loId) {
-  return SYL_LO_BY_ID[loId] ? (TCG_QUIZ_BY_LO[loId] || []) : [];
+  if (!SYL_LO_BY_ID[loId]) return [];
+  const rows = TCG_QUIZ_BY_LO[loId] || [];
+  const imported = _sylImportedIds();
+  return imported.size ? rows.filter(x => !imported.has(tcgImportedId(_tcgQuizIndex(x)))) : rows;
 }
+// The bank's imported copies, by id. Built once per render pass rather than
+// kept in step by hand — the bank is re-assigned wholesale in several places —
+// and cached across that pass because sylQuizFor is asked about every objective
+// in the syllabus, not just the ones on screen.
+let _sylImportedCache = null;
+function _sylImportedIds() {
+  if (_sylImportedCache) return _sylImportedCache;
+  const s = new Set();
+  const re = new RegExp('^' + TCG_IMPORT_PREFIX + '\\d+$');
+  (questionBank || []).forEach(q => { if (q && re.test(String(q.id || ''))) s.add(q.id); });
+  _sylImportedCache = s;
+  return s;
+}
+// A built-in row's position, off the qid it was stamped with at load.
+function _tcgQuizIndex(x) { return +String((x && x.qid) || '').split(':')[1]; }
 let _sylQuiz = null;
 function sylQuizOpen(loId, i) {
   const pool = sylQuizFor(loId);
@@ -35836,6 +35892,116 @@ function sylQuizNext() {
   if (!_sylQuiz) return;
   _sylQuiz.i = Math.min(_sylQuiz.pool.length - 1, _sylQuiz.i + 1);
   sylQuizRender();
+}
+
+// ---- 📥 Import the card game's questions into the bank -------------------
+// The built-in set reaches the games and this map on its own, but nothing else
+// — a worksheet, the practice queue and the marking record all read the bank.
+// This writes the whole set in as REAL bank questions so they reach those too.
+//
+// Ids come off the POSITIONAL qid (`tcgq:<n>` → `tcgq_<n>`), so pressing the
+// button twice rewrites the same documents rather than minting a second copy
+// of all 800. That is also what makes it safe to re-run after rows are edited.
+const TCG_IMPORT_PREFIX = 'tcgq_';
+function tcgImportedId(i) { return TCG_IMPORT_PREFIX + i; }
+function tcgImportedInBank() {
+  const re = new RegExp('^' + TCG_IMPORT_PREFIX + '\\d+$');
+  return (questionBank || []).filter(q => q && re.test(String(q.id || '')));
+}
+// One built-in row as a bank question. The split between the two halves is the
+// whole point of the shape below: `blocks` and `options` are student-readable,
+// so the stem and the four choices go there — while the correct index, the
+// answer text and the worked explanation are QUESTION_KEY_FIELDS and land in
+// the admin-only key doc. An explanation that shows the working IS an answer,
+// so it must never be written into a block.
+function tcgQuizBankDoc(x, i, existing) {
+  const lo = SYL_LO_BY_ID[x.lo] || null;
+  const stem = String(x.q || '').trim();
+  const q = {
+    id: tcgImportedId(i),
+    title: stem.length > 80 ? stem.slice(0, 79).trim() + '…' : stem,
+    level: lo ? lo.level : '',
+    topic: lo ? lo.sub : '',
+    topics: lo ? [lo.sub] : [],
+    concept: lo ? lo.topic : '',
+    los: lo ? [x.lo] : [],
+    blocks: [{ id: tcgImportedId(i) + '_b1', type: 'text', content: escapeHtml(stem) }],
+    options: x.opts.slice(),
+    correctOption: x.a,
+    expected: String(x.opts[x.a] || ''),
+    markingGuide: x.ex || '',
+    source: 'tcgQuiz',
+    // Kept from the copy already in the bank, so a re-import doesn't reshuffle
+    // the bank's order (it sorts on createdAt) under a teacher who was mid-way
+    // through filing things.
+    createdAt: (existing && existing.createdAt) || new Date().toISOString(),
+    createdBy: 'Nova Protocol'
+  };
+  return q;
+}
+function sylImportPanelHtml() {
+  const n = tcgImportedInBank().length;
+  const all = n >= TCG_QUIZ.length;
+  return `<div class="syl-import" id="sylImportPanel">
+    <div class="syl-import-main">
+      <div class="syl-import-title">🎴 Nova Protocol's ${TCG_QUIZ.length} maths questions</div>
+      <div class="syl-import-sub">${all
+        ? `All ${TCG_QUIZ.length} are in your bank. Run this again to write the latest wording and answers back over them.`
+        : n
+          ? `<b>${n}</b> of ${TCG_QUIZ.length} are in your bank. Importing adds the remaining <b>${TCG_QUIZ.length - n}</b> and refreshes the ones already there.`
+          : `They cover every P4–P6 objective and already run inside the games. Import them to use them in worksheets, the practice queue and the marking record too.`}</div>
+    </div>
+    <button class="btn ${all ? 'btn-ghost' : 'btn-blue'} btn-sm" type="button" id="sylImportBtn" onclick="sylImportQuizToBank()">${all ? '↻ Refresh in bank' : '📥 Import to bank'}</button>
+  </div>`;
+}
+let _sylImportRunning = false;
+async function sylImportQuizToBank() {
+  if (!canManageQuestions()) { toast("Only admin accounts can import questions", "error"); return; }
+  if (_sylImportRunning) return;
+  const held = {};
+  tcgImportedInBank().forEach(q => { held[q.id] = q; });
+  const already = Object.keys(held).length;
+  const ok = confirm(already
+    ? `Rewrite the ${already} card-game question(s) already in your bank and add the remaining ${TCG_QUIZ.length - already}? Nothing is duplicated — each one is written back to the same document.`
+    : `Add all ${TCG_QUIZ.length} card-game maths questions to your bank? They become real bank questions: markable, taggable and usable in worksheets. Their answers stay in the admin-only half.`);
+  if (!ok) return;
+
+  _sylImportRunning = true;
+  const btn = $("sylImportBtn");
+  const setLabel = t => { if (btn) { btn.disabled = true; btn.textContent = t; } };
+  let done = 0, failed = 0, lastErr = '';
+  const docs = TCG_QUIZ.map((x, i) => tcgQuizBankDoc(x, i, held[tcgImportedId(i)]));
+  // A handful at a time. Sequential would take minutes on 800 questions, and
+  // all-at-once would open 1600 writes at the same moment.
+  const LANES = 6;
+  let next = 0;
+  async function lane() {
+    while (next < docs.length) {
+      const q = docs[next++];
+      try {
+        // saveQuestionDoc and nothing else. The editor's save also notifies
+        // every subscribed student and touches the Dependency Board — neither
+        // belongs on a bulk import of 800: one is 800 notifications, the other
+        // only ever applies to a question spawned from another one.
+        await saveQuestionDoc(q);
+        const at = questionBank.findIndex(x => x.id === q.id);
+        if (at >= 0) questionBank[at] = q; else questionBank.push(q);
+      } catch (e) { failed++; lastErr = (e && e.message) || String(e); }
+      done++;
+      if (done % 10 === 0 || done === docs.length) setLabel('Importing… ' + done + ' / ' + docs.length);
+    }
+  }
+  setLabel('Importing… 0 / ' + docs.length);
+  try {
+    await Promise.all(Array.from({ length: LANES }, lane));
+  } finally {
+    _sylImportRunning = false;
+    questionBank.sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
+    renderSyllabusPage();
+    try { renderBank(); } catch (_) {}
+  }
+  if (failed) toast((docs.length - failed) + ' imported, ' + failed + ' failed — ' + lastErr, "error");
+  else toast(docs.length + ' question(s) are in your bank', "success");
 }
 
 // The body's buttons are bound once on the page, not per render — the whole
@@ -36072,6 +36238,7 @@ window.renderSyllabusPage = renderSyllabusPage;
 window.sylQuizClose = sylQuizClose;
 window.sylQuizAnswer = sylQuizAnswer;
 window.sylQuizNext = sylQuizNext;
+window.sylImportQuizToBank = sylImportQuizToBank;
 
 </script>
 <div id="tcgExpAnnounce" style="display:none;position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:1201;width:min(680px,calc(100vw - 28px));background:radial-gradient(120% 100% at 50% -30%,rgba(77,227,255,0.18),transparent 60%),linear-gradient(150deg,#16264f,#0b1230 60%,#080c1e);border:1px solid rgba(77,227,255,0.55);border-radius:18px;padding:26px 28px;box-shadow:0 22px 60px rgba(0,0,0,0.55);color:#e6f4ff;font-family:'DM Sans',system-ui,sans-serif;">
