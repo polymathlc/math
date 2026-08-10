@@ -2081,6 +2081,21 @@ body.practising-as .page-body { padding-bottom: 64px; }
 .ems-shot-orb { display: block; width: 58%; aspect-ratio: 1; border-radius: 50%; animation: emsOrb 0.45s ease-out; }
 @keyframes emsOrb { from { transform: scale(0.35); opacity: 0.6; } to { transform: scale(1); opacity: 1; } }
 .ems-shot::after { content: ''; position: absolute; right: 62%; top: 50%; width: 90%; height: 22%; transform: translateY(-50%); border-radius: 999px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.22)); filter: blur(2px); pointer-events: none; }
+/* 6★/7★ signature projectiles. The flight path is in the JS; this is only
+   what each one looks like, so the weapon is readable across the screen. */
+.ems-shot.p-lance { width: 15%; }
+.ems-shot.p-lance .ems-shot-orb { width: 100%; aspect-ratio: 3.4; border-radius: 999px; animation: none; }
+.ems-shot.p-lance::after { width: 130%; height: 16%; }
+.ems-shot.p-flame { width: 6.5%; height: 13%; }
+.ems-shot.p-flame .ems-shot-orb { width: 100%; animation: emsFlameLick 0.24s ease-in-out infinite alternate; }
+.ems-shot.p-flame::after { display: none; }
+.ems-shot.p-orbit .ems-shot-orb { animation: emsOrbitPulse 0.5s ease-in-out infinite alternate; }
+.ems-shot.p-orbit::after { display: none; }
+.ems-shot.p-boomerang .ems-shot-orb, .ems-shot.p-sweep .ems-shot-orb { animation: emsShotSpin 0.4s linear infinite; }
+.ems-shot.p-sweep::after { opacity: 0.55; }
+@keyframes emsShotSpin { from { transform: rotate(0deg) scale(1); } to { transform: rotate(360deg) scale(1); } }
+@keyframes emsFlameLick { from { transform: scale(0.78); opacity: 0.85; } to { transform: scale(1.18); opacity: 1; } }
+@keyframes emsOrbitPulse { from { transform: scale(0.9); } to { transform: scale(1.15); } }
 .ems-burst { position: absolute; border-radius: 14px; pointer-events: none; z-index: 6; animation: emsBurstAnim 0.46s ease-out forwards; mix-blend-mode: screen; }
 .ems-burst.framed { animation: none; mix-blend-mode: normal; display: flex; align-items: center; justify-content: center; }
 .ems-burst.framed img { width: 100%; height: 100%; object-fit: contain; }
@@ -20001,7 +20016,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.23.0 · 2026-08-10";
+const APP_VERSION = "v1.24.0 · 2026-08-10";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
@@ -21003,6 +21018,59 @@ const TCG_ROLE_MODS = {
   slay:       { atk: 1.28, def: 0.94, heal: 0.60, hp: 1.02, spd: 6 },
   frostreign: { atk: 1.16, def: 0.96, heal: 0.72, hp: 1.00, spd: 4 }
 };
+// ---- 6★ and 7★ signature projectiles ------------------------------------
+// An apex unit does not simply hit harder. Its shot MOVES differently, and the
+// flight path is the thing you actually watch on a battlefield — a ring of fire
+// circling one enemy reads as a different weapon from a bolt, at a glance, from
+// across the screen.
+//
+// A path is MOTION only. What a hit does is still the unit's skill mode, so an
+// orbiting poisoner still poisons and a sweeping splash unit still bursts —
+// nothing here forks the damage rules.
+//
+// Keyed on the card's skillId (its named signature) and gated on `stars >= 6`:
+// skillIds are shared down the tiers, and a 1★ Servitor Whelp must not inherit
+// the Grand Castellan's weapon just because both are `aegis`.
+// `dmg` is the per-hit multiplier for a unit whose shot stopped at the first
+// body; `dmgMulti` is the one for a unit whose mode ALREADY reaches past it —
+// a burst, a pierce, the time fracture. Two numbers because one cannot serve
+// both: tuned on the single-target figure alone, a path that adds four passes
+// left Aeternax and Thalgrath — cards a player spent thousands of points on —
+// measurably WEAKER than before they had a signature at all.
+const TCG_APEX_PATHS = {
+  orbit:     { icon: '🌀', label: 'Orbital ring',   dmg: 0.38, dmgMulti: 0.90, desc: 'Latches onto the first enemy it reaches and circles it, striking again on every pass.' },
+  boomerang: { icon: '🪃', label: 'Boomerang',      dmg: 0.33, dmgMulti: 0.60, desc: 'Thrown out down the lane, then turns and carves back through everything a second time.' },
+  sweep:     { icon: '↔️', label: 'Tidal sweep',    dmg: 0.33, dmgMulti: 0.74, desc: 'Runs to and fro across the lane, catching everything again on every pass.' },
+  lance:     { icon: '🏹', label: 'Piercing lance', dmg: 0.85, dmgMulti: 1.00, desc: 'Flies further and far faster than a bolt, and never stops at a body.' },
+  flame:     { icon: '🔥', label: 'Flamethrower',   dmg: 1.00, dmgMulti: 1.00, desc: 'A jet of fire rather than a shot — short range, but it washes over everything in front of it.' }
+};
+// The modes that already reach past the first body.
+function tcgModeMultiHit(mode) { return mode === 'splash' || mode === 'pierce' || mode === 'chrono'; }
+function tcgApexDmgMult(info, mode) { return info ? (tcgModeMultiHit(mode) ? info.dmgMulti : info.dmg) : 1; }
+// Which signature flies how. `chorus` and `aegis` are deliberately absent: a
+// Field medic and a Wall never call emsFire at all, so a path on either would
+// be a promise in the tooltip that nothing on the battlefield keeps.
+// A path is paired to COMPLEMENT the unit's mode, never to fight it. The three
+// orbiters all carry a per-hit rider (curse, drain, poison) that wants to land
+// again and again on one body; the sweeps and the flames belong to modes that
+// want a whole lane; and the two area units that fly straight (storm, nova)
+// keep reaching a rank of enemies. Pairing an area unit with the single-target
+// ring instead would quietly turn a 6★ blaster into a worse version of itself.
+const TCG_APEX_PATH_BY_SKILL = {
+  doom: 'orbit', eclipse: 'orbit', venomf: 'orbit',
+  smash: 'boomerang', storm: 'boomerang',
+  tidal: 'sweep', chrono: 'sweep', winter: 'sweep',
+  dragonfall: 'lance', nova: 'lance',
+  roar: 'flame', inferno: 'flame', sunrise: 'flame'
+};
+function tcgApexPath(card) {
+  if (!card || (card.stars | 0) < 6) return null;
+  return TCG_APEX_PATH_BY_SKILL[card.skillId] || null;
+}
+function tcgApexPathInfo(card) {
+  const k = tcgApexPath(card);
+  return k ? TCG_APEX_PATHS[k] : null;
+}
 // ---- Elemental affinity: 5 combat elements in a super-effective ring. Each
 // deals ×2 to the one it "beats" and takes ×2 (deals ×0.5) to the one that
 // beats it. Flame → Nature → Terra → Spark → Aqua → Flame.
@@ -31085,7 +31153,9 @@ function emsSplashSize(card) {
 function emsSkillLine(card) {
   const b = emsBehaviour(card);
   const sp = emsSplashSize(card);
-  return b.label + (sp && sp.lanes > 1 ? ' ' + sp.lanes + '×' + sp.cols : '') + ' — ' + b.desc;
+  const ap = tcgApexPathInfo(card);
+  return b.label + (sp && sp.lanes > 1 ? ' ' + sp.lanes + '×' + sp.cols : '') + ' — ' + b.desc
+    + (ap ? ' · ' + ap.icon + ' ' + ap.label + ': ' + ap.desc : '');
 }
 // A defender's fighting profile, straight off the card's real stats — BOTH
 // progression tracks included: the training level earned from maths
@@ -31097,7 +31167,7 @@ function emsDefProfile(card) {
   const b = emsBehaviour(card);
   const tanky = b.mode === 'wall' ? 1.7 : (b.mode === 'heal' || b.mode === 'healall') ? 1.1 : 1;
   return {
-    b: b, mode: b.mode, splash: emsSplashSize(card),
+    b: b, mode: b.mode, splash: emsSplashSize(card), apex: tcgApexPath(card),
     hp: Math.round(st.hp * tanky),
     atk: Math.round(st.atk * b.atk),
     heal: Math.round(st.heal * 1.4),
@@ -31440,24 +31510,28 @@ function emsUpdate(dt) {
       d.cool = d.p.rate; d.fire = 0.16;
       return;
     }
+    // An apex signature is ONE weapon on the field, not a stack of them. A
+    // sweep runs for three seconds and a ring for three; without this gate a
+    // unit firing every second had three of them overlapping and a single 7★
+    // held the whole lane on its own. The path's damage is tuned per CYCLE, so
+    // waiting for the last one to finish is what makes the numbers mean
+    // anything.
+    if (d.p.apex && r.shots.some(s => s.owner === d.id && !s.dead)) return;
     // Rage builds up: down to half the interval after ~40 seconds alive.
     const rageK = m === 'rage' ? Math.max(0.5, 1 - d.alive / 80) : 1;
     emsFire(d);
     d.cool = d.p.rate * rageK;
     d.fire = 0.16;
   });
-  // projectiles fly, hit, and (for pierce) carry on
+  // projectiles fly, hit, and (for pierce and the apex paths) carry on
   r.shots.forEach(s => {
     s.t += dt;
-    s.x += s.vx * dt;
-    if (s.x > EMS_COLS + 1.2) { s.dead = true; return; }
-    const hits = r.enemies.filter(e => e.lane === s.lane && !s.hit[e.id] && Math.abs(e.x - s.x) < 0.5);
-    if (!hits.length) return;
-    if (s.splash) { emsSplashHit(s, hits[0]); s.dead = true; return; }
-    const e = hits.sort((a, b) => a.x - b.x)[0];
-    s.hit[e.id] = 1;
-    emsHit(e, s.dmg, s.card, s.mode);
-    if (s.mode !== 'pierce' && s.mode !== 'chrono') s.dead = true;
+    if (s.path) emsApexMove(s, dt); else s.x += s.vx * dt;
+    if (s.dead) return;
+    // An orbiter is deliberately exempt: it rides its host, and a host near
+    // the spawn edge would otherwise reap the ring the moment it latched on.
+    if (!s.orbiting && (s.x > EMS_COLS + 1.2 || s.x < -0.8)) { s.dead = true; return; }
+    emsShotStrike(s);
   });
   r.shots = r.shots.filter(s => { if (!s.dead) return true; emsDropNode(s.node); return false; });
   // enemies walk / fight
@@ -31498,13 +31572,113 @@ function emsUpdate(dt) {
 }
 // ---- Shots, hits and status effects ----
 const EMS_SHOT_SPEED = 7.5;   // columns per second — fast enough to feel instant
+// ---- Apex flight paths: the 6★/7★ signature projectiles -----------------
+// TCG_APEX_PATHS says WHICH card flies how; these say how far and how fast in
+// this game's units (columns and lanes). A path never changes what a hit does
+// — that is still the unit's mode — so the damage multipliers above are what
+// keep a shot that hits many times from being a straight damage multiplier.
+const EMS_APEX_REACH  = 5.0;    // columns a boomerang or a sweep runs before it turns
+const EMS_ORBIT_R     = 0.60;   // columns  — the radius the orbiter circles at
+const EMS_ORBIT_LANE  = 0.32;   // lanes    — squashed, so the ring reads as a ring
+const EMS_ORBIT_SPIN  = 2.6;    // revolutions per second
+const EMS_ORBIT_LIFE  = 3.0;    // seconds an orbiter keeps circling
+const EMS_ORBIT_HIT   = 0.40;   // seconds between strikes while it circles
+const EMS_SWEEP_LIFE  = 3.2;    // seconds a sweep keeps running to and fro
+const EMS_LANCE_SPEED = 12.0;   // columns per second — a lance outruns a bolt
+const EMS_FLAME_JET   = 4;      // embers per burst
+const EMS_FLAME_REACH = 2.6;    // columns before an ember burns out
+const EMS_FLAME_SPEED = 5.0;
 function emsFire(d) {
   const r = emsRun; if (!r) return;
-  r.shots.push({
-    id: r.nextId++, lane: d.lane, x: d.col + 0.55, vx: EMS_SHOT_SPEED,
-    card: d.card, el: d.card.element, dmg: d.p.atk, mode: d.p.mode,
-    splash: d.p.splash, hit: {}, t: 0, node: null, dead: false
-  });
+  const path = tcgApexPath(d.card);
+  if (path === 'flame') { emsFireFlame(d); return; }
+  const info = path ? TCG_APEX_PATHS[path] : null;
+  const x0 = d.col + 0.55;
+  const s = {
+    id: r.nextId++, lane: d.lane, x: x0, vx: path === 'lance' ? EMS_LANCE_SPEED : EMS_SHOT_SPEED,
+    card: d.card, el: d.card.element, dmg: Math.max(1, Math.round(d.p.atk * tcgApexDmgMult(info, d.p.mode))), mode: d.p.mode,
+    splash: d.p.splash, hit: {}, t: 0, node: null, dead: false,
+    path: path, x0: x0, laneOff: 0, owner: d.id
+  };
+  r.shots.push(s);
+}
+// A flamethrower does not fire a shot, it fires a JET — several short-lived
+// embers spread across the lane, each washing through everything it touches.
+// The unit's attack is SPLIT across the embers, so a wall of fire looks like
+// four times the weapon without being four times the damage.
+function emsFireFlame(d) {
+  const r = emsRun; if (!r) return;
+  const x0 = d.col + 0.55;
+  const per = Math.max(1, Math.round(d.p.atk / EMS_FLAME_JET));
+  for (let i = 0; i < EMS_FLAME_JET; i++) {
+    r.shots.push({
+      id: r.nextId++, lane: d.lane, x: x0 + i * 0.13, vx: EMS_FLAME_SPEED * (1 + i * 0.06),
+      card: d.card, el: d.card.element, dmg: per, mode: d.p.mode,
+      splash: d.p.splash, hit: {}, t: 0, node: null, dead: false,
+      path: 'flame', x0: x0, laneOff: (i - (EMS_FLAME_JET - 1) / 2) * 0.12, owner: d.id
+    });
+  }
+}
+// One frame of an apex shot's flight. Motion (and, for the orbiter, when it is
+// allowed to strike again) only — contact is emsShotStrike for every shot in
+// the game alike.
+function emsApexMove(s, dt) {
+  const r = emsRun; if (!r) return;
+  if (s.path === 'orbit') {
+    // Fly straight until it reaches a body, then latch on and circle it. If
+    // the host dies the ring looks for the next enemy in the lane rather than
+    // hanging in the air where the body used to be.
+    let host = s.host != null ? r.enemies.find(e => e.id === s.host && e.hp > 0) : null;
+    if (!host) {
+      host = r.enemies.filter(e => e.lane === s.lane && e.x >= s.x - 0.5).sort((a, b) => a.x - b.x)[0] || null;
+      s.host = host ? host.id : null;
+      if (!host) s.orbiting = false;
+    }
+    if (!host || (!s.orbiting && host.x - s.x > EMS_ORBIT_R)) { s.x += s.vx * dt; s.laneOff = 0; return; }
+    s.orbiting = true;
+    s.orbT = (s.orbT || 0) + dt;
+    s.ang = (s.ang || 0) + EMS_ORBIT_SPIN * Math.PI * 2 * dt;
+    s.x = host.x + Math.cos(s.ang) * EMS_ORBIT_R;
+    s.laneOff = Math.sin(s.ang) * EMS_ORBIT_LANE;
+    s.hitT = (s.hitT || 0) - dt;
+    if (s.hitT <= 0) { s.hitT = EMS_ORBIT_HIT; s.hit = {}; }   // the next pass counts as a fresh strike
+    if (s.orbT >= EMS_ORBIT_LIFE) s.dead = true;
+    return;
+  }
+  if (s.path === 'boomerang' || s.path === 'sweep') {
+    s.x += s.vx * dt;
+    const out = s.x - s.x0;
+    if (s.vx > 0 ? out >= EMS_APEX_REACH : out <= 0) {
+      if (s.path === 'boomerang' && s.vx < 0) { s.dead = true; return; }   // caught again
+      s.vx = -s.vx;
+      s.hit = {};                                                          // a fresh pass hits everything again
+    }
+    if (s.path === 'sweep' && s.t >= EMS_SWEEP_LIFE) s.dead = true;
+    return;
+  }
+  s.x += s.vx * dt;
+  if (s.path === 'flame' && s.x - s.x0 >= EMS_FLAME_REACH) s.dead = true;
+}
+// One frame of contact, wherever a shot's flight has put it. Every path shares
+// it, so what a hit DOES stays a property of the unit's mode and is never
+// written twice.
+function emsShotStrike(s) {
+  const r = emsRun; if (!r) return;
+  const hits = r.enemies.filter(e => e.lane === s.lane && !s.hit[e.id] && Math.abs(e.x - s.x) < 0.5);
+  if (!hits.length) return;
+  const e = hits.sort((a, b) => a.x - b.x)[0];
+  s.hit[e.id] = 1;
+  // The burst is SPENT on first contact — which is already true of an ordinary
+  // splash shot, because it dies there. An apex path flies on afterwards, so
+  // saying it explicitly is what stops a sweep carpet-bombing three lanes on
+  // every one of its five passes.
+  if (s.splash && !s.burst) { s.burst = 1; emsSplashHit(s, e); }
+  else emsHit(e, s.dmg, s.card, s.mode);
+  // An apex projectile flies on through — carving a second rank of enemies is
+  // the whole point of a boomerang, a sweep and a lance. Everything else stops
+  // at the first body unless its own mode already pierces.
+  if (s.path) return;
+  if (s.splash || (s.mode !== 'pierce' && s.mode !== 'chrono')) s.dead = true;
 }
 // One enemy takes one hit, with the element triangle and whatever the
 // attacker's skill leaves behind.
@@ -31712,11 +31886,13 @@ function emsRender() {
   r.shots.forEach(s => {
     if (!s.node || !s.node.isConnected) {
       s.node = document.createElement('div');
-      s.node.className = 'ems-shot' + (s.splash && s.splash.lanes > 1 ? ' big' : '');
+      s.node.className = 'ems-shot' + (s.splash && s.splash.lanes > 1 ? ' big' : '') + (s.path ? ' p-' + s.path : '');
       s.node.innerHTML = emsShotInnerHtml(s);
       host.appendChild(s.node);
     }
-    emsPositionUnit(s.node, s.lane, s.x, m);
+    // The lane is a FRACTION for an apex path — the orbiter swings above and
+    // below its host as it comes round, and a flame jet fans across the lane.
+    emsPositionUnit(s.node, s.lane + (s.laneOff || 0), s.x, m);
     const img = s.node.querySelector('img');
     if (!img) return;
     // A shot plays its charge-up once as it leaves the muzzle (small ball →
