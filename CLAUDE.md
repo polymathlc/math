@@ -152,6 +152,32 @@ is what lets a fix in one app be copied to the other. Only the *world* differs.
     only ever yields anything for an admin. That is the point: a student's
     browser must not hold the answer to a question they can be marked on, which
     is why the built-in pool has to stand on its own.
+- **6★ and 7★ shoot DIFFERENTLY, not just harder** (`TCG_APEX_PATHS`, v1.24.0).
+  Thirteen apex signatures fly one of five paths in 🌋 Orbital Siege — 🌀 an
+  orbital ring that circles the body it reaches, 🪃 a boomerang, ↔️ a to-and-fro
+  sweep, 🏹 a piercing lance and 🔥 a flamethrower jet.
+  - **Keyed on `skillId`, gated on `stars >= 6`.** SkillIds are shared down the
+    tiers — a 1★ Servitor Whelp is `aegis` too — so the gate is what stops it
+    inheriting the Grand Castellan's weapon. `chorus` and `aegis` are absent on
+    purpose: a Field medic and a Wall never call `emsFire`, so a path on either
+    would be a tooltip promising something the battlefield never does.
+  - **A path is MOTION only.** What a hit does is still the unit's mode, so an
+    orbiting poisoner still poisons. `emsApexMove` moves, `emsShotStrike` is the
+    one contact function every shot in the game shares.
+  - **Two damage multipliers per path, and that is not redundancy.** `dmg` is
+    for a mode that stopped at the first body; `dmgMulti` for one that already
+    reached past it (`splash` / `pierce` / `chrono` — see `tcgModeMultiHit`).
+    Tuned on the single-target number alone, the extra passes left Aeternax and
+    Thalgrath measurably WEAKER than before they had a signature. Every apex
+    card now sits between 0.96× and 2.00× of its own pre-path output.
+  - **One apex projectile per defender at a time** (the `s.owner` gate in the
+    fire step). A sweep lives 3.2s; without it a unit firing every second ran
+    three at once and a single 7★ held the lane alone.
+  - **The burst is spent on first contact** (`s.burst`). An ordinary splash shot
+    already bursts once, because it dies there — saying it explicitly is what
+    stops a sweep carpet-bombing three lanes on each of its five passes.
+  - `laneOff` is a FRACTIONAL lane handed to `emsPositionUnit`, which is how the
+    ring swings above and below its host and a flame jet fans out.
 - **The theme is ONE class on `<body>`.** `navigateTo` toggles `nova-protocol` and
   everything else is CSS: the tokens (`--surface` / `--border` / `--text` /
   `--primary`) are redefined inside `#page-tcg`, which re-skins every `.tcg-*`
