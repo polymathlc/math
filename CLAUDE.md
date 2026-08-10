@@ -114,6 +114,22 @@ is what lets a fix in one app be copied to the other. Only the *world* differs.
   one: `TCG_SKILLS`, `TCG_ROLE_MODS[kind]` (the one that throws), the arena
   resolver's chain in `_tcgAct`, `ELG_ROLE_BY_KIND` and `EMS_SKILL_FX[kind]`.
   `DUEL_ABILITIES` needs a row too — it fails silently to `strike` instead.
+- **The questions are MATHS, and there are 800 of them** (`TCG_QUIZ`, v1.22.0) —
+  MOE syllabus MCQs across every P4, P5 and P6 learning objective, replacing the
+  science set this layer was ported in with. `_tcgQuizPool` **merges** them with
+  the bank's own auto-gradable questions rather than using them as a fallback: a
+  bank holding a dozen approved MCQs must not narrow the trainer, 🌋 Orbital
+  Siege and ⚔️ Nova Legends back down to those dozen on repeat.
+  - **Ids are POSITIONAL** — `tcgq:<index>`, stamped on by the `TCG_QUIZ_BY_LO`
+    build loop — and they live in the per-student rotation (`tcgTrainServed_*`)
+    and the daily points ledger (`ptsSeen`). APPEND rows and edit them in place;
+    re-ordering or splicing one out of the middle re-points every stamp.
+  - **Every row carries `lo`**, the syllabus objective id it assesses. That is
+    what files it on the 📐 Syllabus page (`TCG_QUIZ_BY_LO` → `sylQuizFor`), and
+    what caps it to the pupil's level through `qWithinStudentLevel`, the same
+    gate the bank's questions go through. A row with no `lo` reaches no page.
+  - They stay `db: false`, so they never write a `questionAttempts` row or a
+    teacher-visible mark — a built-in question is practice, not an attempt.
 - **The theme is ONE class on `<body>`.** `navigateTo` toggles `nova-protocol` and
   everything else is CSS: the tokens (`--surface` / `--border` / `--text` /
   `--primary`) are redefined inside `#page-tcg`, which re-skins every `.tcg-*`
@@ -257,6 +273,14 @@ the tree would be one nobody here could ever fill.
   whole syllabus when it has no level) and reads the reply through
   `_parseAIJson`, so a truncated response still parses. Ids the model invents are
   dropped; the result is re-sorted into syllabus order.
+- **The map counts the card game's questions too** (v1.22.0). `sylQuizFor(loId)`
+  reads `TCG_QUIZ_BY_LO`, and the badge, the sub-strand tally, the *Only gaps*
+  filter and the coverage headline all add it to the bank's own — a P4–P6
+  objective is never shown as a gap a student can already practise. They are NOT
+  bank questions (no marking guide, no answer key, no attempt record), so the
+  ▶ Try panel (`sylQuiz*`, its own overlay reusing the `.tcg-quiz-*` skin) only
+  teaches the working — and it deliberately **pays nothing**: the faucet lives
+  inside the games, never on a page a student can reopen at will.
 
 ## The game economy — every faucet is gated
 🪙 points buy booster packs, so **no repeatable button may ever pay**. Every faucet
