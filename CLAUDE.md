@@ -114,9 +114,13 @@ is what lets a fix in one app be copied to the other. Only the *world* differs.
   one: `TCG_SKILLS`, `TCG_ROLE_MODS[kind]` (the one that throws), the arena
   resolver's chain in `_tcgAct`, `ELG_ROLE_BY_KIND` and `EMS_SKILL_FX[kind]`.
   `DUEL_ABILITIES` needs a row too — it fails silently to `strike` instead.
-- **The questions are MATHS, and there are 800 of them** (`TCG_QUIZ`, v1.22.0) —
-  MOE syllabus MCQs across every P4, P5 and P6 learning objective, replacing the
-  science set this layer was ported in with. `_tcgQuizPool` **merges** them with
+- **The questions are MATHS, and there are 1 600 of them** (`TCG_QUIZ`, v1.27.0)
+  — MOE syllabus MCQs across every P4, P5 and P6 learning objective, replacing
+  the science set this layer was ported in with. Written as two sets of 800,
+  twelve to fourteen per objective over the same 129 objectives.
+  - **Which POSITION holds the answer is kept level** — 400 each of A/B/C/D per
+    set. Nothing shuffles `q.opts` at render (every caller maps it straight into
+    buttons in array order), so a lopsided set teaches guessing, not maths. `_tcgQuizPool` **merges** them with
   the bank's own auto-gradable questions rather than using them as a fallback: a
   bank holding a dozen approved MCQs must not narrow the trainer, 🌋 Orbital
   Siege and ⚔️ Nova Legends back down to those dozen on repeat.
@@ -134,7 +138,7 @@ is what lets a fix in one app be copied to the other. Only the *world* differs.
     into the bank as REAL questions, so they reach worksheets, the practice
     queue and the marking record too. Ids are derived from the positional qid
     (`tcgq:<n>` → **`tcgq_<n>`**), which is what makes a second press rewrite
-    the same 800 documents instead of minting a copy of every one.
+    the same 1 600 documents instead of minting a copy of every one.
     - **The prefix is a DEDUPE KEY in two places**, and both are load-bearing:
       `_tcgBankQuestions` skips `tcgq_<n>` (in the games the built-in row is
       canonical — it carries the rotation's qid and stays `db: false`), and
@@ -382,6 +386,35 @@ the tree would be one nobody here could ever fill.
   - …until an admin presses **📥 Import to bank** in the coverage card, which
     makes them ordinary bank questions and retires the card-game panel for
     every objective it covered. See `sylImportQuizToBank` under Nova Protocol.
+
+## The pupil's level — the cap on which questions the games ask (v1.27.0)
+A pupil practises at their own level and everything BELOW it, never above: P4
+meets P4, P5 meets P4–P5, P6 meets the whole P4–P6 set. Revision downwards is
+the point — a P6 pupil who has forgotten how to round to the nearest 1000
+should still be asked.
+- **`qWithinStudentLevel` is the whole gate**, and it bites INSIDE the games
+  only: both halves of `_tcgQuizPool` (the bank's auto-gradable questions and
+  the built-in `TCG_QUIZ` rows) run through it and nothing else does. The 📐
+  Syllabus map stays browsable at every level on purpose — reading ahead is not
+  being tested on it.
+- **`qLevelCeiling` takes the HIGHEST level a question declares**, across its
+  own `level` field and the front of every `los` tag. Highest, not lowest: a
+  question tagged across two levels is as hard as its hardest objective, and the
+  promise is that a P4 pupil never meets P5 content.
+- **No level declared → not withheld.** A bank whose questions were never
+  levelled would otherwise vanish from the games the moment a pupil chooses a
+  level. Admins and guests are never capped either (`studentLevelsAllowed`
+  returns null) — a full pool beats a silently empty one.
+- **The level is IN the `_tcgBuiltIn` cache key**, not just the uid. Keyed on
+  the uid alone, a pupil who changes level mid-session keeps the old pool until
+  a reload.
+- **It lives on `mathLearningProfile`, not a settings doc of its own.** The
+  rules allow-list `users/{uid}/settings/{docId}` writes BY DOCUMENT ID, and
+  `firestore.rules` is shared with the Science app — a new id would cost a
+  whole-project rules deploy for one string. Mirrored onto
+  `studentProfiles/{uid}` so the teacher sees it on the Student Results roster.
+- It changes WHICH questions are asked, never how much they pay — see the
+  economy rules below — so re-declaring a level cannot be farmed for points.
 
 ## The game economy — every faucet is gated
 🪙 points buy booster packs, so **no repeatable button may ever pay**. Every faucet
