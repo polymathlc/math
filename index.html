@@ -1602,7 +1602,8 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 /* =================== MULTIPLE CHOICE (MCQ) =================== */
 /* Editor option rows */
 .mcq-edit-row { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; }
-.mcq-edit-row .mcq-edit-letter { font-family: 'Space Mono', monospace; font-weight: 700; color: var(--text-muted); width: 16px; text-align: center; }
+/* Wide enough for "1)" — the label is a number now, not a single letter. */
+.mcq-edit-row .mcq-edit-letter { font-family: 'Space Mono', monospace; font-weight: 700; color: var(--text-muted); width: 24px; text-align: center; }
 .mcq-edit-row input[type="text"] { flex: 1; }
 .mcq-edit-row .mcq-correct-wrap { display: inline-flex; align-items: center; gap: 5px; font-size: 0.74rem; color: var(--text-muted); white-space: nowrap; cursor: pointer; }
 .mcq-edit-row .mcq-correct-wrap input { accent-color: var(--primary); }
@@ -5858,6 +5859,24 @@ function _fileToBase64(file) {
 }
 const $ = (id) => document.getElementById(id);
 const escapeHtml = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+// ---- How an MCQ option is labelled (v1.30.0) -----------------------------
+// Options are numbered 1) 2) 3) 4) everywhere they are shown: the editor, the
+// practice panel, the printed sheet and its answer key, the worksheet overview,
+// the vetting preview, every AI prompt and the card game's duel. It replaces
+// the old A / B / C / D, and it is what the four other game modes (the trainer,
+// 🌋 Orbital Siege, ⚔️ Nova Legends and the syllabus ▶ Try panel) were already
+// doing — so the whole app now counts options the same way.
+//
+// THE LABEL IS DERIVED FROM THE POSITION AND NEVER STORED. `q.correctOption` is
+// the index it always was, so every MCQ already in the bank re-labels itself
+// with no migration and nothing in a saved document changes. That is the whole
+// reason this is a one-line helper rather than a data change.
+//
+// `mcqLabel` is for a label sitting inline with the option text; `mcqNumber` is
+// the bare number, for the round badges (and for prose like "option 2", where a
+// bracket would read as a typo).
+const mcqLabel = (i) => (i + 1) + ")";
+const mcqNumber = (i) => String(i + 1);
 const IMAGE_SCALE_MIN = 0.3;
 const IMAGE_SCALE_MAX = 1.5;
 const IMAGE_SCALE_STEP = 0.1;
@@ -8125,8 +8144,8 @@ function renderEditorOptions() {
     const row = document.createElement("div");
     row.className = "mcq-edit-row";
     row.innerHTML =
-      '<span class="mcq-edit-letter">' + String.fromCharCode(65 + i) + '</span>' +
-      '<input type="text" placeholder="Option ' + String.fromCharCode(65 + i) + '" value="' + escapeHtml(o.text || "") + '">' +
+      '<span class="mcq-edit-letter">' + mcqLabel(i) + '</span>' +
+      '<input type="text" placeholder="Option ' + mcqNumber(i) + '" value="' + escapeHtml(o.text || "") + '">' +
       '<label class="mcq-correct-wrap"><input type="radio" name="mcqCorrect"' + (editorCorrectId === o.id ? " checked" : "") + '> correct</label>' +
       '<button class="mcq-del" type="button" title="Remove option">✕</button>';
     const input = row.querySelector('input[type="text"]');
@@ -11333,7 +11352,7 @@ function aiQuestionReadPrompt(isPdf, withBox = false) {
     `"questionText":"<the full question text, cleaned up>","expected":"<the correct final answer, with units>",` +
     `"markingGuide":"<concise worked solution / what to look for in the working>","hasDiagram":<true if the question relies on a figure/diagram, else false>,` +
     (withBox ? `"diagramBox":[<ymin>,<xmin>,<ymax>,<xmax>] or null,` : ``) +
-    `"options":["<option A>","<option B>", ...] (empty array if not multiple-choice),"correctOption":<0-based index of the correct option, or -1 if not multiple-choice>}`;
+    `"options":["<option 1>","<option 2>", ...] (empty array if not multiple-choice),"correctOption":<0-based index of the correct option, or -1 if not multiple-choice>}`;
 }
 async function runAiBuildFromMedia(source) {
   try {
@@ -11418,7 +11437,7 @@ async function aiAnswerAndGuide() {
     if (imgCount && !media.length) toast("Couldn't load the diagram — answering from the text only", "error");
     const opts = collectEditorOptions();
     const optionLines = opts.options.length >= 2
-      ? `\nThis is a MULTIPLE-CHOICE question. The options are:\n${opts.options.map((o, i) => `${String.fromCharCode(65 + i)}. ${o}`).join("\n")}\nSay which option letter is correct in "expected", and give the reasoning in "markingGuide".\n`
+      ? `\nThis is a MULTIPLE-CHOICE question. The options are:\n${opts.options.map((o, i) => `${mcqLabel(i)} ${o}`).join("\n")}\nSay which option number is correct in "expected", and give the reasoning in "markingGuide".\n`
       : ``;
     const prompt =
       `You are a Singapore primary-school math teacher writing the answer key for the question below. ` +
@@ -11502,7 +11521,7 @@ function vetPreviewHtml(q) {
     ? (b.url ? `<img src="${escapeHtml(b.url)}" alt="Question diagram">` : `<div style="color:var(--accent-orange);">🖼 Diagram slot — nothing attached yet</div>`)
     : `<div>${escapeHtml(stripHtml(b.content))}</div>`).join("");
   const opts = (Array.isArray(q.options) && q.options.length >= 2)
-    ? `<div style="margin-top:6px;">${q.options.map((o, i) => `<div>${String.fromCharCode(65 + i)}. ${escapeHtml(o)}${i === q.correctOption ? " ✓" : ""}</div>`).join("")}</div>` : "";
+    ? `<div style="margin-top:6px;">${q.options.map((o, i) => `<div>${mcqLabel(i)} ${escapeHtml(o)}${i === q.correctOption ? " ✓" : ""}</div>`).join("")}</div>` : "";
   const ans = String(q.expected || "").trim();
   return blocks + opts + (ans ? `<div style="margin-top:8px;"><b>Answer:</b> ${escapeHtml(ans)}</div>` : `<div style="margin-top:8px;color:var(--accent-orange);">No answer yet</div>`);
 }
@@ -11981,14 +12000,14 @@ async function regenerateQuestionVariant(difficulty = "same") {
         ? `A previous attempt was REJECTED by an independent checker for: ${fixNote}. Produce a corrected variant that specifically fixes this — above all make sure every number works out cleanly.\n`
         : ``) +
       (isMcq
-        ? `This is a MULTIPLE-CHOICE question (original options: ${srcMcq.options.map((o, i) => `${String.fromCharCode(65 + i)}. ${o}`).join("; ")}). ` +
+        ? `This is a MULTIPLE-CHOICE question (original options: ${srcMcq.options.map((o, i) => `${mcqLabel(i)} ${o}`).join("; ")}). ` +
           `Produce ${srcMcq.options.length} fresh answer options for the NEW numbers — one unambiguously correct, the rest plausible distractors (e.g. common mistakes) — and give the 0-based index of the correct one in "correctOption". The "expected" answer must equal the correct option.\n`
         : ``) +
       `Return ONLY valid JSON in this exact shape, with line breaks inside strings escaped as \\n and no markdown fences:\n` +
       `{"ok":<true|false>,"issues":"<empty if ok, else what is wrong>","title":"<short title for the variant>",` +
       `"questionText":"<full new question text>","expected":"<the correct final answer, with units>",` +
       `"markingGuide":"<full worked solution and what to look for in the working — this is the answer key>"` +
-      (isMcq ? `,"options":["<option A>","<option B>", ...],"correctOption":<0-based index of the correct option>` : ``) +
+      (isMcq ? `,"options":["<option 1>","<option 2>", ...],"correctOption":<0-based index of the correct option>` : ``) +
       `}`;
     let media = [];
     if (diagramUrl) {
@@ -13082,7 +13101,7 @@ let previewPrintQuestions = [];
 function mcqOptionsPreviewHtml(q, showCorrect = false) {
   if (!Array.isArray(q.options) || q.options.length < 2) return "";
   const rows = q.options.map((o, i) =>
-    `<div class="mcq-preview-opt${showCorrect && i === q.correctOption ? " is-correct" : ""}"><span class="l">${String.fromCharCode(65 + i)}.</span><span>${escapeHtml(o)}${showCorrect && i === q.correctOption ? " ✓" : ""}</span></div>`
+    `<div class="mcq-preview-opt${showCorrect && i === q.correctOption ? " is-correct" : ""}"><span class="l">${mcqLabel(i)}</span><span>${escapeHtml(o)}${showCorrect && i === q.correctOption ? " ✓" : ""}</span></div>`
   ).join("");
   return `<div class="mcq-preview" style="margin-top:10px;">${rows}</div>`;
 }
@@ -13594,7 +13613,7 @@ function wsQuestionChunkHtml(q, n, qrSvg) {
     // A / B / C / D, the same lettering the on-screen practice pad and every
     // other preview in this app uses — a printed sheet numbered differently
     // from the screen is a sheet the class answers in the wrong notation.
-    ? `<div class="ws-mcq">${q.options.map((o, i) => `<div class="ws-mcq-opt"><span class="l">${String.fromCharCode(65 + i)}.</span><span>${escapeHtml(o)}</span></div>`).join("")}<div class="ws-mcq-answer">Answer: <span class="ws-mcq-box"></span></div></div>`
+    ? `<div class="ws-mcq">${q.options.map((o, i) => `<div class="ws-mcq-opt"><span class="l">${mcqLabel(i)}</span><span>${escapeHtml(o)}</span></div>`).join("")}<div class="ws-mcq-answer">Answer: <span class="ws-mcq-box"></span></div></div>`
     // An annotation question is answered ON the diagram, so a working area is
     // both wrong and a waste of the sheet — the picture printed above IS the
     // answer space. It gets a bigger cap for the same reason.
@@ -13617,7 +13636,7 @@ function wsAnswerKeyHtml(questions) {
     const ans = String(q.expected || "").trim();
     const guide = String(q.markingGuide || "").trim();
     const mcq = wsHasMcq(q) && Number.isInteger(q.correctOption)
-      ? `<div class="ws-ak-ans"><b>Answer:</b> ${String.fromCharCode(65 + q.correctOption)}. ${escapeHtml(q.options[q.correctOption] || "")}</div>` : "";
+      ? `<div class="ws-ak-ans"><b>Answer:</b> ${mcqLabel(q.correctOption)} ${escapeHtml(q.options[q.correctOption] || "")}</div>` : "";
     const img = q.answerKeyImageUrl ? `<img class="ws-ak-img" src="${escapeHtml(q.answerKeyImageUrl)}" alt="Answer key for question ${i + 1}">` : "";
     // The answer to "draw and label this" is a picture, so print the picture.
     // Each annotating diagram carries its own answer, so a question with two of
@@ -14128,7 +14147,7 @@ function wvSolutionBodyHtml(q) {
   const s = _wvSolutions[q.id] || {};
   const video = aiMarkVideoHtml(s.videoExplanationUrl, s.videoOverlays);
   const mcq = (Array.isArray(q.options) && q.options.length >= 2 && Number.isInteger(s.correctOption))
-    ? `<div class="wv-sol-ans">Answer: ${String.fromCharCode(65 + s.correctOption)}. ${escapeHtml(q.options[s.correctOption] || "")}</div>` : "";
+    ? `<div class="wv-sol-ans">Answer: ${mcqLabel(s.correctOption)} ${escapeHtml(q.options[s.correctOption] || "")}</div>` : "";
   const ans = String(s.expected || "").trim();
   const guide = String(s.markingGuide || "").trim();
   const annot = (s.annotationAnswers || []).map(r =>
@@ -14697,7 +14716,7 @@ function renderMcqArea(q) {
   card.classList.add("mcq-active"); card.classList.remove("mcq-show-working");
   area.style.display = "";
   opts.innerHTML = q.options.map((o, i) =>
-    '<button type="button" class="mcq-option" data-i="' + i + '"><span class="mcq-letter">' + String.fromCharCode(65 + i) + '</span><span class="mcq-text">' + escapeHtml(o) + '</span></button>'
+    '<button type="button" class="mcq-option" data-i="' + i + '"><span class="mcq-letter">' + mcqNumber(i) + '</span><span class="mcq-text">' + escapeHtml(o) + '</span></button>'
   ).join("");
   opts.querySelectorAll(".mcq-option").forEach(btn => btn.addEventListener("click", () => {
     if (btn.disabled) return;
@@ -15790,7 +15809,7 @@ async function clientMarkVerdict(q, { media = [], typedWorking = "", finalAnswer
     markingPreamble(q && q.markingGuide) + "\n\n" +
     `QUESTION: "${questionText(q)}"\n` +
     (Array.isArray(q.options) && q.options.length >= 2
-      ? `MULTIPLE-CHOICE OPTIONS: ${q.options.map((o, i) => `${String.fromCharCode(65 + i)}. ${o}`).join("; ")}\n`
+      ? `MULTIPLE-CHOICE OPTIONS: ${q.options.map((o, i) => `${mcqLabel(i)} ${o}`).join("; ")}\n`
       : "") +
     (hasKey
       ? `CORRECT ANSWER: "${q.expected || "(use the marking guide)"}"\n`
@@ -20306,7 +20325,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.29.1 · 2026-08-11";
+const APP_VERSION = "v1.30.0 · 2026-08-11";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
@@ -32074,7 +32093,7 @@ function duelOpenQuiz() {
     + '<div class="duel-quiz-q">' + q.html + '</div>'
     + '<div class="duel-quiz-opts">'
     + q.opts.map((o, i) => '<button type="button" class="duel-quiz-opt" onclick="duelAnswer(' + i + ')">'
-        + '<b>' + String.fromCharCode(65 + i) + '</b> ' + escapeHtml(o) + '</button>').join('')
+        + '<b>' + mcqLabel(i) + '</b> ' + escapeHtml(o) + '</button>').join('')
     + '</div><div class="duel-quiz-foot" id="duelQuizFoot"></div></div>';
   host.appendChild(box);
   r.insightUsed = true;             // spent on OPENING it, so the button cannot re-arm
@@ -32109,7 +32128,7 @@ function duelAnswer(i) {
       + (ups.length ? ' <b>🎓 ' + ups.map(u => escapeHtml(tcgShortName(u.card)) + ' reached Lv ' + u.level
           + (u.level % DUEL_RANK_EVERY === 0 ? ' — ⬆ RANK UP!' : '')).join(', ') + '</b>' : '');
   } else {
-    note = '<b class="no">❌ Not this time.</b> The right answer is <b>' + String.fromCharCode(65 + (q.a | 0)) + '</b>.';
+    note = '<b class="no">❌ Not this time.</b> The right answer is option <b>' + mcqNumber(q.a | 0) + '</b>.';
   }
   if (q.ex) note += '<div class="duel-quiz-ex">💡 ' + escapeHtml(q.ex) + '</div>';
   const foot = document.getElementById('duelQuizFoot');
