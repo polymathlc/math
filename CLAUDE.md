@@ -46,10 +46,25 @@ backend, so the model calls are byte-for-byte the same requests. Search
 - `askGemini` / `askGeminiCached` — plain text calls. `thinkingLevel: "minimal"`;
   Gemini 3.x rejects the older numeric `thinkingBudget` with 400 INVALID_ARGUMENT.
 - `askGeminiVision` — text + images/PDF, with model fallback and retry.
-- `_parseAIJson` / `_repairAIJson` — the TOLERANT parser. `_repairAIJson` escapes
-  unescaped inner quotes and raw newlines, closes an unterminated string, drops a
-  dangling half-written key and balances brackets, so a TRUNCATED response still
-  parses. Keep it in step with cer's copy.
+- `_parseAIJson` / `_repairAIJson` — the TOLERANT parser. It handles the two
+  opposite failures separately, and both are real:
+  - **Too little.** `_repairAIJson` escapes unescaped inner quotes and raw
+    newlines, closes an unterminated string, drops a dangling half-written key
+    and balances brackets, so a TRUNCATED response still parses.
+  - **Too much** (v1.29.1). A model asked for JSON often puts something AFTER
+    the value — a second object, a stray closing ``` fence the leading-fence
+    strip can't reach, a line of commentary — and `JSON.parse` then fails on the
+    whole string with *"Unexpected non-whitespace character after JSON"* even
+    though the value at the front is fine. `_jsonFirstValueEnd` finds where that
+    first value closes (tracking strings, so a `{` inside one can't close it
+    early) and the front is parsed alone. Repair cannot fix this: there is
+    nothing missing.
+  - `parseAIJson` / `repairAIJsonText` is a SECOND copy of the same pair, used by
+    the question-building paths. A fix to one belongs in both — and in cer's copy.
+- **A caller that can check its own results should not die on a parse error.**
+  `sylSuggestLos` reads objective ids straight out of the raw text with a regex
+  when the JSON is unreadable: every id is validated against `SYL_LO_BY_ID`
+  anyway, so the fallback can only ever yield REAL objectives.
 - `generateImageDataUrlGemini` — image generation / editing (a reference PNG makes
   it an edit).
 - The optional **ChatGPT engine** (`openAiActive`, `askOpenAI`,
