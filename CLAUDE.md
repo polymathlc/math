@@ -186,37 +186,48 @@ is what lets a fix in one app be copied to the other. Only the *world* differs.
     serve both. `elgFireApex` takes the hero's multi-shot count — drop it and a
     whole skill node silently stops working for every apex hero.
 
-## ⚔️ Nova Legends — the swarm (v1.25.0)
-Waves are `ELG_SWARM_COUNT`× the old horde (wave 1 fields **500**), each body a
-mote a fraction of the size, with a tenth the hit points and a scratch for
-damage. The four numbers move TOGETHER — change one alone and the mode breaks:
-- **Ten times the enemies at the old HP is a wave that never ends** (the clear
+## ⚔️ Nova Legends — the swarm (v1.26.0)
+Waves are `ELG_SWARM_COUNT`× the old horde (wave 1 fields **~167**), each body a
+third the size of a full enemy, with a tenth the hit points and double the old
+scratch for damage. The four numbers move TOGETHER — change one alone and the
+mode breaks:
+- **A multiplied horde at the old HP is a wave that never ends** (the clear
   gate wants `!enemies.length`), so `ELG_SWARM_HP` came with the count.
+- **`ELG_SWARM_COUNT` is fractional (`10 / 3`)** — `elgWaveCount` rounds, so
+  never treat its result as an exact product or index anything by it.
 - **Enemies have no separation from one another.** They always overlapped;
-  with fifty it was invisible. Five hundred motes all walk to the same 35px
-  contact ring and STACK inside it, and every body in there swings on its own
-  timer. `ELG_SWARM_HITCAP` is a shared bucket of landed hits per second for
-  the swarm — bosses and kings sit outside it and always connect. Without it
-  the hero dies in the first second of every wave, whatever its stats.
+  with fifty it was invisible. A hundred and sixty bodies all walk to the same
+  35px contact ring and STACK inside it, and every body in there swings on its
+  own timer. `ELG_SWARM_HITCAP` is a shared bucket of landed hits per second
+  for the swarm — bosses and kings sit outside it and always connect. Without
+  it the hero dies in the first second of every wave, whatever its stats. The
+  bucket is NOT retuned when `ELG_SWARM_DMG` moves: the cap is a rate of hits,
+  so doubling the damage doubles incoming DPS, which is the point.
 - **`ELG_MAX_ALIVE` caps live bodies, not wave size.** The queue waits. It is
   what bounds the DOM, the frame cost and the O(shots × enemies) sweep — wave
-  20 is three thousand strong.
-- **A mote does not stop a projectile** (the `!e.swarm` term in the shot
-  collision). A bolt that stops at the first body is one kill per shot, and one
-  kill per shot against five hundred is a six-minute wave — the mode would be
-  unplayable for every hero that has not bought pierce. Bosses still catch a
-  shot, so pierce is still worth having.
-- **A swarm member is ONE DOM node** — a coloured mote sized from `e.r` via
-  `--sz`, no card art, no health bar, no `will-change`. Five nodes apiece across
-  five hundred bodies is what drops the frame rate, a 26px health bar would
-  dwarf a 7px enemy, and five hundred compositor layers is a GPU-memory
-  problem. `e.bar` is looked up ONCE at creation for the ones that keep a bar.
+  20 is a thousand strong.
+- **A swarm member does not stop a projectile** (the `!e.swarm` term in the
+  shot collision). A bolt that stops at the first body is one kill per shot,
+  and one kill per shot against a hundred and sixty is a wave that never ends —
+  the mode would be unplayable for every hero that has not bought pierce.
+  Bosses still catch a shot, so pierce is still worth having.
+- **A swarm member wears its own CARD ART** (v1.26.0) — the same keyed cut-out
+  a boss gets, via `elgSpriteArt`, sized from `e.r` through `--sz`. What it
+  still does NOT get: a health bar (fixed 26px, it would dwarf a 25px enemy),
+  a `star7` class (that rule outweighs the swarm's own and would blow a
+  rank-and-file body up to legend size), a status skin, or `will-change` (a
+  couple of hundred compositor layers is a GPU-memory problem). `e.bar` is
+  looked up ONCE at creation for the ones that keep a bar.
+  - `.elg-unit.swarm .elg-sprite` must stay **after** `.elg-unit.foe
+    .elg-sprite` — the selectors weigh the same, so only order decides it — and
+    carries ONE `drop-shadow`, not the chained pair everything else uses.
 - **`elgPop` and `elgImpactFx` are rationed** (`ELG_POP_MAX`, `ELG_HITFX_MAX`),
   and swarm deaths skip the popup entirely. Each carries a timer, and a lance
-  through forty motes would otherwise start dozens at once.
-- `e.r` is the single source of truth for size: gameplay reads it, and the mote
+  through forty bodies would otherwise start dozens at once.
+- `e.r` is the single source of truth for size: gameplay reads it, and the body
   is drawn at `e.r * ELG_SPRITE_K`. The old sprite sizes were CSS literals that
-  only coincidentally matched the radius.
+  only coincidentally matched the radius. `ELG_SPRITE_K` runs a shade over the
+  radius on purpose — keyed card art carries empty margin around its silhouette.
 - **The theme is ONE class on `<body>`.** `navigateTo` toggles `nova-protocol` and
   everything else is CSS: the tokens (`--surface` / `--border` / `--text` /
   `--primary`) are redefined inside `#page-tcg`, which re-skins every `.tcg-*`
