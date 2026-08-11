@@ -435,6 +435,42 @@ the tree would be one nobody here could ever fill.
     makes them ordinary bank questions and retires the card-game panel for
     every objective it covered. See `sylImportQuizToBank` under Nova Protocol.
 
+## 🩺 Diagnostic tests (v1.29.0)
+A diagnostic test **IS a saved worksheet** — same `users/{uid}/mathWorksheets`
+collection, same doc shape — carrying two extra fields: `kind: 'diagnostic'` and
+`segments: [{ lo, questionIds }]`. That is the whole trick: printing, preview,
+✍️ Practise, the ✎ Questions drawer, the overview page and the student's own
+📄 My Worksheets list all work on one **unchanged**, and **no `firestore.rules`
+deploy is needed** — which matters, because that file is shared with the Science
+app. `dg*` is the prefix; the page is `#page-diagnostic`, admin-only.
+- **`questionIds` stays the flat, ordered, authoritative list**; `segments` only
+  records which objective each id was picked under. Sheet order IS print order,
+  so a question's number on the paper is its index in `questionIds` — and those
+  same numbers are the report's column headings.
+- **`dgTestSegments` resolves drift at READ time**, the way `qLos` does. The ✎
+  Questions drawer edits `questionIds` and knows nothing about segments, so an
+  id with no segment falls back to the question's own first `los` tag and then
+  to an "Unfiled" group. Never try to keep the two lists in sync by hand.
+- **The FIRST attempt on each question is the diagnosis** (`dgReduceAttempts`).
+  A re-try after the objective has been taught measures the teaching, not what
+  the pupil walked in knowing, so it must never rewrite the report; the retry
+  count is kept and shown (`2×`).
+- **Results come from `users/{uid}/mathPerformanceAttempts`** — the
+  server-written record, so a mark cannot be forged — read per student with
+  `where('questionId','in', chunk)` in tens. No `orderBy`, so no composite index
+  is needed. The games' own `questionAttempts` rows are deliberately NOT read: a
+  question answered inside Nova Protocol is practice, not a test sitting.
+- **A skipped question counts as a miss on the student's row AND in the class
+  average**, because the two numbers are printed side by side and have to agree.
+  What a skip must not do is hide — `missing` is reported beside every bar.
+  Students who never sat the paper are excluded from the class figures entirely
+  and hidden behind the *Show students who haven't sat it* toggle.
+- **`dgReportModel` is the single source of the numbers.** The table, the
+  per-objective bars, the written breakdown, the CSV and the printed report are
+  all rendered from that one object, so no two of them can disagree.
+- The page re-renders from state on every change, so it uses **one delegated
+  click/change handler** on `#diagnosticBody` rather than per-element listeners.
+
 ## The pupil's level — the cap on which questions the games ask (v1.27.0)
 A pupil practises at their own level and everything BELOW it, never above: P4
 meets P4, P5 meets P4–P5, P6 meets the whole P4–P6 set. Revision downwards is
