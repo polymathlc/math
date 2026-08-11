@@ -699,6 +699,14 @@ async function questionImageMedia(q, max = 4) {
   return out;
 }
 
+// How an MCQ option is labelled. Options are numbered 1) 2) 3) 4) — never
+// A / B / C / D — and this MUST match the browser's `mcqLabel` / `mcqNumber`
+// in index.html, because the student reads the option off the screen and then
+// reads this function's feedback about it. The label is derived from the
+// option's position and never stored, so nothing in the question bank changes.
+const mcqLabel = (i) => (i + 1) + ")";
+const mcqNumber = (i) => String(i + 1);
+
 // Student-supplied text goes into the prompt — fence it explicitly so
 // "instructions" written inside an answer don't steer the marker.
 const INJECTION_GUARD =
@@ -827,10 +835,9 @@ async function contributeRaidDamage(points) {
 // Deterministic verdict for a bare MCQ tap (no working to AI-mark). Keeps the
 // option check instant and free, and never exposes the correct index pre-answer.
 function synthMcqVerdict(q, selectedOption, correctOption) {
-  const letter = (i) => String.fromCharCode(65 + i);
   const isCorrect = correctOption !== null && selectedOption === correctOption;
   const topic = (Array.isArray(q.topics) && q.topics[0]) || q.topic || conceptLabel(q) || "this topic";
-  const correctText = correctOption !== null ? `${letter(correctOption)}. ${q.options[correctOption]}` : "";
+  const correctText = correctOption !== null ? `${mcqLabel(correctOption)} ${q.options[correctOption]}` : "";
   const guide = String(q.markingGuide || "").trim();
   return {
     verdict: isCorrect ? "correct" : "incorrect",
@@ -839,7 +846,7 @@ function synthMcqVerdict(q, selectedOption, correctOption) {
     feedback: isCorrect
       ? "Correct — you picked the right option. 🎉"
       : (correctText
-        ? `Not quite — you chose ${letter(selectedOption)}, but the correct answer is ${correctText}. Have a look at the worked solution below.`
+        ? `Not quite — you chose option ${mcqNumber(selectedOption)}, but the correct answer is ${correctText}. Have a look at the worked solution below.`
         : "Not quite — review the worked solution below."),
     mistakes: [],
     nextStep: isCorrect ? "" : "Review the worked solution, then try a similar question.",
@@ -867,11 +874,10 @@ async function markKnownQuestion({ uid, isAdmin, isGuest = false, displayName = 
     Number.isInteger(selectedOption) && selectedOption >= 0 && selectedOption < q.options.length;
   const correctOption = (isMcq && typeof q.correctOption === "number" && q.correctOption >= 0 && q.correctOption < q.options.length)
     ? q.correctOption : null;
-  const mcqLetter = (i) => String.fromCharCode(65 + i);
   const mcqContext = isMcq
-    ? `This is a MULTIPLE-CHOICE question. OPTIONS: ${q.options.map((o, i) => `${mcqLetter(i)}. ${o}`).join("; ")}. ` +
-      `The student selected option ${mcqLetter(selectedOption)} ("${q.options[selectedOption]}").` +
-      (correctOption !== null ? ` The correct option is ${mcqLetter(correctOption)}.` : "") +
+    ? `This is a MULTIPLE-CHOICE question. OPTIONS: ${q.options.map((o, i) => `${mcqLabel(i)} ${o}`).join("; ")}. ` +
+      `The student selected option ${mcqNumber(selectedOption)} ("${q.options[selectedOption]}").` +
+      (correctOption !== null ? ` The correct option is ${mcqNumber(correctOption)}.` : "") +
       ` The chosen option is the student's final answer: mark "correct" only if they chose the right option; you may still award partial method marks for sound written working.\n`
     : "";
 

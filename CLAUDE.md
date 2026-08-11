@@ -38,6 +38,30 @@ number reported in chat to know whether the upload/deploy went through.
   whitespace and a tighter width, not shrinking fonts until it's cramped.
 - Keep the spacing scale consistent across the whole app.
 
+## MCQ options are NUMBERED — 1) 2) 3) 4) (v1.30.0)
+Never A / B / C / D. `mcqLabel(i)` → `"1)"` (a label sitting inline with the
+option text) and `mcqNumber(i)` → `"1"` (the round badges, and prose like
+"option 2" where a bracket would read as a typo) are the only two places the
+label is made — point new option UI at them rather than formatting an index.
+- **The label is DERIVED from the option's position and never stored.**
+  `q.correctOption` is the 0-based index it always was, so every MCQ already in
+  the bank re-labelled itself with no migration and no document changed. Do not
+  introduce a stored label — an answer key written as "B" in a saved doc is
+  exactly what this avoids.
+- **`functions/index.js` carries its own copy** and the two MUST agree: the
+  student reads the option off the screen and then reads the marker's feedback
+  about it ("you chose option 4, but the correct answer is 2) 48 m"). A change
+  here **needs a functions deploy**, not just a page upload.
+- **Every AI prompt lists options the same way** and asks for the option
+  *number*, so a generated `expected` / marking guide matches what everyone
+  sees. Existing AI-built questions may still hold a letter in `expected` —
+  that is teacher-owned free text, and the authoritative answer everywhere is
+  `correctOption`.
+- The card game's trainer, 🌋 Orbital Siege, ⚔️ Nova Legends and the syllabus
+  ▶ Try panel were already numbering their options; this brought the editor,
+  practice, worksheets, the answer key, the overview page, vetting and the duel
+  into line with them.
+
 ## The AI stack
 The Science app (`polymathlc/cer`) and this app share ONE Firebase project
 (`mathgen--app`), one App Check registration (reCAPTCHA v3) and one AI Logic
