@@ -5682,6 +5682,33 @@ async function askGemini(prompt, { maxOutputTokens = 512, temperature = 0.3, jso
   return (res.response.text() || "").trim();
 }
 
+// Where the FIRST complete JSON value in `s` ends, or -1 if it never closes.
+//
+// A model asked for JSON quite often puts something AFTER the value it was
+// asked for: a second object, a stray closing ``` fence the leading-fence strip
+// couldn't reach, or a line of commentary. JSON.parse then fails on the whole
+// string with "Unexpected non-whitespace character after JSON at position N"
+// even though the value at the front is perfectly good — so slice at the end of
+// that value and parse it alone. This is a DIFFERENT failure from truncation
+// (which _repairAIJson handles): here there is too much, not too little.
+//
+// Strings are tracked so a brace inside "…{…}…" cannot close the value early.
+function _jsonFirstValueEnd(s) {
+  let depth = 0, inString = false, escaped = false;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (inString) {
+      if (escaped) { escaped = false; continue; }
+      if (ch === '\\') { escaped = true; continue; }
+      if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') { inString = true; continue; }
+    if (ch === '{' || ch === '[') depth++;
+    else if (ch === '}' || ch === ']') { depth--; if (depth <= 0) return i + 1; }
+  }
+  return -1;
+}
 // Tolerant JSON parse for model output (strips code fences, finds the array/object).
 function _parseAIJson(raw) {
   let s = (raw || '').trim();
@@ -5691,6 +5718,12 @@ function _parseAIJson(raw) {
   if (start > 0) s = s.slice(start);
   try { return JSON.parse(s); }
   catch (firstErr) {
+    // Too much: a good value with something after it.
+    const end = _jsonFirstValueEnd(s);
+    if (end > 0 && end < s.length) {
+      try { return JSON.parse(s.slice(0, end)); } catch (_) {}
+    }
+    // Too little: truncated or malformed.
     try { return JSON.parse(_repairAIJson(s)); }
     catch (_) { throw firstErr; }
   }
@@ -5773,6 +5806,12 @@ function parseAIJson(raw) {
   if (!s) throw new Error("the AI returned an empty response — please try again");
   try { return JSON.parse(s); }
   catch (firstError) {
+    // A complete value with a second object / a stray fence / commentary after
+    // it — parse the value at the front on its own. See _jsonFirstValueEnd.
+    const end = _jsonFirstValueEnd(s);
+    if (end > 0 && end < s.length) {
+      try { return JSON.parse(s.slice(0, end)); } catch (_) {}
+    }
     const repaired = repairAIJsonText(s);
     try { return JSON.parse(repaired); }
     catch (_) {
@@ -20267,7 +20306,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.29.0 · 2026-08-11";
+const APP_VERSION = "v1.29.1 · 2026-08-11";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
@@ -37834,9 +37873,22 @@ async function sylSuggestLos(q, level) {
     + 'LEARNING OBJECTIVES\n' + _sylPromptList(level) + '\n\n'
     + 'Reply with JSON only, in this exact shape: {"ids":["P5.FR.2.6"]}';
   const raw = await askGemini(prompt, { maxOutputTokens: 400, temperature: 0.1, json: true });
-  const data = _parseAIJson(raw);
-  const ids = Array.isArray(data) ? data : (data && Array.isArray(data.ids) ? data.ids : []);
-  return ids.map(x => String(x || '').trim()).filter(id => SYL_LO_BY_ID[id]);
+  let ids = [];
+  try {
+    const data = _parseAIJson(raw);
+    ids = Array.isArray(data) ? data : (data && Array.isArray(data.ids) ? data.ids : []);
+  } catch (e) {
+    // The reply didn't parse at all. Every id is checked against the syllabus
+    // below, so reading them straight out of the text can only ever yield REAL
+    // objectives — which beats making the teacher file the question by hand
+    // because a model wrapped its answer in prose.
+    console.warn('objective suggestion JSON', e);
+    ids = String(raw || '').match(/P[1-6]\.[A-Z]{2,4}\.[0-9]+(?:\.[0-9]+)*/g) || [];
+    if (!ids.length) throw e;
+  }
+  const out = [];
+  ids.map(x => String(x || '').trim()).forEach(id => { if (SYL_LO_BY_ID[id] && out.indexOf(id) < 0) out.push(id); });
+  return out;
 }
 async function aiSuggestLosForEditor() {
   const btn = $("qLoSuggestBtn");
