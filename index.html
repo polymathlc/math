@@ -3906,6 +3906,126 @@ body.lore-reading { overflow: hidden; }
 .syl-import-sub { font-size: 0.79rem; color: var(--text-muted); line-height: 1.65; }
 .syl-import .btn { flex: 0 0 auto; }
 
+/* ==================== 🩺 DIAGNOSTIC TESTS ====================
+   A diagnostic test is a worksheet built one LEARNING OBJECTIVE at a time, so
+   every question on it belongs to a named segment. The report is the point:
+   the table comes FIRST (one row per student, one column per question, grouped
+   under its objective), the written breakdown follows underneath it. Spacing
+   follows the app's scale — cards breathe, the table is the only dense thing
+   on the page and it scrolls inside its own frame. */
+.dg-wrap { max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+.dg-tabs { display: flex; gap: 10px; flex-wrap: wrap; }
+.dg-tab { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 9px 20px; font-size: 0.86rem; font-weight: 600; color: var(--text-muted); cursor: pointer; }
+.dg-tab:hover { border-color: var(--primary); color: var(--primary); }
+.dg-tab.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+.dg-card { border: 1px solid var(--border); border-radius: 16px; background: var(--surface); padding: 24px 28px; box-shadow: 0 4px 16px rgba(15,23,42,0.05); }
+.dg-card + .dg-card { margin-top: 0; }
+.dg-card-h { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+.dg-card-sub { font-size: 0.82rem; color: var(--text-muted); line-height: 1.7; }
+.dg-title-input { width: 100%; font-size: 1rem; font-weight: 600; padding: 13px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--text); margin-bottom: 18px; }
+.dg-controls { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.dg-search { flex: 1 1 220px; min-width: 180px; max-width: 320px; }
+.dg-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+.dg-extras { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; margin-top: 18px; padding: 16px 18px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-alt); }
+.dg-extras label { display: inline-flex; align-items: center; gap: 9px; font-size: 0.82rem; color: var(--text-muted); cursor: pointer; }
+.dg-extras input { appearance: auto; -webkit-appearance: auto; width: 16px; height: 16px; margin: 0; }
+
+/* The objective picker — one row per objective, opening to its questions. */
+.dg-lo { border-top: 1px solid var(--border); }
+.dg-lo:first-child { border-top: 0; }
+.dg-lo-row { display: flex; align-items: flex-start; gap: 14px; width: 100%; padding: 15px 20px; background: none; border: 0; font: inherit; color: var(--text); text-align: left; cursor: pointer; }
+.dg-lo-row:hover { background: var(--surface-alt); }
+.dg-lo-caret { flex: 0 0 auto; color: var(--text-light); font-size: 0.7rem; padding-top: 4px; transition: transform 0.18s ease; }
+.dg-lo.open .dg-lo-caret { transform: rotate(90deg); }
+.dg-lo-code { flex: 0 0 auto; font-family: 'Space Mono', ui-monospace, monospace; font-size: 0.74rem; font-weight: 700; color: var(--primary); min-width: 46px; padding-top: 2px; }
+.dg-lo-text { flex: 1 1 auto; min-width: 0; font-size: 0.89rem; line-height: 1.6; }
+.dg-lo-badge { flex: 0 0 auto; font-size: 0.73rem; font-weight: 700; border-radius: 999px; padding: 4px 11px; white-space: nowrap; background: var(--surface-alt); border: 1px solid var(--border); color: var(--text-muted); }
+.dg-lo-badge.on { background: #e8f5ec; border-color: #b6ddc2; color: #2f6f4f; }
+.dg-lo-body { padding: 4px 20px 20px 82px; }
+.dg-q { display: flex; align-items: flex-start; gap: 13px; padding: 12px 15px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); margin-bottom: 9px; cursor: pointer; }
+.dg-q:hover { border-color: var(--primary); }
+.dg-q.on { background: #eef6f0; border-color: #b6ddc2; }
+.dg-q input { appearance: auto; -webkit-appearance: auto; width: 16px; height: 16px; min-width: 16px; margin: 3px 0 0; flex: 0 0 auto; }
+.dg-q-main { flex: 1 1 auto; min-width: 0; }
+.dg-q-title { font-size: 0.87rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dg-q-meta { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+.dg-lo-empty { font-size: 0.83rem; color: var(--text-muted); line-height: 1.7; padding: 4px 0 12px; }
+
+/* The chosen questions, grouped by the objective they were picked under. */
+.dg-seg { border: 1px solid var(--border); border-radius: 14px; background: var(--surface-alt); padding: 16px 20px 12px; margin-bottom: 14px; }
+.dg-seg-h { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.dg-seg-code { font-family: 'Space Mono', ui-monospace, monospace; font-size: 0.74rem; font-weight: 700; color: var(--primary); }
+.dg-seg-text { font-size: 0.84rem; color: var(--text-muted); line-height: 1.6; flex: 1 1 220px; min-width: 0; }
+.dg-seg-count { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); }
+.dg-pick { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); margin-bottom: 8px; font-size: 0.85rem; }
+.dg-pick-n { font-family: 'Space Mono', ui-monospace, monospace; font-size: 0.74rem; font-weight: 700; color: var(--text-muted); min-width: 26px; }
+.dg-pick-main { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dg-pick button { border: 0; background: none; color: var(--text-muted); font-size: 0.95rem; line-height: 1; cursor: pointer; padding: 4px 6px; border-radius: 6px; }
+.dg-pick button:hover { background: rgba(0,0,0,0.07); color: var(--text); }
+
+/* Saved tests */
+.dg-test { border: 1px solid var(--border); border-radius: 16px; background: var(--surface); padding: 22px 24px; box-shadow: 0 2px 10px rgba(15,23,42,0.04); }
+.dg-test + .dg-test { margin-top: 16px; }
+.dg-test h4 { font-size: 0.98rem; font-weight: 700; margin: 0 0 10px; }
+.dg-test-meta { display: flex; gap: 18px; flex-wrap: wrap; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 18px; }
+.dg-test-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* ---- The report ---- */
+.dg-rep-head { display: flex; align-items: flex-start; gap: 20px; flex-wrap: wrap; }
+.dg-rep-head-main { flex: 1 1 320px; min-width: 240px; }
+.dg-nums { display: flex; gap: 34px; flex-wrap: wrap; align-items: flex-end; margin-top: 18px; }
+.dg-num { display: flex; flex-direction: column; gap: 5px; }
+.dg-num b { font-family: 'Space Mono', ui-monospace, monospace; font-size: 1.5rem; line-height: 1; font-weight: 700; }
+.dg-num span { font-size: 0.76rem; color: var(--text-muted); }
+.dg-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+.dg-table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 0.8rem; }
+.dg-table th, .dg-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); text-align: center; white-space: nowrap; }
+.dg-table thead th { background: var(--surface-alt); font-weight: 700; font-size: 0.74rem; color: var(--text-muted); position: sticky; top: 0; z-index: 2; }
+.dg-table th.dg-seg-row-cell { border-left: 1px solid var(--border); font-family: 'Space Mono', ui-monospace, monospace; color: var(--primary); font-size: 0.75rem; }
+.dg-table th.dg-stu, .dg-table td.dg-stu { position: sticky; left: 0; z-index: 3; background: var(--surface); text-align: left; min-width: 170px; box-shadow: 1px 0 0 var(--border); }
+.dg-table thead th.dg-stu { background: var(--surface-alt); z-index: 4; }
+.dg-table td.dg-stu b { display: block; font-weight: 600; font-size: 0.83rem; }
+.dg-table td.dg-stu span { display: block; font-size: 0.72rem; color: var(--text-muted); margin-top: 3px; }
+.dg-table th.dg-score, .dg-table td.dg-score { font-weight: 700; border-left: 1px solid var(--border); font-family: 'Space Mono', ui-monospace, monospace; }
+.dg-table th.dg-total, .dg-table td.dg-total { font-weight: 700; border-left: 2px solid var(--border); font-family: 'Space Mono', ui-monospace, monospace; }
+.dg-table tbody tr:hover td { background: var(--surface-alt); }
+.dg-table tbody tr:hover td.dg-stu { background: var(--surface-alt); }
+.dg-mark { display: inline-block; min-width: 20px; font-weight: 700; }
+.dg-mark.ok { color: #2f8a3e; }
+.dg-mark.part { color: #b07d12; }
+.dg-mark.no { color: #c0392b; }
+.dg-mark.none { color: var(--text-light); }
+.dg-pcell.ok { background: rgba(47,138,62,0.09); }
+.dg-pcell.part { background: rgba(176,125,18,0.10); }
+.dg-pcell.no { background: rgba(192,57,43,0.08); }
+.dg-legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 0.76rem; color: var(--text-muted); margin-top: 14px; }
+
+/* Per-objective class standing */
+.dg-bars { display: flex; flex-direction: column; gap: 14px; margin-top: 18px; }
+.dg-bar-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.dg-bar-lbl { flex: 1 1 260px; min-width: 200px; font-size: 0.82rem; line-height: 1.6; }
+.dg-bar-lbl b { font-family: 'Space Mono', ui-monospace, monospace; font-size: 0.73rem; color: var(--primary); margin-right: 8px; }
+.dg-bar { flex: 2 1 220px; height: 10px; border-radius: 999px; background: var(--surface-alt); border: 1px solid var(--border); overflow: hidden; }
+.dg-bar > i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #4a7c59, #86c08f); }
+.dg-bar.weak > i { background: linear-gradient(90deg, #b3452f, #e08a72); }
+.dg-bar-num { flex: 0 0 auto; font-family: 'Space Mono', ui-monospace, monospace; font-size: 0.8rem; font-weight: 700; min-width: 62px; text-align: right; }
+
+/* The written breakdown, one card per student */
+.dg-stu-card { border: 1px solid var(--border); border-radius: 14px; background: var(--surface); padding: 20px 22px; margin-bottom: 16px; }
+.dg-stu-h { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
+.dg-stu-h b { font-size: 0.95rem; }
+.dg-stu-h span { font-size: 0.78rem; color: var(--text-muted); }
+.dg-stu-h .dg-stu-score { margin-left: auto; font-family: 'Space Mono', ui-monospace, monospace; font-weight: 700; font-size: 0.9rem; }
+.dg-stu-seg { padding: 12px 0; border-top: 1px solid var(--border); }
+.dg-stu-seg-h { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; font-size: 0.83rem; line-height: 1.6; }
+.dg-stu-seg-h b { font-family: 'Space Mono', ui-monospace, monospace; font-size: 0.73rem; color: var(--primary); }
+.dg-stu-seg-h .dg-seg-score { margin-left: auto; font-family: 'Space Mono', ui-monospace, monospace; font-weight: 700; }
+.dg-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.dg-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 600; border-radius: 999px; padding: 5px 11px; border: 1px solid var(--border); background: var(--surface-alt); color: var(--text-muted); }
+.dg-chip.ok { background: #e8f5ec; border-color: #b6ddc2; color: #2f6f4f; }
+.dg-chip.part { background: #fdf3dd; border-color: #e8d19a; color: #8a6410; }
+.dg-chip.no { background: #fbeae7; border-color: #eabcb3; color: #973224; }
+
 /* ---- The learning-objective chips on a question (editor + pickers) ---- */
 .lo-chips { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .lo-chip { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; font-size: 0.78rem; line-height: 1.4; border: 1px solid var(--border); background: var(--surface-alt); border-radius: 999px; padding: 6px 8px 6px 12px; }
@@ -4014,6 +4134,7 @@ body.lore-reading { overflow: hidden; }
       <div class="nav-item admin-only" data-page="bank"><span class="ico">📚</span> Question Bank</div>
       <div class="nav-item admin-only" data-page="graph" title="Map prerequisite links between questions — the AI reads this when guiding practice"><span class="ico">🕸️</span> Dependency Board</div>
       <div class="nav-item admin-only" data-page="students"><span class="ico">🎓</span> Student Results</div>
+      <div class="nav-item admin-only" data-page="diagnostic" title="Build a test one learning objective at a time, print it, then read the class's score objective by objective"><span class="ico">🩺</span> Diagnostic</div>
       <div class="nav-item admin-only" data-page="worksheet" title="Pick questions, add a cover, then print or save the worksheet"><span class="ico">📝</span> Create Worksheet</div>
       <div class="nav-item" data-page="myworksheets" title="Your saved worksheets — reprint, practise or delete"><span class="ico">📄</span> My Worksheets</div>
       <div class="nav-item admin-only" id="navAiEngine" title="Choose which AI powers the app — Gemini (default) or ChatGPT with your own OpenAI key. The choice is saved on this device."><span class="ico">🧠</span> AI Engine</div>
@@ -4480,6 +4601,17 @@ body.lore-reading { overflow: hidden; }
     <div class="page" id="page-syllabus">
       <div class="page-head"><h3>📐 Syllabus</h3><p>Every learning objective in the MOE Primary Mathematics syllabus (P1–P6). Click one to see the questions filed under it.</p></div>
       <div class="syl-wrap" id="syllabusBody"><div class="empty-note">Loading the syllabus…</div></div>
+    </div>
+
+    <!-- ================= 🩺 DIAGNOSTIC TEST PAGE (admin) =================
+         A diagnostic test is a worksheet whose questions were chosen ONE
+         LEARNING OBJECTIVE AT A TIME, so every question belongs to a named
+         segment. That is what lets the report say "this class is 40% on
+         P5.FR.2.6" rather than only "this class scored 62%". Rendered
+         entirely from JS — see renderDiagnosticPage. -->
+    <div class="page" id="page-diagnostic">
+      <div class="page-head"><h3>🩺 Diagnostic Test</h3><p>Pick questions objective by objective, print the paper, then read one table: every student down the side, every question across the top, grouped under the objective it tests.</p></div>
+      <div class="dg-wrap" id="diagnosticBody"></div>
     </div>
 
     <!-- ================= CREATE WORKSHEET PAGE (admin) =================
@@ -5171,7 +5303,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/fireba
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
   updateProfile, GoogleAuthProvider, signInWithPopup, signOut, signInAnonymously, browserPopupRedirectResolver }
   from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, collection, getDocs, deleteDoc, deleteField, addDoc, increment, query, orderBy, limit }
+import { getFirestore, doc, getDoc, setDoc, collection, getDocs, deleteDoc, deleteField, addDoc, increment, query, where, orderBy, limit }
   from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app-check.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-functions.js";
@@ -7270,7 +7402,7 @@ async function notifyQuestionSubscribers(q) {
 function navigateTo(page) {
   // My Worksheets is deliberately NOT on this list: a student's own saved
   // worksheets are their own documents, and reprinting one is the whole point.
-  if (["create", "bank", "worksheet", "vetting", "students", "graph"].includes(page) && !canManageQuestions()) {
+  if (["create", "bank", "worksheet", "vetting", "students", "graph", "diagnostic"].includes(page) && !canManageQuestions()) {
     page = "practice";
     toast("Student accounts can practise questions only", "error");
   }
@@ -7285,7 +7417,7 @@ function navigateTo(page) {
   // everything else is CSS, which is what makes the swap instant and
   // impossible to leave half-applied.
   document.body.classList.toggle("nova-protocol", page === "tcg");
-  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", vetting: "Vetting", graph: "Dependency Board", worksheet: "Create Worksheet", myworksheets: "My Worksheets", worksheetview: "Worksheet Overview", students: "Student Results", character: "Character", leaderboard: "Leaderboard", adventure: "Dungeon", tcg: "Nova Protocol", syllabus: "Syllabus" };
+  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", vetting: "Vetting", graph: "Dependency Board", worksheet: "Create Worksheet", myworksheets: "My Worksheets", worksheetview: "Worksheet Overview", students: "Student Results", diagnostic: "Diagnostic Test", character: "Character", leaderboard: "Leaderboard", adventure: "Dungeon", tcg: "Nova Protocol", syllabus: "Syllabus" };
   $("topbarTitle").textContent = titles[page] || "";
   $("sidebar").classList.remove("open");
   if (page === "character") rpgRenderCharacterPage();
@@ -7306,6 +7438,7 @@ function navigateTo(page) {
   }
   if (page === "tcg") { try { tcgRenderBody(); tcgUpdateGoldChip(); } catch (e) { console.warn("tcg render", e); } }
   if (page === "syllabus") renderSyllabusPage();
+  if (page === "diagnostic") renderDiagnosticPage();
 }
 // Keep the sticky battle strip pinned right under the (also-sticky) topbar,
 // whatever the topbar's real height ends up being on this viewport.
@@ -13716,8 +13849,9 @@ function renderSavedWorksheets() {
     const missing = total - found;
     const when = ws.createdAt ? new Date(ws.createdAt).toLocaleDateString() : "";
     return `<div class="ws-saved-card">
-      <h4>${escapeHtml(ws.title || "Untitled worksheet")}</h4>
+      <h4>${ws.kind === "diagnostic" ? "🩺 " : ""}${escapeHtml(ws.title || "Untitled worksheet")}</h4>
       <div class="ws-saved-meta">
+        ${ws.kind === "diagnostic" ? `<span title="Built objective by objective on the Diagnostic page — every question belongs to a segment there">Diagnostic test</span>` : ""}
         <span>${total} question${total === 1 ? "" : "s"}</span>
         ${missing ? `<span style="color:var(--accent-red);">${missing} no longer in the bank</span>` : ""}
         ${when ? `<span>Saved ${escapeHtml(when)}</span>` : ""}
@@ -20133,7 +20267,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.28.0 · 2026-08-11";
+const APP_VERSION = "v1.29.0 · 2026-08-11";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
@@ -37736,6 +37870,827 @@ window.sylQuizClose = sylQuizClose;
 window.sylQuizAnswer = sylQuizAnswer;
 window.sylQuizNext = sylQuizNext;
 window.sylImportQuizToBank = sylImportQuizToBank;
+
+// =====================================================================
+// 🩺 DIAGNOSTIC TESTS
+// =====================================================================
+// A diagnostic test IS a saved worksheet — same collection, same doc shape,
+// same printing, practice and overview code — with two extra fields:
+//   kind: 'diagnostic'
+//   segments: [{ lo: 'P5.FR.2.6', questionIds: [...] }]
+// Everything a worksheet can already do therefore works on one for free
+// (print, preview, practise, the ✎ Questions drawer, the overview page), and
+// NO Firestore rules change is needed — which matters, because the rules file
+// is shared with the Science app and deploying it replaces that app's rules
+// too.
+//
+// `questionIds` stays the flat, ordered list; `segments` only says which
+// objective each id was picked under. That order is the printed order, so a
+// question's number on the paper is its index in `questionIds` — and the
+// report's column headings are those same numbers.
+//
+// The ✎ Questions drawer edits `questionIds` and knows nothing about
+// segments, so a test CAN drift out of step with its own map. dgTestSegments
+// resolves that at READ time (an id with no segment falls back to the
+// question's own first `los` tag, then to an "unfiled" group) rather than
+// trying to keep two lists in sync — the same approach qLos takes.
+let dgTab = "build";              // build | tests | report
+let dgLevel = "P5";
+let dgQuery = "";
+let dgDraftTitle = "";
+let dgEditingId = null;           // set while an existing test is being re-edited
+const dgOpenLos = new Set();
+let dgPicked = [];                // [{ id, lo }] in the order they were ticked
+let dgOpts = { cover: true, fields: true, withAnswers: false, withQr: true, shareSolutions: false };
+let dgReportId = null;
+let dgReportData = null;          // { testId, rows: [...], error, at }
+let dgReportBusy = false;
+let dgShowAll = false;            // include students who never sat the test
+let _dgIdx = null;                // bank-by-objective index, one per render pass
+let _dgRank = null;               // objective id -> its position in syllabus order
+
+function dgIsTest(ws) { return !!ws && ws.kind === "diagnostic"; }
+function dgTests() { return (savedWorksheets || []).filter(dgIsTest); }
+function dgFindTest(id) { const w = wsFind(id); return dgIsTest(w) ? w : null; }
+function dgLoIndex() { if (!_dgIdx) _dgIdx = sylBuildIndex(); return _dgIdx; }
+function dgRank(loId) {
+  if (!_dgRank) { _dgRank = {}; SYL_LOS.forEach((lo, i) => { _dgRank[lo.id] = i; }); }
+  const r = _dgRank[loId];
+  return r == null ? Number.MAX_SAFE_INTEGER : r;
+}
+function dgChunk(arr, n) {
+  const out = [];
+  for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
+  return out;
+}
+// A tiny concurrency limiter: one student's attempts are several round trips,
+// and a class of thirty fired off at once is a lot of parallel reads for no
+// gain in wall-clock.
+async function dgMapLimit(items, limitN, fn) {
+  const out = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i], i);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limitN, items.length) }, worker));
+  return out;
+}
+function dgDownload(filename, text, mime) {
+  const blob = new Blob([text], { type: (mime || "text/plain") + ";charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+// ---- The draft being built ----------------------------------------------
+function dgPickIdx(qid) { return dgPicked.findIndex(p => p.id === qid); }
+function dgTogglePick(qid, loId) {
+  const i = dgPickIdx(qid);
+  if (i >= 0) dgPicked.splice(i, 1);
+  else dgPicked.push({ id: qid, lo: loId || "" });
+  renderDiagnosticPage();
+}
+// The draft in PRINT order: objectives in syllabus order, and inside one
+// objective the order they were ticked. A test that walks the syllabus is what
+// makes the report's segments read top to bottom like the map does.
+function dgOrderedPicks() {
+  return dgPicked
+    .map((p, i) => ({ p, i }))
+    .sort((a, b) => dgRank(a.p.lo) - dgRank(b.p.lo) || a.i - b.i)
+    .map(x => x.p);
+}
+function dgDraftSegments() {
+  const segs = [], seen = {};
+  dgOrderedPicks().forEach(p => {
+    const key = p.lo || "_";
+    let seg = seen[key];
+    if (!seg) { seg = seen[key] = { lo: p.lo || "", questionIds: [] }; segs.push(seg); }
+    seg.questionIds.push(p.id);
+  });
+  return segs;
+}
+function dgDraftTitleValue() {
+  return (dgDraftTitle || "").trim() || `Diagnostic — ${dgLevel} · ${new Date().toLocaleDateString()}`;
+}
+function dgDraftQuestions() { return dgOrderedPicks().map(p => wsQuestionById(p.id)).filter(Boolean); }
+
+// ---- Reading a saved test back ------------------------------------------
+// Groups the sheet's ids into segments IN SHEET ORDER, so an item's number
+// here is its number on the printed paper. Drift (a question added through the
+// ✎ Questions drawer, or a segment whose objective has left the syllabus) is
+// resolved rather than treated as an error.
+function dgTestSegments(test) {
+  const byQid = {};
+  (test.segments || []).forEach(s => (s.questionIds || []).forEach(id => { if (!byQid[id]) byQid[id] = s.lo || ""; }));
+  const segs = [], seen = {};
+  (test.questionIds || []).forEach((id, i) => {
+    const q = wsQuestionById(id);
+    let loId = byQid[id] || "";
+    if (!loId || !SYL_LO_BY_ID[loId]) loId = (q ? (qLos(q)[0] || "") : "");
+    const key = loId || "_";
+    let seg = seen[key];
+    if (!seg) { seg = seen[key] = { loId, lo: SYL_LO_BY_ID[loId] || null, items: [] }; segs.push(seg); }
+    seg.items.push({ id, n: i + 1, q });
+  });
+  return segs;
+}
+function dgSegLabel(seg) { return seg.loId || "Unfiled"; }
+function dgSegText(seg) {
+  if (seg.lo) return seg.lo.text;
+  return seg.loId ? "This objective is no longer in the syllabus." : "Questions with no learning objective on them.";
+}
+
+// ---- Saving --------------------------------------------------------------
+async function dgSaveTest() {
+  if (!canManageQuestions()) { toast("Only admin accounts can build a diagnostic test", "error"); return; }
+  if (!dgPicked.length) { toast("Pick some questions first", "error"); return; }
+  const existing = dgEditingId ? dgFindTest(dgEditingId) : null;
+  const ids = dgOrderedPicks().map(p => p.id);
+  const test = {
+    id: existing ? existing.id : makeDocId("dg"),
+    kind: "diagnostic",
+    title: dgDraftTitleValue(),
+    questionIds: ids,
+    segments: dgDraftSegments(),
+    includeCover: !!dgOpts.cover,
+    includeFields: !!dgOpts.fields,
+    includeAnswers: !!dgOpts.withAnswers,
+    includeQr: !!dgOpts.withQr,
+    shareSolutions: !!dgOpts.shareSolutions,
+    ownerUid: currentUser.uid,
+    ownerName: currentUser.name || "",
+    createdAt: existing ? (existing.createdAt || new Date().toISOString()) : new Date().toISOString()
+  };
+  try {
+    await persistWorksheet(test);
+    const at = savedWorksheets.findIndex(w => w.id === test.id);
+    if (at >= 0) savedWorksheets[at] = test; else savedWorksheets.unshift(test);
+    dgEditingId = test.id;
+    toast(`Saved “${test.title}” — ${ids.length} question(s) across ${test.segments.length} objective(s)`, "success");
+    renderSavedWorksheets();
+    dgTab = "tests";
+    renderDiagnosticPage();
+  } catch (e) {
+    console.error(e);
+    toast("Save failed: " + e.message, "error");
+  }
+}
+function dgNewTest() {
+  dgEditingId = null;
+  dgPicked = [];
+  dgDraftTitle = "";
+  dgOpenLos.clear();
+  dgTab = "build";
+  renderDiagnosticPage();
+}
+function dgEditTest(id) {
+  const test = dgFindTest(id);
+  if (!test) return;
+  if (!wsMine(test)) { toast("That test belongs to another teacher — you can print and report on it, but not rebuild it", "error"); return; }
+  dgEditingId = id;
+  dgDraftTitle = test.title || "";
+  dgOpts = {
+    cover: test.includeCover !== false,
+    fields: test.includeFields !== false,
+    withAnswers: !!test.includeAnswers,
+    withQr: test.includeQr !== false,
+    shareSolutions: !!test.shareSolutions
+  };
+  dgPicked = [];
+  dgTestSegments(test).forEach(seg => seg.items.forEach(it => dgPicked.push({ id: it.id, lo: seg.loId })));
+  // Open the objectives this test already draws on, so the picker lands on the
+  // rows the teacher is about to change rather than a closed list.
+  dgOpenLos.clear();
+  const first = dgPicked.find(p => p.lo && SYL_LO_BY_ID[p.lo]);
+  if (first) dgLevel = SYL_LO_BY_ID[first.lo].level;
+  dgPicked.forEach(p => { if (p.lo) dgOpenLos.add(p.lo); });
+  dgTab = "build";
+  renderDiagnosticPage();
+}
+async function dgDeleteTest(id) {
+  const test = dgFindTest(id);
+  if (!test) return;
+  if (!wsMine(test)) { toast("That test belongs to another teacher — you can print it, but not delete it", "error"); return; }
+  if (!confirm(`Delete “${test.title || "this diagnostic test"}”? The questions stay in your bank — only the test goes.`)) return;
+  try {
+    await deleteDoc(doc(db, "users", currentUser.uid, "mathWorksheets", id));
+    savedWorksheets = savedWorksheets.filter(w => w.id !== id);
+    if (dgEditingId === id) dgEditingId = null;
+    if (dgReportId === id) { dgReportId = null; dgReportData = null; dgTab = "tests"; }
+    renderSavedWorksheets();
+    renderDiagnosticPage();
+    toast("Diagnostic test deleted", "success");
+  } catch (e) { toast("Delete failed: " + e.message, "error"); }
+}
+function dgTestPrintOpts(test) {
+  return {
+    cover: test.includeCover !== false,
+    fields: test.includeFields !== false,
+    withAnswers: !!test.includeAnswers && canManageQuestions(),
+    withQr: test.includeQr !== false,
+    withSheetQr: true
+  };
+}
+// Export the test as a worksheet — the SAME document the worksheet pages print,
+// so a diagnostic on paper is byte-for-byte an ordinary sheet with the QR codes
+// and answer key the teacher chose.
+async function dgPrintTest(id, autoPrint) {
+  const test = dgFindTest(id);
+  if (!test) return;
+  const questions = wsSavedQuestions(test);
+  if (!questions.length) { toast("None of this test's questions are in the bank any more", "error"); return; }
+  const missing = (test.questionIds || []).length - questions.length;
+  if (missing) toast(`${missing} question(s) are no longer in the bank — printing the rest`, "");
+  await wsOpenDocument(questions, test.title || "Diagnostic Test",
+    Object.assign(dgTestPrintOpts(test), { autoPrint, sheetUrl: worksheetShareUrl(test) }));
+}
+async function dgPrintDraft(autoPrint) {
+  const questions = dgDraftQuestions();
+  if (!questions.length) { toast("Pick some questions first", "error"); return; }
+  await wsOpenDocument(questions, dgDraftTitleValue(),
+    Object.assign({}, dgOpts, { withAnswers: !!dgOpts.withAnswers && canManageQuestions(), autoPrint }));
+}
+function dgPractiseDraft() {
+  const questions = dgDraftQuestions();
+  if (!questions.length) { toast("Pick some questions first", "error"); return; }
+  const ids = new Set(questions.map(q => q.id));
+  questionBank = questions.concat(questionBank.filter(q => !ids.has(q.id)));
+  qIndex = 0;
+  navigateTo("practice");
+  renderQuestion();
+}
+
+// ---- Marks ---------------------------------------------------------------
+// One attempt's credit as a fraction. The marker writes marks/outOf and a
+// verdict; `credit` is preferred where it is present because a partially
+// correct written answer is neither a tick nor a cross.
+function dgCredit(a) {
+  const c = Number(a && a.credit);
+  if (Number.isFinite(c)) return Math.max(0, Math.min(1, c));
+  const m = Number(a && a.marks), o = Number(a && a.outOf);
+  if (Number.isFinite(m) && Number.isFinite(o) && o > 0) return Math.max(0, Math.min(1, m / o));
+  const v = String((a && a.verdict) || "").toLowerCase();
+  return v === "correct" ? 1 : v === "partial" ? 0.5 : 0;
+}
+function dgMarkOf(credit) { return credit >= 0.95 ? "ok" : credit > 0 ? "part" : "no"; }
+const DG_MARK_GLYPH = { ok: "✓", part: "~", no: "✗", none: "·" };
+// Every attempt this student has made on the test's questions, reduced to one
+// entry per question. THE FIRST ATTEMPT IS THE DIAGNOSIS: a re-try after the
+// objective has been taught tells you about the teaching, not about what the
+// student walked in knowing, so it must not rewrite the diagnostic. The retry
+// count is kept so the report can say a question was answered again.
+function dgReduceAttempts(attempts) {
+  const map = {};
+  (attempts || []).forEach(a => {
+    const qid = a && a.questionId;
+    if (!qid) return;
+    const ms = Date.parse((a && a.createdAt) || "") || 0;
+    const e = map[qid];
+    if (!e) { map[qid] = { first: a, firstMs: ms, tries: 1 }; return; }
+    e.tries++;
+    if (ms && (!e.firstMs || ms < e.firstMs)) { e.first = a; e.firstMs = ms; }
+  });
+  return map;
+}
+async function dgFetchAttempts(uid, qids) {
+  const out = [];
+  // `in` takes ten values at a time, so a long test is several reads per
+  // student. No orderBy, so no composite index is needed for this query.
+  for (const chunk of dgChunk(qids, 10)) {
+    const snap = await getDocs(query(collection(db, "users", uid, "mathPerformanceAttempts"), where("questionId", "in", chunk)));
+    snap.forEach(d => out.push(d.data()));
+  }
+  return out;
+}
+async function dgOpenReport(id) {
+  const test = dgFindTest(id);
+  if (!test) return;
+  dgReportId = id;
+  dgTab = "report";
+  dgReportData = null;
+  dgReportBusy = true;
+  renderDiagnosticPage();
+  await dgLoadReport(id);
+}
+async function dgLoadReport(id) {
+  const test = dgFindTest(id);
+  if (!test) { dgReportBusy = false; return; }
+  const qids = (test.questionIds || []).slice();
+  try {
+    if (!studentRosterRows.length) await loadStudentRoster();
+    const roster = studentRosterRows.filter(r => r && r.uid);
+    const rows = await dgMapLimit(roster, 4, async (r) => {
+      try {
+        const attempts = await dgFetchAttempts(r.uid, qids);
+        return { student: r, byQ: dgReduceAttempts(attempts) };
+      } catch (e) {
+        console.warn("diagnostic attempts", r.uid, e);
+        return { student: r, byQ: {}, error: true };
+      }
+    });
+    if (dgReportId !== id) return;                 // a newer report superseded this one
+    dgReportData = { testId: id, rows, at: new Date().toISOString() };
+  } catch (e) {
+    console.warn("diagnostic report", e);
+    if (dgReportId !== id) return;
+    dgReportData = { testId: id, rows: [], error: e && e.message ? e.message : String(e) };
+  } finally {
+    if (dgReportId === id) { dgReportBusy = false; renderDiagnosticPage(); }
+  }
+}
+// The whole report as plain numbers — the table, the per-objective bars, the
+// written breakdown, the CSV and the printout are ALL rendered from this one
+// object, so no two of them can ever disagree about a score.
+function dgReportModel(test) {
+  const segs = dgTestSegments(test);
+  const rowsIn = (dgReportData && dgReportData.rows) || [];
+  const students = rowsIn.map(r => {
+    const segScores = segs.map(seg => {
+      const items = seg.items.map(it => {
+        const e = r.byQ[it.id];
+        const credit = e ? dgCredit(e.first) : 0;
+        return {
+          id: it.id, n: it.n, q: it.q,
+          attempted: !!e,
+          tries: e ? e.tries : 0,
+          credit: e ? credit : 0,
+          mark: e ? dgMarkOf(credit) : "none",
+          at: e ? (e.first && e.first.createdAt) || "" : ""
+        };
+      });
+      const done = items.filter(x => x.attempted);
+      const earned = items.reduce((s, x) => s + x.credit, 0);
+      return {
+        seg, items,
+        attempted: done.length,
+        total: items.length,
+        earned,
+        pct: items.length ? earned / items.length : 0
+      };
+    });
+    const attempted = segScores.reduce((s, x) => s + x.attempted, 0);
+    const earned = segScores.reduce((s, x) => s + x.earned, 0);
+    const total = segScores.reduce((s, x) => s + x.total, 0);
+    return {
+      student: r.student, error: !!r.error, segScores,
+      attempted, earned, total, pct: total ? earned / total : 0
+    };
+  });
+  // A student who never sat the paper would drag every objective's class
+  // average to the floor, so the class numbers are taken over the ones who did.
+  // Within those, a question they SKIPPED still counts against them — exactly
+  // as it does on their own row, because the two numbers have to agree. What a
+  // skip must not do is hide: `missing` is reported beside the bar, so a low
+  // score that is really an unanswered question can be told apart from one the
+  // class genuinely got wrong.
+  const sat = students.filter(s => s.attempted > 0);
+  const segClass = segs.map((seg, i) => {
+    const scores = sat.map(s => s.segScores[i]).filter(Boolean);
+    const earned = scores.reduce((s, x) => s + x.earned, 0);
+    const total = scores.reduce((s, x) => s + x.total, 0);
+    const attempted = scores.reduce((s, x) => s + x.attempted, 0);
+    return { seg, students: scores.length, earned, total, attempted, missing: total - attempted, pct: total ? earned / total : 0 };
+  });
+  const classEarned = sat.reduce((s, x) => s + x.earned, 0);
+  const classTotal = sat.reduce((s, x) => s + x.total, 0);
+  const shown = (dgShowAll ? students : sat).slice()
+    .sort((a, b) => b.pct - a.pct || String(a.student.name || "").localeCompare(String(b.student.name || "")));
+  return {
+    test, segs, students, sat, segClass, shown,
+    classPct: classTotal ? classEarned / classTotal : 0,
+    questionCount: (test.questionIds || []).length
+  };
+}
+function dgPct(x) { return Math.round((x || 0) * 100) + "%"; }
+function dgNum(x) { return Math.round((x || 0) * 10) / 10; }
+
+// ---- Rendering -----------------------------------------------------------
+function renderDiagnosticPage() {
+  const host = $("diagnosticBody");
+  if (!host) return;
+  if (!canManageQuestions()) {
+    host.innerHTML = `<div class="empty-note">Diagnostic tests are an admin tool. Ask your teacher for the paper — you'll find it under <b>📄 My Worksheets</b> once it's set.</div>`;
+    return;
+  }
+  _dgIdx = null;                       // one scan of the bank per render, no more
+  const tabs = [["build", "🧩 Build"], ["tests", "📋 My tests"], ["report", "📊 Report"]];
+  let html = `<div class="dg-tabs">` + tabs.map(([k, label]) =>
+    `<button type="button" class="dg-tab${dgTab === k ? " active" : ""}" data-dgtab="${k}">${label}</button>`).join("") + `</div>`;
+  if (dgTab === "build") html += dgBuildHtml();
+  else if (dgTab === "tests") html += dgTestsHtml();
+  else html += dgReportHtml();
+  host.innerHTML = html;
+  const search = $("dgSearch");
+  // Re-rendering replaces the input, so the caret has to be put back — the
+  // same dance the syllabus search does.
+  if (search) search.addEventListener("input", e => {
+    dgQuery = e.target.value;
+    renderDiagnosticPage();
+    const el = $("dgSearch");
+    if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+  });
+  // The title is NOT re-rendered as it is typed: it feeds nothing else on the
+  // page, and re-rendering under the caret on every keystroke would fight the
+  // teacher for it.
+  const title = $("dgTitleInput");
+  if (title) title.addEventListener("input", e => { dgDraftTitle = e.target.value; });
+}
+function dgBuildHtml() {
+  const idx = dgLoIndex();
+  const level = MOE_SYLLABUS.find(L => L.lv === dgLevel) || MOE_SYLLABUS[0];
+  const picked = dgOrderedPicks();
+  const segs = dgDraftSegments();
+
+  let html = `<div class="dg-card">
+    <div class="dg-card-h">${dgEditingId ? "✎ Editing a saved diagnostic test" : "🧩 Build a diagnostic test"}</div>
+    <div class="dg-card-sub">Pick the questions one learning objective at a time. Each objective becomes a <b>segment</b>, and the report scores every student segment by segment — which is how a paper tells you <i>what</i> to reteach, not just <i>who</i> did badly.</div>
+    <div style="margin-top:20px;">
+      <input type="text" id="dgTitleInput" class="dg-title-input" placeholder="Test title (e.g. P5 Term 3 Diagnostic)" value="${escapeHtml(dgDraftTitle)}">
+    </div>
+    <div class="dg-controls">`
+    + SYL_LEVELS.map(lv => `<button type="button" class="dg-tab${lv === dgLevel ? " active" : ""}" data-dglevel="${lv}">${lv}</button>`).join("")
+    + `<input type="text" class="dg-search" id="dgSearch" placeholder="Search objectives…" value="${escapeHtml(dgQuery)}">
+    </div>
+    <div class="dg-extras">
+      <label title="Add a Polymath cover page carrying the test title and the student's name / date"><input type="checkbox" data-dgopt="cover"${dgOpts.cover ? " checked" : ""}> 📄 Cover page</label>
+      <label title="Print the blank Name / Date / Class lines"><input type="checkbox" data-dgopt="fields"${dgOpts.fields ? " checked" : ""}> ✍️ Name / Date / Class</label>
+      <label title="Print the answer key on its own page at the back. Don't hand this copy to the class."><input type="checkbox" data-dgopt="withAnswers"${dgOpts.withAnswers ? " checked" : ""}> 🔑 Answer key page</label>
+      <label title="Print a QR code beside each question so a student can scan it and have their paper working AI-marked — which is what puts their result into this report"><input type="checkbox" data-dgopt="withQr"${dgOpts.withQr ? " checked" : ""}> 📱 QR per question</label>
+      <label title="Whether students opening the test's overview page may see the worked solutions. Off by default — it is a test."><input type="checkbox" data-dgopt="shareSolutions"${dgOpts.shareSolutions ? " checked" : ""}> 🎬 Students see solutions afterwards</label>
+    </div>
+    <div class="dg-actions">
+      <button class="btn btn-primary" type="button" data-dgact="save">💾 ${dgEditingId ? "Save changes" : "Save diagnostic test"}</button>
+      <button class="btn btn-ghost" type="button" data-dgact="preview">👁️ Preview</button>
+      <button class="btn btn-ghost" type="button" data-dgact="print">🖨️ Export worksheet</button>
+      <button class="btn btn-blue" type="button" data-dgact="practise">✍️ Practise</button>
+      ${dgPicked.length || dgEditingId ? `<button class="btn btn-ghost" type="button" data-dgact="new">✨ Start a new test</button>` : ""}
+    </div>
+  </div>`;
+
+  // ---- what has been picked so far
+  html += `<div class="dg-card">
+    <div class="dg-card-h">📦 On this test — ${picked.length} question${picked.length === 1 ? "" : "s"} across ${segs.length} objective${segs.length === 1 ? "" : "s"}</div>`;
+  if (!picked.length) {
+    html += `<div class="dg-card-sub" style="margin-top:8px;">Nothing picked yet. Open an objective below and tick the questions you want on the paper.</div>`;
+  } else {
+    let n = 0;
+    html += `<div style="margin-top:18px;">` + segs.map(seg => {
+      const lo = SYL_LO_BY_ID[seg.lo];
+      return `<div class="dg-seg">
+        <div class="dg-seg-h">
+          <span class="dg-seg-code">${escapeHtml(seg.lo || "Unfiled")}</span>
+          <span class="dg-seg-text">${escapeHtml(lo ? lo.text : "Questions with no learning objective on them.")}</span>
+          <span class="dg-seg-count">${seg.questionIds.length} question${seg.questionIds.length === 1 ? "" : "s"}</span>
+        </div>
+        ${seg.questionIds.map(id => {
+          const q = wsQuestionById(id);
+          n++;
+          return `<div class="dg-pick">
+            <span class="dg-pick-n">Q${n}</span>
+            <span class="dg-pick-main">${escapeHtml(q ? (q.title || "Untitled") : "(no longer in the bank)")}</span>
+            <button type="button" data-dgdrop="${escapeHtml(id)}" title="Take this question off the test">✕</button>
+          </div>`;
+        }).join("")}
+      </div>`;
+    }).join("") + `</div>`;
+  }
+  html += `</div>`;
+
+  // ---- the objective picker
+  html += `<div class="dg-card" style="padding:0;overflow:hidden;">
+    <div style="padding:22px 28px 6px;">
+      <div class="dg-card-h">📐 ${escapeHtml(level.lv)} learning objectives</div>
+      <div class="dg-card-sub">Only objectives with a question in the bank can go on a test. File more against an objective on the <b>📐 Syllabus</b> page.</div>
+    </div>`;
+  let shown = 0;
+  level.strands.forEach(s => s.subs.forEach(sb => sb.topics.forEach(t => t.los.forEach(row => {
+    const lo = SYL_LO_BY_ID[level.lv + "." + sb.k + "." + row[0]];
+    if (!lo) return;
+    const qs = idx[lo.id] || [];
+    if (!qs.length) return;
+    const needle = dgQuery.trim().toLowerCase();
+    if (needle && !(lo.code + " " + lo.text + " " + lo.notes.join(" ") + " " + lo.topic + " " + lo.sub).toLowerCase().includes(needle)) return;
+    shown++;
+    const open = dgOpenLos.has(lo.id);
+    const on = qs.filter(q => dgPickIdx(q.id) >= 0).length;
+    html += `<div class="dg-lo${open ? " open" : ""}">
+      <button type="button" class="dg-lo-row" data-dglo="${lo.id}" aria-expanded="${open}">
+        <span class="dg-lo-caret">▶</span>
+        <span class="dg-lo-code">${escapeHtml(lo.code)}</span>
+        <span class="dg-lo-text">${escapeHtml(lo.text)}<span style="display:block;font-size:0.76rem;color:var(--text-muted);margin-top:5px;">${escapeHtml(lo.sub + " · " + lo.topic)}</span></span>
+        <span class="dg-lo-badge${on ? " on" : ""}">${on ? on + " on test · " : ""}${qs.length} in bank</span>
+      </button>
+      ${open ? `<div class="dg-lo-body">${qs.map(q => {
+        const isOn = dgPickIdx(q.id) >= 0;
+        return `<label class="dg-q${isOn ? " on" : ""}">
+          <input type="checkbox" data-dgpick="${escapeHtml(q.id)}" data-lo="${lo.id}"${isOn ? " checked" : ""}>
+          <span class="dg-q-main">
+            <span class="dg-q-title">${escapeHtml(q.title || "Untitled")}</span>
+            <span class="dg-q-meta">${escapeHtml([q.level, adminTopicsLabel(q)].filter(Boolean).join(" · ")) || "—"}</span>
+          </span>
+        </label>`;
+      }).join("")}</div>` : ""}
+    </div>`;
+  }))));
+  if (!shown) {
+    html += `<div class="dg-lo-empty" style="padding:22px 28px 28px;">No ${escapeHtml(level.lv)} objective has a bank question filed under it${dgQuery ? " matching that search" : ""} yet. File questions on the <b>📐 Syllabus</b> page — or press <b>📥 Import to bank</b> there to turn the 1 600 built-in questions into bank questions you can put on a test.</div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+function dgTestsHtml() {
+  const tests = dgTests();
+  let html = `<div class="dg-card">
+    <div class="dg-card-h">📋 My diagnostic tests</div>
+    <div class="dg-card-sub">A diagnostic test is a worksheet, so it prints, practises and shares exactly like one — and it also appears under <b>📄 My Worksheets</b>, which is where your students find it.</div>
+  </div>`;
+  if (!tests.length) {
+    html += `<div class="empty-note">No diagnostic test yet. Build one on the <b>🧩 Build</b> tab.</div>`;
+    return html;
+  }
+  html += tests.map(test => {
+    const segs = dgTestSegments(test);
+    const found = wsSavedQuestions(test).length;
+    const missing = (test.questionIds || []).length - found;
+    const when = test.createdAt ? new Date(test.createdAt).toLocaleDateString() : "";
+    const mine = wsMine(test);
+    return `<div class="dg-test">
+      <h4>🩺 ${escapeHtml(test.title || "Untitled diagnostic")}</h4>
+      <div class="dg-test-meta">
+        <span>${(test.questionIds || []).length} question${(test.questionIds || []).length === 1 ? "" : "s"}</span>
+        <span>${segs.length} objective${segs.length === 1 ? "" : "s"}</span>
+        ${missing ? `<span style="color:var(--accent-red);">${missing} no longer in the bank</span>` : ""}
+        ${when ? `<span>Saved ${escapeHtml(when)}</span>` : ""}
+        ${test.ownerName ? `<span>by ${escapeHtml(test.ownerName)}</span>` : ""}
+      </div>
+      <div class="dg-test-actions">
+        <button class="btn btn-primary btn-sm" type="button" data-dgreport="${escapeHtml(test.id)}">📊 Diagnostic report</button>
+        <button class="btn btn-ghost btn-sm" type="button" data-dgprint="${escapeHtml(test.id)}">🖨️ Export worksheet</button>
+        <button class="btn btn-ghost btn-sm" type="button" data-dgpreview="${escapeHtml(test.id)}">👁️ Preview</button>
+        <button class="btn btn-blue btn-sm" type="button" data-dgpractise="${escapeHtml(test.id)}">✍️ Practise</button>
+        ${mine ? `<button class="btn btn-ghost btn-sm" type="button" data-dgedit="${escapeHtml(test.id)}" title="Change which questions are in each segment">✎ Segments</button>
+        <button class="btn btn-danger btn-sm" type="button" data-dgdel="${escapeHtml(test.id)}">🗑 Delete</button>` : ""}
+      </div>
+    </div>`;
+  }).join("");
+  return html;
+}
+function dgReportHtml() {
+  const test = dgReportId ? dgFindTest(dgReportId) : null;
+  if (!test) {
+    const tests = dgTests();
+    return `<div class="dg-card">
+      <div class="dg-card-h">📊 Diagnostic report</div>
+      <div class="dg-card-sub">Pick a test to read its report.</div>
+      ${tests.length ? `<div class="dg-actions">${tests.map(t =>
+        `<button class="btn btn-ghost" type="button" data-dgreport="${escapeHtml(t.id)}">🩺 ${escapeHtml(t.title || "Untitled")}</button>`).join("")}</div>`
+        : `<div class="dg-card-sub" style="margin-top:14px;">There is no diagnostic test yet — build one on the <b>🧩 Build</b> tab.</div>`}
+    </div>`;
+  }
+  if (dgReportBusy || !dgReportData || dgReportData.testId !== test.id) {
+    return `<div class="dg-card"><div class="dg-card-h">📊 ${escapeHtml(test.title || "Diagnostic")}</div>
+      <div class="dg-card-sub">Reading every student's marked attempts on these ${(test.questionIds || []).length} questions…</div></div>`;
+  }
+  if (dgReportData.error) {
+    return `<div class="dg-card"><div class="dg-card-h">📊 ${escapeHtml(test.title || "Diagnostic")}</div>
+      <div class="dg-card-sub">Couldn't read the results: ${escapeHtml(dgReportData.error)}. If the grantAdminRole function isn't deployed your account may lack the admin claim the Firestore rules require to read other students' records.</div>
+      <div class="dg-actions"><button class="btn btn-ghost" type="button" data-dgrefresh="${escapeHtml(test.id)}">↻ Try again</button></div></div>`;
+  }
+  const m = dgReportModel(test);
+  let html = `<div class="dg-card">
+    <div class="dg-rep-head">
+      <div class="dg-rep-head-main">
+        <div class="dg-card-h">📊 ${escapeHtml(test.title || "Diagnostic")}</div>
+        <div class="dg-card-sub">${m.questionCount} question${m.questionCount === 1 ? "" : "s"} across ${m.segs.length} objective${m.segs.length === 1 ? "" : "s"}. <b>The first attempt on each question is the one that counts</b> — a re-try after you've taught the topic tells you about the teaching, not about what the class walked in knowing.</div>
+      </div>
+    </div>
+    <div class="dg-nums">
+      <div class="dg-num"><b>${m.sat.length}</b><span>students sat it</span></div>
+      <div class="dg-num"><b>${dgPct(m.classPct)}</b><span>class average</span></div>
+      <div class="dg-num"><b>${m.segs.length}</b><span>objectives tested</span></div>
+      <div class="dg-num"><b>${m.students.length - m.sat.length}</b><span>not started</span></div>
+    </div>
+    <div class="dg-actions">
+      <button class="btn btn-ghost" type="button" data-dgrefresh="${escapeHtml(test.id)}">↻ Refresh</button>
+      <button class="btn btn-ghost" type="button" data-dgcsv="${escapeHtml(test.id)}">⬇️ Export CSV</button>
+      <button class="btn btn-ghost" type="button" data-dgrepprint="${escapeHtml(test.id)}">🖨️ Print report</button>
+      <button class="btn btn-ghost" type="button" data-dgprint="${escapeHtml(test.id)}">📄 Export worksheet</button>
+      <label class="dg-legend" style="margin:0;align-items:center;"><input type="checkbox" data-dgshowall${dgShowAll ? " checked" : ""} style="appearance:auto;-webkit-appearance:auto;width:16px;height:16px;margin-right:8px;"> Show students who haven't sat it</label>
+    </div>
+  </div>`;
+
+  html += `<div class="dg-card">
+    <div class="dg-card-h">🧾 Every student, every question</div>
+    <div class="dg-card-sub">Grouped under the objective each question tests. The number in a column is the question's number on the printed paper.</div>
+    <div style="margin-top:18px;">${dgTableHtml(m)}</div>
+    <div class="dg-legend">
+      <span><b class="dg-mark ok">✓</b> correct</span>
+      <span><b class="dg-mark part">~</b> partly correct</span>
+      <span><b class="dg-mark no">✗</b> wrong</span>
+      <span><b class="dg-mark none">·</b> not attempted</span>
+    </div>
+  </div>`;
+
+  html += `<div class="dg-card">
+    <div class="dg-card-h">📐 Where the class stands, objective by objective</div>
+    <div class="dg-card-sub">Averaged over the ${m.sat.length} student${m.sat.length === 1 ? "" : "s"} who answered at least one question on this test — a question one of them left unanswered counts as a miss, so it is called out beside the bar. Anything under 60% is the reteaching list.</div>
+    <div class="dg-bars">${m.segClass.map(c => `
+      <div class="dg-bar-row">
+        <div class="dg-bar-lbl"><b>${escapeHtml(dgSegLabel(c.seg))}</b>${escapeHtml(dgSegText(c.seg))}${c.missing ? `<span style="display:block;font-size:0.75rem;color:var(--text-muted);margin-top:4px;">${c.missing} of ${c.total} answer slots left blank</span>` : ""}</div>
+        <div class="dg-bar${c.pct < 0.6 ? " weak" : ""}"><i style="width:${Math.round(c.pct * 100)}%;"></i></div>
+        <div class="dg-bar-num">${c.students ? dgPct(c.pct) : "—"}</div>
+      </div>`).join("")}</div>
+  </div>`;
+
+  html += `<div class="dg-card">
+    <div class="dg-card-h">🧑‍🎓 Student by student</div>
+    <div class="dg-card-sub">The same marks written out: each objective, the score on it, and how every question inside it went.</div>
+    <div style="margin-top:20px;">${m.shown.length ? m.shown.map(dgStudentCardHtml).join("")
+      : `<div class="empty-note">Nobody has answered a question on this test yet. Print it, or send it to the class from <b>📄 My Worksheets</b>.</div>`}</div>
+  </div>`;
+  return html;
+}
+function dgTableHtml(m) {
+  if (!m.shown.length) return `<div class="empty-note">Nobody has answered a question on this test yet.</div>`;
+  const segRow = m.segs.map(seg =>
+    `<th class="dg-seg-row-cell" colspan="${seg.items.length + 1}" title="${escapeHtml(dgSegText(seg))}">${escapeHtml(dgSegLabel(seg))}</th>`).join("");
+  const qRow = m.segs.map(seg =>
+    seg.items.map(it => `<th title="${escapeHtml(it.q ? (it.q.title || "") : "no longer in the bank")}">Q${it.n}</th>`).join("")
+    + `<th class="dg-score">Score</th>`).join("");
+  const body = m.shown.map(s => {
+    const cells = s.segScores.map(sc =>
+      sc.items.map(it => `<td class="dg-pcell ${it.mark}"><span class="dg-mark ${it.mark}" title="${escapeHtml(it.tries > 1 ? it.tries + " attempts — the first one counts" : (it.attempted ? "1 attempt" : "not attempted"))}">${DG_MARK_GLYPH[it.mark]}</span></td>`).join("")
+      + `<td class="dg-score">${dgNum(sc.earned)}/${sc.total}</td>`).join("");
+    return `<tr>
+      <td class="dg-stu"><b>${escapeHtml(s.student.name || "Student")}</b><span>${escapeHtml(s.student.email || "")}${s.error ? " · couldn't read results" : ""}</span></td>
+      ${cells}
+      <td class="dg-total">${dgNum(s.earned)}/${s.total}<div style="font-weight:400;font-size:0.72rem;color:var(--text-muted);">${dgPct(s.pct)}</div></td>
+    </tr>`;
+  }).join("");
+  return `<div class="dg-table-wrap"><table class="dg-table">
+    <thead>
+      <tr class="dg-seg-row"><th class="dg-stu" rowspan="2">Student</th>${segRow}<th class="dg-total" rowspan="2">Total</th></tr>
+      <tr>${qRow}</tr>
+    </thead>
+    <tbody>${body}</tbody>
+  </table></div>`;
+}
+function dgStudentCardHtml(s) {
+  return `<div class="dg-stu-card">
+    <div class="dg-stu-h">
+      <b>${escapeHtml(s.student.name || "Student")}</b>
+      <span>${escapeHtml(s.student.email || "")}${s.student.level ? " · " + escapeHtml(s.student.level) : ""}</span>
+      <span class="dg-stu-score">${dgNum(s.earned)}/${s.total} · ${dgPct(s.pct)}${s.attempted < s.total ? ` · ${s.total - s.attempted} not attempted` : ""}</span>
+    </div>
+    ${s.segScores.map(sc => `<div class="dg-stu-seg">
+      <div class="dg-stu-seg-h">
+        <b>${escapeHtml(dgSegLabel(sc.seg))}</b>
+        <span style="flex:1 1 240px;min-width:0;">${escapeHtml(dgSegText(sc.seg))}</span>
+        <span class="dg-seg-score">${dgNum(sc.earned)}/${sc.total} · ${dgPct(sc.pct)}</span>
+      </div>
+      <div class="dg-chips">${sc.items.map(it =>
+        `<span class="dg-chip ${it.mark === "none" ? "" : it.mark}" title="${escapeHtml(it.q ? (it.q.title || "") : "no longer in the bank")}">Q${it.n} ${DG_MARK_GLYPH[it.mark]}${it.tries > 1 ? ` <span style="opacity:0.7;">(${it.tries}×)</span>` : ""}</span>`).join("")}</div>
+    </div>`).join("")}
+  </div>`;
+}
+// ---- Exports -------------------------------------------------------------
+function dgCsvCell(v) {
+  const s = String(v == null ? "" : v);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function dgExportCsv(id) {
+  const test = dgFindTest(id);
+  if (!test || !dgReportData || dgReportData.testId !== id) return;
+  const m = dgReportModel(test);
+  const head1 = ["", ""], head2 = ["Student", "Email"];
+  m.segs.forEach(seg => {
+    seg.items.forEach(it => { head1.push(dgSegLabel(seg)); head2.push("Q" + it.n); });
+    head1.push(dgSegLabel(seg)); head2.push("Score");
+  });
+  head1.push(""); head2.push("Total");
+  head1.push(""); head2.push("Percent");
+  const lines = [head1.map(dgCsvCell).join(","), head2.map(dgCsvCell).join(",")];
+  m.shown.forEach(s => {
+    const row = [s.student.name || "Student", s.student.email || ""];
+    s.segScores.forEach(sc => {
+      sc.items.forEach(it => row.push(it.attempted ? dgNum(it.credit) : ""));
+      row.push(dgNum(sc.earned) + "/" + sc.total);
+    });
+    row.push(dgNum(s.earned) + "/" + s.total);
+    row.push(Math.round(s.pct * 100));
+    lines.push(row.map(dgCsvCell).join(","));
+  });
+  lines.push("");
+  lines.push(["Objective", "Objective text", "Students", "Class %", "Blank answers"].map(dgCsvCell).join(","));
+  m.segClass.forEach(c => lines.push([dgSegLabel(c.seg), dgSegText(c.seg), c.students, c.students ? Math.round(c.pct * 100) : "", c.missing].map(dgCsvCell).join(",")));
+  const safe = (test.title || "diagnostic").replace(/[^\w\-]+/g, "_").slice(0, 60);
+  dgDownload(safe + "_report.csv", lines.join("\n"), "text/csv");
+  toast("Report exported as CSV", "success");
+}
+// The printed report is the SAME model as the page — table first, written
+// breakdown after it — in a self-contained document, because a teacher files
+// this in a folder and reads it away from the app.
+function dgPrintReport(id) {
+  const test = dgFindTest(id);
+  if (!test || !dgReportData || dgReportData.testId !== id) return;
+  const m = dgReportModel(test);
+  const w = window.open("", "_blank");
+  if (!w) { toast("Please allow pop-ups so the report can open", "error"); return; }
+  const css = `
+    body { font-family: Arial, Helvetica, sans-serif; color: #1f2430; margin: 0; padding: 30px 34px 60px; }
+    h1 { font-size: 20px; margin: 0 0 8px; }
+    .sub { font-size: 12px; color: #666; line-height: 1.7; margin-bottom: 24px; max-width: 780px; }
+    h2 { font-size: 14px; margin: 34px 0 12px; }
+    table { border-collapse: collapse; width: 100%; font-size: 11px; }
+    th, td { border: 1px solid #d5d9e0; padding: 6px 8px; text-align: center; }
+    th { background: #f3f5f8; }
+    td.stu, th.stu { text-align: left; }
+    .ok { color: #2f8a3e; font-weight: bold; } .part { color: #b07d12; font-weight: bold; }
+    .no { color: #c0392b; font-weight: bold; } .none { color: #aab; }
+    .card { border: 1px solid #d5d9e0; border-radius: 8px; padding: 14px 16px; margin-bottom: 12px; page-break-inside: avoid; }
+    .card h3 { font-size: 13px; margin: 0 0 10px; }
+    .seg { border-top: 1px solid #eceef2; padding: 9px 0; font-size: 11px; line-height: 1.6; }
+    .seg b { font-family: 'Courier New', monospace; }
+    .chips span { display: inline-block; border: 1px solid #d5d9e0; border-radius: 999px; padding: 2px 8px; margin: 5px 5px 0 0; font-size: 10px; }
+    .bar { height: 9px; background: #eef0f4; border-radius: 99px; overflow: hidden; width: 220px; display: inline-block; vertical-align: middle; }
+    .bar i { display: block; height: 100%; background: #4a7c59; }
+    .bar.weak i { background: #b3452f; }
+    @media print { .noprint { display: none !important; } }`;
+  const segRow = m.segs.map(seg => `<th colspan="${seg.items.length + 1}">${escapeHtml(dgSegLabel(seg))}</th>`).join("");
+  const qRow = m.segs.map(seg => seg.items.map(it => `<th>Q${it.n}</th>`).join("") + `<th>Score</th>`).join("");
+  const bodyRows = m.shown.map(s => `<tr>
+      <td class="stu">${escapeHtml(s.student.name || "Student")}</td>
+      ${s.segScores.map(sc => sc.items.map(it => `<td class="${it.mark}">${DG_MARK_GLYPH[it.mark]}</td>`).join("") + `<td>${dgNum(sc.earned)}/${sc.total}</td>`).join("")}
+      <td><b>${dgNum(s.earned)}/${s.total}</b> (${dgPct(s.pct)})</td>
+    </tr>`).join("");
+  const classRows = m.segClass.map(c => `<div class="seg"><b>${escapeHtml(dgSegLabel(c.seg))}</b> ${escapeHtml(dgSegText(c.seg))}<br>
+      <span class="bar${c.pct < 0.6 ? " weak" : ""}"><i style="width:${Math.round(c.pct * 100)}%;"></i></span>
+      <b style="margin-left:10px;">${c.students ? dgPct(c.pct) : "—"}</b>${c.missing ? ` <span style="color:#888;">(${c.missing} left blank)</span>` : ""}</div>`).join("");
+  const cards = m.shown.map(s => `<div class="card">
+      <h3>${escapeHtml(s.student.name || "Student")} — ${dgNum(s.earned)}/${s.total} (${dgPct(s.pct)})</h3>
+      ${s.segScores.map(sc => `<div class="seg"><b>${escapeHtml(dgSegLabel(sc.seg))}</b> ${escapeHtml(dgSegText(sc.seg))} — <b>${dgNum(sc.earned)}/${sc.total}</b> (${dgPct(sc.pct)})
+        <div class="chips">${sc.items.map(it => `<span class="${it.mark}">Q${it.n} ${DG_MARK_GLYPH[it.mark]}</span>`).join("")}</div></div>`).join("")}
+    </div>`).join("");
+  w.document.open();
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(test.title || "Diagnostic report")}</title><style>${css}</style></head>
+    <body>
+      <div class="noprint" style="text-align:right;margin-bottom:14px;"><button onclick="window.print()">🖨️ Print / Save PDF</button></div>
+      <h1>🩺 ${escapeHtml(test.title || "Diagnostic report")}</h1>
+      <div class="sub">${m.questionCount} questions across ${m.segs.length} learning objectives · ${m.sat.length} student(s) sat it · class average ${dgPct(m.classPct)}.
+        The first attempt on each question is the one scored. ✓ correct · ~ partly correct · ✗ wrong · · not attempted.</div>
+      <h2>Every student, every question</h2>
+      <table><thead><tr><th class="stu" rowspan="2">Student</th>${segRow}<th rowspan="2">Total</th></tr><tr>${qRow}</tr></thead>
+      <tbody>${bodyRows}</tbody></table>
+      <h2>Where the class stands</h2>${classRows}
+      <h2>Student by student</h2>${cards}
+    </body></html>`);
+  w.document.close();
+}
+
+// ---- Wiring --------------------------------------------------------------
+// One delegated handler on the page body: the whole page is re-rendered from
+// state on every change, so per-element listeners would have to be re-bound
+// each time.
+(function dgBindPage() {
+  const host = $("diagnosticBody");
+  if (!host) return;
+  host.addEventListener("click", (e) => {
+    const t = e.target.closest("[data-dgtab],[data-dglevel],[data-dglo],[data-dgdrop],[data-dgact],[data-dgreport],[data-dgprint],[data-dgpreview],[data-dgpractise],[data-dgedit],[data-dgdel],[data-dgrefresh],[data-dgcsv],[data-dgrepprint]");
+    if (!t || !host.contains(t)) return;
+    const d = t.dataset;
+    if (d.dgtab) { dgTab = d.dgtab; renderDiagnosticPage(); return; }
+    if (d.dglevel) { dgLevel = d.dglevel; dgOpenLos.clear(); renderDiagnosticPage(); return; }
+    if (d.dglo) { if (dgOpenLos.has(d.dglo)) dgOpenLos.delete(d.dglo); else dgOpenLos.add(d.dglo); renderDiagnosticPage(); return; }
+    if (d.dgdrop) { const i = dgPickIdx(d.dgdrop); if (i >= 0) dgPicked.splice(i, 1); renderDiagnosticPage(); return; }
+    if (d.dgact === "save") { dgSaveTest(); return; }
+    if (d.dgact === "preview") { dgPrintDraft(false); return; }
+    if (d.dgact === "print") { dgPrintDraft(true); return; }
+    if (d.dgact === "practise") { dgPractiseDraft(); return; }
+    if (d.dgact === "new") { dgNewTest(); return; }
+    if (d.dgreport) { dgOpenReport(d.dgreport); return; }
+    if (d.dgprint) { dgPrintTest(d.dgprint, true); return; }
+    if (d.dgpreview) { dgPrintTest(d.dgpreview, false); return; }
+    if (d.dgpractise) { practiseWorksheet(d.dgpractise); return; }
+    if (d.dgedit) { dgEditTest(d.dgedit); return; }
+    if (d.dgdel) { dgDeleteTest(d.dgdel); return; }
+    if (d.dgrefresh) { dgOpenReport(d.dgrefresh); return; }
+    if (d.dgcsv) { dgExportCsv(d.dgcsv); return; }
+    if (d.dgrepprint) { dgPrintReport(d.dgrepprint); return; }
+  });
+  host.addEventListener("change", (e) => {
+    const el = e.target;
+    if (!el) return;
+    if (el.dataset && el.dataset.dgpick) { dgTogglePick(el.dataset.dgpick, el.dataset.lo || ""); return; }
+    if (el.dataset && el.dataset.dgopt) { dgOpts[el.dataset.dgopt] = !!el.checked; return; }
+    if (el.dataset && el.dataset.dgshowall !== undefined) { dgShowAll = !!el.checked; renderDiagnosticPage(); return; }
+  });
+})();
+window.renderDiagnosticPage = renderDiagnosticPage;
 
 </script>
 <div id="tcgExpAnnounce" style="display:none;position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:1201;width:min(680px,calc(100vw - 28px));background:radial-gradient(120% 100% at 50% -30%,rgba(77,227,255,0.18),transparent 60%),linear-gradient(150deg,#16264f,#0b1230 60%,#080c1e);border:1px solid rgba(77,227,255,0.55);border-radius:18px;padding:26px 28px;box-shadow:0 22px 60px rgba(0,0,0,0.55);color:#e6f4ff;font-family:'DM Sans',system-ui,sans-serif;">
