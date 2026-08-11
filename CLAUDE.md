@@ -190,6 +190,54 @@ is what lets a fix in one app be copied to the other. Only the *world* differs.
     serve both. `elgFireApex` takes the hero's multi-shot count — drop it and a
     whole skill node silently stops working for every apex hero.
 
+## ⚔️ Nova Legends — the skill wheel (v1.28.0)
+Each role's tree is **~55 nodes over 6 rings**: 21-22 hand-written notables
+(`ELG_TREES`, with `ELG_REQS` naming each one's parent) plus `ELG_SMALL_TIERS`
+generated passives fanned around them. Three separate things decide whether it
+is readable, and the old layout got all three wrong at once:
+- **`ELG_SMALL_TIERS` is NOT flat** (`[3,5,7,8,7,4]`). Ring 1 is the shortest
+  circle on the wheel and ring 4 is three times longer, so an even split
+  crushed the inner rings while the outer ones sat half empty.
+- **Node size is a fraction of the MAP, not a fixed px** (`--nsz:
+  clamp(26px, 4.6cqw, 48px)` on `.elg-tree-map.radial`, which carries
+  `container-type: inline-size`). The ring radii are percentages, so a fixed
+  46px node stopped matching them the moment the window narrowed — at the old
+  720px cap the radial gap between rings was 45px against a 46px node, so
+  every ring overlapped the one outside it however few nodes were on either.
+  Everything inside the wheel (heart, icon, level pill) scales off `--nsz`.
+- **`ELG_RING`/`ELG_RING0`/`ELG_NODE_SPAN` are the geometry.** `ELG_RING` is
+  the radial gap and must stay wider than a node; `ELG_NODE_SPAN` is the width
+  one node claims along its ring, turned into an angle per ring by dividing by
+  that ring's radius — which is why an outer ring can hold branches closer to
+  their parents than an inner one.
+- **A node is placed under its PARENT, then pushed apart** — not evenly spaced
+  from an arbitrary start, which is what made every link cross its neighbours.
+  The ring degrades to even spacing only when it is too full to do better.
+- **Generated smalls attach to whichever parent has the FEWEST children.** A
+  fixed stride (`(i * 3 + tier) % prev.length`) lands on the same parents
+  repeatedly whenever the stride and the ring size share a factor; once a node
+  is drawn sitting under its own parent, that piling bunches the branches into
+  one quarter of the wheel.
+- The map is bounded by `82vh` as well as by width (it is square, so an
+  unbounded width pushes the bottom rings off-screen) and never shrinks below
+  500px — `.elg-tree-maprail` scrolls instead of letting the rings merge.
+
+### Extra projectiles and chain jumps (v1.28.0)
+- **`fx: { shots: n }` adds n projectiles to every auto-attack.** It is in
+  `ELG_UNIQUE_FX`, so each node is max level 1 and stacking means taking
+  another node. Every role has one; striker and arcanist reach 4 shots total.
+- **They fly as a FAN** (`elgFanAngle`), not the old random jitter, which read
+  as a misfire past three shots. `ELG_FAN_MAX` caps the spread: wider than
+  that and the outer shots miss a single target, so more projectiles would
+  mean *less* damage to the thing in front of you.
+- **`elgFireApex` uses the same fan** and still takes the multi-shot count —
+  drop that argument and every apex hero silently stops firing extras.
+- **`fx: { chain: n }` adds jumps to EVERY chain active** (`Arc Cascade`). It
+  is read once, in the `a.kind === 'chain'` branch of `elgUseSkill`, as
+  `a.jumps + (p.chain | 0)` — added, not multiplied, so one point is worth the
+  same on a small chain as on a big one. A new `chain` key also has to be
+  declared in the `elgPassives` accumulator or it never totals.
+
 ## ⚔️ Nova Legends — the swarm (v1.26.0)
 Waves are `ELG_SWARM_COUNT`× the old horde (wave 1 fields **~167**), each body a
 third the size of a full enemy, with a tenth the hit points and double the old

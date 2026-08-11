@@ -1932,6 +1932,12 @@ body.practising-as .page-body { padding-bottom: 64px; }
 .elg-tree, .elg-quiz, .elg-result { position: fixed; inset: 0; z-index: 1460; background: rgba(8,5,14,0.86); display: flex; align-items: flex-start; justify-content: center; padding: 16px; overflow-y: auto; }
 .elg-tree-card, .elg-quiz-card, .elg-result-card { margin: auto; width: 100%; max-width: 780px; background: #17101f; border: 1px solid rgba(255,255,255,0.14); border-radius: 18px; padding: 26px 28px; color: #f3e9ff; box-shadow: 0 20px 60px rgba(0,0,0,0.6); }
 .elg-quiz-card, .elg-result-card { max-width: 620px; text-align: center; }
+/* The tree card is the widest thing in the game on purpose: the wheel is its
+   content, and every ring overlapping the next was a symptom of squeezing six
+   rings of 46px nodes into a 720px square. The prose inside it is re-narrowed
+   below so nothing turns into a 1100px line of text. */
+.elg-tree-card { max-width: 1180px; }
+.elg-tree-card .elg-tree-lead, .elg-tree-card .elg-legend-box, .elg-tree-card .elg-node-info { max-width: 860px; margin-left: auto; margin-right: auto; }
 .elg-tree-head { position: relative; display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
 .elg-tree-head h3 { font-size: 1.1rem; font-weight: 800; }
 .elg-tree-sp { background: rgba(56,201,236,0.18); color: #ffd98a; border-radius: 999px; padding: 5px 14px; font-size: 0.82rem; font-weight: 700; }
@@ -1942,14 +1948,23 @@ body.practising-as .page-body { padding-bottom: 64px; }
 /* The radial wheel: a square map, nodes absolutely placed at polar percent
    coordinates by elgTreeLayout, connectors drawn in a 0-100 viewBox SVG so
    one layout fits every screen. */
-.elg-tree-map.radial { width: 100%; max-width: 720px; aspect-ratio: 1 / 1; margin: 6px auto 0; }
+/* The wheel sizes itself from the SMALLER of the card and the viewport height
+   (it is square, so an unbounded width pushes the bottom rings off-screen),
+   and never shrinks below ELG map floor 500px — under that the rings genuinely
+   cannot be told apart, so the rail scrolls instead of overlapping.
+   `container-type: inline-size` is what lets the nodes below size themselves
+   in cqw: the ring radii are percentages, so the NODES have to be a
+   percentage too or the two stop matching the moment the window narrows. */
+.elg-tree-maprail { overflow-x: auto; overflow-y: hidden; margin: 6px -4px 0; padding: 0 4px 4px; }
+.elg-tree-map.radial { container-type: inline-size; width: min(100%, 82vh, 1000px); min-width: 500px; max-width: 1000px; aspect-ratio: 1 / 1; margin: 0 auto;
+  --nsz: clamp(26px, 4.6cqw, 48px); }
 .elg-tree-links { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
-.elg-heart { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 62px; height: 62px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.7rem; background: radial-gradient(circle at 38% 32%, #3a2b52, #17101f); border: 2px solid #38c9ec; box-shadow: 0 0 22px rgba(56,201,236,0.4); z-index: 1; }
-.elg-rnode { position: absolute; transform: translate(-50%,-50%); width: 46px; height: 46px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.22); background: #1d1428; color: #f3e9ff; cursor: pointer; font-family: inherit; display: flex; align-items: center; justify-content: center; z-index: 2; padding: 0; }
-.elg-rnode.small { width: 34px; height: 34px; }
-.elg-rnode-ico { font-size: 1.05rem; line-height: 1; }
-.elg-rnode.small .elg-rnode-ico { font-size: 0.82rem; }
-.elg-rnode-lv { position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); font-size: 0.56rem; font-weight: 800; background: #0d0813; border: 1px solid rgba(255,255,255,0.25); border-radius: 999px; padding: 1px 6px; white-space: nowrap; }
+.elg-heart { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: calc(var(--nsz, 46px) * 1.35); height: calc(var(--nsz, 46px) * 1.35); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: calc(var(--nsz, 46px) * 0.62); background: radial-gradient(circle at 38% 32%, #3a2b52, #17101f); border: 2px solid #38c9ec; box-shadow: 0 0 22px rgba(56,201,236,0.4); z-index: 1; }
+.elg-rnode { position: absolute; transform: translate(-50%,-50%); width: var(--nsz, 46px); height: var(--nsz, 46px); border-radius: 50%; border: 2px solid rgba(255,255,255,0.22); background: #1d1428; color: #f3e9ff; cursor: pointer; font-family: inherit; display: flex; align-items: center; justify-content: center; z-index: 2; padding: 0; }
+.elg-rnode.small { width: calc(var(--nsz, 46px) * 0.74); height: calc(var(--nsz, 46px) * 0.74); }
+.elg-rnode-ico { font-size: calc(var(--nsz, 46px) * 0.46); line-height: 1; }
+.elg-rnode.small .elg-rnode-ico { font-size: calc(var(--nsz, 46px) * 0.36); }
+.elg-rnode-lv { position: absolute; bottom: calc(var(--nsz, 46px) * -0.17); left: 50%; transform: translateX(-50%); font-size: calc(var(--nsz, 46px) * 0.21); font-weight: 800; background: #0d0813; border: 1px solid rgba(255,255,255,0.25); border-radius: 999px; padding: 1px calc(var(--nsz, 46px) * 0.13); white-space: nowrap; }
 .elg-rnode.faroff { opacity: 0.38; }
 .elg-rnode.poor { border-color: rgba(56,201,236,0.5); }
 .elg-rnode.can { border-color: #ffd98a; box-shadow: 0 0 12px rgba(56,201,236,0.45); }
@@ -1971,7 +1986,6 @@ body.practising-as .page-body { padding-bottom: 64px; }
 .elg-ni-max { color: #ffd98a; font-weight: 800; font-size: 0.82rem; }
 .elg-ni-buy { font-size: 0.85rem; padding: 8px 20px; }
 .elg-skill-lv { font-style: normal; font-size: 0.68rem; color: #ffd98a; font-weight: 800; }
-@media (max-width: 640px) { .elg-rnode { width: 38px; height: 38px; } .elg-rnode.small { width: 29px; height: 29px; } }
 .elg-tier { position: relative; z-index: 1; margin-bottom: 26px; }
 .elg-tier-lbl { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.5); margin-bottom: 9px; }
 .elg-tier-row { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -20119,7 +20133,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.27.0 · 2026-08-11";
+const APP_VERSION = "v1.28.0 · 2026-08-11";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
@@ -28792,7 +28806,7 @@ function tcgGuideHtml() {
         ['Playing', 'Drag (or use WASD / the arrow keys) to move. Your unit attacks the nearest enemy by itself — your job is where to stand and when to fire a skill. Keys <b>1–9</b> fire your learned actives in bar order, and <b>T</b> opens the skill tree mid-fight.'],
         ['✦ Skill points', 'A maths question arrives every ' + ELG_Q_EVERY + ' seconds and freezes the battle while it is up: a correct answer is <b>+' + ELG_SP_CORRECT + ' point</b>, and clearing a wave is <b>+' + ELG_SP_WAVE + '</b>. Points are spent in the skill tree, which you can open mid-fight.'],
         ['The four trees', ELG_ROLE_ORDER.map(r => ELG_ROLES[r].icon + ' <b>' + ELG_ROLES[r].name + '</b> — ' + escapeHtml(ELG_ROLES[r].blurb)).join('<br>')
-          + '<br><span class="tcg-guide-dim">Your unit\'s battle skill decides its role, and every unit of that role shares the same tree — so swapping hero never means learning a new game. Each tree is a <b>wheel of ' + (ELG_TREES.striker || []).length + ' skills over ' + ELG_TIERS.length + ' rings</b> around the role\'s heart, and most skills level <b>1→5</b> (actives to 3, each level +30% power and −8% cooldown) — far more than any run can afford, so every run is a build. Skills unlock along the links: each grows from the one before it, out to two capstones you choose between. Roughly a third of every tree is an <b>active skill</b> with its own button, hotkey and cooldown — lances, dashes, orbiting blades, chain lightning, auras, summons, buffs and arena-wide storms.</span>'],
+          + '<br><span class="tcg-guide-dim">Your unit\'s battle skill decides its role, and every unit of that role shares the same tree — so swapping hero never means learning a new game. Each tree is a <b>wheel of ' + (ELG_TREES.striker || []).length + ' skills over ' + ELG_TIERS.length + ' rings</b> around the role\'s heart, and most skills level <b>1→5</b> (actives to 3, each level +30% power and −8% cooldown) — far more than any run can afford, so every run is a build. Skills unlock along the links: each grows from the one before it, out to two capstones you choose between. ' + (function(){var c=ELG_ROLE_ORDER.map(function(r){return (ELG_TREES[r]||[]).filter(function(n){return n.act;}).length;});var lo=Math.min.apply(null,c),hi=Math.max.apply(null,c);return lo===hi?String(lo):lo+' or '+hi;})() + ' of them are <b>active skills</b> with their own button, hotkey and cooldown — lances, dashes, orbiting blades, chain lightning, auras, summons, buffs and arena-wide storms — and the rest are passives, among them <b>extra projectiles</b> and <b>extra chain jumps</b> for builds that want to fill the screen.</span>'],
         ['The swarm', 'Enemies are drawn from the other cards, and the further you get the rarer they are. Wave 1 fields <b>' + elgWaveCount(1) + ' enemies</b> and every wave after it is <b>10% bigger than the last</b> — compounding, with no final wave: the run only ends when your unit falls. They come as a <b>swarm</b>: each one is a war-form in its own card art, small enough to die to a single hit but hitting harder than it looks, and the danger is how many of them reach you at once. <b>Every fifth wave</b> promotes part of the horde to full-size elites and sends a king to lead it.'],
         ['7★ passives', 'A 7★ hero fights with a run-changing rule of its own:<br>'
           + Object.keys(ELG_LEGEND_PASSIVES).map(k => ELG_LEGEND_PASSIVES[k].icon + ' <b>' + escapeHtml(ELG_LEGEND_PASSIVES[k].name) + '</b> — ' + escapeHtml(ELG_LEGEND_PASSIVES[k].desc)).join('<br>')],
@@ -33241,6 +33255,7 @@ const ELG_TREES = {
     // T4 — commitment
     { id: 'st_rage',  tier: 4, name: 'Bloodrush',      icon: '😤', desc: 'ACTIVE — 5 seconds of +60% damage and +40% attack speed.', act: { kind: 'buff', cd: 18, dur: 5, dmg: 0.60, aspd: 0.40 } },
     { id: 'st_orbit', tier: 4, name: 'Plasma Wheel',    icon: '🔆', desc: 'ACTIVE — three burning blades orbit you for 8 seconds, cutting all they touch.', act: { kind: 'orbit', cd: 14, dmg: 1.1, count: 3, dur: 8 } },
+    { id: 'st_salvo', tier: 4, name: 'Fang Salvo',     icon: '🏹', desc: 'Every attack fires TWO more shots, fanned across the horde.', fx: { shots: 2 } },
     { id: 'st_apex',  tier: 4, name: 'Apex Predator',  icon: '👑', desc: '+40% damage to any enemy below half health.', fx: { execute: 0.40 } },
     { id: 'st_deep',  tier: 4, name: 'Deep Cuts',      icon: '🔪', desc: 'A further +25% attack damage.', fx: { dmg: 0.25 } },
     // T5 — the heavy hitters
@@ -33263,9 +33278,11 @@ const ELG_TREES = {
     { id: 'ar_zone',  tier: 3, name: 'Elemental Well', icon: '🌋', desc: 'ACTIVE — leave a pool of raw element that burns everything standing in it.', act: { kind: 'zone', cd: 12, dmg: 1.1, dur: 6, radius: 150 } },
     { id: 'ar_amp',   tier: 3, name: 'Amplify',        icon: '📈', desc: '+30% skill damage.', fx: { skillDmg: 0.30 } },
     { id: 'ar_drift', tier: 3, name: 'Mote Drift',     icon: '🕊️', desc: '+15% move speed and +10% skill damage.', fx: { speed: 0.15, skillDmg: 0.10 } },
+    { id: 'ar_arc',   tier: 3, name: 'Arc Cascade',    icon: '🌩️', desc: 'Every chain skill leaps to 2 more enemies per level.', fx: { chain: 2 }, max: 3 },
     { id: 'ar_aura',  tier: 4, name: 'Elemental Aura', icon: '🌪️', desc: 'ACTIVE — the element rages around you for 8 seconds, burning everything close.', act: { kind: 'aura', cd: 15, dmg: 0.9, dur: 8, radius: 145 } },
     { id: 'ar_wisp',  tier: 4, name: 'Summon Wisp',    icon: '🔮', desc: 'ACTIVE — call a wisp of your element to fight beside you for 20 seconds.', act: { kind: 'summon', cd: 18, dmg: 0.8, dur: 20 } },
     { id: 'ar_chainr',tier: 4, name: 'Chain Reaction', icon: '🔗', desc: 'Every enemy you kill bursts, damaging whatever stands near it.', fx: { deathBlast: 1 } },
+    { id: 'ar_prism', tier: 4, name: 'Prism Split',    icon: '🔮', desc: 'Every attack fires TWO more motes, fanned across the horde.', fx: { shots: 2 } },
     { id: 'ar_deep',  tier: 4, name: 'Deep Well',      icon: '💠', desc: 'A further +25% skill damage.', fx: { skillDmg: 0.25 } },
     { id: 'ar_cata',  tier: 5, name: 'Cataclysm',      icon: '🌠', desc: 'ACTIVE — the arena erupts. Enormous damage to everything on it.', act: { kind: 'storm', cd: 24, dmg: 4.2 } },
     { id: 'ar_still', tier: 5, name: 'Stillness',      icon: '🧘', desc: 'Standing still for a moment charges your next shot to triple damage.', fx: { charged: 1 } },
@@ -33285,6 +33302,7 @@ const ELG_TREES = {
     { id: 'me_spirit',tier: 3, name: 'Spirit Companion',icon: '👻', desc: 'ACTIVE — a healing spirit fights beside you for 20 seconds.', act: { kind: 'summon', cd: 18, dmg: 0.6, dur: 20, heal: 0.012 } },
     { id: 'me_amp',   tier: 3, name: 'Greater Mending', icon: '💗', desc: 'All your healing is 40% stronger.', fx: { healAmp: 0.40 } },
     { id: 'me_tough', tier: 3, name: 'Enduring Faith',  icon: '🛐', desc: 'A further +20% maximum health.', fx: { hp: 0.20 } },
+    { id: 'me_motes', tier: 3, name: 'Guiding Motes',  icon: '✨', desc: 'Every attack sends out an extra mote of light.', fx: { shots: 1 } },
     { id: 'me_aura',  tier: 4, name: 'Halo',            icon: '😇', desc: 'ACTIVE — a searing halo surrounds you for 8 seconds.', act: { kind: 'aura', cd: 15, dmg: 0.8, dur: 8, radius: 140 } },
     { id: 'me_shield',tier: 4, name: 'Blessing',        icon: '🔰', desc: 'ACTIVE — a barrier that soaks the next big hits.', act: { kind: 'shield', cd: 13, pct: 0.35, dur: 8 } },
     { id: 'me_pulse', tier: 4, name: 'Lifepulse',       icon: '💞', desc: 'Every 8 seconds a pulse heals you and sears nearby enemies.', fx: { pulse: 1 } },
@@ -33307,6 +33325,7 @@ const ELG_TREES = {
     { id: 'wa_orbit', tier: 3, name: 'Guard Stones',    icon: '🪬', desc: 'ACTIVE — four warding stones orbit you for 8 seconds, crushing what they touch.', act: { kind: 'orbit', cd: 14, dmg: 1.0, count: 4, dur: 8 } },
     { id: 'wa_rage',  tier: 3, name: 'Last Stand',      icon: '😤', desc: 'Below half health you deal 35% more damage.', fx: { desperate: 0.35 } },
     { id: 'wa_wall',  tier: 3, name: 'Living Wall',     icon: '🧱', desc: 'A further +25% maximum health.', fx: { hp: 0.25 } },
+    { id: 'wa_scat',  tier: 3, name: 'Scattershot',    icon: '💢', desc: 'Every attack throws an extra shot alongside the first.', fx: { shots: 1 } },
     { id: 'wa_roar',  tier: 4, name: 'Plasmaquake Roar', icon: '📣', desc: 'ACTIVE — a roar that shakes the whole arena and stuns the horde.', act: { kind: 'storm', cd: 20, dmg: 2.4, stun: 2 } },
     { id: 'wa_aura',  tier: 4, name: 'Molten Skin',     icon: '🌋', desc: 'ACTIVE — you burn everything that stands near you for 8 seconds.', act: { kind: 'aura', cd: 15, dmg: 0.9, dur: 8, radius: 135 } },
     { id: 'wa_immov', tier: 4, name: 'Immovable',       icon: '🗿', desc: 'A further 20% damage reduction.', fx: { armor: 0.20 } },
@@ -33324,24 +33343,29 @@ const ELG_REQS = {
   st_lance: 'st_edge',  st_dash: 'st_step',   st_twin: 'st_grip',   st_leech: 'st_keen',
   st_cyc: 'st_lance',   st_volley: 'st_twin', st_fury: 'st_dash',   st_hunt: 'st_leech',
   st_rage: 'st_fury',   st_orbit: 'st_cyc',   st_apex: 'st_hunt',   st_deep: 'st_volley',
+  st_salvo: 'st_volley',
   st_storm: 'st_orbit', st_shade: 'st_rage',
   st_cap1: 'st_storm',  st_cap2: 'st_shade',
   // arcanist
   ar_nova: 'ar_flow',   ar_chain: 'ar_pierce', ar_echo: 'ar_focus', ar_split: 'ar_reach',
   ar_frost: 'ar_nova',  ar_zone: 'ar_chain',   ar_amp: 'ar_split',  ar_drift: 'ar_echo',
+  ar_arc: 'ar_chain',
   ar_aura: 'ar_frost',  ar_wisp: 'ar_drift',   ar_chainr: 'ar_zone', ar_deep: 'ar_amp',
+  ar_prism: 'ar_amp',
   ar_cata: 'ar_aura',   ar_still: 'ar_deep',
   ar_cap1: 'ar_cata',   ar_cap2: 'ar_still',
   // mender
   me_bloom: 'me_vital', me_ward: 'me_grace',  me_leech: 'me_light', me_push: 'me_regen',
   me_sanct: 'me_bloom', me_spirit: 'me_push', me_amp: 'me_leech',   me_tough: 'me_ward',
   me_aura: 'me_spirit', me_shield: 'me_tough', me_pulse: 'me_sanct', me_calm: 'me_amp',
+  me_motes: 'me_leech',
   me_dawn: 'me_shield', me_thorn: 'me_aura',
   me_cap1: 'me_dawn',   me_cap2: 'me_thorn',
   // warden
   wa_aegis: 'wa_plate', wa_charge: 'wa_heft', wa_might: 'wa_stone', wa_hold: 'wa_thorn',
   wa_quake: 'wa_charge', wa_orbit: 'wa_aegis', wa_rage: 'wa_might', wa_wall: 'wa_hold',
   wa_roar: 'wa_quake',  wa_aura: 'wa_wall',   wa_immov: 'wa_orbit', wa_grit: 'wa_rage',
+  wa_scat: 'wa_might',
   wa_fort: 'wa_immov',  wa_spike: 'wa_aura',
   wa_cap1: 'wa_fort',   wa_cap2: 'wa_spike'
 };
@@ -33393,7 +33417,12 @@ const ELG_SMALLS = {
     ['❤️', 'Iron Constitution',{ hp: 0.05 },        '+5% maximum health']
   ]
 };
-const ELG_SMALL_TIERS = [8, 8, 8, 8, 6, 2];   // +40 per role across the six rings
+// How many generated smalls sit on each ring. NOT flat, and that is the whole
+// point: ring 1 is the shortest circle on the wheel and ring 4 is three times
+// longer, so an even split crushed the inner rings while the outer ones sat
+// half empty. The counts now rise with the circumference, which is what keeps
+// the angular gap between neighbours roughly constant from the heart outwards.
+const ELG_SMALL_TIERS = [3, 5, 7, 8, 7, 4];   // +34 per role across the six rings
 Object.keys(ELG_TREES).forEach(role => {
   const tpl = ELG_SMALLS[role];
   let gi = 0;
@@ -33404,12 +33433,28 @@ Object.keys(ELG_TREES).forEach(role => {
         name: t[1], icon: t[0], desc: t[3] + ' per level.', fx: t[2], small: true, req: null });
     }
   });
-  // Each generated node grows from a node one ring in, fanned with a stride so
-  // the branches spread around the wheel instead of piling onto one parent.
+  // Each generated node grows from a node one ring in, given to whichever
+  // parent is carrying the FEWEST children so far — the hand-written notables
+  // are counted first, because they have already claimed their parents.
+  //
+  // A stride (the old `(i * 3 + tier) % prev.length`) looks like it spreads
+  // them, but it walks the ring at a fixed step and lands on the same parents
+  // repeatedly whenever the stride and the ring size share a factor. Now that
+  // a node is drawn sitting under its own parent, that piling is visible: the
+  // branches bunch into one quarter of the wheel and leave the rest empty.
+  // Balancing the count is what keeps the wheel round.
   for (let tier = 2; tier <= 6; tier++) {
     const prev = ELG_TREES[role].filter(n => n.tier === tier - 1);
-    ELG_TREES[role].filter(n => n.tier === tier && n.small).forEach((n, i) => {
-      n.req = prev[(i * 3 + tier) % prev.length].id;
+    if (!prev.length) continue;
+    const kids = {};
+    prev.forEach(pn => { kids[pn.id] = 0; });
+    ELG_TREES[role].filter(n => n.tier === tier && !n.small)
+      .forEach(n => { if (n.req && kids[n.req] != null) kids[n.req]++; });
+    ELG_TREES[role].filter(n => n.tier === tier && n.small).forEach(n => {
+      let best = prev[0];
+      prev.forEach(pn => { if (kids[pn.id] < kids[best.id]) best = pn; });
+      n.req = best.id;
+      kids[best.id]++;
     });
   }
 });
@@ -33552,7 +33597,7 @@ function elgHeroStats(card) {
 // Sum every unlocked passive into one bag the engine can read cheaply.
 function elgPassives(r) {
   const p = { dmg: 0, hp: 0, speed: 0, aspd: 0, crit: 0, armor: 0, thorns: 0, regen: 0,
-              lifesteal: 0, shots: 0, pierce: 0, range: 0, cdr: 0, skillDmg: 0, healAmp: 0,
+              lifesteal: 0, shots: 0, chain: 0, pierce: 0, range: 0, cdr: 0, skillDmg: 0, healAmp: 0,
               execute: 0, desperate: 0, revive: 0, reviveBlast: 0, pulse: 0, deathBlast: 0,
               killHaste: 0, charged: 0, capCyclone: 0, capNova: 0, capEcho: 0,
               capBloom: 0, capFont: 0, capRetri: 0 };
@@ -34092,7 +34137,7 @@ function elgUpdate(dt) {
       if (r.apex) elgFireApex(aim, p, shots);
       else {
         for (let i = 0; i < shots; i++) {
-          const ang = aim + (i ? (Math.random() - 0.5) * 0.35 : 0);
+          const ang = elgFanAngle(aim, i, shots);
           r.shots.push({ id: r.nextId++, x: r.x, y: r.y, vx: Math.cos(ang) * ELG_SHOT_SPEED, vy: Math.sin(ang) * ELG_SHOT_SPEED,
                          dmg: elgHitDamage(p), pierce: p.pierce | 0, hit: {}, t: 0, node: null, rad: elgShotRad() });
         }
@@ -34184,6 +34229,23 @@ function elgUpdate(dt) {
   r.uiT = (r.uiT || 0) + dt;
   if (r.uiT > 0.12) { r.uiT = 0; elgRenderSkills(); elgHud(); }
 }
+// Extra projectiles fly as a FAN, not a random scatter. The old rule put shot
+// 0 dead on the aim and threw every other one anywhere inside 0.35 rad, which
+// reads as a misfire the moment a build owns three or four of them. A fan
+// centred on the aim is what makes an extra projectile look like an extra
+// projectile, and it widens with the count so each new shot covers new ground
+// instead of stacking onto the body the first one already hit.
+//
+// Capped, because a fan wider than this stops pointing at what you aimed at:
+// past ELG_FAN_MAX the outermost shots miss a single target entirely, so more
+// projectiles would mean less damage to the thing in front of you.
+const ELG_FAN_STEP = 0.17;   // radians between neighbouring shots
+const ELG_FAN_MAX  = 1.05;   // …and the widest the whole fan may open
+function elgFanAngle(aim, i, n) {
+  if (n <= 1) return aim;
+  const spread = Math.min(ELG_FAN_MAX, ELG_FAN_STEP * (n - 1));
+  return aim - spread / 2 + (i / (n - 1)) * spread;
+}
 function elgHitDamage(p) {
   const r = elgRun;
   let d = r.base.dmg * (1 + p.dmg + (r.buffDmg || 0));
@@ -34231,7 +34293,7 @@ function elgFireApex(aim, p, shots) {
   const sp = r.apex === 'lance' ? ELG_LANCE_SPEED : ELG_SHOT_SPEED;
   const life = r.apex === 'sweep' ? ELG_SWEEP_LIFE : r.apex === 'orbit' ? ELG_ORBIT_LIFE + 1.5 : 2.4;
   for (let i = 0; i < n; i++) {
-    const a = aim + (i ? (Math.random() - 0.5) * 0.35 : 0);
+    const a = elgFanAngle(aim, i, n);
     r.shots.push(Object.assign({}, base, { id: r.nextId++, hit: {}, dmg: dmg, aim: a,
       vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: life }));
   }
@@ -34411,7 +34473,13 @@ function elgCast(id) {
   } else if (a.kind === 'chain') {
     let from = { x: r.x, y: r.y };
     const struck = {};
-    for (let i = 0; i < a.jumps; i++) {
+    // `p.chain` is the extra-jumps passive (Arc Cascade). It is added to the
+    // node's own jump count rather than multiplying it, so one point is worth
+    // the same on a small chain as on a big one — and it lands on EVERY chain
+    // active a build owns, present or future, because the count is read here
+    // and nowhere else.
+    const jumps = a.jumps + (p.chain | 0);
+    for (let i = 0; i < jumps; i++) {
       let best = null, bd = a.range;
       r.enemies.forEach(e => { if (struck[e.id] || e.hp <= 0) return; const d = Math.hypot(e.x - from.x, e.y - from.y); if (d < bd) { bd = d; best = e; } });
       if (!best) break;
@@ -34484,22 +34552,72 @@ function elgCloseTree() {
 // grows from. Nodes are compact circles; reading and buying happens in the
 // panel below the wheel.
 let elgTreeSel = null;
+// Ring 1 sits at ELG_RING0 + ELG_RING, ring 6 at ELG_RING0 + 6 x ELG_RING =
+// 43%, which leaves the outermost node (half a node plus its level pill) inside
+// the 50% rim instead of clipping through it as the old 45.3% did.
+const ELG_RING0 = 2.2;   // % — the offset that lifts ring 1 clear of the heart
+const ELG_RING = 6.8;    // % — the gap between one ring and the next
+// How much room one node claims along its ring, in the same % units as the
+// radii — a drawn node plus the breathing space between it and its neighbour.
+// It is a WIDTH, converted to an angle per ring by dividing by that ring's
+// radius, which is why an outer ring can pack its branches closer to their
+// parents than an inner one.
+const ELG_NODE_SPAN = 6.4;
 function elgTreeLayout(nodes) {
   const byId = {};
   nodes.forEach(n => { byId[n.id] = n; });
   const t1 = nodes.filter(n => n.tier === 1);
   t1.forEach((n, i) => { n._ang = (i / t1.length) * Math.PI * 2 - Math.PI / 2; });
+  const TAU = Math.PI * 2;
   for (let tier = 2; tier <= 6; tier++) {
     const ring = nodes.filter(n => n.tier === tier);
     if (!ring.length) continue;
-    // Sit each node near its parent's bearing, then space the ring evenly in
-    // that order — branches stay together, nothing ever overlaps.
-    ring.forEach(n => { const par = byId[n.req]; n._pa = par && par._ang != null ? par._ang : 0; });
+    // Each node WANTS to sit straight out from the skill it grows from, so the
+    // link points outward and a branch reads as a branch. The old rule took
+    // only the ORDER from the parents and then spaced the ring evenly, which
+    // dragged nodes far from their parent and left every link crossing the
+    // ones beside it — the wheel looked like a scribble rather than a wheel.
+    //
+    // So: start each node at its parent's bearing, then push neighbours apart
+    // only as far as they actually have to move.
+    ring.forEach(n => {
+      const par = byId[n.req];
+      const pa = par && par._ang != null ? par._ang : 0;
+      n._pa = ((pa % TAU) + TAU) % TAU;      // one turn, so the sort is meaningful
+    });
     ring.sort((a, b) => a._pa - b._pa);
-    ring.forEach((n, i) => { n._ang = ring[0]._pa + (i / ring.length) * Math.PI * 2; });
+    // How much angle one node needs at THIS ring. The node is a fixed fraction
+    // of the map (--nsz in the CSS) but the ring's circumference grows, so an
+    // outer ring subtends less angle per node and can hold branches tighter to
+    // their parents. Capped at even spacing: when a ring is too full for
+    // everyone to sit under their parent, evenly spread is the best it can do.
+    const rad = ELG_RING0 + tier * ELG_RING;
+    const gap = Math.min(TAU / ring.length, ELG_NODE_SPAN / rad);
+    const a = ring.map(n => n._pa);
+    for (let i = 1; i < a.length; i++) if (a[i] < a[i - 1] + gap) a[i] = a[i - 1] + gap;
+    // Close the wrap-around seam: the last node must still clear the first.
+    if (a.length > 1 && a[0] + TAU - a[a.length - 1] < gap) {
+      for (let i = 0; i < a.length; i++) a[i] = a[0] + (i / a.length) * TAU;
+    }
+    // Then slide the whole ring back so it is centred on its parents rather
+    // than creeping clockwise by the total of everything the pushes added.
+    let drift = 0;
+    for (let i = 0; i < a.length; i++) drift += a[i] - ring[i]._pa;
+    drift /= a.length;
+    ring.forEach((n, i) => { n._ang = a[i] - drift; });
   }
+  // Ring radii, as a percentage of the (square) map. Two separate clearances
+  // have to hold at once and the old numbers held neither:
+  //   ANGULAR — the gap along a ring between neighbours, set by the node count
+  //     on that ring (see ELG_SMALL_TIERS, which is why the counts rise).
+  //   RADIAL — the gap between one ring and the next, which is simply ELG_RING
+  //     and must stay comfortably WIDER than a node. At the old 6.3% of a
+  //     720px map that was 45px against a 46px node, so every ring overlapped
+  //     the one outside it no matter how few nodes were on either.
+  // The node itself is sized from the container (--nsz in the CSS), so these
+  // percentages hold at every map width rather than only at the widest.
   nodes.forEach(n => {
-    const rad = 7.5 + n.tier * 6.3;   // ring 6 tops out at ~45% — nodes stay inside the square
+    const rad = ELG_RING0 + n.tier * ELG_RING;
     n._x = 50 + Math.cos(n._ang) * rad;
     n._y = 50 + Math.sin(n._ang) * rad;
   });
@@ -34548,10 +34666,12 @@ function elgRenderTree() {
     + '</div>'
     + '<p class="elg-tree-lead">' + nodes.length + ' skills in a wheel around your role\'s heart, most of them levelling 1→5 — far more than any run can afford, so every run is a build. Skills unlock along the links: each one needs the skill it grows from. Answer a maths question or clear a wave for another ✦ point; in the fight, keys <b>1–9</b> fire your actives and <b>T</b> opens this wheel.</p>'
     + (leg ? '<div class="elg-legend-box">' + leg.icon + ' <b>' + escapeHtml(leg.name) + '</b> — ' + escapeHtml(leg.desc) + '<span>7★ passive · always on</span></div>' : '')
-    + '<div class="elg-tree-map radial">'
-    +   '<svg class="elg-tree-links" viewBox="0 0 100 100" aria-hidden="true">' + links + '</svg>'
-    +   '<div class="elg-heart" title="' + escapeHtml(role.name + ' — ' + role.blurb) + '">' + role.icon + '</div>'
-    +   nodeHtml
+    + '<div class="elg-tree-maprail">'
+    +   '<div class="elg-tree-map radial">'
+    +     '<svg class="elg-tree-links" viewBox="0 0 100 100" aria-hidden="true">' + links + '</svg>'
+    +     '<div class="elg-heart" title="' + escapeHtml(role.name + ' — ' + role.blurb) + '">' + role.icon + '</div>'
+    +     nodeHtml
+    +   '</div>'
     + '</div>'
     + '<div class="elg-node-info" id="elgNodeInfo"></div>'
     + '<div class="elg-tree-foot"><button type="button" class="btn btn-primary" onclick="elgCloseTree()">▶ Back to the fight</button></div>'
