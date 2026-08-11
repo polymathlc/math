@@ -1784,13 +1784,11 @@ body.practising-as .page-body { padding-bottom: 64px; }
   border: 1px solid rgba(255,255,255,0.12); box-shadow: inset 0 0 60px rgba(0,0,0,0.6); }
 .elg-units { position: absolute; inset: 0; }
 .elg-unit { position: absolute; left: 0; top: 0; will-change: transform; }
-/* A swarm mote: ONE element, sized from the enemy's real radius so what you
-   can see and what you can hit are the same circle. No will-change — the hero
-   and the bosses earn a compositor layer each, five hundred motes asking for
-   one apiece is a GPU-memory problem, not an optimisation. */
-.elg-unit.swarm { width: var(--sz, 7px); height: var(--sz, 7px); margin: calc(var(--sz, 7px) / -2) 0 0 calc(var(--sz, 7px) / -2); border-radius: 50%; will-change: auto;
-  background: radial-gradient(circle at 34% 32%, #fff 0%, var(--mote, #f97316) 42%, var(--moteb, #7c2d12) 100%);
-  box-shadow: 0 0 4px 1px var(--mote, #f97316); }
+/* No will-change on a swarm member — the hero and the bosses earn a compositor
+   layer each, a couple of hundred rank-and-file asking for one apiece is a
+   GPU-memory problem, not an optimisation. The sprite rule itself lives below
+   the .foe sizes, because it has to win against them. */
+.elg-unit.swarm { will-change: auto; }
 /* Sprites are the card art itself — background-keyed cut-outs standing free
    on the arena, no circular frame over the character. Status reads as a
    coloured glow on the art (drop-shadow follows the cut-out's silhouette).
@@ -1805,6 +1803,17 @@ body.practising-as .page-body { padding-bottom: 64px; }
 .elg-unit.hero .elg-sprite { width: 58px; height: 58px; filter: drop-shadow(0 0 9px rgba(255,200,90,0.6)) drop-shadow(0 3px 5px rgba(0,0,0,0.6)); }
 .elg-unit.hero.shielded .elg-sprite { filter: drop-shadow(0 0 13px rgba(125,211,252,0.95)) drop-shadow(0 3px 5px rgba(0,0,0,0.6)); }
 .elg-unit.foe .elg-sprite { width: 32px; height: 32px; font-size: 22px; }
+/* A swarm member wears the same card art as everything else on the field, at
+   whatever size its own radius says — so what you can see and what you can hit
+   are one body. Sized from --sz rather than a literal, and placed AFTER the
+   .foe rule because the two selectors weigh the same and the later one wins.
+   The element colour it used to BE survives as the glow behind the silhouette,
+   which is what still lets you read a wave's element at a glance.
+   ONE drop-shadow, not the two everything else carries: a chained filter is a
+   second full pass over every pixel, and this rule runs on a couple of hundred
+   bodies at once rather than on one hero. */
+.elg-unit.swarm .elg-sprite { width: var(--sz, 25px); height: var(--sz, 25px); font-size: calc(var(--sz, 25px) * 0.82);
+  filter: drop-shadow(0 0 3px var(--mote, #f97316)); }
 .elg-unit.boss .elg-sprite { width: 46px; height: 46px; font-size: 32px; filter: drop-shadow(0 0 8px rgba(251,146,60,0.7)) drop-shadow(0 3px 5px rgba(0,0,0,0.6)); }
 .elg-unit.king .elg-sprite { width: 64px; height: 64px; font-size: 44px; filter: drop-shadow(0 0 13px rgba(56,201,236,0.85)) drop-shadow(0 3px 6px rgba(0,0,0,0.6)); }
 .elg-unit.cursed .elg-sprite { filter: drop-shadow(0 0 10px rgba(168,85,247,0.95)) drop-shadow(0 3px 5px rgba(0,0,0,0.6)); }
@@ -1816,6 +1825,10 @@ body.practising-as .page-body { padding-bottom: 64px; }
 .elg-unit.king.star7 .elg-sprite { width: 76px; height: 76px; font-size: 50px; }
 .elg-sprite.boxed { border-radius: 14px; overflow: hidden; background: rgba(0,0,0,0.35); border: 2px solid rgba(255,255,255,0.3); }
 .elg-sprite.boxed img { object-fit: cover; filter: none; }
+/* The same fallback frame, scaled down: a 14px radius and a 2px border swallow
+   a 25px swarm body, and every one of them wears the frame for the beat before
+   its cut-out lands. */
+.elg-unit.swarm .elg-sprite.boxed { border-radius: 5px; border-width: 1px; }
 .elg-ehp { display: block; width: 26px; height: 3px; margin: 2px auto 0; border-radius: 999px; background: rgba(0,0,0,0.5); overflow: hidden; }
 .elg-ehp > b { display: block; height: 100%; width: 100%; background: #ef4444; }
 /* Projectiles are drawn, never blitted. The generated FX frames carry a
@@ -20035,7 +20048,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.25.0 · 2026-08-10";
+const APP_VERSION = "v1.26.0 · 2026-08-11";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
@@ -27848,7 +27861,7 @@ function tcgGuideHtml() {
         ['✦ Skill points', 'A maths question arrives every ' + ELG_Q_EVERY + ' seconds and freezes the battle while it is up: a correct answer is <b>+' + ELG_SP_CORRECT + ' point</b>, and clearing a wave is <b>+' + ELG_SP_WAVE + '</b>. Points are spent in the skill tree, which you can open mid-fight.'],
         ['The four trees', ELG_ROLE_ORDER.map(r => ELG_ROLES[r].icon + ' <b>' + ELG_ROLES[r].name + '</b> — ' + escapeHtml(ELG_ROLES[r].blurb)).join('<br>')
           + '<br><span class="tcg-guide-dim">Your unit\'s battle skill decides its role, and every unit of that role shares the same tree — so swapping hero never means learning a new game. Each tree is a <b>wheel of ' + (ELG_TREES.striker || []).length + ' skills over ' + ELG_TIERS.length + ' rings</b> around the role\'s heart, and most skills level <b>1→5</b> (actives to 3, each level +30% power and −8% cooldown) — far more than any run can afford, so every run is a build. Skills unlock along the links: each grows from the one before it, out to two capstones you choose between. Roughly a third of every tree is an <b>active skill</b> with its own button, hotkey and cooldown — lances, dashes, orbiting blades, chain lightning, auras, summons, buffs and arena-wide storms.</span>'],
-        ['The swarm', 'Enemies are drawn from the other cards, and the further you get the rarer they are. Wave 1 fields <b>' + elgWaveCount(1) + ' enemies</b> and every wave after it is <b>10% bigger than the last</b> — compounding, with no final wave: the run only ends when your unit falls. They come as a <b>swarm</b>: each one is a mote that dies to a single hit and only scratches you, and the danger is how many of them reach you at once. <b>Every fifth wave</b> promotes part of the horde to full-size elites and sends a king to lead it.'],
+        ['The swarm', 'Enemies are drawn from the other cards, and the further you get the rarer they are. Wave 1 fields <b>' + elgWaveCount(1) + ' enemies</b> and every wave after it is <b>10% bigger than the last</b> — compounding, with no final wave: the run only ends when your unit falls. They come as a <b>swarm</b>: each one is a war-form in its own card art, small enough to die to a single hit but hitting harder than it looks, and the danger is how many of them reach you at once. <b>Every fifth wave</b> promotes part of the horde to full-size elites and sends a king to lead it.'],
         ['7★ passives', 'A 7★ hero fights with a run-changing rule of its own:<br>'
           + Object.keys(ELG_LEGEND_PASSIVES).map(k => ELG_LEGEND_PASSIVES[k].icon + ' <b>' + escapeHtml(ELG_LEGEND_PASSIVES[k].name) + '</b> — ' + escapeHtml(ELG_LEGEND_PASSIVES[k].desc)).join('<br>')],
         ['Training', 'Every correct answer trains the unit you are playing as, exactly like the Siege — those levels are kept for good.'],
@@ -32504,38 +32517,49 @@ const ELG_HERO_R = 22;           // hero radius in px
 const ELG_SHOT_SPEED = 430;      // px/second
 const ELG_CONTACT = 34;          // how close an enemy gets before it swings
 // ---- The swarm ----------------------------------------------------------
-// Ten times the horde, each body a fraction of the size and hitting for a
-// scratch. The three numbers move together on purpose: ten times as many
-// enemies at the old size is a solid wall you cannot see through, at the old
-// hit points is a wave that never ends, and at the old damage is ten times the
-// incoming DPS — because the contact ring is a fixed 34px, so shrinking the
-// bodies packs far MORE of them against the hero at once, not fewer.
-const ELG_SWARM_COUNT = 10;      // ten times as many enemies per wave
+// A horde of CHARACTERS, not a spray of specks. The four numbers below move
+// together on purpose — the swarm rework first shipped as ten times the bodies
+// at a tenth the size, and that traded every readable enemy for a field of
+// identical dots. The rebalance (v1.26.0) is a third as many bodies, each
+// three times the radius and hitting twice as hard, so the same pressure
+// arrives as a recognisable rank of war-forms you can actually see coming.
+//
+// Why they still have to move together: the contact ring is a fixed 34px, so
+// the body size decides how many of them fit against the hero at once, the
+// count decides how long a wave takes to clear, and the damage is what the
+// pile-up is worth. Change one alone and the mode breaks.
+const ELG_SWARM_COUNT = 10 / 3;  // a third of the old ×10 — wave 1 fields ~167
 const ELG_SWARM_HP    = 0.10;    // …each a tenth as tough, so a wave still ends
-const ELG_SWARM_DMG   = 0.10;    // …and hitting for a scratch (floored at 1)
-// Body radii. A boss and a king shrink by less than the swarm does: flatten
-// all three to a tenth and the horde becomes an undifferentiated field of
-// identical specks with nothing in it worth aiming at.
-const ELG_FOE_R  = 3;            // was 14 — about a tenth of the old area
-const ELG_BOSS_R = 8;            // was 19
-const ELG_KING_R = 14;           // was 26
-const ELG_SPRITE_K = 2.3;        // drawn size = radius × this, so e.r is the one source of truth
+const ELG_SWARM_DMG   = 0.20;    // …and hitting for twice the old scratch (floored at 1)
+// Body radii. A boss and a king still outweigh the swarm — they are the thing
+// worth aiming at — but the gap no longer has to do the work of making a
+// swarm member visible, because a swarm member now wears its own card art.
+const ELG_FOE_R  = 9;            // 3× the mote, about two thirds of the pre-swarm 14
+const ELG_BOSS_R = 18;           // …and a boss/king scale with it, so the ranks still read
+const ELG_KING_R = 30;
+// Drawn size = radius × this. e.r stays the ONE source of truth for size; the
+// factor is a shade over the old 2.3 because keyed card art carries empty
+// margin around its silhouette, so the visible body is smaller than its box.
+const ELG_SPRITE_K = 2.8;
 const ELG_WAVE_DEPLOY = 14;      // seconds to pour a whole wave in, however big it is
 // Two safety valves, and the game does not survive without either.
 //
 // Enemies have no separation from one another — they always overlapped, but
-// with fifty of them that was invisible. Five hundred motes all walk to the
-// same 35px contact ring and STACK there, and every body inside it swings on
-// its own timer: five hundred scratches a second, which is not a swarm, it is
+// with fifty of them that was invisible. A hundred and sixty bodies all walk
+// to the same 35px contact ring and STACK there, and every body inside it
+// swings on its own timer: a hundred scratches a second is not a swarm, it is
 // an instant loss. So the swarm shares one bucket of landed hits per second;
-// bosses and kings are outside it and always connect.
+// bosses and kings are outside it and always connect. The bucket is NOT
+// retuned for the doubled damage — that doubling is the point of the change,
+// and it lands as twice the incoming DPS at the same rate of hits.
 const ELG_SWARM_HITCAP = 26;     // swarm hits a second that actually land
 // And a ceiling on live bodies. A wave keeps its full count — the queue simply
 // waits — but the field never holds more than this, which bounds the DOM, the
-// per-frame cost and the O(shots × enemies) collision sweep. At wave 20 the
-// wave is three thousand strong; without this the frame rate dies long before
-// the hero does.
-const ELG_MAX_ALIVE = 700;
+// per-frame cost and the O(shots × enemies) collision sweep. Cut to a third
+// alongside the count: each body is now three DOM nodes carrying card art
+// rather than one bare mote, and nine times the area apiece would otherwise
+// pave the arena over.
+const ELG_MAX_ALIVE = 240;
 // ---- 6★/7★ signature projectiles ----------------------------------------
 // The same five signatures the cards carry everywhere (TCG_APEX_PATHS), flown
 // in the arena's 2D space instead of a lane. The hero is one card here, so the
@@ -32914,8 +32938,10 @@ function elgBindInput() {
 const ELG_WAVE_BASE = 50;      // a wall of them from the first wave…
 const ELG_WAVE_GROWTH = 1.10;  // +10% enemies per wave, compounding
 // …and ELG_SWARM_COUNT times that once the swarm rework landed: wave 1 fields
-// 500. The multiplier is applied here rather than baked into the base so the
-// swarm can be turned off in one place if it ever has to be.
+// about 167. The multiplier is applied here rather than baked into the base so
+// the swarm can be turned off in one place if it ever has to be — and because
+// it is fractional (10/3), elgWaveCount ROUNDS: never treat its result as the
+// exact product, and never index anything by it.
 function elgWaveCount(wave) { return Math.round(ELG_WAVE_BASE * ELG_SWARM_COUNT * Math.pow(ELG_WAVE_GROWTH, wave - 1)); }
 function elgWavePool(wave, boss) {
   const maxStars = Math.min(7, 1 + Math.floor(wave / 3));
@@ -32960,8 +32986,8 @@ function elgSpawn(spec) {
   const c = spec.card;
   const wv = r.wave;
   const king = !!spec.king;
-  // A swarm member has to die to roughly one hit, or ten times the horde is
-  // ten times the health pool and the wave-clear gate never opens. Bosses and
+  // A swarm member has to die to roughly one hit, or a multiplied horde is a
+  // multiplied health pool and the wave-clear gate never opens. Bosses and
   // kings keep their weight — they are the thing you actually fight.
   const bulk = king ? 14 : spec.boss ? 4.5 : ELG_SWARM_HP;
   const hp = Math.max(1, Math.round((15 + c.stars * 11 + wv * 5) * bulk));
@@ -32979,9 +33005,10 @@ function elgSpawn(spec) {
     dmg: Math.max(1, Math.round((2 + c.stars * 0.8 + wv * 0.38) * (king ? 3.2 : spec.boss ? 1.8 : ELG_SWARM_DMG))),
     speed: (king ? 40 : spec.boss ? 52 : 62) + Math.min(38, wv * 1.1) + c.stars * 2,
     r: king ? ELG_KING_R : spec.boss ? ELG_BOSS_R : ELG_FOE_R,
-    // A swarm member is a coloured mote: one DOM node, no card art, no health
-    // bar. At seven pixels across none of that is legible anyway, and five
-    // nodes apiece across five hundred bodies is what makes the frame drop.
+    // A swarm member wears its own card art at 3× the old mote (v1.26.0), but
+    // still carries no health bar and no status skin: the bar is a fixed 26px
+    // and would dwarf a 25px enemy, and a class toggle per body per frame
+    // across a couple of hundred of them is what makes the frame drop.
     swarm: !spec.boss && !king,
     swing: 0, stun: 0, cursed: 0, node: null, bar: null
   };
@@ -33143,9 +33170,9 @@ function elgUpdate(dt) {
 
   // Shots
   //
-  // A shot's contact radius. The +8/+13 is what keeps a swarm mote hittable:
-  // the mote's own radius is 3px, so the shot's generosity is now nearly the
-  // whole hitbox — which is exactly right, or the swarm would be untouchable.
+  // A shot's contact radius. The +8/+13 was what kept a 3px mote hittable at
+  // all; at ELG_FOE_R = 9 the body carries most of its own hitbox again and
+  // the generosity is back to being generosity rather than the whole target.
   // (elgShotRad and the apex flight live just below elgFireApex.)
   r.shots = r.shots.filter(s => {
     s.t += dt;
@@ -33163,10 +33190,10 @@ function elgUpdate(dt) {
         // impact ration is small and a lance through forty motes would spend
         // all of it before it reached the king.
         if (!e.swarm || Math.random() < 0.15) elgImpactFx(e.x, e.y);
-        // A mote does not stop a projectile. Without this the swarm is
+        // A swarm member does not stop a projectile. Without this the swarm is
         // unplayable for every hero that hasn't bought pierce: a bolt that
         // stops at the first body is one kill per shot, and one kill per shot
-        // against five hundred of them is a wave that takes six minutes.
+        // against a hundred and sixty of them is a wave that never ends.
         // Bosses and kings still catch a shot, so pierce is still worth having.
         //
         // An apex path flies on through everything regardless — carving a
@@ -33207,9 +33234,9 @@ function elgUpdate(dt) {
       if (e.swing <= 0) {
         e.swing = 1.15;
         // Bosses and kings always connect. The swarm draws from a shared
-        // bucket — see ELG_SWARM_HITCAP: without separation every mote piled
-        // into the contact disc swings, and five hundred of them landing at
-        // once is not difficulty, it is a coin flip you always lose.
+        // bucket — see ELG_SWARM_HITCAP: without separation every body piled
+        // into the contact disc swings, and a hundred and sixty of them
+        // landing at once is not difficulty, it is a coin flip you always lose.
         if (!e.swarm) elgHurt(e.dmg, e);
         else if (r.swarmHits >= 1) { r.swarmHits -= 1; elgHurt(e.dmg, e); }
       }
@@ -33733,19 +33760,24 @@ function elgRender() {
   r.enemies.forEach(e => {
     if (!e.node) {
       const d = document.createElement('div');
+      const url = tcgAvatarUrl(e.card.id);
       if (e.swarm) {
-        // One node, a coloured mote, sized from e.r so the body you can be hit
-        // by and the body you can see are the same thing. No card art and no
-        // health bar: at seven pixels neither is legible, the bar is a fixed
-        // 26px and would dwarf its own enemy, and five nodes apiece across
-        // five hundred bodies is exactly what drops the frame rate.
+        // A swarm member is a CHARACTER, not a coloured dot (v1.26.0): the same
+        // keyed card art a boss wears, sized from e.r so the body you can be
+        // hit by and the body you can see are the same thing. Still no health
+        // bar and no star7 class — the bar is a fixed 26px and would dwarf a
+        // 25px enemy, and the 7★ size rule outweighs the swarm's own, so
+        // adding it would blow a rank-and-file body up to legend size.
+        // The element colour stays on the node as --mote, and the CSS spends
+        // it as the glow behind the silhouette.
         const efx = TCG_ELEM_FX[e.card.element] || TCG_ELEM_FX.flame;
         d.className = 'elg-unit foe swarm';
         d.style.setProperty('--sz', (e.r * ELG_SPRITE_K).toFixed(1) + 'px');
         d.style.setProperty('--mote', efx.a);
         d.style.setProperty('--moteb', efx.b);
+        d.innerHTML = '<span class="elg-sprite">' + (url ? '<img alt="">' : e.card.em) + '</span>';
+        if (url) elgSpriteArt(d.querySelector('img'), url);
       } else {
-        const url = tcgAvatarUrl(e.card.id);
         d.className = 'elg-unit foe' + (e.king ? ' king' : e.boss ? ' boss' : '') + (e.card.stars >= 7 ? ' star7' : '');
         d.innerHTML = '<span class="elg-sprite">' + (url ? '<img alt="">' : e.card.em) + '</span>'
           + '<i class="elg-ehp"><b></b></i>';
