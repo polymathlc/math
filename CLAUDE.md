@@ -504,6 +504,25 @@ app. `dg*` is the prefix; the page is `#page-diagnostic`, admin-only.
   What a skip must not do is hide — `missing` is reported beside every bar.
   Students who never sat the paper are excluded from the class figures entirely
   and hidden behind the *Show students who haven't sat it* toggle.
+- **📊 The marks record** (`wsScoreTableHtml`, v1.31.0) is a page at the back of
+  the exported paper: one row per question under the objective it tests, a ✓/✗
+  pair, a marks box, an objective subtotal and a grand total. **One mark per
+  question, subtotalled per objective** — the same arithmetic `dgReportModel`
+  does, so a teacher marking on the grid and a teacher reading the on-screen
+  report cannot disagree.
+  - `opts.scoreTable` on `wsBuildDocumentHtml` is the ONLY diagnostic-shaped
+    thing the worksheet builder knows about, and it is a plain
+    `[{ code, text, items: [{ n, title }] }]`. An ordinary worksheet passes
+    nothing and the page is not emitted.
+  - **The rows are numbered off the questions ACTUALLY PRINTED**
+    (`dgScoreSegments` walks the resolved question list, not `questionIds`).
+    `wsSavedQuestions` drops an id whose question has left the bank, so
+    numbering from the test's own list puts the grid out of step with the paper
+    the moment one goes missing.
+  - The flag (`includeScoreTable`) is a property of the TEST, so 🖨️ Print from
+    📄 My Worksheets honours it too — the same test must not come out
+    differently depending on which button was pressed. A test saved before the
+    field existed reads a missing flag as ON, like the other extras.
 - **`dgReportModel` is the single source of the numbers.** The table, the
   per-objective bars, the written breakdown, the CSV and the printed report are
   all rendered from that one object, so no two of them can disagree.

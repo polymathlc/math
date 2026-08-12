@@ -13748,6 +13748,24 @@ function wsPrintCss() {
     .ws-ak-guide { font-size: 10pt; color: #4a453f; white-space: pre-wrap; line-height: 1.5; }
     .ws-ak-img { display: block; max-width: 100%; max-height: 80mm; margin-top: 2mm; }
     .ws-ak-none { font-size: 10pt; color: #a09a91; }
+    /* 📊 Marks record — the diagnostic's marking grid (see wsScoreTableHtml) */
+    .ws-sc h2 { font-size: 16pt; margin: 0 0 2mm; }
+    .ws-sc-note { font-size: 9pt; color: #6b665e; line-height: 1.6; margin: 0 0 5mm; }
+    .ws-sc-who { display: flex; gap: 10mm; flex-wrap: wrap; font-size: 11pt; margin-bottom: 6mm; }
+    .ws-sc-who span { border-bottom: 0.7pt solid #514d47; min-width: 55mm; padding-bottom: 1mm; }
+    .ws-sc-tbl { width: 100%; border-collapse: collapse; font-size: 10.5pt; }
+    .ws-sc-tbl th, .ws-sc-tbl td { border: 0.7pt solid #cfc8bc; padding: 2.2mm 2.5mm; text-align: left; vertical-align: middle; }
+    .ws-sc-tbl thead th { background: #f1eee9; font-size: 9.5pt; font-weight: 700; }
+    .ws-sc-tbl tr { break-inside: avoid; page-break-inside: avoid; }
+    .ws-sc-n { width: 10mm; text-align: center; font-weight: 700; }
+    .ws-sc-mark { width: 24mm; text-align: center; white-space: nowrap; }
+    .ws-sc-marks { width: 26mm; text-align: center; white-space: nowrap; }
+    .ws-sc-tick { display: inline-block; width: 6mm; height: 6mm; border: 1pt solid #514d47; margin: 0 1.2mm; vertical-align: middle; }
+    .ws-sc-box { display: inline-block; width: 11mm; border-bottom: 1pt solid #514d47; }
+    .ws-sc-lo td { background: #f1eee9; font-size: 10pt; }
+    .ws-sc-lo b { font-family: 'Courier New', monospace; }
+    .ws-sc-sub td { font-weight: 700; font-size: 10pt; }
+    .ws-sc-total td { font-weight: 700; font-size: 12pt; background: #f1eee9; }
     /* On-screen preview only: show the paper edges, and mark where each page
        break will fall so the preview is readable as pages, not one long strip. */
     @media screen {
@@ -13769,6 +13787,49 @@ function wsPrintCss() {
       .ws-noprint { display: none !important; }
     }`;
 }
+// 📊 The marks record — a page of its own at the back of a DIAGNOSTIC sheet,
+// carrying one row per question grouped under the learning objective it tests,
+// a tick/cross pair, a marks box, an objective subtotal and a grand total.
+// Marking a paper on it produces the same numbers the on-screen report shows:
+// ONE MARK PER QUESTION, subtotalled per objective — the report scores each
+// question 0–1 and each segment out of its own question count, so a teacher
+// reading the grid and a teacher reading the report can never disagree.
+//
+// `segments` is [{ code, text, items: [{ n, title }] }] and comes from the
+// DIAGNOSTIC page, which is the only thing that knows what a segment is; an
+// ordinary worksheet passes nothing and gets no grid. `n` is the question's
+// number on the sheet, so the grid reads in the same order as the paper.
+function wsScoreTableHtml(segments, opts) {
+  const segs = (segments || []).filter(s => s && (s.items || []).length);
+  if (!segs.length) return "";
+  const total = segs.reduce((n, s) => n + s.items.length, 0);
+  const rows = segs.map(s => {
+    const head = `<tr class="ws-sc-lo"><td colspan="4"><b>${escapeHtml(s.code || "Unfiled")}</b> — ${escapeHtml(s.text || "")}</td></tr>`;
+    const items = s.items.map(it => `<tr>
+      <td class="ws-sc-n">${it.n}</td>
+      <td>${escapeHtml(it.title || "Question")}</td>
+      <td class="ws-sc-mark"><span class="ws-sc-tick"></span><span class="ws-sc-tick"></span></td>
+      <td class="ws-sc-marks"><span class="ws-sc-box"></span> / 1</td>
+    </tr>`).join("");
+    return head + items + `<tr class="ws-sc-sub">
+      <td colspan="3">${escapeHtml(s.code || "Unfiled")} — objective total</td>
+      <td class="ws-sc-marks"><span class="ws-sc-box"></span> / ${s.items.length}</td>
+    </tr>`;
+  }).join("");
+  const who = opts && opts.fields === false ? "" : `<div class="ws-sc-who">Name: <span></span> Date: <span></span></div>`;
+  return `<section class="ws-page ws-sc">
+    <h2>📊 Marks record</h2>
+    <p class="ws-sc-note">Tick ✓ or ✗ for each question and write the mark beside it — one mark per question, the same way the on-screen diagnostic report scores it. The objective totals underneath are the strengths and weaknesses: an objective scored well below the others is the one to reteach.</p>
+    ${who}
+    <table class="ws-sc-tbl">
+      <thead><tr><th class="ws-sc-n">Q</th><th>What it tests</th><th class="ws-sc-mark">✓&nbsp;&nbsp;✗</th><th class="ws-sc-marks">Marks</th></tr></thead>
+      <tbody>${rows}
+        <tr class="ws-sc-total"><td colspan="3">TOTAL</td><td class="ws-sc-marks"><span class="ws-sc-box"></span> / ${total}</td></tr>
+        <tr class="ws-sc-total"><td colspan="3">Percentage</td><td class="ws-sc-marks"><span class="ws-sc-box"></span> %</td></tr>
+      </tbody>
+    </table>
+  </section>`;
+}
 async function wsBuildDocumentHtml(questions, title, opts) {
   let qrMap = {};
   if (opts.withQr) { try { qrMap = await buildQrMap(questions); } catch (e) { console.warn("qr map failed", e); } }
@@ -13781,9 +13842,13 @@ async function wsBuildDocumentHtml(questions, title, opts) {
   }
   // One table row per whole-page section, so the forced page breaks sit between
   // ROWS and the copyright <tfoot> keeps repeating (see wsFooterHtml).
+  // The marks record sits between the questions and the answer key: the teacher
+  // marks from it, and the answer-key page is often left unprinted.
+  const scoreTable = opts.scoreTable ? wsScoreTableHtml(opts.scoreTable, opts) : "";
   const sections = [
     ...(opts.cover ? [wsCoverHtml(title, `${questions.length} question${questions.length > 1 ? "s" : ""}`, !opts.fields, sheetQr)] : []),
     `<section class="ws-page">${wsHeaderHtml(title, !opts.fields, opts.cover ? "" : sheetQr)}${questions.map((q, i) => wsQuestionChunkHtml(q, i + 1, qrMap[q.id] || "")).join("")}</section>`,
+    ...(scoreTable ? [scoreTable] : []),
     ...(opts.withAnswers ? [wsAnswerKeyHtml(questions)] : []),
   ];
   const body = `<table class="ws-doc">
@@ -14301,8 +14366,14 @@ async function openSavedWorksheet(id, autoPrint) {
   if (missing) toast(`${missing} question(s) are no longer in the bank — printing the rest`, "");
   // The sheet QR only exists for a SAVED worksheet — it is a link to that
   // worksheet's overview page, and an unsaved selection has no page to link to.
+  //
+  // A DIAGNOSTIC printed from here carries its 📊 marks record too: the flag is
+  // a property of the test, not of the page it was printed from, so the same
+  // test must not come out differently depending on which button was pressed.
+  const scoreTable = (dgIsTest(ws) && ws.includeScoreTable !== false)
+    ? dgTestScoreSegments(ws, questions) : null;
   await wsOpenDocument(questions, ws.title || "Math Worksheet",
-    Object.assign(mwPrintOptions(), { autoPrint, sheetUrl: worksheetShareUrl(ws) }));
+    Object.assign(mwPrintOptions(), { autoPrint, sheetUrl: worksheetShareUrl(ws), scoreTable }));
 }
 // Practise a worksheet on screen: the practice queue becomes this worksheet's
 // questions, in its own order. `prioritizeReviewQuestions` is deliberately not
@@ -20325,7 +20396,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.30.0 · 2026-08-11";
+const APP_VERSION = "v1.31.0 · 2026-08-11";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
@@ -37972,7 +38043,7 @@ let dgDraftTitle = "";
 let dgEditingId = null;           // set while an existing test is being re-edited
 const dgOpenLos = new Set();
 let dgPicked = [];                // [{ id, lo }] in the order they were ticked
-let dgOpts = { cover: true, fields: true, withAnswers: false, withQr: true, shareSolutions: false };
+let dgOpts = { cover: true, fields: true, withAnswers: false, withQr: true, shareSolutions: false, scoreTable: true };
 let dgReportId = null;
 let dgReportData = null;          // { testId, rows: [...], error, at }
 let dgReportBusy = false;
@@ -38092,6 +38163,7 @@ async function dgSaveTest() {
     includeFields: !!dgOpts.fields,
     includeAnswers: !!dgOpts.withAnswers,
     includeQr: !!dgOpts.withQr,
+    includeScoreTable: !!dgOpts.scoreTable,
     shareSolutions: !!dgOpts.shareSolutions,
     ownerUid: currentUser.uid,
     ownerName: currentUser.name || "",
@@ -38130,6 +38202,9 @@ function dgEditTest(id) {
     fields: test.includeFields !== false,
     withAnswers: !!test.includeAnswers,
     withQr: test.includeQr !== false,
+    // Tests saved before the marks record existed have no flag at all — default
+    // it ON, the same way the other extras read a missing field as their default.
+    scoreTable: test.includeScoreTable !== false,
     shareSolutions: !!test.shareSolutions
   };
   dgPicked = [];
@@ -38167,6 +38242,35 @@ function dgTestPrintOpts(test) {
     withSheetQr: true
   };
 }
+// The 📊 marks record's segments, in the shape wsScoreTableHtml wants and
+// NUMBERED OFF THE QUESTIONS ACTUALLY PRINTED. wsSavedQuestions drops an id
+// whose question has left the bank, so numbering from the test's own id list
+// would put the grid out of step with the paper the moment one goes missing.
+// `loOf` maps a question id to the objective it sits under.
+function dgScoreSegments(loOf, questions) {
+  const out = [], seen = {};
+  (questions || []).forEach((q, i) => {
+    const loId = (loOf && loOf[q.id]) || "";
+    const lo = SYL_LO_BY_ID[loId] || null;
+    const key = loId || "_";
+    let row = seen[key];
+    if (!row) {
+      row = seen[key] = {
+        code: loId || "Unfiled",
+        text: lo ? lo.text : (loId ? "This objective is no longer in the syllabus." : "Questions with no learning objective on them."),
+        items: []
+      };
+      out.push(row);
+    }
+    row.items.push({ n: i + 1, title: q.title || "Question" });
+  });
+  return out;
+}
+function dgTestScoreSegments(test, questions) {
+  const loOf = {};
+  dgTestSegments(test).forEach(seg => seg.items.forEach(it => { loOf[it.id] = seg.loId; }));
+  return dgScoreSegments(loOf, questions);
+}
 // Export the test as a worksheet — the SAME document the worksheet pages print,
 // so a diagnostic on paper is byte-for-byte an ordinary sheet with the QR codes
 // and answer key the teacher chose.
@@ -38178,13 +38282,23 @@ async function dgPrintTest(id, autoPrint) {
   const missing = (test.questionIds || []).length - questions.length;
   if (missing) toast(`${missing} question(s) are no longer in the bank — printing the rest`, "");
   await wsOpenDocument(questions, test.title || "Diagnostic Test",
-    Object.assign(dgTestPrintOpts(test), { autoPrint, sheetUrl: worksheetShareUrl(test) }));
+    Object.assign(dgTestPrintOpts(test), {
+      autoPrint,
+      sheetUrl: worksheetShareUrl(test),
+      scoreTable: test.includeScoreTable !== false ? dgTestScoreSegments(test, questions) : null
+    }));
 }
 async function dgPrintDraft(autoPrint) {
   const questions = dgDraftQuestions();
   if (!questions.length) { toast("Pick some questions first", "error"); return; }
+  const loOf = {};
+  dgPicked.forEach(p => { loOf[p.id] = p.lo || ""; });
   await wsOpenDocument(questions, dgDraftTitleValue(),
-    Object.assign({}, dgOpts, { withAnswers: !!dgOpts.withAnswers && canManageQuestions(), autoPrint }));
+    Object.assign({}, dgOpts, {
+      withAnswers: !!dgOpts.withAnswers && canManageQuestions(),
+      autoPrint,
+      scoreTable: dgOpts.scoreTable ? dgScoreSegments(loOf, questions) : null
+    }));
 }
 function dgPractiseDraft() {
   const questions = dgDraftQuestions();
@@ -38392,6 +38506,7 @@ function dgBuildHtml() {
       <label title="Print the blank Name / Date / Class lines"><input type="checkbox" data-dgopt="fields"${dgOpts.fields ? " checked" : ""}> ✍️ Name / Date / Class</label>
       <label title="Print the answer key on its own page at the back. Don't hand this copy to the class."><input type="checkbox" data-dgopt="withAnswers"${dgOpts.withAnswers ? " checked" : ""}> 🔑 Answer key page</label>
       <label title="Print a QR code beside each question so a student can scan it and have their paper working AI-marked — which is what puts their result into this report"><input type="checkbox" data-dgopt="withQr"${dgOpts.withQr ? " checked" : ""}> 📱 QR per question</label>
+      <label title="A page at the back listing every question under the objective it tests, with a ✓/✗ pair, a marks box, an objective total and a grand total — mark the paper on it and the objective totals are the pupil's strengths and weaknesses"><input type="checkbox" data-dgopt="scoreTable"${dgOpts.scoreTable ? " checked" : ""}> 📊 Marks record table</label>
       <label title="Whether students opening the test's overview page may see the worked solutions. Off by default — it is a test."><input type="checkbox" data-dgopt="shareSolutions"${dgOpts.shareSolutions ? " checked" : ""}> 🎬 Students see solutions afterwards</label>
     </div>
     <div class="dg-actions">
