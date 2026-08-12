@@ -610,18 +610,18 @@ a { color: var(--primary); }
 .pad-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 .pad-head h2 { font-size: 1rem; font-weight: 700; }
 .pad-hint { font-size: 0.78rem; color: var(--text-muted); margin-left: auto; }
-.toolbar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 7px 10px; background: var(--surface-alt); border: 1px solid var(--border); border-bottom: none; border-radius: var(--radius-md) var(--radius-md) 0 0; }
+.toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 12px; background: var(--surface-alt); border: 1px solid var(--border); border-bottom: none; border-radius: var(--radius-md) var(--radius-md) 0 0; }
 .worksheet-card, .pad-head, .toolbar, .practice-actions { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .typed-working textarea, .final-answer input { user-select: text; -webkit-user-select: text; touch-action: manipulation; }
-.tool-group { display: flex; align-items: center; gap: 5px; }
-.tool-divider { width: 1px; align-self: stretch; background: var(--border); margin: 2px 3px; }
-.tool-btn { width: 32px; height: 32px; border-radius: var(--radius-sm); border: 1.5px solid var(--border); background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.98rem; color: var(--text); transition: all var(--transition); padding: 0; touch-action: manipulation; }
+.tool-group { display: flex; align-items: center; gap: 6px; }
+.tool-divider { width: 1px; align-self: stretch; background: var(--border); margin: 2px 4px; }
+.tool-btn { width: 38px; height: 38px; border-radius: var(--radius-sm); border: 1.5px solid var(--border); background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.05rem; color: var(--text); transition: all var(--transition); padding: 0; touch-action: manipulation; }
 .tool-btn:hover { border-color: var(--text-light); }
 .tool-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
-.swatch { width: 22px; height: 22px; border-radius: 50%; cursor: pointer; border: 2px solid #fff; box-shadow: 0 0 0 1.5px var(--border); transition: transform var(--transition); }
+.swatch { width: 26px; height: 26px; border-radius: 50%; cursor: pointer; border: 2px solid #fff; box-shadow: 0 0 0 1.5px var(--border); transition: transform var(--transition); }
 .swatch:hover { transform: scale(1.12); }
 .swatch.active { box-shadow: 0 0 0 2px var(--primary); transform: scale(1.12); }
-.width-range { width: 72px; accent-color: var(--primary); }
+.width-range { width: 90px; accent-color: var(--primary); }
 .worksheet-surface { position: relative; min-height: 680px; border: 1px solid var(--border); border-radius: 0 0 var(--radius-md) var(--radius-md); overflow: hidden; background: #fff; background-image: linear-gradient(rgba(74,124,89,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(74,124,89,0.07) 1px, transparent 1px); background-size: 28px 28px; touch-action: none; overscroll-behavior: contain; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .worksheet-surface * { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .worksheet-content { position: relative; z-index: 1; min-height: 680px; padding: 18px 20px 26px; pointer-events: none; user-select: none; -webkit-user-select: none; }
@@ -634,11 +634,9 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
   .worksheet-card { padding: 12px; }
   .worksheet-surface, .worksheet-content { min-height: min(72vh, 760px); }
   .worksheet-content { padding: 16px 18px 24px; }
-  /* Bigger than the desktop sizes on purpose — a finger needs a target the
-     mouse does not, so the compact bar only tightens where there is a cursor. */
-  .toolbar { gap: 6px; padding: 8px; }
-  .tool-btn { width: 42px; height: 42px; }
-  .swatch { width: 28px; height: 28px; }
+  .toolbar { gap: 6px; padding: 9px; }
+  .tool-btn { width: 44px; height: 44px; }
+  .swatch { width: 30px; height: 30px; }
 }
 .canvas-empty { position: absolute; inset: auto 18px 18px auto; z-index: 3; display: flex; align-items: flex-end; justify-content: flex-end; pointer-events: none; color: var(--text-light); font-size: 0.95rem; gap: 8px; text-align: right; padding: 0; max-width: min(360px, calc(100% - 36px)); }
 /* Text boxes on the worksheet */
@@ -1027,45 +1025,17 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
    selection. The tiles need room, so the page widens when they are showing. */
 #page-bank.bank-wide { max-width: 1560px; }
 
-.bank-filter-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.bank-filter-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
 .bank-filter-bar select, .bank-filter-bar input {
-  font-family: inherit; font-size: 0.82rem; padding: 7px 9px;
+  font-family: inherit; font-size: 0.85rem; padding: 9px 11px;
   border: 1.5px solid var(--border); border-radius: var(--radius-sm);
   background: var(--surface); color: var(--text);
 }
-.bank-filter-bar .bank-search { width: auto; flex: 1; min-width: 170px; margin-bottom: 0; font-size: 0.82rem; padding: 7px 9px; border-radius: var(--radius-sm); }
+.bank-filter-bar .bank-search { width: auto; flex: 1; min-width: 170px; margin-bottom: 0; font-size: 0.85rem; padding: 9px 11px; border-radius: var(--radius-sm); }
 .bank-filter-bar select:focus, .bank-filter-bar input:focus { outline: none; border-color: var(--border-focus); }
 
-/* ── The class-day dial ──────────────────────────────────────────────────────
-   M T W T F S. Sunday is deliberately absent — the centre runs no class on it,
-   so a seventh circle would be one nobody could ever press. Press a day and the
-   bank narrows to the questions added on it, laid out under the class period
-   each one was added in. Press it again to come back to the whole bank.
-   The pastel is the day's identity and is handed in as --day, so ONE rule
-   paints all six and a colour only ever has to change in BANK_DAYS. */
-.bank-days { display: inline-flex; align-items: center; gap: 5px; flex-wrap: wrap; }
-.bank-day {
-  width: 30px; height: 30px; padding: 0; border-radius: 50%;
-  display: inline-flex; align-items: center; justify-content: center;
-  border: 1.5px solid rgba(0,0,0,0.06); background: var(--day, #eee);
-  font-family: inherit; font-size: 0.8rem; font-weight: 700; color: #4a4540;
-  cursor: pointer; transition: transform var(--transition), box-shadow var(--transition);
-}
-.bank-day:hover { transform: translateY(-1px); }
-.bank-day.active { border-color: var(--text); box-shadow: inset 0 0 0 2px #fff, var(--shadow-sm); transform: translateY(-1px); }
-
-/* The band that heads each class period. Coloured so the eye lands on the
-   period before it reads a word — which is the whole point of the day view. */
-.bank-band { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 22px 0 12px; padding: 11px 18px; border: 1px solid rgba(0,0,0,0.06); border-radius: var(--radius-md); background: var(--band, #f0efec); }
-.bank-band:first-child { margin-top: 2px; }
-.bank-band-icon { font-size: 1.05rem; line-height: 1; }
-.bank-band-name { font-size: 0.95rem; font-weight: 700; color: #3b3733; }
-.bank-band-time { font-family: 'Space Mono', monospace; font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(0,0,0,0.45); }
-.bank-band-count { margin-left: auto; font-size: 0.78rem; font-weight: 600; color: rgba(0,0,0,0.5); }
-.bank-band-body.as-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 18px; }
-
 .view-toggle { display: inline-flex; margin-left: auto; border: 1.5px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--surface); }
-.view-toggle button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 11px; border: none; background: transparent; font-family: inherit; font-size: 0.82rem; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: all var(--transition); }
+.view-toggle button { display: inline-flex; align-items: center; gap: 7px; padding: 9px 15px; border: none; background: transparent; font-family: inherit; font-size: 0.84rem; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: all var(--transition); }
 .view-toggle button svg { width: 15px; height: 15px; }
 .view-toggle button + button { border-left: 1.5px solid var(--border); }
 .view-toggle button:hover { color: var(--text); background: var(--bg); }
@@ -1129,9 +1099,8 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .qb-hover-hint { flex: 0 0 auto; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); font-size: 0.72rem; color: var(--text-muted); }
 
 @media (max-width: 640px) {
-  .bank-list.as-tiles, .bank-band-body.as-tiles { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .bank-list.as-tiles { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
   .view-toggle { margin-left: 0; }
-  .bank-band { padding: 9px 13px; margin: 16px 0 10px; }
 }
 
 /* ========== OVERLAYS ========== */
@@ -4219,16 +4188,13 @@ body.lore-reading { overflow: hidden; }
               <span class="chip diff student-only" id="qDifficulty" title="Question difficulty rating">—</span>
               <span class="q-counter" id="qCounter">0 / 0</span>
             </div>
-            <!-- Short labels on purpose: this bar sits beside the question's
-                 own chips, and six spelled-out buttons wrapped onto a second
-                 row on every phone. The words live in the tooltips. -->
             <div class="q-nav">
-              <button class="btn btn-primary student-only" id="aiPracticeBtn" title="AI practice — questions you got wrong, then questions matched to your rating">🤖 AI</button>
-              <button class="btn btn-ghost student-only" id="videoOnlyBtn" title="Video only — practise just the questions that have a video explanation" aria-pressed="false">🎬</button>
-              <button class="btn btn-ghost" id="flagQuestionBtn" title="Flag this question for the teacher">🚩</button>
-              <button class="btn btn-ghost" id="practicePrintBtn" title="Print / Save PDF">🖨️</button>
-              <button class="btn btn-ghost" id="prevBtn" title="Previous question">‹</button>
-              <button class="btn btn-ghost" id="nextBtn" title="Next question">›</button>
+              <button class="btn btn-primary student-only" id="aiPracticeBtn" title="Practice questions you got wrong, then questions matched to your rating">🤖 AI practice</button>
+              <button class="btn btn-ghost student-only" id="videoOnlyBtn" title="Practise only questions that have a video explanation" aria-pressed="false">🎬 Video only</button>
+              <button class="btn btn-ghost" id="flagQuestionBtn">Flag</button>
+              <button class="btn btn-ghost" id="practicePrintBtn">Print / PDF</button>
+              <button class="btn btn-ghost" id="prevBtn">‹ Prev</button>
+              <button class="btn btn-ghost" id="nextBtn">Next ›</button>
             </div>
           </div>
           <div class="ai-practice-bar student-only" id="aiPracticeBar" style="display:none;"></div>
@@ -4452,9 +4418,6 @@ body.lore-reading { overflow: hidden; }
       <div class="page-head"><h3>Question Bank</h3><p>All questions your students will practise. Switch to the grid to pick questions by eye, then build a worksheet from them. <span id="bankCount"></span></p></div>
       <div class="card card-pad">
         <div class="bank-filter-bar">
-          <!-- M T W T F S — the six days the centre teaches. Built by
-               renderBankDays() so the pastels live in one table (BANK_DAYS). -->
-          <div class="bank-days" id="bankDays" role="group" aria-label="Filter by the day a question was added"></div>
           <input id="bankSearch" type="search" class="bank-search" autocomplete="off"
             placeholder="Search questions by title, level, topic, concept, answer or text…">
           <select id="bankFilterLevel"><option value="">All levels</option></select>
@@ -4687,26 +4650,26 @@ body.lore-reading { overflow: hidden; }
         <div class="ws-extras">
           <span class="ws-extras-label">Extras</span>
           <label title="Add a Polymath cover page carrying the worksheet title and the student's name / date as page 1">
-            <input type="checkbox" id="wsIncludeCover"> 📄 Cover
+            <input type="checkbox" id="wsIncludeCover"> 📄 Cover page
           </label>
           <label title="Print the blank Name / Date / Class lines. Turn it off for a clean sheet with no student fields at all.">
-            <input type="checkbox" id="wsIncludeFields" checked> ✍️ Name fields
+            <input type="checkbox" id="wsIncludeFields" checked> ✍️ Name / Date / Class
           </label>
           <label title="Print the answer key on its own page at the back. Don't hand this copy to the class.">
-            <input type="checkbox" id="wsIncludeAnswers"> 🔑 Answer key
+            <input type="checkbox" id="wsIncludeAnswers"> 🔑 Answer key page
           </label>
           <label title="Print a QR code beside each question so a student can scan it, AI-mark their paper working and watch the solution">
-            <input type="checkbox" id="wsIncludeQr" checked> 📱 QR
+            <input type="checkbox" id="wsIncludeQr" checked> 📱 QR per question
           </label>
           <label title="Saved with the worksheet: whether students opening its overview page may see the worked solutions and videos, or only the questions">
-            <input type="checkbox" id="wsShareSolutions" checked> 🎬 Share solutions
+            <input type="checkbox" id="wsShareSolutions" checked> 🎬 Students see solutions on the overview page
           </label>
         </div>
 
         <div class="ws-actions-bar">
-          <button class="btn btn-ghost" id="wsPreviewBtn" title="Preview — see the sheet before you commit paper to it">👁️ Preview</button>
-          <button class="btn btn-ghost" id="wsSaveBtn" title="Save this worksheet so you (and your students) can reprint or practise it later">💾 Save</button>
-          <button class="btn btn-primary" id="wsPrintBtn" title="Print / Save PDF">🖨️ Print</button>
+          <button class="btn btn-ghost" id="wsPreviewBtn" title="See the sheet before you commit paper to it">👁️ Preview</button>
+          <button class="btn btn-ghost" id="wsSaveBtn" title="Save this worksheet so you (and your students) can reprint or practise it later">💾 Save worksheet</button>
+          <button class="btn btn-primary" id="wsPrintBtn">🖨️ Print / Save PDF</button>
           <button class="btn btn-blue" id="wsPracticeBtn" title="Practise these questions on screen, in this order">✍️ Practise</button>
         </div>
       </div>
@@ -4717,11 +4680,11 @@ body.lore-reading { overflow: hidden; }
       <div class="page-head"><h3>📄 My Worksheets</h3><p>Every worksheet you've saved. Reprint it, practise it on screen, or change which questions are on it. <b>🎬 Solutions &amp; videos</b> opens a shareable page with every answer key and video on the sheet, and a player that works through all the videos in order. <span id="mwCount"></span></p></div>
       <div class="mw-print-options">
         <div class="mw-print-options-title">Printing options</div>
-        <label title="Print a Polymath cover page in front of the questions"><input type="checkbox" id="mwIncludeCover"> 📄 Cover</label>
-        <label title="Print the blank Name / Date / Class lines at the top of the sheet"><input type="checkbox" id="mwIncludeFields" checked> ✍️ Name fields</label>
-        <label class="admin-only" title="Print the answer key on its own page at the back"><input type="checkbox" id="mwIncludeAnswers"> 🔑 Answer key</label>
+        <label title="Print a Polymath cover page in front of the questions"><input type="checkbox" id="mwIncludeCover"> 📄 Cover page when reprinting</label>
+        <label title="Print the blank Name / Date / Class lines at the top of the sheet"><input type="checkbox" id="mwIncludeFields" checked> ✍️ Name / Date / Class fields</label>
+        <label class="admin-only" title="Print the answer key on its own page at the back"><input type="checkbox" id="mwIncludeAnswers"> 🔑 Answer key page</label>
         <label title="Print a QR code beside each question for AI marking"><input type="checkbox" id="mwIncludeQr" checked> 📱 QR per question</label>
-        <label title="Print one QR for the WHOLE sheet — it opens the overview page carrying every question, video and answer key"><input type="checkbox" id="mwIncludeSheetQr" checked> 📄 One sheet QR</label>
+        <label title="Print one QR for the WHOLE sheet — it opens the overview page carrying every question, video and answer key"><input type="checkbox" id="mwIncludeSheetQr" checked> 📄 One QR for the whole sheet</label>
       </div>
       <div class="ws-saved-grid" id="savedWsGrid"></div>
     </div>
@@ -7795,97 +7758,6 @@ function setBankSort(value) {
   try { localStorage.setItem(BANK_SORT_KEY, bankSort); } catch (_) {}
   renderBank();
 }
-
-// =====================================================================
-// THE CLASS-DAY DIAL — M T W T F S on the bank's toolbar
-// ---------------------------------------------------------------------
-// A question belongs to the lesson it was written for, and the only stamp the
-// bank has ever carried is `createdAt`. So the dial reads that: press Monday
-// and you get everything added on a Monday, laid out under the class period of
-// the day it was added in.
-//   • SUNDAY HAS NO CIRCLE. The centre runs no class on it, so a seventh button
-//     would be one nobody could ever usefully press. `d` is JS `getDay()`, so
-//     leaving Sunday out of the table is the whole implementation of that.
-//   • A QUESTION WITH NO USABLE DATE BELONGS TO NO DAY. `parseTimeMs` answers 0
-//     for a missing or unreadable stamp, and `new Date(0)` is a Thursday in
-//     1970 — filing the bank's oldest imports under Thursday would be a lie the
-//     teacher could not see through. `_qAddedOn` returns null instead and the
-//     day filter drops them.
-//   • The pastel is the day's identity: it paints the circle, and the periods
-//     carry their own so the bands read as bands and not as more questions.
-// =====================================================================
-const BANK_DAY_KEY = "mathBankDay";
-const BANK_DAYS = [
-  { d: 1, ltr: "M", name: "Monday",    tint: "#ffd9e2" },
-  { d: 2, ltr: "T", name: "Tuesday",   tint: "#ffe3c9" },
-  { d: 3, ltr: "W", name: "Wednesday", tint: "#fbf0bd" },
-  { d: 4, ltr: "T", name: "Thursday",  tint: "#cfeeda" },
-  { d: 5, ltr: "F", name: "Friday",    tint: "#d2e7fb" },
-  { d: 6, ltr: "S", name: "Saturday",  tint: "#e2d9fb" }
-];
-// The class periods one day is cut into. `from` is the first hour that belongs
-// to the band and the NEXT band's `from` ends it, so every hour of the day
-// lands in exactly one band and nothing can fall through the gaps.
-const BANK_PERIODS = [
-  { key: "morning", icon: "🌅", name: "Morning",         from: 0,  when: "before 12 pm", tint: "#fdecc9" },
-  { key: "noon",    icon: "☀️", name: "Afternoon",       from: 12, when: "12 pm – 4 pm", tint: "#ffdfd4" },
-  { key: "late",    icon: "🌇", name: "Late afternoon",  from: 16, when: "4 pm – 7 pm",  tint: "#dbebd0" },
-  { key: "evening", icon: "🌙", name: "Evening",         from: 19, when: "after 7 pm",   tint: "#dadcf5" }
-];
-let bankDay = (() => {
-  try { const v = parseInt(localStorage.getItem(BANK_DAY_KEY), 10); return BANK_DAYS.some(x => x.d === v) ? v : 0; }
-  catch (_) { return 0; }
-})();
-
-// The day a question was added, or null when it carries no readable stamp.
-function _qAddedOn(q) {
-  const ms = parseTimeMs(q && q.createdAt);
-  return ms ? new Date(ms) : null;
-}
-// Which band an hour falls in. Walking the table forwards means the LAST entry
-// whose `from` has been passed wins, so the bands never need an end hour.
-function bankPeriodFor(date) {
-  let out = BANK_PERIODS[0];
-  BANK_PERIODS.forEach(p => { if (date.getHours() >= p.from) out = p; });
-  return out;
-}
-function bankDayInfo() { return BANK_DAYS.find(x => x.d === bankDay) || null; }
-
-// Pressing the day you are already on comes back to the whole bank — the dial
-// is a toggle, so it never needs a seventh "all days" button beside it.
-function setBankDay(day) {
-  const d = parseInt(day, 10) || 0;
-  bankDay = (d === bankDay || !BANK_DAYS.some(x => x.d === d)) ? 0 : d;
-  try { localStorage.setItem(BANK_DAY_KEY, String(bankDay)); } catch (_) {}
-  renderBank();
-}
-function renderBankDays() {
-  const wrap = $("bankDays");
-  if (!wrap) return;
-  wrap.innerHTML = BANK_DAYS.map(d =>
-    `<button type="button" class="bank-day${d.d === bankDay ? " active" : ""}" data-bank-day="${d.d}"
-       style="--day:${d.tint};" aria-pressed="${d.d === bankDay}"
-       title="${escapeHtml(d.name)} — the questions added on a ${escapeHtml(d.name)}, grouped by the class period. Press again for every day.">${d.ltr}</button>`
-  ).join("");
-}
-// Split what is on screen into the class periods, in clock order, dropping a
-// period nobody taught in. Order INSIDE a band is whatever the sort select
-// says — bank order is already chronological, so it reads as the lesson ran.
-function bankDayGroups(matches) {
-  return BANK_PERIODS.map(p => ({
-    p,
-    items: matches.filter(q => { const d = _qAddedOn(q); return d && bankPeriodFor(d).key === p.key; })
-  })).filter(g => g.items.length);
-}
-function bankBandHtml(g) {
-  return `<div class="bank-band" style="--band:${g.p.tint};">
-      <span class="bank-band-icon" aria-hidden="true">${g.p.icon}</span>
-      <span class="bank-band-name">${escapeHtml(g.p.name)}</span>
-      <span class="bank-band-time">${escapeHtml(g.p.when)}</span>
-      <span class="bank-band-count">${g.items.length} question${g.items.length === 1 ? "" : "s"}</span>
-    </div>`;
-}
-
 // The toggle buttons' pressed state, and the wider page the tiles need.
 function _syncBankViewChrome() {
   document.querySelectorAll("#bankViewToggle [data-bank-view]").forEach(b => {
@@ -7927,7 +7799,6 @@ function _bankFilteredQuestions() {
   const concept = ($("bankFilterConcept") || {}).value || "";
   const format = ($("bankFilterFormat") || {}).value || "";
   const out = questionBank.filter(q => {
-    if (bankDay) { const d = _qAddedOn(q); if (!d || d.getDay() !== bankDay) return false; }
     if (level && String(q.level || "").trim() !== level) return false;
     if (topic && !questionTopics(q).includes(topic)) return false;
     if (concept && conceptLabel(q) !== concept) return false;
@@ -7984,9 +7855,8 @@ function bankTileHtml(q) {
   </div>`;
 }
 
-// Binding is done in one pass over the whole list, so it does not care whether
-// the tiles sit straight in it or nested inside a class period's band.
-function bindBankTiles(list) {
+function renderBankTiles(list, matches) {
+  list.innerHTML = matches.map(bankTileHtml).join("");
   list.querySelectorAll("[data-qb-img]").forEach(img => img.addEventListener("error", () => {
     const thumb = img.closest(".qb-tile-thumb");
     if (thumb) thumb.classList.add("no-img");
@@ -8136,34 +8006,49 @@ function _renderBankPickBar(filtered) {
   on("[data-bank-worksheet]", bankPicksToWorksheet);
 }
 
-// One question as a row in the list view. The actions are icons carrying their
-// words in the tooltip — four of them per row, and a row of labels pushed the
-// title off the screen on anything narrower than a desktop.
-function bankItemHtml(q) {
-  const id = escapeHtml(String(q.id));
-  const firstText = (q.blocks || []).find(b => b.type === "text");
-  const preview = firstText ? stripHtml(firstText.content).slice(0, 90) : "(no text)";
-  const answerKeyBadge = q.answerKeyImageUrl ? `<span>Answer key image</span>` : "";
-  // Flag an annotation question that has no answer screenshot yet — it will
-  // still mark, but against words alone, which is the unreliable way round.
-  const annotBadge = questionIsAnnotation(q)
-    ? (annotBlocksOf(q).some(b => String(b.answerImg || "").trim())
-      ? `<span title="Students annotate the diagram; the correct annotated diagram is attached">✍️ Annotate</span>`
-      : `<span title="Students annotate the diagram, but no answer screenshot is attached — add one so the AI can compare two diagrams">✍️ Annotate — no answer screenshot</span>`)
-    : "";
-  const videoBadge = q.videoExplanationUrl ? `<span>Video explanation</span>` : "";
-  const conceptBadge = conceptLabel(q) ? `<span>Concept: ${escapeHtml(conceptLabel(q))}</span>` : "";
-  return `<div class="bank-item">
-      <div class="bank-item-main"><h4>${escapeHtml(q.title || "Untitled")}</h4>
+function renderBank() {
+  if (!canManageQuestions()) { navigateTo("practice"); return; }
+  // A preview left open would be pointing at a tile that is about to be replaced.
+  qbHoverHide();
+  const list = $("bankList");
+  const total = questionBank.length;
+  bankPopulateFilters();
+  const matches = _bankFilteredQuestions();
+  _syncBankViewChrome();
+  _renderBankPickBar(matches);
+  list.classList.toggle("as-tiles", bankView === "grid");
+  $("bankCount").textContent = !total ? ""
+    : matches.length === total ? `${total} question${total > 1 ? "s" : ""}.`
+    : `${matches.length} of ${total} shown.`;
+  if (!total) { list.innerHTML = `<div class="empty-note">No questions yet. Go to <b>Create Question</b> to add one ✦</div>`; return; }
+  if (!matches.length) { list.innerHTML = `<div class="empty-note">No questions match these filters.</div>`; return; }
+  if (bankView === "grid") { renderBankTiles(list, matches); return; }
+  list.innerHTML = "";
+  matches.forEach(q => {
+    const firstText = (q.blocks || []).find(b => b.type === "text");
+    const preview = firstText ? stripHtml(firstText.content).slice(0, 90) : "(no text)";
+    const el = document.createElement("div");
+    el.className = "bank-item";
+    const answerKeyBadge = q.answerKeyImageUrl ? `<span>Answer key image</span>` : "";
+    // Flag an annotation question that has no answer screenshot yet — it will
+    // still mark, but against words alone, which is the unreliable way round.
+    const annotBadge = questionIsAnnotation(q)
+      ? (annotBlocksOf(q).some(b => String(b.answerImg || "").trim())
+        ? `<span title="Students annotate the diagram; the correct annotated diagram is attached">✍️ Annotate</span>`
+        : `<span title="Students annotate the diagram, but no answer screenshot is attached — add one so the AI can compare two diagrams">✍️ Annotate — no answer screenshot</span>`)
+      : "";
+    const videoBadge = q.videoExplanationUrl ? `<span>Video explanation</span>` : "";
+    const conceptBadge = conceptLabel(q) ? `<span>Concept: ${escapeHtml(conceptLabel(q))}</span>` : "";
+    el.innerHTML =
+      `<div class="bank-item-main"><h4>${escapeHtml(q.title || "Untitled")}</h4>
         <div class="meta"><span class="chip">${escapeHtml(q.level || "—")}</span><span class="chip topic">${escapeHtml(adminTopicsLabel(q))}</span>${conceptBadge}${annotBadge}${videoBadge}${answerKeyBadge}<span>${escapeHtml(preview)}</span></div></div>
-      <div class="bank-item-actions">
-        <button class="btn btn-ghost btn-sm" data-preview="${id}" title="Preview — as students see it">👁️</button>
-        <button class="btn btn-ghost btn-sm" data-share="${id}" title="Share / QR code">🔗</button>
-        <button class="btn btn-ghost btn-sm" data-edit="${id}" title="Edit this question">✎</button>
-        <button class="btn btn-danger btn-sm" data-del="${id}" title="Delete this question">🗑️</button></div>
-    </div>`;
-}
-function bindBankRows(list) {
+       <div class="bank-item-actions">
+        <button class="btn btn-ghost btn-sm" data-preview="${q.id}">Preview</button>
+        <button class="btn btn-ghost btn-sm" data-share="${q.id}">🔗 Share / QR</button>
+        <button class="btn btn-ghost btn-sm" data-edit="${q.id}">Edit</button>
+        <button class="btn btn-danger btn-sm" data-del="${q.id}">Delete</button></div>`;
+    list.appendChild(el);
+  });
   list.querySelectorAll("[data-preview]").forEach(b => b.addEventListener("click", () => {
     const q = questionBank.find(x => x.id === b.dataset.preview);
     if (q) openQuestionPreview(q, "Practice preview — as students see it");
@@ -8174,41 +8059,6 @@ function bindBankRows(list) {
   }));
   list.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => editQuestion(b.dataset.edit)));
   list.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => removeQuestion(b.dataset.del)));
-}
-
-function renderBank() {
-  if (!canManageQuestions()) { navigateTo("practice"); return; }
-  // A preview left open would be pointing at a tile that is about to be replaced.
-  qbHoverHide();
-  const list = $("bankList");
-  const total = questionBank.length;
-  bankPopulateFilters();
-  renderBankDays();
-  const matches = _bankFilteredQuestions();
-  const day = bankDayInfo();
-  const tiles = bankView === "grid";
-  _syncBankViewChrome();
-  _renderBankPickBar(matches);
-  // In the day view the grid lives on each band's body instead, or the bands
-  // themselves would be laid out as tiles between the questions they head.
-  list.classList.toggle("as-tiles", tiles && !day);
-  $("bankCount").textContent = !total ? ""
-    : matches.length === total ? `${total} question${total > 1 ? "s" : ""}.`
-    : day ? `${matches.length} of ${total} — added on a ${day.name}.`
-    : `${matches.length} of ${total} shown.`;
-  if (!total) { list.innerHTML = `<div class="empty-note">No questions yet. Go to <b>Create Question</b> to add one ✦</div>`; return; }
-  if (!matches.length) {
-    list.innerHTML = `<div class="empty-note">${day
-      ? `No questions were added on a <b>${escapeHtml(day.name)}</b> — press <b>${day.ltr}</b> again for every day.`
-      : "No questions match these filters."}</div>`;
-    return;
-  }
-  const cell = tiles ? bankTileHtml : bankItemHtml;
-  list.innerHTML = day
-    ? bankDayGroups(matches).map(g =>
-        bankBandHtml(g) + `<div class="bank-band-body${tiles ? " as-tiles" : ""}">${g.items.map(cell).join("")}</div>`).join("")
-    : matches.map(cell).join("");
-  if (tiles) bindBankTiles(list); else bindBankRows(list);
 }
 async function removeQuestion(id) {
   if (!canManageQuestions()) { toast("Only admin accounts can delete questions", "error"); return; }
@@ -14912,9 +14762,7 @@ function renderVideoOnlyBtn() {
   btn.classList.toggle("btn-primary", videoOnlyFilter);
   btn.classList.toggle("btn-ghost", !videoOnlyFilter);
   btn.setAttribute("aria-pressed", videoOnlyFilter ? "true" : "false");
-  // Icon only — the state is the tick and the primary colour, and the words
-  // stay in the tooltip so the bar keeps to one row.
-  btn.textContent = videoOnlyFilter ? "🎬 ✓" : "🎬";
+  btn.textContent = videoOnlyFilter ? "🎬 Video only ✓" : "🎬 Video only";
 }
 function toggleVideoOnlyFilter() {
   videoOnlyFilter = !videoOnlyFilter;
@@ -20548,7 +20396,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.32.0 · 2026-08-12";
+const APP_VERSION = "v1.31.0 · 2026-08-11";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
@@ -20558,11 +20406,6 @@ const APP_VERSION = "v1.32.0 · 2026-08-12";
 });
 { const _bsort = $("bankSortBy"); if (_bsort) _bsort.addEventListener("change", e => setBankSort(e.target.value)); }
 document.querySelectorAll("#bankViewToggle [data-bank-view]").forEach(b => b.addEventListener("click", () => setBankView(b.dataset.bankView)));
-// The day circles are rebuilt on every render, so the listener sits on the dial
-// rather than on six buttons that are about to be replaced.
-{ const _bd = $("bankDays"); if (_bd) _bd.addEventListener("click", e => {
-    const b = e.target.closest("[data-bank-day]"); if (b) setBankDay(b.dataset.bankDay);
-  }); }
 // A hover card is anchored to a viewport point, so scrolling the page away from
 // the tile would leave it floating over nothing.
 window.addEventListener("scroll", () => { if ($("qbHoverCard")) qbHoverHide(); }, true);
