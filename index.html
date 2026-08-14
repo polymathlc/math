@@ -303,6 +303,25 @@ a { color: var(--primary); }
 .rapid-count b { display: block; font-size: 1.5rem; line-height: 1.2; color: var(--primary); }
 .rapid-count span { font-size: 0.76rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
 .rapid-status { margin-top: 16px; font-size: 0.86rem; color: var(--text-muted); min-height: 20px; line-height: 1.6; }
+/* The syllabus auto-file switch. Default ON and remembered per device: a stack
+   of screenshots should arrive already filed on the map, not sitting in Vetting
+   waiting for ✨ Suggest to be pressed on each one by hand. */
+.rapid-autofile {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 15px 18px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-alt);
+  cursor: pointer;
+  text-align: left;
+}
+.rapid-autofile input[type="checkbox"] { width: 16px; height: 16px; flex: 0 0 auto; margin-top: 3px; accent-color: var(--primary); }
+.rapid-autofile > span { flex: 1; min-width: 0; }
+.rapid-autofile b { display: block; font-size: 0.9rem; font-weight: 700; color: var(--text); margin-bottom: 6px; line-height: 1.5; }
+.rapid-autofile b + span { display: block; font-size: 0.82rem; color: var(--text-muted); line-height: 1.65; }
 
 /* ===================================================================
    VETTING — the holding pen between "AI read it" and "students see it".
@@ -331,6 +350,9 @@ a { color: var(--primary); }
 }
 .vet-badge.warn { background: var(--accent-orange-light); color: var(--accent-orange); }
 .vet-badge.dup { background: #fff4d6; color: #a3651a; }
+.vet-badge.lo { background: var(--accent-blue-light); color: var(--accent-blue); }
+.vet-badge.busy { background: var(--surface-alt); color: var(--text-muted); }
+.vet-badge.busy .spinner { width: 10px; height: 10px; border-width: 2px; vertical-align: -1px; margin-right: 3px; }
 .vet-preview {
   font-size: 0.88rem;
   color: var(--text-muted);
@@ -4332,7 +4354,7 @@ body.lore-reading { overflow: hidden; }
         <button class="btn btn-ghost" id="previewCreateBtn">👁️ Preview in practice</button>
         <button class="btn btn-ghost" id="aiBuildBtn">✨ Build with AI</button>
         <button class="btn btn-ghost" id="aiAnswerBtn" title="Read the whole question in the editor — text, diagrams and options — and let AI write the correct answer and the marking guide. Review both before saving.">✨ AI answer &amp; guide</button>
-        <button class="btn btn-orange" id="rapidAddBtn" title="Open a paste pad, then paste screenshots one after another (Ctrl/⌘+V). Each one is read by AI in the background and dropped straight into your Vetting list — no editor stop. Shortcut: Ctrl/⌘+Shift+V from anywhere.">⚡ Rapid add</button>
+        <button class="btn btn-orange" id="rapidAddBtn" title="Open a paste pad, then paste screenshots one after another (Ctrl/⌘+V). Each one is read by AI in the background, filed under its syllabus objectives and dropped straight into your Vetting list — no editor stop. Shortcut: Ctrl/⌘+Shift+V from anywhere.">⚡ Rapid add</button>
         <span class="regen-split">
           <button class="btn btn-ghost" id="regenQBtn" title="Make a fresh variant of the question in the editor — different names, objects and numbers — then a second AI pass checks the numbers make sense and writes the verified answer key"><span id="regenQLabel">🔄 Regenerate variant</span></button>
           <button class="btn btn-ghost regen-caret" id="regenQCaret" type="button" title="Choose difficulty: same level, easier, or harder" aria-haspopup="true">▾</button>
@@ -4456,7 +4478,7 @@ body.lore-reading { overflow: hidden; }
          this list is served to a student until it is approved into the bank. -->
     <div class="page" id="page-vetting">
       <div class="page-head" style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;">
-        <div style="flex:1;"><h3>📋 Vetting</h3><p>Questions the AI has read but nobody has checked yet. Students never see these — approve one into the bank when it looks right. <span id="vettingCount"></span></p></div>
+        <div style="flex:1;"><h3>📋 Vetting</h3><p>Questions the AI has read but nobody has checked yet. Students never see these — approve one into the bank when it looks right. The 📐 badges are the syllabus objectives the AI filed it under; ✎ Edit to change them. <span id="vettingCount"></span></p></div>
         <button class="btn btn-orange" id="vettingRapidBtn">⚡ Rapid add</button>
         <button class="btn btn-ghost" id="vettingApproveAllBtn" title="Send every question in this list to the question bank">✅ Approve all</button>
       </div>
@@ -4874,6 +4896,11 @@ body.lore-reading { overflow: hidden; }
         <div class="rapid-count"><b id="rapidAddedCount">0</b><span>Added to vetting</span></div>
       </div>
       <div class="rapid-status" id="rapidStatus"></div>
+      <label class="rapid-autofile" title="The AI reads the question and picks its MOE syllabus learning objectives as it lands in Vetting — the same call the ✨ Suggest button makes in the editor">
+        <input type="checkbox" id="rapidAutoFile" checked>
+        <span><b>📐 File each question on the syllabus map automatically</b>
+        <span>The AI picks the learning objectives as the question is read, so you never press ✨ Suggest. Applies to pasted screenshots and whole-paper imports alike — the objectives show on each vetting card, so you can still check or change them before approving.</span></span>
+      </label>
       <div style="margin-top:22px;padding-top:20px;border-top:1px solid var(--border);">
         <div style="font-size:0.74rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px;">Or import a whole paper</div>
         <p style="color:var(--text-muted);font-size:0.86rem;margin-bottom:14px;line-height:1.65;">Give it a PDF of a complete paper and the AI reads every question on it in one pass — each becomes its own entry in Vetting. Diagrams are not cropped on this route (the pages are read as a run, not as screenshots), so attach those as you check each question.</p>
@@ -7069,6 +7096,7 @@ let rapidJobs = [];              // in-flight paste jobs, newest first
 let _rapidSeq = 0;
 let _rapidAddedCount = 0;        // this session's tally, for the pad's counter
 let _rapidJustAdded = new Set();  // ids added this session — flagged as new in the list
+let _rapidFilingIds = new Set();  // ids whose syllabus objectives are still being read
 // ---- Worksheets ---------------------------------------------------------
 // A worksheet is an ORDERED list of bank ids. wsSelectedIds is a Set for the
 // membership test; wsOrder is what actually decides the printed order, because
@@ -11562,12 +11590,22 @@ function renderVettingList() {
       ? `<span class="vet-badge warn">No answer key</span>` : "";
     const gap = (q.blocks || []).some(b => b.type === "image" && !(b.url || "").trim())
       ? `<span class="vet-badge warn">Diagram missing</span>` : "";
+    // What the AI filed it under. Auto-filing happens without an editor stop, so
+    // the objectives have to be visible on the card — this is where they get
+    // checked before the question goes into the bank.
+    const los = qLos(q).map(id => {
+      const lo = SYL_LO_BY_ID[id];
+      return `<span class="vet-badge lo" title="${escapeHtml(lo.sub + " › " + lo.topic + " — " + lo.text)}">📐 ${escapeHtml(sylLoLabel(lo))}</span>`;
+    }).join("");
+    const loGap = los ? "" : (_rapidFilingIds.has(q.id)
+      ? `<span class="vet-badge busy"><span class="spinner dark"></span> Filing…</span>`
+      : `<span class="vet-badge warn">No objective</span>`);
     return `<div class="vet-card${_rapidJustAdded.has(q.id) ? " is-new" : ""}">
       <div class="vet-card-head"><h4>${escapeHtml(q.title || "Untitled question")}</h4></div>
       <div class="vet-meta">
         <span class="vet-badge">${escapeHtml(q.level || "no level")}</span>
         <span class="vet-badge">${escapeHtml(adminTopicsLabel(q))}</span>
-        ${noAns}${gap}${dup}
+        ${los}${loGap}${noAns}${gap}${dup}
       </div>
       <div class="vet-preview">${vetPreviewHtml(q)}</div>
       <div class="vet-actions">
@@ -11666,6 +11704,11 @@ function openRapidAdd() {
   if (!canManageQuestions()) { toast("Only admin accounts can add questions", "error"); return; }
   if (!aiReady()) { toast("AI isn't ready yet — please wait a moment", "error"); return; }
   closeOverlay("aiBuildOverlay");
+  // Read here rather than at load: the preference helpers live in the syllabus
+  // block at the END of the module, so touching them during module evaluation
+  // would hit the temporal dead zone. By the time the pad is opened it is long
+  // past — the same reason `editorLos` is a `var`.
+  const af = $("rapidAutoFile"); if (af) af.checked = sylAutoFileOn();
   $("rapidAddOverlay").classList.add("show");
   updateRapidCounts();
   setTimeout(() => { const z = $("rapidPasteZone"); if (z) z.focus(); }, 60);
@@ -11712,6 +11755,14 @@ async function processRapidJob(jobId, file) {
       aiQuestionReadPrompt(false, true), [media], { maxOutputTokens: 2400, json: true }));
     const q = questionFromAiData(parsed);
 
+    // File it on the syllabus map. The objectives are read off the question
+    // TEXT, so this second call is started here and awaited at the bottom — it
+    // runs alongside the diagram crop and upload below and costs the job no
+    // extra wall-clock. It never throws, so a question can't be lost to it.
+    const filing = sylAutoFileLos(q);
+    setRapidJobState(jobId, { title: q.title || "Question", sub: sylAutoFileOn() ? "Filing it under the syllabus…" : "Saving…" });
+    renderVettingList();
+
     // The diagram: crop the rectangle the AI drew out of the screenshot. If it
     // gave no usable rectangle, attach the WHOLE screenshot instead — the
     // figure is never silently lost, it just needs cropping by hand.
@@ -11727,6 +11778,7 @@ async function processRapidJob(jobId, file) {
       catch (e) { console.warn("rapid diagram upload failed", e); }
     }
 
+    const filed = await filing;   // resolved by now in all but the fastest crops
     _vetTagDuplicate(q);
     removeRapidJob(jobId);
     vettingList.unshift(q);
@@ -11735,7 +11787,7 @@ async function processRapidJob(jobId, file) {
     updateRapidCounts();
     renderVettingList();
     saveVettingDoc(q).catch(e => { console.warn("vetting save", e); toast("Read it, but couldn't save it to vetting: " + e.message, "error"); });
-    setRapidStatus(`✓ Added “${q.title || "question"}” to vetting.`);
+    setRapidStatus(`✓ Added “${q.title || "question"}” to vetting${filed.length ? ` — filed under ${filed.length} objective${filed.length === 1 ? "" : "s"}` : ""}.`);
   } catch (err) {
     console.error("rapid job failed:", err);
     // A failure must always leave a card behind. If the job was already removed
@@ -11768,6 +11820,7 @@ function questionFromAiData(d) {
     blocks,
     expected: String(d.expected || "").trim(),
     markingGuide: String(d.markingGuide || "").trim(),
+    los: [],                 // filled in by sylAutoFileLos before it reaches Vetting
     videoExplanationUrl: "",
     answerKeyImageUrl: "",
     createdAt: new Date().toISOString(),
@@ -11817,6 +11870,28 @@ async function cropBox2dFromImage(dataUrl, box) {
   // that big drops to JPEG rather than failing the upload and losing the figure.
   const png = canvas.toDataURL("image/png");
   return png.length > 6 * 1024 * 1024 ? canvas.toDataURL("image/jpeg", 0.92) : png;
+}
+// File a batch of already-landed questions on the syllabus map. Used by the
+// whole-paper import, where the questions are in Vetting and saved long before
+// forty more AI calls could finish — so the ids in flight are held here and the
+// card says "Filing…" rather than looking like a question that came back with
+// no objectives at all. Each one is re-saved the moment its own call returns.
+async function rapidAutoFileBatch(list) {
+  const todo = (list || []).filter(q => q && !qLos(q).length);
+  if (!sylAutoFileOn() || !todo.length) return;
+  todo.forEach(q => _rapidFilingIds.add(q.id));
+  renderVettingList();
+  setRapidStatus(`📐 Filing ${todo.length} question${todo.length === 1 ? "" : "s"} on the syllabus map…`);
+  const filed = await sylAutoFileMany(todo, q => {
+    _rapidFilingIds.delete(q.id);
+    saveVettingDoc(q).catch(e => console.warn("vetting save (objectives)", e));
+    renderVettingList();
+  });
+  todo.forEach(q => _rapidFilingIds.delete(q.id));   // the ones that matched nothing
+  renderVettingList();
+  setRapidStatus(filed
+    ? `✓ ${filed} of ${todo.length} question${todo.length === 1 ? "" : "s"} filed on the syllabus map.`
+    : "Couldn't match those to any objective — file them by hand from the ✎ Edit button.");
 }
 function setRapidJobState(jobId, patch) {
   const job = rapidJobs.find(j => j.id === jobId);
@@ -11884,6 +11959,7 @@ async function handleBulkPaper(file) {
     const rows = Array.isArray(parsed && parsed.questions) ? parsed.questions.slice(0, BULK_MAX_QUESTIONS) : [];
     if (!rows.length) throw new Error("no questions were found on that paper");
     let added = 0;
+    const fresh = [];
     for (const row of rows) {
       const q = questionFromAiData(row);
       if (!String(row.questionText || "").trim()) continue;
@@ -11895,6 +11971,7 @@ async function handleBulkPaper(file) {
       _vetTagDuplicate(q);
       vettingList.unshift(q);
       _rapidJustAdded.add(q.id);
+      fresh.push(q);
       added++;
       saveVettingDoc(q).catch(e => console.warn("vetting save", e));
     }
@@ -11903,6 +11980,11 @@ async function handleBulkPaper(file) {
     renderVettingList();
     if (status) status.textContent = `✓ ${added} question(s) added to vetting.`;
     toast(`${added} question(s) added to vetting — check them before approving`, "success");
+    // Filing runs AFTER the import has landed, not inside it: the questions are
+    // already saved and on screen, so forty more AI calls must not be something
+    // the teacher waits on. Each card gains its objectives as its own call
+    // returns, and its vetting doc is re-saved at that point.
+    rapidAutoFileBatch(fresh).catch(e => console.warn("auto-file batch", e));
   } catch (e) {
     console.error(e);
     if (status) status.textContent = "Couldn't read that paper: " + aiErrorMessage(e);
@@ -11921,6 +12003,12 @@ $("rapidPasteZone").addEventListener("dragover", e => { e.preventDefault(); $("r
 $("rapidPasteZone").addEventListener("dragleave", () => $("rapidPasteZone").classList.remove("dragover"));
 $("rapidPasteZone").addEventListener("drop", rapidDrop);
 enableHoverPaste($("rapidPasteZone"), rapidPaste);
+$("rapidAutoFile").addEventListener("change", e => {
+  setSylAutoFile(e.target.checked);
+  setRapidStatus(e.target.checked
+    ? "Questions will be filed on the syllabus map as they are read."
+    : "Auto-filing off — use ✨ Suggest in the editor to file a question.");
+});
 $("bulkPaperBtn").addEventListener("click", () => $("bulkPaperFile").click());
 $("bulkPaperFile").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) handleBulkPaper(f); });
 // Ctrl/⌘+Shift+V opens the pad from anywhere, so a stack of screenshots never
@@ -20417,7 +20505,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.32.0 · 2026-08-14";
+const APP_VERSION = "v1.33.0 · 2026-08-14";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
@@ -38000,6 +38088,55 @@ async function sylSuggestLos(q, level) {
   const out = [];
   ids.map(x => String(x || '').trim()).forEach(id => { if (SYL_LO_BY_ID[id] && out.indexOf(id) < 0) out.push(id); });
   return out;
+}
+// ---- Auto-filing — objectives assigned as the question is read in ---------
+// Rapid add and the paper import both drop questions straight into Vetting
+// without ever opening the editor, so the ✨ Suggest button is never pressed on
+// them and a stack of thirty screenshots lands thirty untagged questions on a
+// map that exists to show what is covered. This runs the SAME call for each one
+// as it arrives, which is the whole point: the objectives are already there
+// when the teacher reads the vetting card.
+// It can NEVER fail its caller. A question that could not be filed is still a
+// question worth keeping, and the teacher can file it by hand — so every path
+// here swallows its error and returns an empty list.
+const SYL_AUTOFILE_KEY = 'mathSylAutoFile';
+function sylAutoFileOn() {
+  try { return localStorage.getItem(SYL_AUTOFILE_KEY) !== '0'; } catch (e) { return true; }
+}
+function setSylAutoFile(on) {
+  try { localStorage.setItem(SYL_AUTOFILE_KEY, on ? '1' : '0'); } catch (e) { /* private mode — the default stands */ }
+}
+async function sylAutoFileLos(q) {
+  if (!q || !sylAutoFileOn()) return [];
+  const already = qLos(q);
+  if (already.length) return already;   // filed by the read itself or by hand — never overwrite
+  try {
+    const level = String(q.level || '').trim().toUpperCase();
+    const ids = await sylSuggestLos(q, SYL_LEVELS.indexOf(level) >= 0 ? level : '');
+    if (ids.length) q.los = ids;
+    return ids;
+  } catch (e) { console.warn('auto-file objectives', e); return []; }
+}
+// The paper import lands up to forty questions in one go. They are filed a few
+// at a time and each one is re-saved as its own tagging returns — the questions
+// are already in Vetting by then, so nothing is held behind forty AI calls, and
+// a card simply gains its objectives while the teacher is reading the list.
+const SYL_AUTOFILE_PAR = 3;
+async function sylAutoFileMany(list, onEach) {
+  if (!sylAutoFileOn()) return 0;
+  const queue = (list || []).slice();
+  let filed = 0;
+  const worker = async () => {
+    while (queue.length) {
+      const q = queue.shift();
+      const ids = await sylAutoFileLos(q);
+      if (!ids.length) continue;
+      filed++;
+      if (onEach) { try { onEach(q, ids); } catch (e) { console.warn('auto-file callback', e); } }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(SYL_AUTOFILE_PAR, queue.length) }, worker));
+  return filed;
 }
 async function aiSuggestLosForEditor() {
   const btn = $("qLoSuggestBtn");
