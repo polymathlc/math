@@ -477,6 +477,30 @@ the tree would be one nobody here could ever fill.
   whole syllabus when it has no level) and reads the reply through
   `_parseAIJson`, so a truncated response still parses. Ids the model invents are
   dropped; the result is re-sorted into syllabus order.
+- **⚡ Rapid add and the paper import file themselves** (`sylAutoFileLos`,
+  v1.33.0). Both drop questions straight into Vetting without an editor stop, so
+  ✨ Suggest is never pressed on them — thirty screenshots used to be thirty
+  untagged questions on a map that exists to show what is covered. Auto-filing
+  runs the *same* `sylSuggestLos` call as the button, per question, as it lands.
+  - **It can never fail its caller.** A question that could not be filed is still
+    a question worth keeping, so every path swallows its error and returns `[]`;
+    `processRapidJob` starts the call and awaits it at the BOTTOM, so it overlaps
+    the diagram crop and upload and costs the job no extra wall-clock.
+  - **It never overwrites objectives that are already there** — the flag is
+    "unfiled", not "re-file".
+  - **The vetting card shows what was filed** (📐 badges, or a *No objective*
+    warning beside the existing *No answer key* / *Diagram missing* ones). Filing
+    without an editor stop is only safe because the result is visible before
+    ✅ Approve; ✎ Edit opens the editor with the tags already in place.
+  - **The paper import files AFTER the questions have landed**, not inside the
+    import (`rapidAutoFileBatch` → `sylAutoFileMany`, `SYL_AUTOFILE_PAR` at a
+    time), re-saving each vetting doc as its own call returns. Forty more AI
+    calls must not be something the teacher waits on. `_rapidFilingIds` is what
+    lets a card say *Filing…* instead of looking like one that matched nothing.
+  - The switch is on the Rapid add pad, default ON, device-local in
+    `localStorage`. `openRapidAdd` reads it — **never at module-evaluation
+    time**, because the helpers sit in the syllabus block at the END of the
+    module (the same temporal-dead-zone trap as `var editorLos`).
 - **The map counts the card game's questions too** (v1.22.0). `sylQuizFor(loId)`
   reads `TCG_QUIZ_BY_LO`, and the badge, the sub-strand tally, the *Only gaps*
   filter and the coverage headline all add it to the bank's own — a P4–P6
