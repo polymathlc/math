@@ -367,6 +367,16 @@ a { color: var(--primary); }
 .vet-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* ===================================================================
+   BIN — a deleted question, waiting out its seven days.
+   It wears the vetting card on purpose: it is the same object at a
+   different stage, so one skin keeps the two lists reading alike. The
+   dashed border is the whole difference — this one is on its way out.
+   =================================================================== */
+.vet-card.is-binned { border-style: dashed; background: var(--surface-alt); }
+.vet-badge.gone { background: var(--accent-red-light); color: var(--accent-red); }
+.vet-badge.soon { background: #fff4d6; color: #a3651a; }
+
+/* ===================================================================
    CREATE WORKSHEET — pick questions, add extras, print / save.
    =================================================================== */
 .ws-title-input {
@@ -4155,6 +4165,7 @@ body.lore-reading { overflow: hidden; }
       <div class="nav-item admin-only" data-page="create"><span class="ico">➕</span> Create Question</div>
       <div class="nav-item admin-only" data-page="vetting" title="Questions read in by Rapid add / the paper import, waiting for you to check them before they go live"><span class="ico">📋</span> Vetting <span class="nav-count" id="navVettingCount" style="display:none;"></span></div>
       <div class="nav-item admin-only" data-page="bank"><span class="ico">📚</span> Question Bank</div>
+      <div class="nav-item admin-only" data-page="bin" title="Questions you deleted, from the bank or from vetting. Restore one within 7 days — after that it is deleted forever"><span class="ico">🗑️</span> Bin <span class="nav-count" id="navBinCount" style="display:none;"></span></div>
       <div class="nav-item admin-only" data-page="graph" title="Map prerequisite links between questions — the AI reads this when guiding practice"><span class="ico">🕸️</span> Dependency Board</div>
       <div class="nav-item admin-only" data-page="students"><span class="ico">🎓</span> Student Results</div>
       <div class="nav-item admin-only" data-page="diagnostic" title="Build a test one learning objective at a time, print it, then read the class's score objective by objective"><span class="ico">🩺</span> Diagnostic</div>
@@ -4484,6 +4495,21 @@ body.lore-reading { overflow: hidden; }
       </div>
       <div class="card card-pad">
         <div class="vet-grid" id="vettingList"></div>
+      </div>
+    </div>
+
+    <!-- ================= BIN PAGE (admin) =================
+         Deleting a question sends it here rather than destroying it. It
+         keeps its answer key, its diagrams and its syllabus tags for
+         seven days, and ♻️ Restore puts it back exactly where it was
+         deleted from — the bank or the vetting list. -->
+    <div class="page" id="page-bin">
+      <div class="page-head" style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;">
+        <div style="flex:1;"><h3>🗑️ Bin</h3><p>Questions you deleted, from the question bank or from vetting. <b>♻️ Restore one within 7 days</b> and it goes back exactly where it came from, answer key and all. After that it is deleted forever — the sweep runs each time you open the app. <span id="binCount"></span></p></div>
+        <button class="btn btn-danger" id="binEmptyBtn" title="Delete everything in the bin right now, without waiting out the 7 days">🗑 Empty the bin now</button>
+      </div>
+      <div class="card card-pad">
+        <div class="vet-grid" id="binList"></div>
       </div>
     </div>
 
@@ -7092,6 +7118,10 @@ let bankSearchTerm = "";         // Question Bank search filter
 // Nothing in `vettingList` is ever served to a student: it is the holding pen
 // between "the AI read a screenshot" and "this question is live".
 let vettingList = [];
+// ---- Bin (admin) --------------------------------------------------------
+// Deleted questions, waiting out their seven days. They share the vetting
+// COLLECTION (flagged `binned`) but never the list — see the BIN block.
+let binList = [];
 let rapidJobs = [];              // in-flight paste jobs, newest first
 let _rapidSeq = 0;
 let _rapidAddedCount = 0;        // this session's tally, for the pad's counter
@@ -7509,7 +7539,7 @@ async function notifyQuestionSubscribers(q) {
 function navigateTo(page) {
   // My Worksheets is deliberately NOT on this list: a student's own saved
   // worksheets are their own documents, and reprinting one is the whole point.
-  if (["create", "bank", "worksheet", "vetting", "students", "graph", "diagnostic"].includes(page) && !canManageQuestions()) {
+  if (["create", "bank", "bin", "worksheet", "vetting", "students", "graph", "diagnostic"].includes(page) && !canManageQuestions()) {
     page = "practice";
     toast("Student accounts can practise questions only", "error");
   }
@@ -7524,7 +7554,7 @@ function navigateTo(page) {
   // everything else is CSS, which is what makes the swap instant and
   // impossible to leave half-applied.
   document.body.classList.toggle("nova-protocol", page === "tcg");
-  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", vetting: "Vetting", graph: "Dependency Board", worksheet: "Create Worksheet", myworksheets: "My Worksheets", worksheetview: "Worksheet Overview", students: "Student Results", diagnostic: "Diagnostic Test", character: "Character", leaderboard: "Leaderboard", adventure: "Dungeon", tcg: "Nova Protocol", syllabus: "Syllabus" };
+  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", bin: "Bin", vetting: "Vetting", graph: "Dependency Board", worksheet: "Create Worksheet", myworksheets: "My Worksheets", worksheetview: "Worksheet Overview", students: "Student Results", diagnostic: "Diagnostic Test", character: "Character", leaderboard: "Leaderboard", adventure: "Dungeon", tcg: "Nova Protocol", syllabus: "Syllabus" };
   $("topbarTitle").textContent = titles[page] || "";
   $("sidebar").classList.remove("open");
   if (page === "character") rpgRenderCharacterPage();
@@ -7535,6 +7565,7 @@ function navigateTo(page) {
   if (page === "students") loadStudentRoster();
   if (page === "practice") { renderQuestion(); setupCanvasSize(); }
   if (page === "vetting") renderVettingList();
+  if (page === "bin") renderBinList();
   if (page === "worksheet") { wsPopulateFilters(); renderWsQuestions(); }
   if (page === "myworksheets") renderSavedWorksheets();
   if (page === "worksheetview") renderWorksheetOverview();
@@ -8109,13 +8140,19 @@ function renderBank() {
   list.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => editQuestion(b.dataset.edit)));
   list.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => removeQuestion(b.dataset.del)));
 }
+// Delete is a MOVE to the bin — see the BIN block. The copy is written before
+// the question docs go, so a failed bin write leaves the question in the bank
+// rather than destroying it with nowhere to fall back to.
 async function removeQuestion(id) {
   if (!canManageQuestions()) { toast("Only admin accounts can delete questions", "error"); return; }
-  if (!confirm("Delete this question? This cannot be undone.")) return;
+  const q = questionBank.find(x => x.id === id);
+  if (!q) return;
+  if (!confirm(`Delete “${q.title || "this question"}”? It goes to the 🗑️ Bin — you can restore it there for the next ${BIN_KEEP_DAYS} days.`)) return;
   try {
+    await binMove(q, "bank");
     await deleteQuestionDoc(id);
-    questionBank = questionBank.filter(q => q.id !== id);
-    renderBank(); toast("Question deleted", "success");
+    questionBank = questionBank.filter(x => x.id !== id);
+    renderBank(); toast("Moved to the 🗑️ Bin — restore it there within 7 days", "success");
   } catch (e) { toast("Delete failed: " + e.message, "error"); }
 }
 
@@ -11516,14 +11553,25 @@ async function aiAnswerAndGuide() {
 // by practice, the worksheet builder or the dependency board by accident.
 // =====================================================================
 function _vetCol(uid) { return collection(db, "users", uid, "mathVetting"); }
+// One read serves both lists. A binned entry is a different SHAPE (see the BIN
+// block below) living in the same admin-only collection, so it is sorted out
+// here rather than being fetched separately — and `vettingList` never sees it.
 async function loadVettingList(uid) {
   vettingList = [];
+  binList = [];
   try {
     const snap = await getDocs(_vetCol(uid));
-    snap.forEach(d => vettingList.push(d.data()));
+    snap.forEach(d => {
+      const data = d.data();
+      if (data && data.binned) binList.push(data); else vettingList.push(data);
+    });
     vettingList.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+    binList.sort((a, b) => String(b.deletedAt || "").localeCompare(String(a.deletedAt || "")));
   } catch (e) { console.warn("vetting load", e); }
   updateVettingBadge();
+  // The seven days are swept here, once, on the admin's own load — there is no
+  // scheduled function behind this, so opening the app IS the sweep.
+  await binPurgeExpired().catch(e => console.warn("bin sweep", e));
 }
 async function saveVettingDoc(q) {
   if (!canManageQuestions()) throw new Error("Only admin accounts can save questions");
@@ -11611,13 +11659,13 @@ function renderVettingList() {
       <div class="vet-actions">
         <button class="btn btn-primary btn-sm" data-vet-approve="${escapeHtml(q.id)}" title="Send this question to the question bank — students can practise it from then on">✅ Approve to bank</button>
         <button class="btn btn-ghost btn-sm" data-vet-edit="${escapeHtml(q.id)}" title="Open it in the editor to fix the wording or attach the diagram">✎ Edit</button>
-        <button class="btn btn-danger btn-sm" data-vet-del="${escapeHtml(q.id)}">🗑 Discard</button>
+        <button class="btn btn-danger btn-sm" data-vet-del="${escapeHtml(q.id)}" title="Send it to the 🗑️ Bin — you can restore it there for 7 days">🗑 Delete</button>
       </div>
     </div>`;
   }).join("");
   list.querySelectorAll("[data-vet-approve]").forEach(b => b.addEventListener("click", () => vetApprove(b.dataset.vetApprove)));
   list.querySelectorAll("[data-vet-edit]").forEach(b => b.addEventListener("click", () => vetEdit(b.dataset.vetEdit)));
-  list.querySelectorAll("[data-vet-del]").forEach(b => b.addEventListener("click", () => vetDiscard(b.dataset.vetDel)));
+  list.querySelectorAll("[data-vet-del]").forEach(b => b.addEventListener("click", () => vetDelete(b.dataset.vetDel)));
   list.querySelectorAll("[data-rapid-dismiss]").forEach(b => b.addEventListener("click", () => dismissRapidJob(b.dataset.rapidDismiss)));
 }
 // Approve = move, not copy: the vetting doc goes away only AFTER the bank write
@@ -11681,15 +11729,204 @@ async function vetClearPromoted(id) {
   _rapidJustAdded.delete(id);
   updateVettingBadge();
 }
-async function vetDiscard(id) {
+// Delete = move to the bin, not destroy. A question read off a screenshot is
+// twenty seconds of AI work and a crop nobody wants to do twice, so the mistake
+// this guards against is the one-click discard of the wrong card.
+async function vetDelete(id) {
   const q = vettingList.find(x => x.id === id);
   if (!q) return;
-  if (!confirm(`Discard “${q.title || "this question"}”? It is not in your bank, so this cannot be undone.`)) return;
-  await deleteVettingDoc(id);
-  vettingList = vettingList.filter(x => x.id !== id);
-  _rapidJustAdded.delete(id);
-  renderVettingList();
-  toast("Discarded", "success");
+  if (!confirm(`Delete “${q.title || "this question"}”? It goes to the 🗑️ Bin — you can restore it there for the next ${BIN_KEEP_DAYS} days.`)) return;
+  try {
+    // The bin copy is written BEFORE the vetting doc goes, so a failed write
+    // leaves the question exactly where it was rather than dropping it.
+    await binMove(q, "vetting");
+    await deleteVettingDoc(id);
+    vettingList = vettingList.filter(x => x.id !== id);
+    _rapidJustAdded.delete(id);
+    renderVettingList();
+    toast("Moved to the 🗑️ Bin — restore it there within 7 days", "success");
+  } catch (e) {
+    console.error(e);
+    toast("Delete failed: " + e.message, "error");
+  }
+}
+
+// =====================================================================
+// THE BIN — where a deleted question waits out its seven days.
+//
+// It lives in the VETTING collection (`users/{uid}/mathVetting`), flagged
+// `binned`, and that is a deliberate choice rather than a shortcut:
+//  - `firestore.rules` is SHARED with the Science app, so a brand-new
+//    subcollection would fall through to the default deny and cost a
+//    whole-project rules deploy for one feature. `mathVetting` is already
+//    admin-only on BOTH read and write.
+//  - A deleted question carries its ANSWER KEY, so admin-only on read is
+//    exactly the gate it needs — the same reason vetting drafts live there.
+// A bin entry is a WRAPPER, not a question: `{ id, binned, deletedAt,
+// deletedFrom, deletedBy, question }`. The doc id is prefixed so it can
+// never collide with a live vetting draft, and `question.id` is the real
+// question id — which is what Restore writes back to.
+//
+// There is no scheduled function behind the seven days: the sweep runs on the
+// admin's own load (`loadVettingList`) and again every time the page renders.
+// Nobody but the admin can see or restore a binned question, so nothing is
+// waiting on a purge that has not happened yet.
+// =====================================================================
+const BIN_KEEP_DAYS = 7;
+const BIN_ID_PREFIX = "bin__";
+const BIN_DAY_MS = 86400000;
+function _binDocId(qid) { return BIN_ID_PREFIX + qid; }
+function _binDeletedMs(entry) {
+  const t = Date.parse(String((entry && entry.deletedAt) || ""));
+  return Number.isFinite(t) ? t : null;
+}
+// Whole days left before the sweep takes it. `null` means the entry has no
+// readable date — see binPurgeExpired for why that is never treated as expired.
+function binDaysLeft(entry) {
+  const t = _binDeletedMs(entry);
+  if (t === null) return null;
+  return Math.max(0, Math.ceil((t + BIN_KEEP_DAYS * BIN_DAY_MS - Date.now()) / BIN_DAY_MS));
+}
+async function binMove(q, from) {
+  if (!canManageQuestions()) throw new Error("Only admin accounts can delete questions");
+  const question = Object.assign({}, q);
+  delete question.duplicateOf;   // a vetting-only hint; it must not come back on restore
+  const entry = {
+    id: _binDocId(q.id),
+    binned: true,
+    deletedAt: new Date().toISOString(),
+    deletedFrom: from === "vetting" ? "vetting" : "bank",
+    deletedBy: (currentUser && (currentUser.name || currentUser.email)) || "",
+    question
+  };
+  await setDoc(doc(db, "users", currentUser.uid, "mathVetting", entry.id), entry);
+  binList = binList.filter(b => b.id !== entry.id);
+  binList.unshift(entry);
+  updateBinBadge();
+  return entry;
+}
+// Restore puts the question back where it was DELETED FROM, not somewhere
+// sensible-looking: a draft that was still being checked returns to vetting
+// (students must not meet it because someone un-deleted it), and a live
+// question returns to the bank.
+async function binRestore(id) {
+  if (!canManageQuestions()) { toast("Only admin accounts can restore questions", "error"); return; }
+  const entry = binList.find(b => b.id === id);
+  if (!entry) return;
+  const q = Object.assign({}, entry.question || {});
+  if (!q.id) { toast("That bin entry has lost its question", "error"); return; }
+  const toVetting = entry.deletedFrom === "vetting";
+  try {
+    // Written back first, dropped from the bin second — the bin copy is the
+    // only copy, so it goes only once the question is safely home.
+    if (toVetting) {
+      await saveVettingDoc(q);
+      vettingList = vettingList.filter(x => x.id !== q.id);
+      vettingList.unshift(q);
+    } else {
+      await saveQuestionDoc(q);
+      const i = questionBank.findIndex(x => x.id === q.id);
+      if (i >= 0) questionBank[i] = q; else questionBank.push(q);
+    }
+    await deleteVettingDoc(entry.id);
+    binList = binList.filter(b => b.id !== entry.id);
+    renderBinList();
+    updateVettingBadge();
+    toast(toVetting ? "Restored — it's back in 📋 Vetting" : "Restored — it's back in the question bank", "success");
+  } catch (e) {
+    console.error(e);
+    toast("Restore failed: " + e.message, "error");
+  }
+}
+async function binDeleteForever(id) {
+  const entry = binList.find(b => b.id === id);
+  if (!entry) return;
+  const title = (entry.question && entry.question.title) || "this question";
+  if (!confirm(`Delete “${title}” for good? There is no copy anywhere else, so this cannot be undone.`)) return;
+  await deleteVettingDoc(entry.id);
+  binList = binList.filter(b => b.id !== entry.id);
+  renderBinList();
+  toast("Deleted for good", "success");
+}
+async function binEmpty() {
+  if (!binList.length) { toast("The bin is already empty", "error"); return; }
+  if (!confirm(`Delete all ${binList.length} question(s) in the bin for good? There is no copy anywhere else, so this cannot be undone.`)) return;
+  const ids = binList.map(b => b.id);
+  for (const binId of ids) {
+    await deleteVettingDoc(binId);
+    binList = binList.filter(b => b.id !== binId);
+  }
+  renderBinList();
+  toast(`${ids.length} question(s) deleted for good`, "success");
+}
+// The seven days. An entry with NO readable date is left alone rather than
+// swept: a date we cannot read is not a reason to destroy someone's question,
+// and 🗑 Empty the bin is still there for it.
+async function binPurgeExpired() {
+  if (!canManageQuestions()) { updateBinBadge(); return 0; }
+  const cutoff = Date.now() - BIN_KEEP_DAYS * BIN_DAY_MS;
+  const dead = binList.filter(b => { const t = _binDeletedMs(b); return t !== null && t <= cutoff; });
+  for (const entry of dead) {
+    await deleteVettingDoc(entry.id);
+    binList = binList.filter(b => b.id !== entry.id);
+  }
+  updateBinBadge();
+  if (dead.length) console.info(`Bin: ${dead.length} question(s) past ${BIN_KEEP_DAYS} days deleted for good.`);
+  return dead.length;
+}
+function updateBinBadge() {
+  const el = $("navBinCount");
+  if (el) {
+    el.textContent = binList.length > 99 ? "99+" : String(binList.length);
+    el.style.display = binList.length ? "" : "none";
+  }
+  const c = $("binCount");
+  if (c) c.textContent = binList.length ? `${binList.length} in the bin.` : "";
+}
+function renderBinList() {
+  const list = $("binList");
+  if (!list) return;
+  // Rendering the page is also a sweep: an admin who leaves the tab open for a
+  // week should not be looking at a question that is a day past its date.
+  binPurgeExpired().then(n => { if (n) renderBinList(); }).catch(e => console.warn("bin sweep", e));
+  updateBinBadge();
+  const emptyBtn = $("binEmptyBtn");
+  if (emptyBtn) emptyBtn.style.display = binList.length ? "" : "none";
+  if (!binList.length) {
+    list.innerHTML = `<div class="empty-note">The bin is empty. A question you delete from the bank or from vetting lands here and can be restored for ${BIN_KEEP_DAYS} days ✦</div>`;
+    return;
+  }
+  list.innerHTML = binList.map(entry => {
+    const q = entry.question || {};
+    const days = binDaysLeft(entry);
+    const left = days === null
+      ? `<span class="vet-badge warn" title="This entry has no readable deletion date, so the sweep leaves it alone — empty the bin to clear it">No date — never swept</span>`
+      : `<span class="vet-badge ${days <= 2 ? "gone" : "soon"}" title="Deleted for good ${BIN_KEEP_DAYS} days after it was binned">⏳ ${days <= 1 ? (days === 0 ? "Going in the next sweep" : "1 day left") : days + " days left"}</span>`;
+    const when = formatHistoryDate(entry.deletedAt);
+    const who = entry.deletedBy ? ` by ${escapeHtml(entry.deletedBy)}` : "";
+    const los = qLos(q).map(id => {
+      const lo = SYL_LO_BY_ID[id];
+      return `<span class="vet-badge lo" title="${escapeHtml(lo.sub + " › " + lo.topic + " — " + lo.text)}">📐 ${escapeHtml(sylLoLabel(lo))}</span>`;
+    }).join("");
+    return `<div class="vet-card is-binned">
+      <div class="vet-card-head"><h4>${escapeHtml(q.title || "Untitled question")}</h4></div>
+      <div class="vet-meta">
+        ${left}
+        <span class="vet-badge">${entry.deletedFrom === "vetting" ? "From 📋 Vetting" : "From 📚 the bank"}</span>
+        <span class="vet-badge">${escapeHtml(q.level || "no level")}</span>
+        <span class="vet-badge">${escapeHtml(adminTopicsLabel(q))}</span>
+        ${los}
+      </div>
+      <div class="vet-preview">${vetPreviewHtml(q)}</div>
+      <div class="vet-meta" style="margin-bottom:14px;color:var(--text-muted);font-size:0.8rem;">Deleted ${escapeHtml(when || "—")}${who}</div>
+      <div class="vet-actions">
+        <button class="btn btn-primary btn-sm" data-bin-restore="${escapeHtml(entry.id)}" title="Put it back exactly where it was deleted from, answer key and all">♻️ Restore</button>
+        <button class="btn btn-danger btn-sm" data-bin-purge="${escapeHtml(entry.id)}" title="Delete it now instead of waiting out the 7 days">🗑 Delete forever</button>
+      </div>
+    </div>`;
+  }).join("");
+  list.querySelectorAll("[data-bin-restore]").forEach(b => b.addEventListener("click", () => binRestore(b.dataset.binRestore)));
+  list.querySelectorAll("[data-bin-purge]").forEach(b => b.addEventListener("click", () => binDeleteForever(b.dataset.binPurge)));
 }
 
 // =====================================================================
@@ -11996,6 +12233,7 @@ async function handleBulkPaper(file) {
 $("rapidAddBtn").addEventListener("click", openRapidAdd);
 $("vettingRapidBtn").addEventListener("click", openRapidAdd);
 $("vettingApproveAllBtn").addEventListener("click", vetApproveAll);
+$("binEmptyBtn").addEventListener("click", binEmpty);
 $("aiAnswerBtn").addEventListener("click", aiAnswerAndGuide);
 $("rapidGoVettingBtn").addEventListener("click", () => { closeOverlay("rapidAddOverlay"); navigateTo("vetting"); });
 $("rapidPasteZone").addEventListener("paste", rapidPaste);
@@ -20505,7 +20743,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.33.0 · 2026-08-14";
+const APP_VERSION = "v1.34.0 · 2026-08-14";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
