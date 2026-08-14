@@ -5985,8 +5985,34 @@ function renderMathInline(text) {
   pieces.forEach((piece, i) => { html = html.split(`@@MATH${i}@@`).join(piece); });
   return html;
 }
+// A line that opens with a list label — "(a)", "(b)", "1.", "•" — is an ITEM,
+// not a sentence: when it wraps, the second line has to start under the first
+// word, not back under the label. `<br>`-joined lines cannot do that, so a block
+// that HAS labelled lines is laid out one line per row instead, with the label
+// beside its text in a flex row. Flex rather than a text-indent hang because the
+// label's width is whatever the label is — one number that lines up "(a)" is
+// wrong for "(iii)", and the sheet holds both.
+// `\s+(?=\S)` is what keeps this off ordinary prose: "e.g." and "No. of boxes"
+// have no space in the right place, and a bare "5" is not a label without the
+// bracket or the dot.
+const Q_LIST_LABEL_RE = /^(\((?:[a-z]{1,3}|\d{1,2})\)|(?:[a-z]|\d{1,2})[.)]|[•▪◦‣*\-–—])\s+(?=\S)/i;
+// The styles are INLINE on purpose. The same rendered question is dropped into
+// the app, the print document, the worksheet document and the share card, and
+// each of those carries its OWN copy of the question stylesheet — a class would
+// have to be added to every copy and would silently miss whichever one was
+// forgotten, which is exactly the bug where a sheet reads differently on paper.
+const Q_LINE_STYLE = "display:flex;align-items:baseline;gap:0.34em";
+function renderMathLineHtml(line) {
+  const m = Q_LIST_LABEL_RE.exec(line);
+  if (!m) return `<span style="display:block">${line.trim() ? renderMathInline(line) : "<br>"}</span>`;
+  return `<span style="${Q_LINE_STYLE}"><span style="flex:0 0 auto">${escapeHtml(m[1])}</span>` +
+    `<span style="flex:1 1 auto;min-width:0">${renderMathInline(line.slice(m[0].length))}</span></span>`;
+}
 function renderMathBlock(text) {
-  return String(text == null ? "" : text).split(/\n/).map(line => renderMathInline(line)).join("<br>");
+  const lines = String(text == null ? "" : text).split(/\n/);
+  // Nothing labelled → the output is byte-for-byte what it has always been.
+  if (!lines.some(line => Q_LIST_LABEL_RE.test(line))) return lines.map(line => renderMathInline(line)).join("<br>");
+  return lines.map(renderMathLineHtml).join("");
 }
 function renderQuestionBlockHtml(b) {
   if (!b) return "";
@@ -20417,7 +20443,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.32.0 · 2026-08-14";
+const APP_VERSION = "v1.32.1 · 2026-08-14";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
