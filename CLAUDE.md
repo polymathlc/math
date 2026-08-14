@@ -388,6 +388,40 @@ mode breaks:
     transparency visible, and its tile is sized from `_annotUpdateTransform` so
     it stays put on screen at any zoom.
 
+## 🗑️ The Bin — deleting a question is a MOVE (v1.34.0)
+Both delete buttons — 📋 Vetting's `🗑 Delete` (`vetDelete`) and the Question
+Bank's `Delete` (`removeQuestion`) — write a bin copy FIRST and only then drop
+the question, so a failed write leaves it exactly where it was. `bin*` is the
+prefix; the page is `#page-bin`, admin-only, and it restores to wherever the
+question was deleted FROM.
+- **The bin lives in `users/{uid}/mathVetting`, flagged `binned`**, and that is
+  load-bearing rather than a shortcut. `firestore.rules` is shared with the
+  Science app, so a new subcollection would fall through to the default deny and
+  cost a **whole-project rules deploy** for one feature — the same trap the
+  pupil's level dodges by living on `mathLearningProfile`. `mathVetting` is
+  already admin-only on BOTH read and write, which a binned question needs: it
+  still carries its answer key.
+- **A bin entry is a WRAPPER, not a question** — `{ id, binned, deletedAt,
+  deletedFrom, deletedBy, question }`. The doc id is `bin__<question id>`, so it
+  can never collide with a live vetting draft of the same question, and
+  `question.id` is the real id `binRestore` writes back to. `loadVettingList`
+  reads the collection ONCE and sorts the two shapes apart — `vettingList` never
+  sees a binned entry, so the 📋 badge and ✅ Approve all are unaffected.
+- **`deletedFrom` decides where Restore puts it**, never what looks sensible: a
+  draft that was still being checked goes back to Vetting (students must not
+  meet it because someone un-deleted it), a live question goes back to the bank.
+- **The 7 days are swept client-side, by the admin's own load** —
+  `binPurgeExpired` runs from `loadVettingList` and again on every
+  `renderBinList`. There is no scheduled function, and adding one would be a
+  functions deploy for something only the admin can see anyway.
+- **An entry with no readable `deletedAt` is never swept.** A date that will not
+  parse is not a reason to destroy someone's question; the badge says so and
+  🗑 Empty the bin still clears it.
+- Restoring calls `saveQuestionDoc` / `saveVettingDoc`, so the public/private
+  split is re-applied on the way back in — a restored question is not a
+  pre-split doc. Deleting never touched Storage, so diagrams and answer-key
+  images survive the round trip untouched.
+
 ## 🎬 Video amendments
 A recorded explanation goes stale the moment a question is corrected, so the fix
 is drawn OVER the film (`vo*`, `q.videoOverlays`) rather than cut into it: a note
