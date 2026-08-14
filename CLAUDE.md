@@ -67,9 +67,24 @@ The Science app (`polymathlc/cer`) and this app share ONE Firebase project
 (`mathgen--app`), one App Check registration (reCAPTCHA v3) and one AI Logic
 backend, so the model calls are byte-for-byte the same requests. Search
 `AI ENGINE` for the block:
-- `askGemini` / `askGeminiCached` — plain text calls. `thinkingLevel: "minimal"`;
-  Gemini 3.x rejects the older numeric `thinkingBudget` with 400 INVALID_ARGUMENT.
-- `askGeminiVision` — text + images/PDF, with model fallback and retry.
+- **`AI_MODEL` and `AI_THINK_MIN` move TOGETHER, and `_thinkingConfigFor` picks
+  the shape PER MODEL** (v1.32.0). How much a model may think is configured
+  differently on either side of the 3.x line and the fallback list deliberately
+  **spans** it: `gemini-2.5-flash` takes a numeric `thinkingBudget` and 400s on
+  a named level; 3.x takes the named level and 400s on the budget. `gemini-3.7-flash`
+  then narrowed the named scale again, **dropping the `"minimal"` that 3.5/3.6
+  accepted** — it is `low` / `medium` / `high`, so the floor is `AI_THINK_MIN`
+  (`"low"`). A level a model does not know is **not a worse answer, it is a
+  failed call**, so building one config for the whole request would break
+  whichever model it was not written for. The `-1` "think as much as you need"
+  budget the regen/checker paths pass maps to `"high"`.
+  **`functions/index.js` carries its own copy** of all of this and the two must
+  agree — a change there **needs a functions deploy**, not just a page upload —
+  and so do `game.html` and the three sibling repos (`cer`, `english`, `anskey`).
+- `askGemini` / `askGeminiCached` — plain text calls, primary model only, so
+  they take `AI_THINK_MIN` directly rather than going through the per-model shape.
+- `askGeminiVision` — text + images/PDF, with model fallback and retry. This is
+  the one that spans the 3.x line, so its config is built inside the loop.
 - `_parseAIJson` / `_repairAIJson` — the TOLERANT parser. It handles the two
   opposite failures separately, and both are real:
   - **Too little.** `_repairAIJson` escapes unescaped inner quotes and raw

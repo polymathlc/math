@@ -5321,19 +5321,35 @@ const firebaseConfig = {
   measurementId: "G-0MWZFG211D"
 };
 const RECAPTCHA_SITE_KEY = "6Le98gwtAAAAAAzkjJTZXFM5D8tpjx_P4rtRuhuH";
-const AI_MODEL = "gemini-3.5-flash";
+const AI_MODEL = "gemini-3.7-flash";
 const AI_FALLBACK_MODELS = ["gemini-2.5-flash"]; // tried in order when the primary model is overloaded or unreachable
 const AI_IMAGE_MODELS = ["gemini-3.1-flash-image-preview", "gemini-2.5-flash-image"];
+// How much the model is allowed to think is configured DIFFERENTLY on either
+// side of the 3.x line, and the fallback list above deliberately spans it:
+// 2.5 Flash takes a numeric thinkingBudget (0 = off, -1 = as much as it needs)
+// and 400s on a named level, while 3.x takes the named level and 400s on the
+// budget. Gemini 3.7 Flash then narrowed the named scale again, dropping the
+// "minimal" that 3.5/3.6 accepted — its scale is low / medium / high, so the
+// floor is "low". A level a model does not know is not a worse answer, it is
+// no answer at all, which is why _thinkingConfigFor picks the shape per model
+// rather than once per request. Change AI_MODEL, check its scale.
+const AI_THINK_MIN = "low";
+const AI_LEGACY_THINK_RE = /^gemini-[12]\./; // 2.5 Flash and older: numeric budget
+function _thinkingConfigFor(modelName, budget) {
+  if (AI_LEGACY_THINK_RE.test(String(modelName || ""))) return { thinkingBudget: budget };
+  // -1 meant "think as much as you need" — the top of the named scale. 0 meant
+  // "don't", which on 3.7 Flash is the floor rather than off: it has no off.
+  return { thinkingLevel: budget === 0 ? AI_THINK_MIN : (budget < 0 ? "high" : "medium") };
+}
 // Regenerating or checking a question needs more careful numerical reasoning
-// than everyday marking, so these calls run with extended "thinking" enabled
-// (thinkingBudget: -1) on the strongest model the Gemini Developer API exposes
-// for this project. As of mid-2026 that is gemini-3.5-flash — it outperforms
-// last year's pro models, and gemini-3.5-pro is NOT yet generally available on
-// this backend (it's in limited Vertex preview). When 3.5-pro reaches GA here,
-// just switch this constant to "gemini-3.5-pro": askGeminiVision treats a
-// "model not found" error as a fall-through to flash, so a premature switch
-// degrades gracefully rather than breaking the feature.
-const AI_REGEN_MODEL = "gemini-3.5-flash";
+// than everyday marking, so these calls run with extended thinking (the -1
+// budget above, i.e. thinkingLevel "high") on the strongest model the Gemini
+// Developer API exposes for this project. As of August 2026 that is
+// gemini-3.7-flash. Should a pro model reach GA on this backend, just switch
+// this constant: askGeminiVision treats a "model not found" error as a
+// fall-through to flash, so a premature switch degrades gracefully rather than
+// breaking the feature.
+const AI_REGEN_MODEL = "gemini-3.7-flash";
 const ADMIN_EMAILS = ['chungzhikai@gmail.com', 'abigail.yew@stanfordmanpower.com'];
 
 const app = initializeApp(firebaseConfig);
@@ -5449,10 +5465,13 @@ async function askGeminiVision(prompt, media, { maxOutputTokens = 1024, json = t
   if (!models.length) throw new Error("AI is not configured yet");
   const parts = [{ text: prompt }];
   (media || []).forEach(m => parts.push({ inlineData: { mimeType: m.mimeType, data: m.data } }));
-  const generationConfig = { maxOutputTokens, temperature: 0.2, thinkingConfig: { thinkingBudget } };
-  if (json) generationConfig.responseMimeType = "application/json";
+  const baseConfig = { maxOutputTokens, temperature: 0.2 };
+  if (json) baseConfig.responseMimeType = "application/json";
   let lastErr = null;
   for (let i = 0; i < models.length; i++) {
+    // The thinking config is built PER MODEL: the fallback list spans the 3.x
+    // line, and each side 400s on the other's shape (see _thinkingConfigFor).
+    const generationConfig = Object.assign({}, baseConfig, { thinkingConfig: _thinkingConfigFor(modelNames[i], thinkingBudget) });
     try {
       // Per model: up to 2 quick retries, but a 4-min timeout moves straight to the fallback model.
       const res = await withAiRetry(() => models[i].generateContent({ contents: [{ role: "user", parts }], generationConfig }), { tries: 2, timeoutTries: 1 });
@@ -5664,17 +5683,19 @@ async function generateImageDataUrlGemini(prompt, refDataUrl) {
 }
 
 // Single swap-point for all plain-text model calls. Returns trimmed text.
-// thinkingLevel:"minimal" keeps Gemini "thinking" to a minimum so the whole
-// token budget goes to the actual answer (faster + cheaper for our short
-// tasks). Gemini 3.x rejects the older numeric thinkingBudget with
-// 400 INVALID_ARGUMENT, so this call deliberately does not send one.
+// AI_THINK_MIN keeps Gemini "thinking" to a minimum so the whole token budget
+// goes to the actual answer (faster + cheaper for our short tasks). Gemini 3.x
+// rejects the older numeric thinkingBudget with 400 INVALID_ARGUMENT, so this
+// call deliberately does not send one — and 3.7 Flash rejects the "minimal"
+// level as well, which is what AI_THINK_MIN is for. This path only ever talks
+// to the primary model, so it needs no per-model shape the way vision does.
 async function askGemini(prompt, { maxOutputTokens = 512, temperature = 0.3, json = false } = {}) {
   if (openAiActive()) {
     try { return await askOpenAI(prompt, null, { maxOutputTokens, temperature, json }); }
     catch (e) { console.warn('ChatGPT engine failed, falling back to Gemini:', e); }
   }
   if (!geminiModel) throw new Error("AI is not configured yet");
-  const generationConfig = { maxOutputTokens, temperature, thinkingConfig: { thinkingLevel: "minimal" } };
+  const generationConfig = { maxOutputTokens, temperature, thinkingConfig: { thinkingLevel: AI_THINK_MIN } };
   if (json) generationConfig.responseMimeType = "application/json";
   const res = await withAiRetry(() => geminiModel.generateContent({
     contents: [{ role: "user", parts: [{ text: prompt }] }],
@@ -20396,7 +20417,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.31.0 · 2026-08-11";
+const APP_VERSION = "v1.32.0 · 2026-08-14";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type

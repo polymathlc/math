@@ -1323,9 +1323,20 @@ const firebaseConfig = {
   measurementId: "G-0MWZFG211D"
 };
 const RECAPTCHA_SITE_KEY = "6Le98gwtAAAAAAzkjJTZXFM5D8tpjx_P4rtRuhuH";
-const AI_MODEL = "gemini-3.5-flash";
+const AI_MODEL = "gemini-3.7-flash";
 const AI_FALLBACK_MODELS = ["gemini-2.5-flash"]; // tried in order when the primary model is overloaded or unreachable
 const AI_IMAGE_MODELS = ["gemini-3.1-flash-image-preview", "gemini-2.5-flash-image"];
+// Thinking is configured differently on either side of the 3.x line and the
+// fallback list spans it: 2.5 Flash takes a numeric thinkingBudget and 400s on
+// a named level, 3.x takes the level and 400s on the budget. 3.7 Flash then
+// dropped the "minimal" level, so the floor of its low / medium / high scale
+// is "low". Keep this in step with index.html. (See _thinkingConfigFor there.)
+const AI_THINK_MIN = "low";
+const AI_LEGACY_THINK_RE = /^gemini-[12]\./; // 2.5 Flash and older: numeric budget
+function _thinkingConfigFor(modelName, budget) {
+  if (AI_LEGACY_THINK_RE.test(String(modelName || ""))) return { thinkingBudget: budget };
+  return { thinkingLevel: budget === 0 ? AI_THINK_MIN : (budget < 0 ? "high" : "medium") };
+}
 const ADMIN_EMAILS = ['chungzhikai@gmail.com', 'abigail.yew@stanfordmanpower.com'];
 
 const app = initializeApp(firebaseConfig);
@@ -1402,10 +1413,13 @@ async function askGeminiVision(prompt, media, { maxOutputTokens = 1024, json = t
   if (!geminiTextModels.length) throw new Error("AI is not configured yet");
   const parts = [{ text: prompt }];
   (media || []).forEach(m => parts.push({ inlineData: { mimeType: m.mimeType, data: m.data } }));
-  const generationConfig = { maxOutputTokens, temperature: 0.2, thinkingConfig: { thinkingBudget: 0 } };
-  if (json) generationConfig.responseMimeType = "application/json";
+  const baseConfig = { maxOutputTokens, temperature: 0.2 };
+  if (json) baseConfig.responseMimeType = "application/json";
   let lastErr = null;
   for (let i = 0; i < geminiTextModels.length; i++) {
+    // Built PER MODEL: the fallback list spans the 3.x line and each side 400s
+    // on the other's thinking shape.
+    const generationConfig = Object.assign({}, baseConfig, { thinkingConfig: _thinkingConfigFor(AI_TEXT_MODEL_NAMES[i], 0) });
     try {
       // Per model: up to 2 quick retries, but a 4-min timeout moves straight to the fallback model.
       const res = await withAiRetry(() => geminiTextModels[i].generateContent({ contents: [{ role: "user", parts }], generationConfig }), { tries: 2, timeoutTries: 1 });
