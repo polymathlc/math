@@ -36,7 +36,23 @@ const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 // this list is the one that actually grants power.
 const ADMIN_EMAILS = ["chungzhikai@gmail.com", "abigail.yew@stanfordmanpower.com"];
 
-const AI_TEXT_MODELS = ["gemini-3.5-flash", "gemini-2.5-flash"];
+const AI_TEXT_MODELS = ["gemini-3.7-flash", "gemini-2.5-flash"];
+// How much the model may think is configured differently on either side of the
+// 3.x line, and the list above deliberately spans it: 2.5 Flash takes a numeric
+// thinkingBudget (0 = off) and 400s on a named level, while 3.x takes the named
+// level and 400s on the budget. Gemini 3.7 Flash also dropped the "minimal"
+// level 3.5/3.6 accepted — its scale is low / medium / high — so the floor is
+// "low". A level a model does not know is not a worse mark, it is a failed
+// call, so the shape is picked PER MODEL rather than once per request:
+// hard-coding either one would break whichever model it was not written for.
+// Keep this in step with index.html's copy — and note that changing anything
+// here needs a functions deploy, not just a page upload.
+const AI_THINK_MIN = "low";
+const AI_LEGACY_THINK_RE = /^gemini-[12]\./;
+function thinkingConfigFor(modelName, budget) {
+  if (AI_LEGACY_THINK_RE.test(String(modelName || ""))) return { thinkingBudget: budget };
+  return { thinkingLevel: budget === 0 ? AI_THINK_MIN : (budget < 0 ? "high" : "medium") };
+}
 
 // Throughput caps: the main defence against XP farming of any kind.
 // An honest student cannot read + solve + write up a question this fast.
@@ -220,7 +236,7 @@ async function askGemini(apiKey, prompt, media, { maxOutputTokens = 1500 } = {})
       const res = await withAiRetry(() => ai.models.generateContent({
         model: AI_TEXT_MODELS[i],
         contents: [{ role: "user", parts }],
-        config: { responseMimeType: "application/json", maxOutputTokens, temperature: 0.2, thinkingConfig: { thinkingBudget: 0 } }
+        config: { responseMimeType: "application/json", maxOutputTokens, temperature: 0.2, thinkingConfig: thinkingConfigFor(AI_TEXT_MODELS[i], 0) }
       }));
       const text = (res.text || "").trim();
       if (text) return text;
