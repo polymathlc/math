@@ -651,6 +651,97 @@ to drag. The camera and the gallery are the way in there.
   already caps every image at 1800px and re-encodes it as JPEG on the way to the
   model, so the phone route inherits that for free.
 
+## The subject switcher — four apps, one student (v1.36.0)
+
+`SUBJECT_APPS` / `subject*` in the module, plus `#subjectSwitch` and the
+`.subject-*` CSS. A pill in the **top-right of every page** naming the subject
+you are in; click it and the other three are one tap away.
+
+Polymath teaches four subjects through four separate apps — this one,
+`polymathlc/english`, `polymathlc/chinese` and `polymathlc/cer` — and they share
+a Firebase project and a sign-in and **nothing else**: four question banks, four
+sets of progress, four syllabuses. A pupil taught three of them had one bookmark
+per subject on a school Chromebook, and the subject they never bookmarked is the
+one they stopped using.
+
+- **It is a LINK, not a router.** Four `<a href>`s and no JS navigation: each app
+  stays reachable at its own URL exactly as before, nothing here redirects or
+  gates anything, and middle-click / open-in-new-tab behave the way a pupil
+  expects — which a `location.href =` handler would quietly break.
+- **The URLs are RELATIVE (`../cer/`), and that is load-bearing.** The four are
+  GitHub Pages project sites — `polymathlc.github.io/{math,english,chinese,cer}`
+  — so they are sibling folders on one host, and a relative hop resolves there,
+  on a local checkout with the four repos side by side, and on a custom domain
+  later, without this file ever naming a host. An absolute
+  `https://polymathlc.github.io/…` works perfectly until the centre moves to a
+  domain of its own and then sends every pupil back to the old one.
+- **Science lives at `../cer/`** — the repo name, not the subject name.
+  `../science/` is a 404 for the whole school at once and reads as a link
+  somebody forgot to finish.
+- **`SUBJECT_KEY` says which of the four THIS app is**, and it is the ONE line
+  that differs between the repos — the rest of the block is identical in all
+  four, so a fix copies straight across (the same reason the Nova Protocol
+  identifiers are unchanged from cer's). `subjectCurrent()` falls back to the
+  first entry, so a `SUBJECT_KEY` naming nothing does not throw: it labels this
+  app as the wrong subject and offers a link back to where you already are.
+- **The menu is built from `SUBJECT_APPS`**, never written out in the markup, and
+  the current subject is shown and MARKED rather than dropped — a menu that
+  silently omits where you are leaves a pupil unable to tell which app they are
+  looking at. It is a `<div>` rather than an `<a>`, because a link back to the
+  page you are on reloads the app and loses whatever was half-typed.
+- **It is turned on from `enterApp`**, the one function every signed-in path goes
+  through, and hidden until then or it floats over the login card.
+- **`z-index: 150` sits in a deliberate gap**: above the sidebar (100) and the
+  sticky `.topbar` (40) so it is always reachable, below every `.overlay` (300)
+  so a dialog covers it, and below the two announcement banners (1200/1201),
+  which are top-centre and unaffected.
+- **`.topbar` gives up its right-hand corner** (`padding-right`), because that is
+  where the hero chip, the bell, the flag inbox and the AI badge live and the
+  switcher floats over them. The block is fixed to the viewport rather than
+  dropped into `.topbar-actions` so that it stays byte-for-byte the one the
+  other three portals carry — they have no global top bar at all.
+- Run **`node tools/subject-level-tests.mjs`** after touching any of it.
+
+## ⚡ Rapid add: the level a BATCH is filed at (v1.36.0)
+
+`rapidLevel` / `setRapidLevel` / `rapidApplyLevel` / `rapidLevelOptions`, and the
+`#rapidLevelWrap` picker above the pad. An author working through a pile of
+screenshots is nearly always working through ONE year's paper, and the AI was
+choosing the level one screenshot at a time from the wording alone.
+
+- **`q.level` IS a real field here**, so the batch level is simply STAMPED on —
+  unlike the three language portals, where a level is read off the topic and the
+  same feature has to narrow the topic list instead.
+- **It is stamped BEFORE `sylAutoFileLos` runs**, not after. That call scopes its
+  objective search to `q.level`, so setting the level first is what makes the
+  objectives come back from the year the author asked for.
+- **`rapidApplyLevel` also filters `q.los`**, and that half is not decoration:
+  **`qLevelCeiling` takes the MAX** over the level field and the front of every
+  objective tag, so one P6 objective on a question stamped P5 makes it a P6
+  question again — while the level badge on the vetting card still reads P5.
+  Objectives at or BELOW the level are all kept, because revision downwards is
+  the point; an id that names no level is kept too, since `qLos` already
+  validates ids and this must not become a second, blunter filter.
+- **It runs TWICE on the rapid path** — once before the filing call and once on
+  what came back — because the filing is what writes `los`.
+- **The paper import shares the pad, so it shares the level.** `handleBulkPaper`
+  captures it once before the read, tells the model the paper is that year, and
+  stamps every question; `rapidAutoFileBatch` takes the level too and re-applies
+  the ceiling guard inside its per-question callback, before the re-save.
+- **The level is captured as the file is QUEUED** (`startRapidJob`), never read
+  inside the job: the pad stays open while the AI reads, and an author who
+  queues a P3 paper and switches the picker for the next one must not have the
+  first land at P4 because it finished second.
+- **It lives in `sessionStorage`** — a batch is one sitting, so it survives a
+  reload mid-pile and is back to "Any level" in a new tab or tomorrow. A level
+  that persisted for a week would be the one an author set last Tuesday and
+  never noticed again.
+- **The options come from `SYL_LEVELS`**, read at OPEN time and never at module
+  evaluation — the syllabus block sits at the END of the module, the same
+  temporal-dead-zone trap as `var editorLos` and `sylAutoFileOn`.
+- The chosen level is named back in the status line and on the job card.
+- Run **`node tools/subject-level-tests.mjs`** after touching any of it.
+
 ## The game economy — every faucet is gated
 🪙 points buy booster packs, so **no repeatable button may ever pay**. Every faucet
 is behind one of: answering a question (`rpgAwardGameQuestion`, which has the
@@ -685,4 +776,13 @@ fields**. Tabs: 📅 This Month / 🗓️ Last Month / ⭐ All-Time (XP, server-
 ## House rules
 - After editing `index.html`, validate the module: extract the
   `<script type="module">` body to a `.mjs` file and run `node --check` on it.
+- After touching **the subject switcher** or **⚡ Rapid add's batch level**, run
+  `node tools/subject-level-tests.mjs`. It is the only harness in this repo and
+  it reads the module out of `index.html` as text. Both failures are silent: a
+  url pointing at the wrong folder does not error, it loads the WRONG subject's
+  app (and `../science/` is a 404 — the folder is `cer`), while an absolute url
+  is the same failure delayed until the centre moves domain. On the level side,
+  `qLevelCeiling` takes the MAX over `q.level` and every objective tag, so a
+  question stamped P5 that keeps one P6 objective is a P6 question wearing a P5
+  badge.
 - Commit messages and pushed artifacts must not contain the model identifier.
