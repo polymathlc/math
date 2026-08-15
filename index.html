@@ -344,6 +344,16 @@ a { color: var(--primary); }
 .rapid-autofile b { display: block; font-size: 0.9rem; font-weight: 700; color: var(--text); margin-bottom: 6px; line-height: 1.5; }
 .rapid-autofile b + span { display: block; font-size: 0.82rem; color: var(--text-muted); line-height: 1.65; }
 
+/* The level this BATCH is being filed at. It sits ABOVE the pad because it
+   applies to everything queued after it — an author who reads it only after
+   pasting forty screenshots has filed forty questions at the wrong level. */
+.rapid-level { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; margin-bottom: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-alt); }
+.rapid-level.on { border-color: var(--primary); background: #eef6f0; }
+.rapid-level label { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 0.82rem; }
+.rapid-level label b { font-weight: 700; }
+.rapid-level label span { color: var(--text-muted); font-size: 0.76rem; line-height: 1.6; }
+.rapid-level select { padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 10px; background: var(--surface); font-family: inherit; font-size: 0.84rem; color: var(--text); }
+
 /* ===================================================================
    VETTING — the holding pen between "AI read it" and "students see it".
    =================================================================== */
@@ -4108,6 +4118,98 @@ body.lore-reading { overflow: hidden; }
    fiction, and the panel says so where the drawing is actually started. */
 .tcg-gen-world { margin-top: 12px !important; padding: 12px 15px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-alt); font-size: 0.82rem !important; line-height: 1.7 !important; }
 
+/* ==================== THE SUBJECT SWITCHER ====================
+   One student, four subjects, one place to change between them. The four
+   portals are separate apps with separate banks — this is a LINK, not a
+   shared surface, so it is four <a>s and no JS navigation: middle-click and
+   open-in-new-tab work the way a student expects.
+
+   It is FIXED to the top-right of the viewport rather than dropped into the
+   topbar's own actions row, so that this block stays byte-for-byte the one the
+   other three portals carry — they have no global top bar at all and cannot
+   use an inline element. The only per-app part is which sticky bar gives up
+   its right-hand corner, below.
+
+   The whole block is written against the design tokens (--surface, --border,
+   --text, --primary) and nothing else, so the SAME css is used in all four
+   apps and each one paints it in its own palette. Keep it that way: a themed
+   copy per app is a copy that drifts.
+
+   z-index 150 is deliberate and sits in a gap: above the sidebar (100) and the
+   sticky `.topbar` (40) so it is always reachable, and below every modal
+   (`.overlay` is 300) so a dialog covers it rather than being covered by it. */
+.subject-switch { position: fixed; top: 12px; right: 16px; z-index: 150; font-family: inherit; }
+.subject-btn {
+  display: inline-flex; align-items: center; gap: 9px;
+  padding: 8px 13px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  /* A <button> does not inherit colour — without this the label falls back to
+     the browser's own button text and vanishes on a dark surface. */
+  color: var(--text);
+  font-family: inherit; font-size: 0.83rem; font-weight: 600; line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.08);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.subject-btn:hover { border-color: var(--primary); box-shadow: 0 4px 14px rgba(15, 23, 42, 0.13); }
+.subject-btn .subject-ico { font-size: 1rem; line-height: 1; }
+.subject-btn .subject-caret { font-size: 0.62rem; color: var(--text-muted); }
+.subject-switch.open .subject-btn { border-color: var(--primary); }
+.subject-menu {
+  display: none;
+  position: absolute; top: calc(100% + 8px); right: 0;
+  min-width: 264px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.16);
+}
+.subject-switch.open .subject-menu { display: block; }
+.subject-menu-title {
+  padding: 7px 11px 9px;
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--text-muted);
+}
+.subject-opt {
+  display: flex; align-items: center; gap: 11px;
+  padding: 10px 11px;
+  border-radius: 10px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.87rem; line-height: 1.4;
+}
+.subject-opt:hover { background: var(--surface-alt); }
+.subject-opt .subject-ico { font-size: 1.12rem; line-height: 1; flex: 0 0 auto; }
+.subject-opt b { font-weight: 600; }
+/* The subject you are already in is shown, never hidden: a menu that silently
+   drops the current app leaves a student unable to tell where they are. */
+.subject-opt.here { background: var(--primary-light); cursor: default; }
+.subject-opt.here b { color: var(--primary-dark, var(--primary)); font-weight: 700; }
+.subject-opt .subject-tick { margin-left: auto; padding-left: 8px; font-size: 0.72rem; color: var(--primary);
+  font-weight: 700; white-space: nowrap; }   /* nowrap: wrapped onto two lines it squeezes the subject's own name */
+.subject-menu-foot {
+  padding: 9px 11px 5px;
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+  font-size: 0.72rem; line-height: 1.6; color: var(--text-muted);
+}
+/* The switcher floats OVER the sticky topbar, whose right-hand end holds the
+   hero chip, the bell, the flag inbox and the AI badge — so the topbar has to
+   give that corner up or they sit underneath it, clickable nowhere. */
+.topbar { padding-right: 200px; }
+@media (max-width: 900px) {
+  /* Narrow: the pill keeps its icon and drops its label, so it needs far less
+     room and stops crowding a header that is already wrapping. */
+  .subject-btn .subject-name { display: none; }
+  .subject-btn { padding: 8px 10px; gap: 6px; }
+  .topbar { padding-right: 74px; }
+  .subject-menu { min-width: 232px; }
+}
+@media print { .subject-switch { display: none !important; } }
+
 </style>
 </head>
 <body>
@@ -4933,6 +5035,19 @@ body.lore-reading { overflow: hidden; }
     <div class="overlay-head"><h3>⚡ Rapid add</h3><button class="close" data-close="rapidAddOverlay">×</button></div>
     <div class="overlay-body">
       <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:16px;line-height:1.65;">Copy a screenshot of an exam question, then paste it here (Ctrl/⌘+V) — and keep pasting. Each one is read by AI in the background and dropped straight into your <b>Vetting</b> list. Nothing stops to open the editor, and nothing reaches your students until you approve it.</p>
+      <!-- The level everything queued after it is filed at. It sits ABOVE the
+           pad on purpose: it applies to the whole batch, and an author who
+           notices it only after pasting forty screenshots has filed forty
+           questions at the wrong level. The <option>s are built by
+           rapidLevelOptions() from SYL_LEVELS, so the list cannot drift from
+           the syllabus the objectives are filed against. -->
+      <div class="rapid-level" id="rapidLevelWrap">
+        <label for="rapidLevel">
+          <b>📚 Level for this batch</b>
+          <span id="rapidLevelNote">Every question added from here is filed at this level.</span>
+        </label>
+        <select id="rapidLevel"></select>
+      </div>
       <div class="rapid-pad" id="rapidPasteZone" tabindex="0">
         <div class="rapid-pad-icon rapid-desk">📋</div>
         <div class="rapid-pad-icon rapid-touch">📷</div>
@@ -7364,6 +7479,11 @@ async function enterApp(user) {
   $("userEmail").textContent = currentUser.email;
   document.querySelectorAll(".admin-only").forEach(el => el.style.display = isAdmin ? "" : "none");
   document.querySelectorAll(".student-only").forEach(el => el.style.display = isAdmin ? "none" : "");
+  // Every signed-in path comes through enterApp, which is why the subject
+  // switcher is turned on from this one place. It is shown to BOTH roles: a
+  // pupil needs it to reach their other subjects, and a teacher moving between
+  // the four banks needs it just as much.
+  subjectShow();
   updateFlagBadge();
   updateEmailBell();
 
@@ -12007,6 +12127,10 @@ function openRapidAdd() {
   // would hit the temporal dead zone. By the time the pad is opened it is long
   // past — the same reason `editorLos` is a `var`.
   const af = $("rapidAutoFile"); if (af) af.checked = sylAutoFileOn();
+  // Same reason, same timing: SYL_LEVELS is built from MOE_SYLLABUS at the end
+  // of the module, so the picker is filled when the pad is opened.
+  rapidLevelOptions();
+  rapidLevelPaint();
   $("rapidAddOverlay").classList.add("show");
   updateRapidCounts();
   // On a phone, focusing the pad pops the on-screen keyboard over the very
@@ -12069,20 +12193,96 @@ function rapidDrop(e) {
   if (!found) toast("Please drop an image — use “Choose a paper” below for a PDF", "error");
   else setRapidStatus(`Queued ${found} image${found > 1 ? "s" : ""}.`);
 }
+// ---- ⚡ Rapid add: the level this BATCH is filed at (v1.36.0) --------------
+// An author working through a pile of screenshots is nearly always working
+// through ONE year's paper, and the AI was choosing the level one screenshot at
+// a time from the wording alone. Saying "these are all P5" once is both less
+// work and more accurate than correcting forty questions in vetting afterwards.
+//
+// Here — unlike the three language portals, where a level is read off the topic
+// — `q.level` IS a real field on the question, so the batch level is simply
+// STAMPED on. It is also worth more than the label: `sylAutoFileLos` scopes the
+// objective search to `q.level`, so a level set before the filing call means
+// the objectives come back from that year's syllabus too.
+//
+// It lives in sessionStorage, which is the honest lifetime for it: a batch is
+// one sitting, so it survives a reload mid-pile and is back to "Any level" in a
+// new tab or tomorrow. A level that persisted for a week would be the one an
+// author set last Tuesday and never noticed again, filing a P3 paper as P5.
+const RAPID_LEVEL_KEY = "mathRapidLevel";
+function rapidLevel() {
+  try {
+    const v = sessionStorage.getItem(RAPID_LEVEL_KEY) || "";
+    return SYL_LEVELS.indexOf(v) >= 0 ? v : "";
+  } catch (e) { return ""; }
+}
+function setRapidLevel(v) {
+  const lv = SYL_LEVELS.indexOf(v) >= 0 ? v : "";
+  try { sessionStorage.setItem(RAPID_LEVEL_KEY, lv); } catch (e) { /* private mode — the picker still works for this pad */ }
+  rapidLevelPaint();
+}
+// The options come from SYL_LEVELS — the syllabus the objectives are filed
+// against — never from a list typed into the markup. A level in one and not the
+// other is a level whose questions can never be filed on the map.
+function rapidLevelOptions() {
+  const sel = $("rapidLevel");
+  if (!sel) return;
+  const cur = rapidLevel();
+  sel.innerHTML = `<option value="">Any level — take it from the question</option>` +
+    SYL_LEVELS.map(lv => `<option value="${escapeHtml(lv)}">${escapeHtml(lv)} — file every question in this batch at ${escapeHtml(lv)}</option>`).join("");
+  sel.value = cur;
+}
+function rapidLevelPaint() {
+  const lv = rapidLevel();
+  const wrap = $("rapidLevelWrap"), note = $("rapidLevelNote"), sel = $("rapidLevel");
+  if (sel && sel.value !== lv) sel.value = lv;
+  if (wrap) wrap.classList.toggle("on", !!lv);
+  if (note) {
+    note.textContent = lv
+      ? `Every question added from here is stamped ${lv}, and its objectives are picked from the ${lv} syllabus.`
+      : "Every question takes whatever level the AI reads off it, as now.";
+  }
+}
+// Stamping the level is only half of it. `qLevelCeiling` takes the HIGHEST
+// level a question declares — its own field AND the front of every `los` tag —
+// so one P6 objective on a question stamped P5 makes it a P6 question again,
+// while the level badge on the vetting card still reads P5. The objectives are
+// scoped by `sylAutoFileLos` and this is the guard for the ones that come back
+// out of scope anyway.
+function rapidApplyLevel(q, level) {
+  if (!q || !level) return q;
+  q.level = level;
+  if (Array.isArray(q.los) && q.los.length) {
+    q.los = q.los.filter(id => {
+      const m = /^P[1-6]/.exec(String(id || ""));
+      return !m || m[0] <= level;
+    });
+  }
+  return q;
+}
 function startRapidJob(file) {
   if (file.size > 25 * 1024 * 1024) { toast("That image is too large (max 25 MB)", "error"); return; }
   const jobId = "rapid_" + (++_rapidSeq);
-  rapidJobs.unshift({ id: jobId, status: "processing", title: "Reading screenshot…", sub: "AI is reading the question…" });
+  // The batch level is captured HERE, as the file is queued — not read inside
+  // the job. The pad stays open while the AI reads, and an author who queues a
+  // P3 paper and switches the picker to P4 for the next one must not have the
+  // first paper land at P4 because it finished second.
+  const level = rapidLevel();
+  rapidJobs.unshift({ id: jobId, status: "processing", title: "Reading screenshot…", sub: "AI is reading the question…", level });
   updateRapidCounts();
   renderVettingList();          // the placeholder card shows immediately
-  processRapidJob(jobId, file);  // fire-and-forget; runs in the background
+  processRapidJob(jobId, file, level);  // fire-and-forget; runs in the background
 }
-async function processRapidJob(jobId, file) {
+async function processRapidJob(jobId, file, batchLevel) {
   try {
     const media = await imageFileToInlineMedia(file);
     const parsed = parseAIJson(await askGeminiVision(
       aiQuestionReadPrompt(false, true), [media], { maxOutputTokens: 2400, json: true }));
     const q = questionFromAiData(parsed);
+    // Stamped BEFORE the filing call below, not after: sylAutoFileLos scopes
+    // its objective search to q.level, so setting it first is what makes the
+    // objectives come back from the same year the author asked for.
+    rapidApplyLevel(q, batchLevel);
 
     // File it on the syllabus map. The objectives are read off the question
     // TEXT, so this second call is started here and awaited at the bottom — it
@@ -12108,6 +12308,9 @@ async function processRapidJob(jobId, file) {
     }
 
     const filed = await filing;   // resolved by now in all but the fastest crops
+    // The filing writes q.los, and qLevelCeiling takes the MAX over the level
+    // and every tag — so the guard runs again on what actually came back.
+    rapidApplyLevel(q, batchLevel);
     _vetTagDuplicate(q);
     removeRapidJob(jobId);
     vettingList.unshift(q);
@@ -12116,7 +12319,9 @@ async function processRapidJob(jobId, file) {
     updateRapidCounts();
     renderVettingList();
     saveVettingDoc(q).catch(e => { console.warn("vetting save", e); toast("Read it, but couldn't save it to vetting: " + e.message, "error"); });
-    setRapidStatus(`✓ Added “${q.title || "question"}” to vetting${filed.length ? ` — filed under ${filed.length} objective${filed.length === 1 ? "" : "s"}` : ""}.`);
+    // The level is named back to the author. Filing at a level they chose and
+    // never confirming it is how a whole pile ends up at the wrong one.
+    setRapidStatus(`✓ Added “${q.title || "question"}”${batchLevel ? ` at ${batchLevel}` : ""} to vetting${filed.length ? ` — filed under ${filed.length} objective${filed.length === 1 ? "" : "s"}` : ""}.`);
   } catch (err) {
     console.error("rapid job failed:", err);
     // A failure must always leave a card behind. If the job was already removed
@@ -12205,7 +12410,7 @@ async function cropBox2dFromImage(dataUrl, box) {
 // forty more AI calls could finish — so the ids in flight are held here and the
 // card says "Filing…" rather than looking like a question that came back with
 // no objectives at all. Each one is re-saved the moment its own call returns.
-async function rapidAutoFileBatch(list) {
+async function rapidAutoFileBatch(list, batchLevel) {
   const todo = (list || []).filter(q => q && !qLos(q).length);
   if (!sylAutoFileOn() || !todo.length) return;
   todo.forEach(q => _rapidFilingIds.add(q.id));
@@ -12213,6 +12418,11 @@ async function rapidAutoFileBatch(list) {
   setRapidStatus(`📐 Filing ${todo.length} question${todo.length === 1 ? "" : "s"} on the syllabus map…`);
   const filed = await sylAutoFileMany(todo, q => {
     _rapidFilingIds.delete(q.id);
+    // qLevelCeiling takes the MAX over the level and every tag, so an
+    // objective from a higher year would raise a question the author stamped
+    // P5 back to P6 while its level badge still read P5. Guarded before the
+    // save, or the wrong ceiling is what gets written.
+    rapidApplyLevel(q, batchLevel);
     saveVettingDoc(q).catch(e => console.warn("vetting save (objectives)", e));
     renderVettingList();
   });
@@ -12246,7 +12456,7 @@ function rapidJobCardHtml(job) {
     </div>`;
   }
   return `<div class="vet-card is-busy">
-    <div class="vet-card-head"><h4><span class="spinner dark"></span> ${escapeHtml(job.title || "Processing…")}</h4></div>
+    <div class="vet-card-head"><h4><span class="spinner dark"></span> ${escapeHtml(job.title || "Processing…")}</h4>${job.level ? `<span class="vet-badge">📚 ${escapeHtml(job.level)}</span>` : ""}</div>
     <div class="vet-preview">${escapeHtml(job.sub || "AI is reading the question…")}</div>
   </div>`;
 }
@@ -12265,6 +12475,10 @@ async function handleBulkPaper(file) {
   if (!isPdf && !file.type.startsWith("image/")) { toast("Please use a PDF or an image", "error"); return; }
   if (isPdf && file.size > 14 * 1024 * 1024) { toast("PDF too large (max 14 MB) — try splitting the paper", "error"); return; }
   const status = $("bulkPaperStatus");
+  // The paper import shares the Rapid add pad, so it shares the pad's batch
+  // level: a teacher who sets P5 and then imports a P5 paper means both.
+  // Captured once here, before the read, for the whole paper.
+  const batchLevel = rapidLevel();
   const btn = $("bulkPaperBtn"); const orig = btn.textContent;
   btn.disabled = true; btn.textContent = "Reading…";
   if (status) status.innerHTML = '<span class="spinner dark"></span> Reading every question on the paper…';
@@ -12280,6 +12494,7 @@ async function handleBulkPaper(file) {
       `Solve each question and give its answer. For "topics" use specific content topics students may see (Fractions, Ratio, Percentage, Geometry, Speed, Algebra…) and never the generic label "Problem Solving". For "concept" use a private teacher-only strategy label only when one clearly applies, else "".\n` +
       `If a question is multiple-choice, extract its options exactly and say which is correct; otherwise return an empty options array and correctOption -1. ` +
       `Set "hasDiagram" true when a question relies on a figure — the figure itself is not extracted on this route, so the teacher will attach it.\n` +
+      (batchLevel ? `This whole paper is a ${batchLevel} paper — set "level" to "${batchLevel}" on every question, and judge the topics at that level.\n` : "") +
       `Return at most ${BULK_MAX_QUESTIONS} questions. Return ONLY valid JSON, no markdown fences, line breaks inside strings escaped as \\n:\n` +
       `{"questions":[{"number":"<the paper's question number, e.g. 12 or 8(a)>","title":"<short title>","level":"<e.g. P5>","topics":["<topic>"],"concept":"<or empty>",` +
       `"questionText":"<the full question text>","expected":"<the correct final answer with units>","markingGuide":"<worked solution>","hasDiagram":<true|false>,` +
@@ -12291,6 +12506,9 @@ async function handleBulkPaper(file) {
     const fresh = [];
     for (const row of rows) {
       const q = questionFromAiData(row);
+      // The batch level, stamped on every question the paper held — the model
+      // is asked for it too, but the author's answer is the authoritative one.
+      rapidApplyLevel(q, batchLevel);
       if (!String(row.questionText || "").trim()) continue;
       // The paper's own number is worth keeping as a title prefix — it is how
       // the teacher will find the question against the printed paper — but it
@@ -12313,7 +12531,7 @@ async function handleBulkPaper(file) {
     // already saved and on screen, so forty more AI calls must not be something
     // the teacher waits on. Each card gains its objectives as its own call
     // returns, and its vetting doc is re-saved at that point.
-    rapidAutoFileBatch(fresh).catch(e => console.warn("auto-file batch", e));
+    rapidAutoFileBatch(fresh, batchLevel).catch(e => console.warn("auto-file batch", e));
   } catch (e) {
     console.error(e);
     if (status) status.textContent = "Couldn't read that paper: " + aiErrorMessage(e);
@@ -12339,6 +12557,7 @@ $("rapidCamBtn").addEventListener("click", () => $("rapidCam").click());
 $("rapidPickBtn").addEventListener("click", () => $("rapidFile").click());
 $("rapidCam").addEventListener("change", e => rapidPickFiles(e.target));
 $("rapidFile").addEventListener("change", e => rapidPickFiles(e.target));
+$("rapidLevel").addEventListener("change", e => setRapidLevel(e.target.value));
 $("rapidAutoFile").addEventListener("change", e => {
   setSylAutoFile(e.target.checked);
   setRapidStatus(e.target.checked
@@ -20841,7 +21060,113 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.35.0 · 2026-08-15";
+const APP_VERSION = "v1.36.0 · 2026-08-15";
+
+// =====================================================================
+// THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
+//
+// Polymath teaches four subjects through four SEPARATE apps. They share a
+// Firebase project and a sign-in, and they deliberately share nothing else:
+// four question banks, four sets of progress, four topic lists (see "Where the
+// data lives"). A student who is taught three of them had no way to get from
+// one to another except a bookmark per subject, which on a school Chromebook
+// means the one they never bookmarked is the one they stop using.
+//
+// This is a LINK and nothing more. It is four <a href>s, not a router:
+//   • Each app stays reachable at its own URL exactly as before — nothing here
+//     gates or redirects anything, so a bookmark, a shared link and a QR code
+//     all keep working.
+//   • Middle-click and open-in-new-tab behave the way a student expects, which
+//     a JS `location.href =` handler would quietly break.
+//   • Signing in is per app and unchanged. The uid is the same account in all
+//     four (one Firebase project), so switching subject does not mean signing
+//     in again.
+//
+// THE URLS ARE RELATIVE, and that is load-bearing. The four are GitHub Pages
+// project sites — polymathlc.github.io/{math,english,chinese,cer} — so they
+// are sibling folders on one host, and `../math/` resolves correctly there,
+// on a local checkout with the four repos side by side, and on a custom
+// domain later, without this file ever naming a domain. An absolute
+// https://polymathlc.github.io/... would pin every app to that host on the
+// day the centre moves to one of its own.
+//
+// NOTE the Science app's folder is `cer`, not `science` — that is the repo
+// name and it is what the URL really is. The label and the folder differ on
+// purpose; do not "fix" one to match the other.
+const SUBJECT_KEY = 'math';           // which of the four THIS app is
+const SUBJECT_APPS = [
+  { key: 'math',    ico: '🔢', label: 'Math',    sub: 'Math Practice',            url: '../math/' },
+  { key: 'english', ico: '📕', label: 'English', sub: 'English Learning Portal',  url: '../english/' },
+  { key: 'chinese', ico: '📗', label: 'Chinese', sub: '华文 · Chinese Portal',     url: '../chinese/' },
+  { key: 'science', ico: '🔬', label: 'Science', sub: 'Science Learning Portal',  url: '../cer/' }
+];
+
+function subjectCurrent() {
+  return SUBJECT_APPS.find(s => s.key === SUBJECT_KEY) || SUBJECT_APPS[0];
+}
+
+// The menu is BUILT from SUBJECT_APPS rather than written out in index.html,
+// so a subject added to that list appears in all four apps by editing one line
+// in each. The current subject is shown and marked, never dropped: a menu that
+// silently omits where you already are leaves a student unable to tell which
+// app they are looking at.
+function subjectRenderMenu() {
+  const menu = document.getElementById('subjectMenu');
+  if (!menu) return;
+  const rows = SUBJECT_APPS.map(s => {
+    const here = s.key === SUBJECT_KEY;
+    const body =
+      `<span class="subject-ico" aria-hidden="true">${s.ico}</span>` +
+      `<span><b>${escapeHtml(s.label)}</b><br><span style="font-size:0.74rem;color:var(--text-muted);">${escapeHtml(s.sub)}</span></span>` +
+      (here ? `<span class="subject-tick">You are here</span>` : '');
+    // The current app is a <div>, not an <a>: a link back to the page you are
+    // already on reloads the app and loses whatever was half-typed.
+    return here
+      ? `<div class="subject-opt here" role="menuitem" aria-current="page">${body}</div>`
+      : `<a class="subject-opt" role="menuitem" href="${escapeHtml(s.url)}">${body}</a>`;
+  }).join('');
+  menu.innerHTML =
+    `<div class="subject-menu-title">Your subjects</div>${rows}` +
+    `<div class="subject-menu-foot">Each subject keeps its own questions, progress and worksheets. You stay signed in.</div>`;
+}
+
+function subjectToggle(e) {
+  if (e) e.stopPropagation();
+  const wrap = document.getElementById('subjectSwitch');
+  if (!wrap) return;
+  const open = !wrap.classList.contains('open');
+  wrap.classList.toggle('open', open);
+  const btn = document.getElementById('subjectBtn');
+  if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+function subjectClose() {
+  const wrap = document.getElementById('subjectSwitch');
+  if (!wrap || !wrap.classList.contains('open')) return;
+  wrap.classList.remove('open');
+  const btn = document.getElementById('subjectBtn');
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+
+// Shown only once someone is signed in — it is fixed to the viewport, so on
+// the login screen it would float over the login card belonging to nobody.
+function subjectShow() {
+  const wrap = document.getElementById('subjectSwitch');
+  if (!wrap) return;
+  const me = subjectCurrent();
+  const ico = document.getElementById('subjectIco');
+  const name = document.getElementById('subjectName');
+  if (ico) ico.textContent = me.ico;
+  if (name) name.textContent = me.label;
+  subjectRenderMenu();
+  wrap.style.display = '';
+}
+
+// Bound ONCE on the document rather than per element: the menu's contents are
+// rebuilt, and a listener attached to a row would go with the row it was on.
+// The button is wired by id like everything else in this file.
+document.addEventListener('click', subjectClose);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') subjectClose(); });
+{ const _sb = $("subjectBtn"); if (_sb) _sb.addEventListener("click", subjectToggle); }
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
@@ -39422,6 +39747,27 @@ window.renderDiagnosticPage = renderDiagnosticPage;
       <button type="button" class="lore-turn" id="tcgLoreNext" onclick="tcgLoreTurn(1)">Next page ›</button>
     </div>
   </div>
+
+<!-- ==================== SUBJECT SWITCHER ====================
+     Top-right on every page, for everyone signed in. The four subject portals
+     are separate apps with separate question banks, progress and games; this
+     is how one student moves between the ones they are taught.
+
+     The menu itself is built by subjectRenderMenu() from SUBJECT_APPS in the
+     module — ONE list, so a subject added there appears here without this
+     markup being touched. It stays hidden until sign-in (subjectShow()), or it
+     would sit over the login card. The button is wired by id like every other
+     control in this file, not by an inline onclick. -->
+<div class="subject-switch" id="subjectSwitch" style="display:none;">
+  <button type="button" class="subject-btn" id="subjectBtn"
+          aria-haspopup="true" aria-expanded="false" aria-controls="subjectMenu"
+          title="Switch subject — your Math, English, Chinese and Science portals">
+    <span class="subject-ico" id="subjectIco">🔢</span>
+    <span class="subject-name" id="subjectName">Math</span>
+    <span class="subject-caret" aria-hidden="true">▾</span>
+  </button>
+  <div class="subject-menu" id="subjectMenu" role="menu"></div>
+</div>
 
 <div class="app-version" id="appVersion" title="App build version"></div>
 </body>
