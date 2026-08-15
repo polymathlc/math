@@ -286,6 +286,27 @@ a { color: var(--primary); }
 .rapid-pad-icon { font-size: 2.4rem; line-height: 1; margin-bottom: 10px; }
 .rapid-pad-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 8px; }
 .rapid-pad-sub { font-size: 0.86rem; color: var(--text-muted); line-height: 1.6; max-width: 420px; margin: 0 auto; }
+/* ⚡ Rapid add has TWO ways in, and which one a device gets is decided here.
+   A phone has no Ctrl/⌘+V, nothing on its clipboard to paste and nothing to
+   drag, so the pad was a box that could not be filled: `.rapid-touch` shows the
+   camera and the gallery instead. `(pointer: coarse)` is the whole gate — on a
+   mouse the pad is byte-for-byte the box it always was, and a touchscreen
+   laptop driven by a trackpad still reports a fine pointer, so it keeps the
+   paste pad too. */
+.rapid-touch { display: none; }
+@media (pointer: coarse) {
+  .rapid-pad { cursor: pointer; }
+  .rapid-desk { display: none; }
+  .rapid-pad-icon.rapid-touch, .rapid-pad-title.rapid-touch, .rapid-pad-sub.rapid-touch { display: block; }
+  .rapid-upload-row.rapid-touch {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 16px;
+  }
+  .rapid-upload-row .btn { flex: 1 1 44%; justify-content: center; }
+}
 .rapid-counts {
   display: flex;
   gap: 12px;
@@ -4913,10 +4934,24 @@ body.lore-reading { overflow: hidden; }
     <div class="overlay-body">
       <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:16px;line-height:1.65;">Copy a screenshot of an exam question, then paste it here (Ctrl/⌘+V) — and keep pasting. Each one is read by AI in the background and dropped straight into your <b>Vetting</b> list. Nothing stops to open the editor, and nothing reaches your students until you approve it.</p>
       <div class="rapid-pad" id="rapidPasteZone" tabindex="0">
-        <div class="rapid-pad-icon">📋</div>
-        <div class="rapid-pad-title">Paste a screenshot (Ctrl/⌘+V)</div>
-        <div class="rapid-pad-sub">…or drop image files here. Keep going — every paste queues its own job, and you can close this window while they finish.</div>
+        <div class="rapid-pad-icon rapid-desk">📋</div>
+        <div class="rapid-pad-icon rapid-touch">📷</div>
+        <div class="rapid-pad-title rapid-desk">Paste a screenshot (Ctrl/⌘+V)</div>
+        <div class="rapid-pad-title rapid-touch">Tap here to add photos</div>
+        <div class="rapid-pad-sub rapid-desk">…or drop image files here. Keep going — every paste queues its own job, and you can close this window while they finish.</div>
+        <div class="rapid-pad-sub rapid-touch">…or use the buttons below. Keep going — every photo queues its own job, and you can close this window while they finish.</div>
       </div>
+      <!-- The phone route. A touch screen has no Ctrl/⌘+V and nothing on its
+           clipboard to paste, so the camera and the gallery are the way in —
+           and both hand their files to the same queue a paste does. They are
+           hidden on a mouse (`.rapid-touch` in the CSS), so the desktop pad is
+           exactly the box it always was. -->
+      <div class="rapid-touch rapid-upload-row">
+        <button class="btn btn-primary" id="rapidCamBtn">📷 Take photo</button>
+        <button class="btn btn-ghost" id="rapidPickBtn">🖼️ Choose photos</button>
+      </div>
+      <input type="file" accept="image/*" capture="environment" id="rapidCam" class="hidden">
+      <input type="file" accept="image/*" multiple id="rapidFile" class="hidden">
       <div class="rapid-counts">
         <div class="rapid-count"><b id="rapidProcCount">0</b><span>Reading now</span></div>
         <div class="rapid-count"><b id="rapidAddedCount">0</b><span>Added to vetting</span></div>
@@ -11974,7 +12009,38 @@ function openRapidAdd() {
   const af = $("rapidAutoFile"); if (af) af.checked = sylAutoFileOn();
   $("rapidAddOverlay").classList.add("show");
   updateRapidCounts();
-  setTimeout(() => { const z = $("rapidPasteZone"); if (z) z.focus(); }, 60);
+  // On a phone, focusing the pad pops the on-screen keyboard over the very
+  // buttons the author needs — and there is nothing to paste anyway.
+  if (rapidTouch()) setRapidStatus("Take a photo or choose one — each reads in the background.");
+  else setTimeout(() => { const z = $("rapidPasteZone"); if (z) z.focus(); }, 60);
+}
+
+// ---- The phone route ------------------------------------------------------
+// A phone has no Ctrl/⌘+V, no clipboard image to paste and nothing to drag, so
+// on a touch screen the pad has always been a box that could not be filled.
+// The camera and the gallery are the way in there instead — and both go through
+// startRapidJob, the ONE queue entry point every route already shares, so a
+// photo is read, cropped, filed on the syllabus map and dropped into Vetting
+// exactly as a pasted screenshot is.
+//
+// The pad itself is unchanged on a mouse: the buttons and the tap-to-pick are
+// behind `(pointer: coarse)` in the CSS and behind this predicate in the JS.
+function rapidTouch() {
+  try { return !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches); }
+  catch (e) { return false; }
+}
+function rapidPickFiles(input) {
+  const files = Array.from((input && input.files) || []);
+  // Cleared FIRST: a picker that still holds last time's file fires no change
+  // event for the same photo picked twice, so the second tap does nothing at
+  // all and reads as a broken button.
+  if (input) input.value = "";
+  let found = 0;
+  for (const f of files) {
+    if (f.type && f.type.startsWith("image/")) { startRapidJob(f); found++; }
+  }
+  if (found) setRapidStatus(`Queued ${found} photo${found > 1 ? "s" : ""} — add the next one whenever you like…`);
+  else if (files.length) toast("Please choose an image — use “Choose a paper” below for a PDF", "error");
 }
 function rapidPaste(e) {
   const items = (e.clipboardData && e.clipboardData.items) || [];
@@ -12267,6 +12333,12 @@ $("rapidPasteZone").addEventListener("dragover", e => { e.preventDefault(); $("r
 $("rapidPasteZone").addEventListener("dragleave", () => $("rapidPasteZone").classList.remove("dragover"));
 $("rapidPasteZone").addEventListener("drop", rapidDrop);
 enableHoverPaste($("rapidPasteZone"), rapidPaste);
+// On a touch screen the pad is a BUTTON, not a paste target.
+$("rapidPasteZone").addEventListener("click", () => { if (rapidTouch()) $("rapidFile").click(); });
+$("rapidCamBtn").addEventListener("click", () => $("rapidCam").click());
+$("rapidPickBtn").addEventListener("click", () => $("rapidFile").click());
+$("rapidCam").addEventListener("change", e => rapidPickFiles(e.target));
+$("rapidFile").addEventListener("change", e => rapidPickFiles(e.target));
 $("rapidAutoFile").addEventListener("change", e => {
   setSylAutoFile(e.target.checked);
   setRapidStatus(e.target.checked
@@ -20769,7 +20841,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.34.0 · 2026-08-14";
+const APP_VERSION = "v1.35.0 · 2026-08-15";
 { const _v = $("appVersion"); if (_v) _v.textContent = APP_VERSION; }
 
 // Question Bank search — filter as you type
