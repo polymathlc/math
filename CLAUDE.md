@@ -631,6 +631,26 @@ should still be asked.
 - It changes WHICH questions are asked, never how much they pay — see the
   economy rules below — so re-declaring a level cannot be farmed for points.
 
+## ⚡ Rapid add on a PHONE (v1.35.0)
+The pad was a paste target and nothing else, so on a phone it was **a box that
+could not be filled**: no Ctrl/⌘+V, nothing on the clipboard to paste, nothing
+to drag. The camera and the gallery are the way in there.
+- **`(pointer: coarse)` is the whole gate**, in the CSS (`.rapid-desk` /
+  `.rapid-touch`) and in `rapidTouch()` for the JS half. On a mouse the pad is
+  the box it always was — same wording, same paste, same drop, same hover-paste
+  — and a touchscreen laptop driven by a trackpad reports a FINE pointer, so it
+  keeps the paste pad too.
+- **Both routes end at `startRapidJob`**, the ONE queue entry point, so a photo
+  is read, cropped, filed on the syllabus map and dropped into Vetting exactly
+  as a pasted screenshot is. Do not give the phone its own pipeline.
+- **The picker's `value` is cleared BEFORE the files are queued.** An `<input
+  type=file>` still holding last time's file fires no `change` for the same
+  photo picked twice, so the second tap does nothing at all — a button that
+  looks like it works and does not.
+- A camera photo needs no shrinking step of its own: `imageFileToInlineMedia`
+  already caps every image at 1800px and re-encodes it as JPEG on the way to the
+  model, so the phone route inherits that for free.
+
 ## The game economy — every faucet is gated
 🪙 points buy booster packs, so **no repeatable button may ever pay**. Every faucet
 is behind one of: answering a question (`rpgAwardGameQuestion`, which has the
