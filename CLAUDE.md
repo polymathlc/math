@@ -810,6 +810,49 @@ card, the live banner in the editor, and the confirm on 💾 Save. It is a
   replaces the draft they are looking at.
 - Run **`node tools/duplicate-warning-tests.mjs`** after touching any of it.
 
+### ⇄ Side by side — the comparison the warning was missing (vv1.40.0)
+
+`dupCompare` / `_dupFindQuestion` / `_dupCompareSide` / `_dupDiffHtml`
+(search `SIDE BY SIDE`), plus the `#dupCompareOverlay` in `index.html`.
+
+The banner said *"this looks 90% like Sharing a Sum of Money"* and offered
+exactly ONE button: **open** that question. Which replaces the draft — so the
+only way to answer the question the banner asks (*are these two the same?*) was
+to throw away the thing being compared, go and look, and then build it again
+from memory. Nobody does that, so the warning got clicked past, which makes it
+a warning that costs attention and buys nothing.
+
+The two questions now go up **next to each other**: what is being written on the
+left, what is already filed on the right.
+
+- **Both sides go through the SAME renderer** — `renderQuestionBodyPreviewHtml`,
+  split out of `renderQuestionPreviewHtml` so it takes the question OBJECT
+  rather than an id, because the left-hand column is a draft that has never been
+  saved and has no id to look up. A second renderer written for this view would
+  be free to drift, and a comparison whose two halves are drawn by different
+  code can flatter one of them.
+- **Nothing is written and nothing is replaced by opening it.** It is a read.
+  The one destructive action — loading the original into the editor — lives in
+  the overlay's foot, still behind `dupOpenOriginal`'s confirm, and is now
+  reached only by somebody who has actually seen what they are about to lose. It
+  is **hidden** when the left-hand side is a saved question (a vetting card),
+  because there is no draft to lose there.
+- **`mineId` names the LEFT-hand question.** A vetting card passes its own id;
+  the editor banner passes nothing, and the draft is read from
+  `_dupEditorQuestion()`. That third argument to `_dupSeeOriginalBtn` used to be
+  a boolean `guard` — same position, different meaning, so check both call sites
+  if you change it.
+- **It says what differs IN WORDS** (`_dupDiffHtml`, through the matcher's own
+  `_dupTokenSet`). Two near-identical questions are near-identical to LOOK at,
+  which is the whole problem: the eye slides straight over the one changed
+  number. The words appearing on one side only are the fastest honest answer to
+  "so what did they change?", and a diff computed on any other footing would
+  contradict the percentage printed above it. When both lists are empty it says
+  *word for word the same*, which is the strongest thing it can tell an author.
+- Run **`node tools/duplicate-warning-tests.mjs`** after touching any of it —
+  the direction of the difference strip is the silent one: reversed, the two
+  lists read perfectly and tell the author the opposite of the truth.
+
 ## The game economy — every faucet is gated
 🪙 points buy booster packs, so **no repeatable button may ever pay**. Every faucet
 is behind one of: answering a question (`rpgAwardGameQuestion`, which has the
