@@ -742,6 +742,37 @@ choosing the level one screenshot at a time from the wording alone.
 - The chosen level is named back in the status line and on the job card.
 - Run **`node tools/subject-level-tests.mjs`** after touching any of it.
 
+## Clearing the vetting list — deleting several at once (v1.37.0)
+
+`_vetSelected` / `vetDeleteMany` / `vetRenderBulkBar` (search `DELETING SEVERAL
+VETTING QUESTIONS AT ONCE`), plus the tick box on every vetting card, the
+`#vetBulkBar` above the list and **🗑 Delete all** beside ✅ Approve all.
+
+The vetting list is where a whole BAD BATCH lands — forty screenshots off the
+wrong paper, a paper imported twice, a set the model made a mess of. Clearing
+that one card at a time is forty confirm dialogs, which is why it gets left
+instead, and a vetting list nobody clears is one nobody reads either.
+
+- **Every route goes through `vetDelete`'s rule: delete is a MOVE TO THE BIN.**
+  `binMove(q, "vetting")` is awaited BEFORE the vetting doc goes, so a failed
+  write leaves the question exactly where it was and nothing here can destroy
+  work. That order is what makes a one-press "delete all" safe to offer at all —
+  the undo is the 🗑️ Bin for 7 days, and `deletedFrom: "vetting"` is what puts
+  each one back in **vetting** rather than serving an unchecked draft to
+  students from the bank.
+- **The deletes are one at a time and AWAITED.** A batch has to be able to
+  report that four of forty would not go, and those four stay on screen rather
+  than being taken off a list they are still in.
+- **The selection is PRUNED on every render** (`vetPruneSelection`). A ticked
+  question approved into the bank, edited away or deleted singly is not a thing
+  to delete; doing it in the renderer rather than in each of those paths is what
+  covers a path added later.
+- **The ticks live in a `Set` of ids, never as a flag on the question** — those
+  objects are replaced wholesale by every re-read, which would drop the tick.
+- **`.vet-pick` must set `appearance: auto`** — Tailwind's preflight sets it to
+  `none`, which leaves an invisible white square where the control should be.
+- Run **`node tools/vetting-bulk-delete-tests.mjs`** after touching any of it.
+
 ## The game economy — every faucet is gated
 🪙 points buy booster packs, so **no repeatable button may ever pay**. Every faucet
 is behind one of: answering a question (`rpgAwardGameQuestion`, which has the
@@ -785,4 +816,13 @@ fields**. Tabs: 📅 This Month / 🗓️ Last Month / ⭐ All-Time (XP, server-
   `qLevelCeiling` takes the MAX over `q.level` and every objective tag, so a
   question stamped P5 that keeps one P6 objective is a P6 question wearing a P5
   badge.
+- After touching **the vetting list's bulk delete** (`_vetSelected`,
+  `vetDeleteMany`, `vetPruneSelection`, `vetRenderBulkBar`, `vetDeleteAll`,
+  `vetDeleteSelected`), run `node tools/vetting-bulk-delete-tests.mjs`. One
+  press can clear the whole list, and the guarantee that makes that safe — the
+  bin copy written and awaited BEFORE the vetting doc is deleted, filed as
+  coming from vetting so Restore puts it back there — fails silently in every
+  direction. Reverse the order and a failed write has destroyed the question;
+  file it as coming from the bank and an undo serves an unchecked draft to
+  students.
 - Commit messages and pushed artifacts must not contain the model identifier.

@@ -395,7 +395,17 @@ a { color: var(--primary); }
   overflow: hidden;
 }
 .vet-preview img { max-width: 220px; height: auto; border: 1px solid var(--border); border-radius: 6px; display: block; margin: 8px 0; }
-.vet-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.vet-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+/* ── Deleting several vetting questions at once ───────────────────────
+   The tick box MUST set appearance:auto — Tailwind's preflight sets it to
+   none, which leaves an invisible white square where the control should be. */
+.vet-pick { appearance: auto; -webkit-appearance: auto; width: 15px; height: 15px; margin: 0; flex: 0 0 auto; cursor: pointer; accent-color: var(--accent-red); }
+.vet-pick-wrap { display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); font-size: 0.78rem; font-weight: 600; color: var(--text-muted); cursor: pointer; user-select: none; }
+.vet-pick-wrap:hover { border-color: var(--accent-red); color: var(--accent-red); }
+.vet-card.is-picked { border-color: var(--accent-red); box-shadow: 0 0 0 1px var(--accent-red); }
+.vet-bulk { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; padding: 14px 18px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-alt); }
+.vet-bulk-count { font-size: 0.85rem; font-weight: 700; color: var(--text); }
+.vet-bulk .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
 /* ===================================================================
    BIN — a deleted question, waiting out its seven days.
@@ -4615,8 +4625,12 @@ body.lore-reading { overflow: hidden; }
         <div style="flex:1;"><h3>📋 Vetting</h3><p>Questions the AI has read but nobody has checked yet. Students never see these — approve one into the bank when it looks right. The 📐 badges are the syllabus objectives the AI filed it under; ✎ Edit to change them. <span id="vettingCount"></span></p></div>
         <button class="btn btn-orange" id="vettingRapidBtn">⚡ Rapid add</button>
         <button class="btn btn-ghost" id="vettingApproveAllBtn" title="Send every question in this list to the question bank">✅ Approve all</button>
+        <button class="btn btn-danger" id="vettingDeleteAllBtn" title="Send every question in this list to the 🗑️ Bin — you can restore them there for 7 days">🗑 Delete all</button>
       </div>
       <div class="card card-pad">
+        <!-- Bulk-delete bar: how many are ticked and the buttons that act on
+             them. Built by vetRenderBulkBar so it cannot disagree with the cards. -->
+        <div class="vet-bulk" id="vetBulkBar" style="display:none;"></div>
         <div class="vet-grid" id="vettingList"></div>
       </div>
     </div>
@@ -11807,11 +11821,14 @@ function renderVettingList() {
   const list = $("vettingList");
   if (!list) return;
   updateVettingBadge();
+  vetPruneSelection();
   const jobs = rapidJobs.map(rapidJobCardHtml).join("");
   if (!vettingList.length && !rapidJobs.length) {
+    vetRenderBulkBar();
     list.innerHTML = `<div class="empty-note">Nothing waiting. Use <b>⚡ Rapid add</b> to paste screenshots straight in here ✦</div>`;
     return;
   }
+  vetRenderBulkBar();
   list.innerHTML = jobs + vettingList.map(q => {
     const dup = q.duplicateOf
       ? `<span class="vet-badge dup" title="Looks like “${escapeHtml(q.duplicateOf.title)}” which is already in your bank">⚠ Possible duplicate (${q.duplicateOf.sim}%)</span>` : "";
@@ -11829,7 +11846,8 @@ function renderVettingList() {
     const loGap = los ? "" : (_rapidFilingIds.has(q.id)
       ? `<span class="vet-badge busy"><span class="spinner dark"></span> Filing…</span>`
       : `<span class="vet-badge warn">No objective</span>`);
-    return `<div class="vet-card${_rapidJustAdded.has(q.id) ? " is-new" : ""}">
+    const picked = _vetSelected.has(q.id);
+    return `<div class="vet-card${_rapidJustAdded.has(q.id) ? " is-new" : ""}${picked ? " is-picked" : ""}">
       <div class="vet-card-head"><h4>${escapeHtml(q.title || "Untitled question")}</h4></div>
       <div class="vet-meta">
         <span class="vet-badge">${escapeHtml(q.level || "no level")}</span>
@@ -11838,6 +11856,9 @@ function renderVettingList() {
       </div>
       <div class="vet-preview">${vetPreviewHtml(q)}</div>
       <div class="vet-actions">
+        <label class="vet-pick-wrap" title="Tick this question, then use 🗑 Delete selected">
+          <input type="checkbox" class="vet-pick" data-vet-pick="${escapeHtml(q.id)}"${picked ? " checked" : ""}>
+        </label>
         <button class="btn btn-primary btn-sm" data-vet-approve="${escapeHtml(q.id)}" title="Send this question to the question bank — students can practise it from then on">✅ Approve to bank</button>
         <button class="btn btn-ghost btn-sm" data-vet-edit="${escapeHtml(q.id)}" title="Open it in the editor to fix the wording or attach the diagram">✎ Edit</button>
         <button class="btn btn-danger btn-sm" data-vet-del="${escapeHtml(q.id)}" title="Send it to the 🗑️ Bin — you can restore it there for 7 days">🗑 Delete</button>
@@ -11847,6 +11868,7 @@ function renderVettingList() {
   list.querySelectorAll("[data-vet-approve]").forEach(b => b.addEventListener("click", () => vetApprove(b.dataset.vetApprove)));
   list.querySelectorAll("[data-vet-edit]").forEach(b => b.addEventListener("click", () => vetEdit(b.dataset.vetEdit)));
   list.querySelectorAll("[data-vet-del]").forEach(b => b.addEventListener("click", () => vetDelete(b.dataset.vetDel)));
+  list.querySelectorAll("[data-vet-pick]").forEach(b => b.addEventListener("change", () => vetSelToggle(b.dataset.vetPick, b.checked)));
   list.querySelectorAll("[data-rapid-dismiss]").forEach(b => b.addEventListener("click", () => dismissRapidJob(b.dataset.rapidDismiss)));
 }
 // Approve = move, not copy: the vetting doc goes away only AFTER the bank write
@@ -11930,6 +11952,128 @@ async function vetDelete(id) {
     console.error(e);
     toast("Delete failed: " + e.message, "error");
   }
+}
+
+// =====================================================================
+// DELETING SEVERAL VETTING QUESTIONS AT ONCE
+//
+// The vetting list is where a whole BAD BATCH lands — forty screenshots off
+// the wrong paper, a paper imported twice, a set the model made a mess of —
+// and clearing that one card at a time is forty confirm dialogs, which is why
+// it gets left instead. So the page can delete a TICKED set, or the lot.
+//
+// Every route goes through `vetDelete`'s rule: delete is a MOVE TO THE BIN,
+// bin copy written BEFORE the vetting doc goes, so nothing here can destroy
+// work and a failed write leaves the question exactly where it was. That is
+// what makes a one-press "delete all" safe to offer at all — the undo is the
+// 🗑️ Bin, for seven days, and restoring puts each one back in vetting because
+// `deletedFrom` says that is where it came from.
+//
+// The deletes are one at a time and AWAITED: a batch has to be able to report
+// that four of forty would not go, and those four stay on screen rather than
+// being taken off a list they are still in.
+// =====================================================================
+
+// Ticked ids. Deliberately not a flag on the question objects — those are
+// replaced wholesale by every re-read, which would silently drop the tick.
+let _vetSelected = new Set();
+// { done, total } while a batch is running, null otherwise. Both the progress
+// line and the double-press guard read it.
+let _vetBulkBusy = null;
+
+// Drop ticks for questions that have left the list by ANY route — approved,
+// edited into the bank, deleted singly. Done here rather than in each of those
+// so a path added later is covered without knowing this exists; "3 selected"
+// outliving the cards it counted is how the wrong question gets deleted.
+function vetPruneSelection() {
+  if (!_vetSelected.size) return;
+  const live = new Set(vettingList.map(q => q.id));
+  Array.from(_vetSelected).forEach(id => { if (!live.has(id)) _vetSelected.delete(id); });
+}
+
+function vetRenderBulkBar() {
+  const bar = $("vetBulkBar");
+  if (!bar) return;
+  if (_vetBulkBusy) {
+    bar.style.display = "";
+    bar.innerHTML = `<span class="vet-bulk-count">Moving ${_vetBulkBusy.done} of ${_vetBulkBusy.total} to the bin…</span>`;
+    return;
+  }
+  if (!vettingList.length) { bar.style.display = "none"; bar.innerHTML = ""; return; }
+  const picked = vettingList.filter(q => _vetSelected.has(q.id)).length;
+  const allOn = picked === vettingList.length;
+  bar.style.display = "";
+  bar.innerHTML = `
+    <label class="vet-pick-wrap" title="Tick every question in the list">
+      <input type="checkbox" class="vet-pick" id="vetPickAll"${allOn ? " checked" : ""}>
+      <span>Select all ${vettingList.length}</span>
+    </label>
+    <span class="vet-bulk-count">${picked ? picked + " selected" : "Nothing selected"}</span>
+    <button class="btn btn-danger btn-sm" id="vetDelSelBtn"${picked ? "" : " disabled"}>🗑 Delete selected</button>
+    ${picked ? `<button class="btn btn-ghost btn-sm" id="vetSelClearBtn">Clear</button>` : ""}`;
+  const all = $("vetPickAll");
+  if (all) all.addEventListener("change", () => vetSelAll(all.checked));
+  const del = $("vetDelSelBtn");
+  if (del) del.addEventListener("click", vetDeleteSelected);
+  const clr = $("vetSelClearBtn");
+  if (clr) clr.addEventListener("click", () => { _vetSelected.clear(); renderVettingList(); });
+}
+
+function vetSelToggle(id, on) {
+  if (on) _vetSelected.add(id); else _vetSelected.delete(id);
+  renderVettingList();
+}
+
+function vetSelAll(on) {
+  vettingList.forEach(q => { if (on) _vetSelected.add(q.id); else _vetSelected.delete(q.id); });
+  renderVettingList();
+}
+
+// The one worker both bulk buttons go through.
+async function vetDeleteMany(ids) {
+  if (!ids.length || _vetBulkBusy) return;
+  if (!canManageQuestions()) { toast("Only admin accounts can delete questions", "error"); return; }
+  _vetBulkBusy = { done: 0, total: ids.length };
+  vetRenderBulkBar();
+  let ok = 0, failed = 0;
+  for (const id of ids) {
+    const q = vettingList.find(x => x.id === id);
+    if (!q) { _vetSelected.delete(id); _vetBulkBusy.done++; continue; }
+    try {
+      // Bin copy first, and only then the vetting doc — the same order
+      // vetDelete uses, so a failed write leaves the question where it was.
+      await binMove(q, "vetting");
+      await deleteVettingDoc(id);
+      vettingList = vettingList.filter(x => x.id !== id);
+      _vetSelected.delete(id);
+      _rapidJustAdded.delete(id);
+      ok++;
+    } catch (e) {
+      console.error(e);
+      failed++;   // still on screen, still in the list
+    }
+    _vetBulkBusy.done = ok + failed;
+    vetRenderBulkBar();
+  }
+  _vetBulkBusy = null;
+  renderVettingList();
+  if (ok) toast(`${ok} question${ok === 1 ? "" : "s"} moved to the 🗑️ Bin — restore within ${BIN_KEEP_DAYS} days`, "success");
+  if (failed) toast(`${failed} could not be deleted — still in the vetting list`, "error");
+}
+
+function vetDeleteSelected() {
+  if (_vetBulkBusy) return;
+  const ids = vettingList.filter(q => _vetSelected.has(q.id)).map(q => q.id);
+  if (!ids.length) { toast("Tick the questions you want to delete first", "error"); return; }
+  if (!confirm(`Delete ${ids.length} ticked question(s)? They go to the 🗑️ Bin — you can restore them there for the next ${BIN_KEEP_DAYS} days.`)) return;
+  vetDeleteMany(ids);
+}
+
+function vetDeleteAll() {
+  if (_vetBulkBusy) return;
+  if (!vettingList.length) { toast("Nothing to delete", "error"); return; }
+  if (!confirm(`Delete all ${vettingList.length} question(s) waiting in vetting? They go to the 🗑️ Bin — you can restore them there for the next ${BIN_KEEP_DAYS} days.`)) return;
+  vetDeleteMany(vettingList.map(q => q.id));
 }
 
 // =====================================================================
@@ -12543,6 +12687,7 @@ async function handleBulkPaper(file) {
 $("rapidAddBtn").addEventListener("click", openRapidAdd);
 $("vettingRapidBtn").addEventListener("click", openRapidAdd);
 $("vettingApproveAllBtn").addEventListener("click", vetApproveAll);
+$("vettingDeleteAllBtn").addEventListener("click", vetDeleteAll);
 $("binEmptyBtn").addEventListener("click", binEmpty);
 $("aiAnswerBtn").addEventListener("click", aiAnswerAndGuide);
 $("rapidGoVettingBtn").addEventListener("click", () => { closeOverlay("rapidAddOverlay"); navigateTo("vetting"); });
@@ -21060,7 +21205,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.36.0 · 2026-08-15";
+const APP_VERSION = "v1.37.0 · 2026-08-16";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
