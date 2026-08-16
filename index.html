@@ -14638,6 +14638,17 @@ function openPrintOverlay() {
 // =====================================================================
 const WS_COVER_LOGO = "https://dl.dropboxusercontent.com/scl/fi/h40yjlyg8ldefwfaa3dib/polymath-logo-sticker.png?rlkey=o1ra4taqy79gt9t8u096v82zj";
 const WS_LOGO_FALLBACK = "data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2264%22 height=%2264%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2212%22 fill=%22%234a7c59%22/%3E%3Ctext x=%2232%22 y=%2245%22 font-family=%22Arial,sans-serif%22 font-size=%2238%22 font-weight=%22700%22 fill=%22white%22 text-anchor=%22middle%22%3EP%3C/text%3E%3C/svg%3E";
+// The line printed under the sheet's title, on the cover and in the header. It
+// is a DEFAULT rather than a constant in the markup, because a saved worksheet
+// may carry its own (`ws.headerOrg`) — retyped straight on the preview, see
+// wsPreviewHeaderSave. A sheet saved before that existed has no field at all and
+// prints this; a sheet whose line was deliberately cleared holds "" and prints
+// nothing, which is why the two cases must not be collapsed into `|| DEFAULT`.
+const WS_HEADER_ORG = "Polymath Learning Centre";
+const WS_HEADER_MAX = 120;   // a header line, not a paragraph
+function wsHeaderOrgOf(ws) {
+  return typeof (ws || {}).headerOrg === "string" ? ws.headerOrg : WS_HEADER_ORG;
+}
 
 function wsHasMcq(q) { return Array.isArray(q && q.options) && q.options.length >= 2; }
 function wsHasWritten(q) { return !wsHasMcq(q); }
@@ -14793,12 +14804,25 @@ function wsCurrentTitle() {
 // The cover is its own page: title, the class's own name/date lines and the
 // Polymath mark. Deliberately generous with space — it is the first thing a
 // parent sees.
-function wsCoverHtml(title, sub, noFields, sheetQr = "") {
+// ---- The two header fields a teacher may retype on the preview -----------
+// On paper they are ordinary text. In the preview window of a sheet the
+// signed-in teacher OWNS they are contenteditable, and the field name is what
+// gets saved — so the cover and the sheet header carry the SAME two names and
+// editing either one updates both, which is what keeps one document from
+// printing two different titles.
+function wsHeadFieldHtml(tag, cls, field, value, edit, placeholder) {
+  const classes = [cls, edit ? "ws-edit" : ""].filter(Boolean).join(" ");
+  const attrs = (classes ? ` class="${classes}"` : "")
+    + (edit ? ` contenteditable="true" spellcheck="false" data-ws-edit="${field}"`
+      + ` data-ph="${escapeHtml(placeholder)}" title="Click to retype this — it is saved to the worksheet"` : "");
+  return `<${tag}${attrs}>${escapeHtml(value)}</${tag}>`;
+}
+function wsCoverHtml(title, sub, noFields, sheetQr = "", org = WS_HEADER_ORG, edit = false) {
   return `<section class="ws-page ws-cover">
     <div class="ws-cover-inner">
       <img class="ws-cover-logo" src="${WS_COVER_LOGO}" alt="Polymath" onerror="this.onerror=null;this.src='${WS_LOGO_FALLBACK}';">
-      <div class="ws-cover-org">Polymath Learning Centre</div>
-      <h1 class="ws-cover-title">${escapeHtml(title)}</h1>
+      ${wsHeadFieldHtml("div", "ws-cover-org", "org", org, edit, "Line under the title")}
+      ${wsHeadFieldHtml("h1", "ws-cover-title", "title", title, edit, "Worksheet title")}
       ${sub ? `<div class="ws-cover-sub">${escapeHtml(sub)}</div>` : ""}
       ${noFields ? "" : `<div class="ws-cover-fields">
         <div><span>Name</span><i></i></div>
@@ -14819,10 +14843,10 @@ function wsSheetQrHtml(svg, onCover) {
     <div class="ws-sheetqr-cap">📱 Scan once for<br>every question,<br>video &amp; answer</div>
   </div>`;
 }
-function wsHeaderHtml(title, noFields, sheetQr = "") {
+function wsHeaderHtml(title, noFields, sheetQr = "", org = WS_HEADER_ORG, edit = false) {
   return `<div class="ws-head">
     <img class="ws-head-logo" src="${WS_COVER_LOGO}" alt="Polymath" onerror="this.onerror=null;this.src='${WS_LOGO_FALLBACK}';">
-    <div class="ws-head-text"><h1>${escapeHtml(title)}</h1><p>Polymath Learning Centre</p></div>
+    <div class="ws-head-text">${wsHeadFieldHtml("h1", "", "title", title, edit, "Worksheet title")}${wsHeadFieldHtml("p", "", "org", org, edit, "Line under the title")}</div>
     ${sheetQr ? wsSheetQrHtml(sheetQr, false) : ""}
   </div>
   ${noFields ? "" : `<div class="ws-head-fields"><span>Name: ______________________</span><span>Class: ____________</span><span>Date: ____________</span></div>`}`;
@@ -15048,13 +15072,24 @@ function wsPrintCss() {
       /* On screen the sheet is one long strip, so the footer can only be shown
          once, under it — on paper it repeats. */
       .ws-footer { margin-top: 12mm; }
-      .ws-printbar { position: fixed; top: 14px; right: 18px; z-index: 9; display: flex; gap: 8px; }
+      .ws-printbar { position: fixed; top: 14px; right: 18px; z-index: 9; display: flex; align-items: center; gap: 8px; }
       .ws-printbar button { font: 600 0.9rem/1 Arial, sans-serif; padding: 11px 16px; border-radius: 10px; border: 0; background: #4a7c59; color: #fff; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.18); }
       .ws-printbar button.ghost { background: #fff; color: #2c2a27; border: 1.5px solid #e2ddd5; }
+      /* The editable header: what can be retyped is shown as such on screen and
+         is ordinary text on paper — see wsHeadFieldHtml. */
+      .ws-editnote { font: 600 0.8rem/1.4 Arial, sans-serif; color: #4a453f; background: #fff; border: 1.5px solid #e2ddd5; border-radius: 10px; padding: 9px 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.10); max-width: 320px; }
+      .ws-editnote.bad { color: #a33; border-color: #edc9c9; background: #fdf4f4; }
+      .ws-edit { outline: 1px dashed #c3d6c8; outline-offset: 3px; border-radius: 3px; cursor: text; }
+      .ws-edit:hover { background: #eef5ef; outline-color: #4a7c59; }
+      .ws-edit:focus { background: #fff; outline: 2px solid #4a7c59; }
+      /* A line cleared to nothing still has to be clickable to type back into. */
+      .ws-edit:empty::before { content: attr(data-ph); color: #b5afa5; font-style: italic; }
     }
     @media print {
       .ws-sheet { width: auto; padding: 0; box-shadow: none; margin: 0; }
       .ws-noprint { display: none !important; }
+      .ws-edit { outline: 0 !important; background: none !important; }
+      .ws-edit:empty::before { content: "" !important; }
     }`;
 }
 // 📊 The marks record — a page of its own at the back of a DIAGNOSTIC sheet,
@@ -15115,9 +15150,14 @@ async function wsBuildDocumentHtml(questions, title, opts) {
   // The marks record sits between the questions and the answer key: the teacher
   // marks from it, and the answer-key page is often left unprinted.
   const scoreTable = opts.scoreTable ? wsScoreTableHtml(opts.scoreTable, opts) : "";
+  // The header is editable only when the caller handed over the id of a saved
+  // worksheet the signed-in user owns — see wsPreviewHeaderSave, which checks
+  // that again on the way in rather than trusting this flag.
+  const editId = String(opts.headerEditId || "");
+  const org = typeof opts.headerOrg === "string" ? opts.headerOrg : WS_HEADER_ORG;
   const sections = [
-    ...(opts.cover ? [wsCoverHtml(title, `${questions.length} question${questions.length > 1 ? "s" : ""}`, !opts.fields, sheetQr)] : []),
-    `<section class="ws-page">${wsHeaderHtml(title, !opts.fields, opts.cover ? "" : sheetQr)}${questions.map((q, i) => wsQuestionChunkHtml(q, i + 1, qrMap[q.id] || "")).join("")}</section>`,
+    ...(opts.cover ? [wsCoverHtml(title, `${questions.length} question${questions.length > 1 ? "s" : ""}`, !opts.fields, sheetQr, org, !!editId)] : []),
+    `<section class="ws-page">${wsHeaderHtml(title, !opts.fields, opts.cover ? "" : sheetQr, org, !!editId)}${questions.map((q, i) => wsQuestionChunkHtml(q, i + 1, qrMap[q.id] || "")).join("")}</section>`,
     ...(scoreTable ? [scoreTable] : []),
     ...(opts.withAnswers ? [wsAnswerKeyHtml(questions)] : []),
   ];
@@ -15126,10 +15166,70 @@ async function wsBuildDocumentHtml(questions, title, opts) {
     <tbody>${sections.map((s, i) => `<tr${i ? ` class="ws-newpage"` : ""}><td>${s}</td></tr>`).join("")}</tbody>
   </table>`;
   // The floating bar is `ws-noprint`, so the printed sheet never carries it.
-  const bar = `<div class="ws-printbar ws-noprint"><button class="ghost" onclick="window.close()">Close</button><button onclick="window.print()">🖨️ Print / Save PDF</button></div>`;
+  const bar = `<div class="ws-printbar ws-noprint">${editId ? `<span class="ws-editnote" id="wsEditNote">${WS_EDIT_HINT}</span>` : ""}<button class="ghost" onclick="window.close()">Close</button><button onclick="window.print()">🖨️ Print / Save PDF</button></div>`;
   return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
     <style>${wsPrintCss()}</style></head>
-    <body>${bar}<div class="ws-sheet">${body}</div>${opts.autoPrint ? `<script>window.addEventListener("load",()=>setTimeout(()=>{window.focus();window.print();},350));<\/script>` : ""}</body></html>`;
+    <body>${bar}<div class="ws-sheet">${body}</div>${editId ? wsHeaderEditScript(editId) : ""}${opts.autoPrint ? `<script>window.addEventListener("load",()=>setTimeout(()=>{window.focus();window.print();},350));<\/script>` : ""}</body></html>`;
+}
+// ---- Editing the header ON the preview -----------------------------------
+// The teacher is looking at the sheet exactly as it will print, which is where
+// a wrong title is actually noticed — so the title and the line under it are
+// retyped there rather than back on the page that built the sheet.
+//
+// The preview is a window THIS app wrote (`window.open` + `document.write`), so
+// it is same-origin and can call straight back through `window.opener`. Nothing
+// is posted anywhere: the parent tab does the write, with its own rules and its
+// own signed-in user. If that tab has since been closed the edit still stands in
+// this window — it is in the DOM, so it prints — and the bar says it wasn't saved
+// rather than pretending it was.
+const WS_EDIT_HINT = "✏️ Click the title or the line under it to retype it";
+function wsHeaderEditScript(wsId) {
+  return `<script>(function(){
+  var WID = ${JSON.stringify(String(wsId))}, HINT = ${JSON.stringify(WS_EDIT_HINT)};
+  var note = document.getElementById("wsEditNote"), timer = null;
+  function say(msg, bad) {
+    if (!note) return;
+    note.textContent = msg;
+    note.className = "ws-editnote" + (bad ? " bad" : "");
+    clearTimeout(timer);
+    if (!bad) timer = setTimeout(function(){ note.textContent = HINT; note.className = "ws-editnote"; }, 2600);
+  }
+  function clean(s) { return String(s == null ? "" : s).replace(/\\s+/g, " ").trim(); }
+  function twins(field) { return [].slice.call(document.querySelectorAll('[data-ws-edit="' + field + '"]')); }
+  // The cover and the sheet header hold the same field, so both move together —
+  // one document must never print two different titles.
+  function put(field, value) { twins(field).forEach(function(el){ el.textContent = value; el.setAttribute("data-was", value); }); }
+  function save(el) {
+    var field = el.getAttribute("data-ws-edit"), was = el.getAttribute("data-was") || "", val = clean(el.textContent);
+    if (val === was) { el.textContent = was; return; }
+    var fn = null;
+    try { fn = window.opener && !window.opener.closed && window.opener.wsPreviewHeaderSave; } catch (e) {}
+    if (!fn) { put(field, val); say("Changed here, but NOT saved — the Math Practice tab is closed. It will still print.", true); return; }
+    say("Saving…");
+    Promise.resolve().then(function(){ return fn.call(window.opener, WID, field, val); }).then(function(saved){
+      put(field, clean(saved));
+      say("Saved ✓");
+    }, function(err){
+      put(field, was);
+      say("Couldn't save that: " + ((err && err.message) || err), true);
+    });
+  }
+  twins("title").concat(twins("org")).forEach(function(el){
+    el.setAttribute("data-was", clean(el.textContent));
+    el.addEventListener("keydown", function(e){
+      if (e.key === "Enter") { e.preventDefault(); el.blur(); }
+      else if (e.key === "Escape") { e.preventDefault(); el.textContent = el.getAttribute("data-was") || ""; el.blur(); }
+    });
+    // A heading pasted from anywhere else brings its own font, size and colour
+    // with it, and the sheet's type is half of what the header is for.
+    el.addEventListener("paste", function(e){
+      e.preventDefault();
+      var txt = ((e.clipboardData || window.clipboardData) || {getData:function(){return "";}}).getData("text");
+      document.execCommand("insertText", false, clean(txt));
+    });
+    el.addEventListener("blur", function(){ save(el); });
+  });
+})();<\/script>`;
 }
 // Print and Preview are the SAME document — the only difference is whether the
 // print dialog opens by itself. A preview that rendered differently from the
@@ -15643,8 +15743,56 @@ async function openSavedWorksheet(id, autoPrint) {
   const scoreTable = (dgIsTest(ws) && ws.includeScoreTable !== false)
     ? dgTestScoreSegments(ws, questions) : null;
   await wsOpenDocument(questions, ws.title || "Math Worksheet",
-    Object.assign(mwPrintOptions(), { autoPrint, sheetUrl: worksheetShareUrl(ws), scoreTable }));
+    Object.assign(mwPrintOptions(), {
+      autoPrint, sheetUrl: worksheetShareUrl(ws), scoreTable,
+      headerOrg: wsHeaderOrgOf(ws),
+      // Only the OWNER may retype the header on the preview: a student can open
+      // the teacher's sheet from this same list, and must not be able to retitle it.
+      headerEditId: wsMine(ws) ? ws.id : ""
+    }));
 }
+// ============ EDITING THE SHEET HEADER FROM ITS OWN PREVIEW ============
+// Called BY the preview window (see wsHeaderEditScript), which is a window this
+// app wrote and therefore same-origin. `field` is "title" or "org" and nothing
+// else — this is not a general "save whatever the other window says" door.
+//
+// It re-checks ownership rather than trusting the flag the preview was built
+// with, because the preview may have been open for an hour and the tab it is
+// calling into is the one holding the signed-in user.
+//
+// Returns WHAT WAS STORED, and the preview shows that rather than what was
+// typed: a title cleared to nothing comes back as the default, because a sheet
+// with no title at all is not a thing anyone meant to print.
+async function wsPreviewHeaderSave(wsId, field, value) {
+  const ws = wsFind(wsId);
+  if (!ws) throw new Error("that worksheet isn't loaded in the app tab any more");
+  if (!wsMine(ws)) throw new Error("that worksheet belongs to your teacher");
+  if (field !== "title" && field !== "org") throw new Error("unknown header field");
+  const typed = String(value == null ? "" : value).replace(/\s+/g, " ").trim().slice(0, WS_HEADER_MAX);
+  const stored = field === "title"
+    ? (typed || (dgIsTest(ws) ? "Diagnostic Test" : "Math Worksheet"))
+    : typed;    // the line under the title may legitimately be emptied
+  const was = field === "title" ? ws.title : ws.headerOrg;
+  if (field === "title") ws.title = stored; else ws.headerOrg = stored;
+  try {
+    await persistWorksheet(ws);
+  } catch (e) {
+    // Put the in-memory copy back: the preview reverts too, so the two agree.
+    if (field === "title") ws.title = was; else ws.headerOrg = was;
+    throw e;
+  }
+  // Every surface that prints the title is re-rendered from the same object, so
+  // the card in the list, the diagnostic's own list and the overview page behind
+  // the preview can't sit there showing the old one.
+  renderSavedWorksheets();
+  if (dgIsTest(ws) && ($("page-diagnostic") || {}).classList && $("page-diagnostic").classList.contains("active")) renderDiagnosticPage();
+  if (_wvWs && _wvWs.id === ws.id) renderWorksheetOverview();
+  toast(field === "title" ? `Renamed to “${stored}”` : "Header line saved", "success");
+  return stored;
+}
+// On `window` for the same reason the inline-handler functions are: this module
+// has its own scope, and the preview window reaches it as `opener.<name>`.
+window.wsPreviewHeaderSave = wsPreviewHeaderSave;
 // Practise a worksheet on screen: the practice queue becomes this worksheet's
 // questions, in its own order. `prioritizeReviewQuestions` is deliberately not
 // re-run afterwards — the teacher chose this order.
@@ -21666,7 +21814,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.40.0 · 2026-08-16";
+const APP_VERSION = "v1.41.0 · 2026-08-16";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -39710,7 +39858,11 @@ async function dgPrintTest(id, autoPrint) {
     Object.assign(dgTestPrintOpts(test), {
       autoPrint,
       sheetUrl: worksheetShareUrl(test),
-      scoreTable: test.includeScoreTable !== false ? dgTestScoreSegments(test, questions) : null
+      scoreTable: test.includeScoreTable !== false ? dgTestScoreSegments(test, questions) : null,
+      // A diagnostic IS a saved worksheet, so its header is retyped on the
+      // preview the same way — see wsPreviewHeaderSave.
+      headerOrg: wsHeaderOrgOf(test),
+      headerEditId: wsMine(test) ? test.id : ""
     }));
 }
 async function dgPrintDraft(autoPrint) {
