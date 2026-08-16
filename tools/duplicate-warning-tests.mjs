@@ -43,9 +43,14 @@ function stripHtml(s) { return String(s || "").replace(/<[^>]*>/g, " "); }
 function questionText(q) { return (q.blocks || []).filter(b => b.type === "text").map(b => stripHtml(b.content)).join(" "); }
 `;
 
+// It stops at the side-by-side comparison, which is the next thing in the file:
+// that block binds a document listener at module-evaluation time, and this
+// harness runs the source in plain Node with no DOM. Everything the matcher
+// itself is made of — `_dupFind`, `_vetTokens`, `_vetSim`, `_vetTagDuplicate`,
+// `_dupWhereLabel`, `DUP_MIN_SIM` — is defined before that line.
 const block = cut(
   '// =====================================================================\n// "YOU MAY ALREADY HAVE THIS ONE"',
-  '\nfunction vetPreviewHtml(q) {',
+  '\n// ── SIDE BY SIDE',
   'matcher'
 );
 
