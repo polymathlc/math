@@ -15640,8 +15640,32 @@ const WS_WORK_MIN_MM = 20;       // never squeeze the working space below this
 // alone at the top of the next page, belonging to nothing.
 const WS_PAGE_WORK_MM = 240;
 const WS_IMG_MM = 92;            // the cap .ws-q-body img already enforces
-const WS_BODY_LINE_MM = 5.8;     // one printed line of question text at 12pt
-const WS_BODY_CHARS = 88;        // characters that fit on one such line
+// …and the smallest a picture may be squeezed to when the question would
+// otherwise run onto a second page. Below this a diagram stops being readable,
+// and an unreadable diagram is worse than a slightly long question — so this
+// is the one place the one-page promise gives way, deliberately and last.
+const WS_IMG_MIN_MM = 45;
+// One printed line of question text: 12pt at the 1.55 line-height .ws-q-body
+// sets is 18.6pt ≈ 6.6mm. It used to say 5.8mm, which is the bare font size —
+// so every line of every question was under-reserved by three quarters of a
+// millimetre, and a question with seven lines of wording quietly overran by
+// five. Under-estimating here is exactly what strands an answer field on the
+// next page, so both of these numbers err upwards on purpose.
+const WS_BODY_LINE_MM = 6.6;
+const WS_BODY_CHARS = 80;        // characters that fit on one such line
+// The sheet header sits above the FIRST question, so question 1 has less of
+// the page than every other question does — and it was being handed a whole
+// page's worth. That is why the very first question on a sheet was the one
+// whose answer field kept appearing on page 2. What the header holds varies
+// (the Name / Class / Date line only when the teacher asked for it, the QR
+// only on a sheet that has an overview page), so it is measured from what is
+// actually being built rather than guessed at once.
+const WS_HEAD_BASE_MM = 26;      // logo, title, the rule under it and its margins
+const WS_HEAD_FIELDS_MM = 12;    // the Name / Class / Date line
+const WS_HEAD_QR_MM = 12;        // what the sheet QR adds beyond the base
+function wsHeadEstimateMm({ fields = false, qr = false } = {}) {
+  return WS_HEAD_BASE_MM + (fields ? WS_HEAD_FIELDS_MM : 0) + (qr ? WS_HEAD_QR_MM : 0);
+}
 function wsAnswerLines(q) {
   if (wsHasMcq(q)) return 0;
   const plain = String(q.markingGuide || q.expected || "").replace(/\s+/g, " ").trim();
@@ -15653,11 +15677,16 @@ function wsAnswerLines(q) {
 // OVER-estimate: every picture is reserved the full height its max-height
 // allows, because reserving too much only costs a little blank space, while
 // reserving too little puts the answer field on the next page.
-function wsBodyEstimateMm(q) {
+// `imgMm` is what a picture will ACTUALLY be capped to on this question —
+// normally WS_IMG_MM, less when the diagram has had to give way (see
+// wsEffectiveImgMm). Pass 0 to measure everything EXCEPT the pictures, which
+// is how that function works out what is left for them.
+function wsBodyEstimateMm(q, imgMm) {
+  const cap = imgMm == null ? WS_IMG_MM : imgMm;
   let mm = 10;   // the "4." number line, the chunk's bottom margin and rounding
   (q.blocks || []).forEach(b => {
     if (!b) return;
-    if (b.type === "image") mm += WS_IMG_MM + 6;
+    if (b.type === "image") mm += cap + 6;
     else if (b.type === "text") {
       const chars = stripHtml(b.content || "").length;
       mm += Math.max(1, Math.ceil(chars / WS_BODY_CHARS)) * WS_BODY_LINE_MM + 2;
@@ -15670,15 +15699,39 @@ function wsBodyEstimateMm(q) {
 function wsAnswerRowsMm(q) {
   return WS_ANSWER_ROW_MM * Math.max(1, wsQuestionParts(q).length);
 }
+// What is left of one page for THIS question, once the sheet header above it
+// (question 1 only) has taken its share.
+function wsPageRoomMm(reserveMm) {
+  return WS_PAGE_WORK_MM - Math.max(0, reserveMm || 0);
+}
+// How tall this question's pictures may print. Normally the full WS_IMG_MM —
+// the CSS cap — and the answer to "why is my diagram smaller than usual" is
+// always that the question would not otherwise have fitted a page.
+//
+// The order in which things give way is the whole rule, and it is the order a
+// teacher would choose: the WORKING SPACE goes first, down to WS_WORK_MIN_MM
+// (that is what "let the diagram eat into the working space" means — the
+// picture takes its room out of the blank area, it does not make the page
+// longer); only when there is no working space left to eat does the DIAGRAM
+// itself shrink; and the question's wording and its answer rows never give way
+// at all, because those are the question.
+function wsEffectiveImgMm(q, reserveMm) {
+  const imgs = (q.blocks || []).filter(b => b && b.type === "image").length;
+  // An annotation question is answered ON the diagram and has no working area
+  // to trade, so its own taller cap stands.
+  if (!imgs || questionIsAnnotation(q)) return WS_IMG_MM;
+  const forImages = wsPageRoomMm(reserveMm) - wsAnswerRowsMm(q) - WS_WORK_MIN_MM - wsBodyEstimateMm(q, 0);
+  return Math.max(WS_IMG_MIN_MM, Math.min(WS_IMG_MM, Math.floor(forImages / imgs)));
+}
 // Height of the blank working area. The answer row is carved OUT of the
 // question's total allowance rather than added on top of it, so switching from
 // ruled lines to blank space did not make every sheet a page longer — and the
-// whole lot is then capped at WHAT IS LEFT OF A PAGE once the question and its
-// answer rows have taken theirs.
-function wsWorkingSpaceMm(q) {
+// whole lot is then capped at WHAT IS LEFT OF A PAGE once the header above it,
+// the question and its answer rows have taken theirs.
+function wsWorkingSpaceMm(q, reserveMm) {
   const rows = wsAnswerRowsMm(q);
   const want = Math.max(WS_WORK_MIN_MM, wsAnswerLines(q) * WS_LINE_MM - rows);
-  const room = WS_PAGE_WORK_MM - wsBodyEstimateMm(q) - rows;
+  const room = wsPageRoomMm(reserveMm) - wsBodyEstimateMm(q, wsEffectiveImgMm(q, reserveMm)) - rows;
   return Math.max(WS_WORK_MIN_MM, Math.min(want, room));
 }
 // ---- A question with parts gets an answer field per part -----------------
@@ -15727,8 +15780,18 @@ function wsAnswerBlankHtml(q) {
   return `<div class="ws-answer-parts">${parts.map(ch =>
     `<div class="ws-answer-final"><span>Answer (${ch}):</span><i></i></div>`).join("")}</div>`;
 }
-function wsQuestionChunkHtml(q, n, qrSvg) {
+// `reserveMm` is what sits ABOVE this question on its page and therefore is
+// not available to it — the sheet header, for question 1 only. Every other
+// question starts on a page of its own share, because .ws-chunk refuses to
+// break and the browser moves a question that will not fit onto the next page
+// whole.
+function wsQuestionChunkHtml(q, n, qrSvg, reserveMm) {
   const qr = qrSvg ? `<div class="ws-qr">${qrSvg}<div class="ws-qr-cap">📱 Scan to AI-mark<br>&amp; watch the solution</div></div>` : "";
+  // Only written when the picture has actually had to give way, so an ordinary
+  // question carries no inline style and prints at the CSS cap exactly as it
+  // always did.
+  const imgMm = wsEffectiveImgMm(q, reserveMm);
+  const imgVar = imgMm < WS_IMG_MM ? ` style="--ws-img-mm:${imgMm}mm"` : "";
   const opts = wsHasMcq(q)
     // A / B / C / D, the same lettering the on-screen practice pad and every
     // other preview in this app uses — a printed sheet numbered differently
@@ -15740,8 +15803,8 @@ function wsQuestionChunkHtml(q, n, qrSvg) {
     : questionIsAnnotation(q)
     ? `<div class="ws-annot-note">✍️ Write and draw your answer directly on the diagram above.</div>`
     // Blank working space, then the answer blank at the bottom right.
-    : `<div class="ws-answer-box"><div class="ws-work" style="height:${wsWorkingSpaceMm(q)}mm"></div>${wsAnswerBlankHtml(q)}</div>`;
-  return `<section class="ws-chunk${questionIsAnnotation(q) ? " ws-chunk-annot" : ""}">
+    : `<div class="ws-answer-box"><div class="ws-work" style="height:${wsWorkingSpaceMm(q, reserveMm)}mm"></div>${wsAnswerBlankHtml(q)}</div>`;
+  return `<section class="ws-chunk${questionIsAnnotation(q) ? " ws-chunk-annot" : ""}"${imgVar}>
     ${qr}
     <!-- Just the number. The level and topic are the teacher's filing labels,
          not part of the question, and printing "P5 · Decimals, Ratio" over a
@@ -15824,7 +15887,7 @@ function wsPrintCss() {
     .ws-q-body p { margin: 0 0 2mm; }
     /* A picture is capped so a question with a diagram AND a chart still fits
        one sheet. Never remove the max-height. */
-    .ws-q-body img { display: block; max-width: 100%; max-height: 92mm; height: auto; object-fit: contain; margin: 3mm 0; }
+    .ws-q-body img { display: block; max-width: 100%; max-height: var(--ws-img-mm, 92mm); height: auto; object-fit: contain; margin: 3mm 0; }
     /* An author-scaled picture keeps its size, but max-width still caps it at
        the column — the +/- control exists to make a picture smaller, not to
        push it off the page. */
@@ -15991,7 +16054,11 @@ async function wsBuildDocumentHtml(questions, title, opts) {
   const org = typeof opts.headerOrg === "string" ? opts.headerOrg : WS_HEADER_ORG;
   const sections = [
     ...(opts.cover ? [wsCoverHtml(title, `${questions.length} question${questions.length > 1 ? "s" : ""}`, !opts.fields, sheetQr, org, !!editId)] : []),
-    `<section class="ws-page">${wsHeaderHtml(title, !opts.fields, opts.cover ? "" : sheetQr, org, !!editId)}${questions.map((q, i) => wsQuestionChunkHtml(q, i + 1, qrMap[q.id] || "")).join("")}</section>`,
+    // The header prints above question 1, so ONLY question 1 has less than a
+    // full page to work with — measured from what this header actually holds,
+    // never assumed. Every later question starts fresh, because .ws-chunk
+    // refuses to break and is moved whole to the next page when it must be.
+    `<section class="ws-page">${wsHeaderHtml(title, !opts.fields, opts.cover ? "" : sheetQr, org, !!editId)}${questions.map((q, i) => wsQuestionChunkHtml(q, i + 1, qrMap[q.id] || "", i === 0 ? wsHeadEstimateMm({ fields: !!opts.fields, qr: !opts.cover && !!sheetQr }) : 0)).join("")}</section>`,
     ...(scoreTable ? [scoreTable] : []),
     ...(opts.withAnswers ? [wsAnswerKeyHtml(questions)] : []),
   ];
@@ -22650,7 +22717,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.44.0 · 2026-08-16";
+const APP_VERSION = "v1.44.1 · 2026-08-16";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)

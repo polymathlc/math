@@ -63,7 +63,10 @@ return {
   body: wsBodyEstimateMm,
   rows: wsAnswerRowsMm,
   lines: wsAnswerLines,
-  PAGE: WS_PAGE_WORK_MM, MIN: WS_WORK_MIN_MM, ROW: WS_ANSWER_ROW_MM, IMG: WS_IMG_MM,
+  imgMm: wsEffectiveImgMm,
+  head: wsHeadEstimateMm,
+  PAGE: WS_PAGE_WORK_MM, MIN: WS_WORK_MIN_MM, ROW: WS_ANSWER_ROW_MM,
+  IMG: WS_IMG_MM, IMGMIN: WS_IMG_MIN_MM,
 };`)();
 
 const cases = [];
@@ -148,10 +151,47 @@ test('a question with no text at all has no parts', () => {
 
 // ── it has to fit the page ──────────────────────────────────────────────────
 
-const fits = (Q) => M.body(Q) + M.work(Q) + M.rows(Q) <= M.PAGE;
+// The question printed in the screenshot that started this: a diagram, a lot
+// of wording and two parts, printed FIRST on the sheet — so the sheet header
+// was above it, eating room nothing had accounted for. Its two answer fields
+// came out on page 2 under nothing at all.
+const PANCAKES = q([
+  text('<p>Charlie poured pancake mixture into two types of containers with different capacities as shown below.</p>'),
+  text('<p>He poured half the mixture into big containers and the other half of it into small containers. He filled the containers to the brim. Charlie used 24 more small containers than big containers.</p>'),
+  text('<p>(a) How many big containers did Charlie use?</p>'),
+  text('<p>(b) How much pancake mixture was there?</p>'),
+  img()
+], { markingGuide: 'x'.repeat(500) });
+
+// How tall the question really prints, using the picture height it will really
+// be given — and what is really left of the page once whatever sits above it
+// has taken its share.
+const height = (Q, reserve) => M.body(Q, M.imgMm(Q, reserve)) + M.work(Q, reserve) + M.rows(Q);
+const room = (reserve) => M.PAGE - (reserve || 0);
+const fits = (Q, reserve) => height(Q, reserve) <= room(reserve);
 
 test('the question that spilled now fits on one page', () => {
-  ok(fits(THREE_PARTS), `still over the page: body ${M.body(THREE_PARTS)} + work ${M.work(THREE_PARTS)} + rows ${M.rows(THREE_PARTS)} > ${M.PAGE}`);
+  ok(fits(THREE_PARTS), `still over the page: ${height(THREE_PARTS)} > ${room()}`);
+});
+
+test('the FIRST question fits UNDER the sheet header, which is the reported bug', () => {
+  // Every question but the first starts on a page of its own share, because
+  // .ws-chunk refuses to break and is moved whole. Question 1 does not: the
+  // header prints above it. Handing it a whole page's worth is exactly why the
+  // first question on a sheet was the one whose answer field kept landing on
+  // page 2.
+  const head = M.head({ fields: true, qr: true });
+  ok(head > 0, 'the header reserves nothing at all');
+  ok(fits(PANCAKES, head), `the pancake question still spills: ${height(PANCAKES, head)} > ${room(head)}`);
+  ok(fits(THREE_PARTS, head), `the parts question still spills under a header: ${height(THREE_PARTS, head)} > ${room(head)}`);
+});
+
+test('a question that fits gets LESS working space under the header, not a longer page', () => {
+  // The room the header takes has to come out of the blank area. If it came out
+  // of nothing, the question would simply run over — which is the bug.
+  const head = M.head({ fields: true });
+  ok(M.work(PANCAKES, head) < M.work(PANCAKES, 0), 'the header bought no space back from the working area');
+  ok(M.work(PANCAKES, head) >= M.MIN, 'the working area fell through its floor');
 });
 
 test('a long marking guide can never buy more paper than a page has', () => {
@@ -170,7 +210,40 @@ test('a picture is reserved its full height, not ignored', () => {
   const without = q([text(body)], { markingGuide: 'z'.repeat(600) });
   ok(M.body(withImgs) - M.body(without) >= 2 * M.IMG, 'a picture is under-reserved, which is how the answer field spills');
   ok(M.work(withImgs) < M.work(without), 'the pictures bought no space back from the working area');
-  ok(fits(withImgs) || M.work(withImgs) === M.MIN, 'a question with two pictures still asks for more than a page');
+});
+
+test('an ordinary question keeps its picture at FULL size', () => {
+  // The shrink is a last resort. A question with room must print exactly the
+  // diagram it always printed, or every sheet in the school quietly changes.
+  eq(M.imgMm(q([text('Find x.'), img()]), 0), M.IMG, 'an ordinary diagram was shrunk for no reason');
+  eq(M.imgMm(PANCAKES, M.head({ fields: true })), M.IMG, 'the pancake diagram was shrunk when it did not need to be');
+});
+
+test('the WORKING SPACE gives way before the diagram does', () => {
+  // The order things give way in is the whole rule: the picture takes its room
+  // out of the blank area first, and only shrinks once there is no blank area
+  // left to take.
+  const tight = q([text('x'.repeat(700)), img(), img()], { markingGuide: 'y'.repeat(900) });
+  ok(M.imgMm(tight, 0) < M.IMG, 'the diagram never gave way on a question that cannot fit');
+  // At the floor, give or take the millimetre or so that rounding the picture
+  // height DOWN hands back — that slack going to the student's blank area
+  // rather than to the picture is the right way round.
+  ok(M.work(tight, 0) < M.MIN + 2, 'the diagram shrank while blank space was still going spare: ' + M.work(tight, 0));
+  ok(fits(tight, 0), 'the shrunken diagram still did not buy the question onto one page');
+});
+
+test('a diagram is never shrunk below what can be read', () => {
+  // The one place the one-page promise gives way, deliberately and last: an
+  // unreadable diagram is worse than a slightly long question.
+  const huge = q([text('x'.repeat(2400)), img(), img(), img()], { markingGuide: 'y'.repeat(2000) });
+  ok(M.imgMm(huge, 0) >= M.IMGMIN, 'a diagram was squeezed past the point of being readable');
+});
+
+test('an annotation question keeps its taller picture', () => {
+  // It is answered ON the diagram and has no working area to trade, so its own
+  // cap stands and this sizing must not touch it.
+  const annot = q([text('Label the shape.'), img({ annotate: true })]);
+  eq(M.imgMm(annot, 0), M.IMG, 'an annotation diagram was shrunk by the working-space maths');
 });
 
 test('every answer row is paid for, not just the first', () => {

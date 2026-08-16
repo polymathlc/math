@@ -507,6 +507,48 @@ either way and nobody finds out until a class is sitting in front of it.
     their diagram ARE the answer space.
 - Run **`node tools/worksheet-answer-fields-tests.mjs`** after touching any of it.
 
+### …and NO question may exceed one page (v1.44.1)
+
+`wsHeadEstimateMm` / `wsPageRoomMm` / `wsEffectiveImgMm` / `WS_IMG_MIN_MM`, and
+`--ws-img-mm` on `.ws-chunk`.
+
+v1.43.0 sized the working area against a whole page. The first question on a
+sheet does not GET a whole page — the sheet header prints above it — and three
+smaller under-estimates on top of that were enough to push a question with a
+diagram over, stranding its *Answer (a):* / *Answer (b):* fields alone on page 2.
+
+- **Only question 1 has less than a page**, and it is the one that kept
+  spilling. Every other question starts on a fresh page's share, because
+  `.ws-chunk` refuses to break and the browser moves a question that will not
+  fit whole. So `reserveMm` is passed to the FIRST chunk only, and it is
+  **measured from what the header actually holds** (`wsHeadEstimateMm`) rather
+  than guessed at once: the Name / Class / Date line is only there when the
+  teacher asked for it, the QR only on a sheet that has an overview page.
+- **`WS_BODY_LINE_MM` is the LINE height, not the font size.** It said 5.8mm —
+  the bare 12pt — while `.ws-q-body` sets `line-height: 1.55`, so the real line
+  is 6.6mm and every line of every question was under-reserved by three
+  quarters of a millimetre. `WS_BODY_CHARS` came down to 80 for the same
+  reason. Both numbers err UPWARDS on purpose: over-reserving costs a little
+  blank space, under-reserving is the bug.
+- **The order things give way in is the whole rule**, and it is the order a
+  teacher would choose: the **working space** goes first, down to
+  `WS_WORK_MIN_MM` — that is what "let the diagram eat into the working space"
+  means, the picture takes its room out of the blank area rather than making
+  the page longer — and only when there is no blank area left to eat does the
+  **diagram** shrink (`wsEffectiveImgMm` → `--ws-img-mm` on the chunk). The
+  wording and the answer rows never give way, because those are the question.
+- **`WS_IMG_MIN_MM` (45) is where the one-page promise gives way, deliberately
+  and last.** Below it a diagram stops being readable, and an unreadable
+  diagram is worse than a slightly long question.
+- **An ordinary question carries no inline style at all** and prints at the CSS
+  cap exactly as it always did — the variable is only written when the picture
+  has really had to give way. `.ws-chunk-annot .ws-q-body img` still outweighs
+  it, and an annotation question is skipped anyway: it has no working area to
+  trade.
+- Rounding the picture height DOWN hands a millimetre or so back to the
+  student's blank area. That is the right way round; don't "fix" it into the
+  picture.
+
 ## 🔍 Answer key cross-check — TWO engines at once (v1.42.0)
 
 `akc*` (search `ANSWER KEY CROSS-CHECK`), plus `#akcOverlay`, the `#akcBankBar`
@@ -1127,11 +1169,14 @@ that door: a line to type in, and the same image model behind it.
   way off — which is worse than the pin-and-guess it replaced.
 - After touching **the printed answer fields or the working-space sizing**
   (`wsQuestionParts`, `wsAnswerBlankHtml`, `wsBodyEstimateMm`,
-  `wsAnswerRowsMm`, `wsWorkingSpaceMm`), run
-  `node tools/worksheet-answer-fields-tests.mjs`. Both halves fail silently:
+  `wsAnswerRowsMm`, `wsWorkingSpaceMm`, `wsHeadEstimateMm`,
+  `wsEffectiveImgMm`, `WS_BODY_LINE_MM`, `WS_IMG_MIN_MM`), run
+  `node tools/worksheet-answer-fields-tests.mjs`. Every half fails silently:
   a working area sized past what the page has left strands the answer line
-  alone on the next page, and a part reader that is a shade too greedy prints
-  three answer fields on a question with one.
+  alone on the next page, a part reader that is a shade too greedy prints
+  three answer fields on a question with one, and forgetting that the sheet
+  header sits above question 1 spills the FIRST question of every sheet while
+  every other question looks perfect.
 - After touching **the answer key cross-check** (`akcCompare`,
   `akcAnswersAgree`, `akcAskEngine`, `akcPrompt`, `akcRecentQuestions`) **or
   the shared `AI_ENGINE_STORE` slot names**, run
