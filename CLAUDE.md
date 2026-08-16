@@ -517,6 +517,11 @@ together. This asks **two** — ChatGPT (`gpt-5.6-sol` by default) and Gemini
 (`AI_REGEN_MODEL`) — to solve every question from scratch **simultaneously**,
 and reports their two answers beside the teacher's own key, with a
 recommendation. Admin-only; the answer key is admin-only to begin with.
+**The Science app (`polymathlc/cer`) carries the same block — keep the two in
+step.** Its copy differs in exactly two places, both deliberate: the answer
+lives in BLOCKS there rather than on the question, and a science answer is
+usually a sentence, so its worded comparison leans on each engine's own
+`statedAnswerVerdict` instead of on numbers.
 
 - **The two calls are `Promise.all`ed and neither model is shown the other's
   answer.** That independence is the only reason an agreement between them
@@ -553,6 +558,34 @@ recommendation. Admin-only; the answer key is admin-only to begin with.
 - Guards: `AKC_PAR` questions in flight, `AKC_MAX` per run, a confirm over
   `AKC_CONFIRM_OVER`, ⏹ Stop honoured between questions, and closing the
   overlay stops the run rather than leaving model calls billing away behind it.
+- Run **`node tools/answer-key-check-tests.mjs`** after touching any of it.
+
+## One ChatGPT key for all four portals (v1.44.0)
+
+`AI_ENGINE_STORE` / `AI_ENGINE_STORE_LEGACY` (search `ONE KEY, ALL FOUR
+PORTALS`).
+
+The four apps are sibling folders on ONE GitHub Pages origin
+(`polymathlc.github.io/{math,english,chinese,cer}`), so they have always shared
+a localStorage — they were simply writing **different slots** in it, which meant
+the same ChatGPT key had to be pasted once per subject.
+
+- **It is not a convenience.** 🔍 Answer key cross-check needs ChatGPT and
+  Gemini BOTH live to be worth running, so an app missing the key runs it with
+  one column and reports "no second opinion" forever — which looks exactly like
+  a working feature rather than a missing key.
+- **The slots are `sq_ai_engine` / `sq_openai_key` / `sq_openai_model` /
+  `sq_openai_image_model` in ALL FOUR apps** — the Science app's original
+  names, because that is where the key already was. A tidier subject-neutral
+  name would read better and would sign every app out on the day it shipped.
+- **`AI_ENGINE_STORE_LEGACY` is this app's own old `mq_` slots, adopted ONCE
+  and only into an EMPTY slot.** A key saved here is a real key somebody
+  pasted, but the shared one may be newer, and overwriting it would sign the
+  other three apps out in order to rescue this one.
+- **The key is NEVER in this repo.** These are public, static sites served to
+  every student's browser, so a key committed here is a key handed to the whole
+  school. It lives in the admin's own browser; the harness fails on an
+  `sk-`-shaped string anywhere in `index.html`.
 - Run **`node tools/answer-key-check-tests.mjs`** after touching any of it.
 
 ## ✏️ The sheet header is retyped ON the preview (v1.41.0)
@@ -1100,7 +1133,8 @@ that door: a line to type in, and the same image model behind it.
   alone on the next page, and a part reader that is a shade too greedy prints
   three answer fields on a question with one.
 - After touching **the answer key cross-check** (`akcCompare`,
-  `akcAnswersAgree`, `akcAskEngine`, `akcPrompt`, `akcRecentQuestions`), run
+  `akcAnswersAgree`, `akcAskEngine`, `akcPrompt`, `akcRecentQuestions`) **or
+  the shared `AI_ENGINE_STORE` slot names**, run
   `node tools/answer-key-check-tests.mjs`. Every failure here looks like a
   working report: a loose agreement test turns the whole run green and
   certifies wrong keys, a reversed comparison tells the teacher to change a

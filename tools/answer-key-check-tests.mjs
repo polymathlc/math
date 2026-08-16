@@ -338,6 +338,30 @@ test('the Gemini call really is Gemini', () => {
   ok(/skipOpenAi: true/.test(block), 'the Gemini side can be silently answered by ChatGPT');
 });
 
+test('the ChatGPT key is read from the slots the OTHER portals write', () => {
+  // The four apps are sibling folders on one GitHub Pages origin, so they
+  // share a localStorage. A key pasted into Science has to be the key this app
+  // reads, or the cross-check silently runs with ONE engine and reports it as
+  // "no second opinion" forever — which looks like a working feature.
+  const block = cut('const AI_ENGINE_STORE =', '\n(function _aiEngineAdoptLegacySettings', 'the engine store');
+  ok(/sq_ai_engine/.test(block) && /sq_openai_key/.test(block), 'the shared slot names have drifted');
+  ok(/sq_openai_model/.test(block) && /sq_openai_image_model/.test(block), 'the shared model slots have drifted');
+});
+
+test('adopting the old key never overwrites the shared one', () => {
+  // A stale key left in this app\'s own slot must not sign the other three
+  // apps out in order to rescue this one.
+  const block = cut('function _aiEngineAdoptLegacySettings', '\n\n', 'the legacy adoption');
+  ok(/if \(had && !localStorage\.getItem\(AI_ENGINE_STORE\[k\]\)\)/.test(block),
+     'the migration writes over a slot that already has something in it');
+});
+
+test('no API key is committed to the page', () => {
+  // These are public static sites served to every student. A key in here is a
+  // key handed to the school.
+  ok(!/sk-[A-Za-z0-9_-]{20,}/.test(src), 'an OpenAI-shaped secret is checked into index.html');
+});
+
 test('the report never writes an answer key', () => {
   const block = cut('const AKC_PAR = 3;', '// ---- the two ways in', 'the cross-check block');
   ok(!/saveQuestionDoc|setDoc|updateDoc|deleteDoc/.test(block),
