@@ -773,6 +773,43 @@ instead, and a vetting list nobody clears is one nobody reads either.
   `none`, which leaves an invisible white square where the control should be.
 - Run **`node tools/vetting-bulk-delete-tests.mjs`** after touching any of it.
 
+## "You may already have this one" — the duplicate warning (v1.38.0)
+
+`_dupFind` / `_vetTagDuplicate` / `checkEditorDuplicate` / `dupWatchKick`
+(search `YOU MAY ALREADY HAVE THIS ONE`), plus the `#dupWarnBanner` at the top
+of the question editor and the ⚠ badge on a vetting card.
+
+One matcher, asked from three places: the badge on a Rapid add / paper import
+card, the live banner in the editor, and the confirm on 💾 Save. It is a
+**prompt to look, never a verdict** — nothing here ever refuses to save.
+
+- **It used to be asked from the two Rapid paths and nowhere else.** A question
+  typed into the editor by hand was checked against nothing at all, so the only
+  way to notice a duplicate was to remember one.
+- **The banner is LIVE and the SAVE asks as well.** The banner sits at the top
+  of a long editor and the Save button is at the bottom, so the confirm is the
+  backstop. The listener is **ONE delegated pair on `#page-create`** rather than
+  a binding per field — the editor rebuilds its own DOM continuously — and
+  `renderEditorBlocks` kicks it too, because a builder writing blocks
+  programmatically fires no `input` event.
+- **The VETTING LIST is searched as well as the bank**, and every message names
+  which through `_dupWhereLabel`. The commonest duplicate of all is the same
+  screenshot read twice in one sitting, and both copies are then in vetting.
+- **`_vetSim` is JACCARD — shared over the UNION — not containment.** It was
+  `shared / Math.min(a.size, b.size)`, which cannot tell a duplicate from a
+  shared stem: two questions built on one scenario have almost the whole of the
+  shorter inside the longer, so containment scored them ~100% however
+  differently they ended. Survivable while the only consumer was a badge;
+  not once it raises a banner and a confirm on every save. It is also the
+  measure the other three portals use, so all four now agree.
+- **`_vetTokens` counts the TITLE and the MCQ OPTIONS, not just the body.** A
+  math question is mostly digits and stock words, and two questions sharing a
+  stem but offering different choices are not the same question.
+- **The banner's 👁 button ASKS before it leaves** (`_dupOpenOriginal`). The
+  banner is on screen while the author is mid-compose, so opening the twin
+  replaces the draft they are looking at.
+- Run **`node tools/duplicate-warning-tests.mjs`** after touching any of it.
+
 ## The game economy — every faucet is gated
 🪙 points buy booster packs, so **no repeatable button may ever pay**. Every faucet
 is behind one of: answering a question (`rpgAwardGameQuestion`, which has the
@@ -825,4 +862,12 @@ fields**. Tabs: 📅 This Month / 🗓️ Last Month / ⭐ All-Time (XP, server-
   direction. Reverse the order and a failed write has destroyed the question;
   file it as coming from the bank and an undo serves an unchecked draft to
   students.
+- After touching **the duplicate warning** (`_dupFind`, `_vetSim`,
+  `_vetTokens`, `_vetTagDuplicate`, `checkEditorDuplicate`, `dupWatchKick`,
+  `DUP_MIN_SIM`), run `node tools/duplicate-warning-tests.mjs`. It fails
+  silently in both directions and the app works perfectly either way: too tight
+  and it never fires, too loose and it fires on every save — which makes it a
+  warning nobody reads, and the real duplicate goes through behind it. The
+  harness pins both, plus the title and the options counting, and the vetting
+  list being searched at all.
 - Commit messages and pushed artifacts must not contain the model identifier.

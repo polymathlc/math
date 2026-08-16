@@ -406,6 +406,18 @@ a { color: var(--primary); }
 .vet-bulk { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; padding: 14px 18px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-alt); }
 .vet-bulk-count { font-size: 0.85rem; font-weight: 700; color: var(--text); }
 .vet-bulk .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+/* ── The duplicate warning in the editor ─────────────────────────────── */
+.dup-warn {
+  display: none; align-items: center; gap: 14px; flex-wrap: wrap;
+  background: var(--accent-orange-light); border: 1px solid var(--accent-orange);
+  border-radius: 12px; padding: 14px 18px; margin-bottom: 18px;
+}
+.dup-warn.show { display: flex; }
+.dup-warn-icon { font-size: 1.3rem; line-height: 1; }
+.dup-warn-body { flex: 1 1 240px; min-width: 220px; }
+.dup-warn-body h5 { margin: 0 0 3px; font-size: 0.92rem; font-weight: 700; color: var(--accent-orange); }
+.dup-warn-body p { margin: 0; font-size: 0.84rem; line-height: 1.5; color: var(--text); }
+.dup-warn .btn { white-space: nowrap; }
 
 /* ===================================================================
    BIN — a deleted question, waiting out its seven days.
@@ -4523,6 +4535,9 @@ body.lore-reading { overflow: hidden; }
             <ul id="checkAiIssues" hidden></ul>
           </div>
         </div>
+        <!-- Raised by checkEditorDuplicate whenever what is in the editor looks
+             like a question already in the bank or already waiting in vetting. -->
+        <div class="dup-warn" id="dupWarnBanner"></div>
         <div class="editor-grid">
           <div class="editor-field"><label>Title</label><input id="qTitleInput" type="text" placeholder="e.g. Fractions — pizza left over"></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
@@ -7755,6 +7770,7 @@ function navigateTo(page) {
   if (page === "character") rpgRenderCharacterPage();
   if (page === "leaderboard") rpgRenderLeaderboard();
   if (page === "adventure") rpgRenderAdventure();
+  if (page === "create") { dupWatchBind(); dupWatchKick(); }   // idempotent bind; the listener outlives every reset
   if (page === "bank") renderBank();
   if (page === "graph") renderGraphPage();
   if (page === "students") loadStudentRoster();
@@ -8574,6 +8590,10 @@ function renderEditorBlocks() {
   wrap.querySelectorAll("[data-up]").forEach(b => b.addEventListener("click", () => moveBlock(b.dataset.up, -1)));
   wrap.querySelectorAll("[data-down]").forEach(b => b.addEventListener("click", () => moveBlock(b.dataset.down, 1)));
   wrap.querySelectorAll("[data-rm]").forEach(b => b.addEventListener("click", () => removeBlockById(b.dataset.rm)));
+  // Anything that rewrites the blocks — an AI build, a paste, a regenerate —
+  // lands here and fires no `input` event of its own, so the watch would never
+  // see it. Coalesced, so a burst of renders is still one check.
+  dupWatchKick();
 }
 function textBlockHtml(b) {
   return `<div class="block-edit" contenteditable="true" data-block="${b.id}" data-ph="Type the question text…">${escapeHtml(b.content || "")}</div>
@@ -11440,6 +11460,7 @@ function resetEditor() {
   $("createHeading").textContent = "Create Question";
   $("saveQBtn").textContent = "💾 Save to Question Bank";
   $("cancelEditBtn").style.display = "none";
+  hideDupBanner();
   renderEditorBlocks();
   clearCheckAiPanel();
 }
@@ -11536,6 +11557,12 @@ $("saveQBtn").addEventListener("click", async () => {
   const q = collectQuestion();
   if (!q.blocks.some(b => b.type === "text") && !q.blocks.some(b => b.type === "image")) { toast("Add some question content first", "error"); return; }
   if (!q.expected && !q.markingGuide && !q.answerKeyImageUrl) { toast("Add a correct answer, marking guide, or answer key image", "error"); return; }
+  // The backstop. The banner above may never have been looked at — it sits at
+  // the top of a long editor and this button is at the bottom — so the last
+  // word before a question is filed twice is asked for here. It is a prompt,
+  // never a block: "Save anyway" is always available.
+  const dup = _dupFind(q, currentEditingId);
+  if (dup && !confirm(`This looks ${dup.sim}% like “${dup.title}”, already in ${_dupWhereLabel(dup)}.\n\nSave it anyway?`)) return;
   const btn = $("saveQBtn"); const orig = btn.textContent; btn.disabled = true; btn.textContent = "Saving…";
   try {
     await saveQuestionDoc(q);
@@ -11786,28 +11813,145 @@ function updateVettingBadge() {
   const c = $("vettingCount");
   if (c) c.textContent = vettingList.length ? `${vettingList.length} waiting.` : "";
 }
-// Flag a freshly-read question that looks like one already in the bank. It is a
-// prompt to look, never a verdict — the card still saves and still approves.
-function _vetTagDuplicate(q) {
+// =====================================================================
+// "YOU MAY ALREADY HAVE THIS ONE"
+//
+// One matcher, asked from three places: the badge on a Rapid add / paper
+// import card, the live banner in the editor, and the confirm on Save. It is
+// a PROMPT TO LOOK, never a verdict — only the author can tell a real
+// duplicate from two questions that merely share a stem, so nothing here ever
+// refuses to save.
+//
+// Two things it does that a bank-only check cannot:
+//   • It searches the VETTING LIST as well as the bank. The commonest
+//     duplicate of all is the same screenshot read twice in one sitting, and
+//     BOTH copies are then in vetting where a bank-only search sees neither.
+//   • It runs in the EDITOR. A question typed in by hand used to be checked
+//     against nothing at all, so the only way to notice was to remember.
+// =====================================================================
+const DUP_MIN_SIM = 0.66;
+
+// Best matching question already filed, or null. `where` says which list it
+// is in, so every message can name it.
+function _dupFind(q, excludeId) {
   const mine = _vetTokens(q);
-  if (mine.size < 4) return q;
-  let best = null, bestSim = 0;
-  for (const other of questionBank) {
-    const sim = _vetSim(mine, _vetTokens(other));
-    if (sim > bestSim) { bestSim = sim; best = other; }
+  if (mine.size < 4) return null;
+  const skip = excludeId || (q && q.id) || null;
+  let best = null, bestSim = 0, bestWhere = "bank";
+  for (const [where, pool] of [["bank", questionBank], ["vetting", vettingList]]) {
+    if (!Array.isArray(pool)) continue;
+    for (const other of pool) {
+      if (!other || other.id === skip) continue;
+      const sim = _vetSim(mine, _vetTokens(other));
+      if (sim > bestSim) { bestSim = sim; best = other; bestWhere = where; }
+    }
   }
-  if (best && bestSim >= 0.66) q.duplicateOf = { id: best.id, title: best.title || "Untitled", sim: Math.round(bestSim * 100) };
+  return (best && bestSim >= DUP_MIN_SIM)
+    ? { id: best.id, title: best.title || "Untitled", sim: Math.round(bestSim * 100), where: bestWhere }
+    : null;
+}
+// Where a suspected twin lives, in words. One place, because the badge, the
+// banner and the save dialog all say it and must not drift.
+function _dupWhereLabel(dup) {
+  return (dup && dup.where === "vetting") ? "your vetting list" : "your question bank";
+}
+// Flag a freshly-read question that looks like one already filed.
+function _vetTagDuplicate(q) {
+  const dup = _dupFind(q, q && q.id);
+  if (dup) q.duplicateOf = dup;
   return q;
 }
+// The tokens two questions are compared on. The TITLE and the MCQ OPTIONS
+// count as well as the body: a math question is mostly digits, and two
+// questions sharing a stem but offering different choices are not the same
+// question. Everything asks this one function, so the badge, the banner and
+// the save dialog can never disagree about what "alike" means.
 function _vetTokens(q) {
-  return new Set(String(questionText(q) || "").toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(w => w.length > 2));
+  if (!q) return new Set();
+  let s = String(q.title || "") + " " + String(questionText(q) || "");
+  if (Array.isArray(q.options)) s += " " + q.options.join(" ");
+  return new Set(s.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(w => w.length > 2));
 }
+// Jaccard — shared over the UNION — and not containment (`shared / min size`),
+// which is what this was and which cannot tell a duplicate from a shared stem.
+// Two questions built on one scenario ("A shop sold 240 pens on Monday and 3/8
+// as many on Tuesday…") have almost the whole of the shorter one inside the
+// longer, so containment scored them ~100% however differently they ended.
+// That was survivable while the only consumer was a badge on a vetting card;
+// it is not, now that it raises a banner in the editor and a confirm on every
+// save — a warning that fires on questions built from one stem is a warning
+// authors learn to click through, and the real duplicate goes with it.
+// It is also the measure the other three portals use, so all four now agree.
 function _vetSim(a, b) {
   if (!a.size || !b.size) return 0;
   let shared = 0;
   a.forEach(w => { if (b.has(w)) shared++; });
-  return shared / Math.min(a.size, b.size);
+  return shared / (a.size + b.size - shared);
 }
+// ── The editor's own duplicate warning ───────────────────────────────────
+// The banner is LIVE (it re-checks as the author works, so the warning is on
+// screen while there is still something to do about it) and the SAVE ASKS
+// as well — a banner sits at the top of a long editor and the Save button is
+// at the bottom, so the confirm is the backstop.
+//
+// The listener is ONE delegated pair on the create page rather than a binding
+// per field: the editor rebuilds its own DOM continuously, so anything bound
+// per element covers the fields that existed when it ran and silently misses
+// every one made afterwards. renderEditorBlocks kicks it too, because a
+// builder writing blocks programmatically fires no input event at all.
+var DUP_WATCH_MS = 500;        // coalesce a burst of typing into one check
+var _dupWatchTimer = null;
+
+function checkEditorDuplicate() {
+  const banner = $("dupWarnBanner");
+  if (!banner) return;
+  let dup = null;
+  try { dup = _dupFind(collectQuestion(), currentEditingId); } catch (e) { return; }
+  if (!dup) { banner.classList.remove("show"); banner.innerHTML = ""; return; }
+  banner.classList.add("show");
+  banner.innerHTML = `<span class="dup-warn-icon">🟡</span>
+    <div class="dup-warn-body">
+      <h5>Possible duplicate (${dup.sim}% match)</h5>
+      <p>This looks a lot like <strong>“${escapeHtml(dup.title)}”</strong>, already in ${escapeHtml(_dupWhereLabel(dup))}. Review before saving.</p>
+    </div>
+    <button type="button" class="btn btn-ghost btn-sm" data-dupopen="${escapeHtml(dup.id)}">👁 Open the original</button>`;
+  const btn = banner.querySelector("[data-dupopen]");
+  if (btn) btn.addEventListener("click", () => _dupOpenOriginal(dup.id));
+}
+function hideDupBanner() {
+  const b = $("dupWarnBanner");
+  if (b) { b.classList.remove("show"); b.innerHTML = ""; }
+}
+// The twin may be in either list, so it is resolved from both — a vetting
+// entry goes through vetEdit, which loads it into the editor without writing
+// it to the bank first.
+//
+// It ASKS before it goes. The banner is on screen while the author is
+// mid-compose, so opening the twin replaces the draft they are looking at, and
+// a one-click button there would lose work that was never saved.
+function _dupOpenOriginal(id) {
+  const bq = questionBank.find(x => x.id === id);
+  const vq = bq ? null : vettingList.find(x => x.id === id);
+  if (!bq && !vq) { toast("That question is no longer there", "error"); return; }
+  if (!confirm("Open the original?\n\nThis replaces what is in the editor. Anything you have not saved will be lost.")) return;
+  if (bq) loadQuestionIntoEditor(bq); else vetEdit(id);
+}
+function dupWatchKick() {
+  clearTimeout(_dupWatchTimer);
+  _dupWatchTimer = setTimeout(() => {
+    const page = $("page-create");
+    if (!page || !page.classList.contains("active")) return;   // not being edited
+    try { checkEditorDuplicate(); } catch (e) { console.warn("dup watch", e); }
+  }, DUP_WATCH_MS);
+}
+function dupWatchBind() {
+  const page = $("page-create");
+  if (!page || page.dataset.dupBound) return;
+  page.dataset.dupBound = "1";
+  page.addEventListener("input", dupWatchKick);
+  page.addEventListener("change", dupWatchKick);
+}
+
 function vetPreviewHtml(q) {
   const blocks = (q.blocks || []).map(b => b.type === "image"
     ? (b.url ? `<img src="${escapeHtml(b.url)}" alt="Question diagram">` : `<div style="color:var(--accent-orange);">🖼 Diagram slot — nothing attached yet</div>`)
@@ -11831,7 +11975,7 @@ function renderVettingList() {
   vetRenderBulkBar();
   list.innerHTML = jobs + vettingList.map(q => {
     const dup = q.duplicateOf
-      ? `<span class="vet-badge dup" title="Looks like “${escapeHtml(q.duplicateOf.title)}” which is already in your bank">⚠ Possible duplicate (${q.duplicateOf.sim}%)</span>` : "";
+      ? `<span class="vet-badge dup" title="Looks like “${escapeHtml(q.duplicateOf.title)}”, already in ${escapeHtml(_dupWhereLabel(q.duplicateOf))}">⚠ Possible duplicate (${q.duplicateOf.sim}%)</span>` : "";
     const noAns = (!String(q.expected || "").trim() && !String(q.markingGuide || "").trim())
       ? `<span class="vet-badge warn">No answer key</span>` : "";
     const gap = (q.blocks || []).some(b => b.type === "image" && !(b.url || "").trim())
@@ -21205,7 +21349,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.37.0 · 2026-08-16";
+const APP_VERSION = "v1.38.0 · 2026-08-16";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
