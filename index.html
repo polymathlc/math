@@ -15592,8 +15592,18 @@ function wsFooterHtml() {
 // HEIGHT (one handwritten line each), not something that gets drawn.
 const WS_LINES_MIN = 3, WS_LINES_MAX = 14, WS_LINE_CHARS = 46, WS_HAND_ALLOWANCE = 1.2;
 const WS_LINE_MM = 8.5;          // height of one handwritten line
-const WS_ANSWER_ROW_MM = 9;      // the "Answer: ______" row at the bottom right
+const WS_ANSWER_ROW_MM = 9;      // one "Answer: ______" row at the bottom right
 const WS_WORK_MIN_MM = 20;       // never squeeze the working space below this
+// What one A4 page can actually hold: 297mm less the 14mm page margins top and
+// bottom, less the band the repeating copyright <tfoot> reserves, less the
+// question's own number line and the gap under the chunk. A question asking for
+// more paper than this cannot fit whatever the CSS says, and the browser then
+// breaks it wherever it likes — which is how an "Answer: ____" line ends up
+// alone at the top of the next page, belonging to nothing.
+const WS_PAGE_WORK_MM = 240;
+const WS_IMG_MM = 92;            // the cap .ws-q-body img already enforces
+const WS_BODY_LINE_MM = 5.8;     // one printed line of question text at 12pt
+const WS_BODY_CHARS = 88;        // characters that fit on one such line
 function wsAnswerLines(q) {
   if (wsHasMcq(q)) return 0;
   const plain = String(q.markingGuide || q.expected || "").replace(/\s+/g, " ").trim();
@@ -15601,17 +15611,83 @@ function wsAnswerLines(q) {
   const need = Math.ceil((plain.length * WS_HAND_ALLOWANCE) / WS_LINE_CHARS);
   return Math.max(WS_LINES_MIN, Math.min(WS_LINES_MAX, need));
 }
+// How tall the question ITSELF prints, near enough. Deliberately an
+// OVER-estimate: every picture is reserved the full height its max-height
+// allows, because reserving too much only costs a little blank space, while
+// reserving too little puts the answer field on the next page.
+function wsBodyEstimateMm(q) {
+  let mm = 10;   // the "4." number line, the chunk's bottom margin and rounding
+  (q.blocks || []).forEach(b => {
+    if (!b) return;
+    if (b.type === "image") mm += WS_IMG_MM + 6;
+    else if (b.type === "text") {
+      const chars = stripHtml(b.content || "").length;
+      mm += Math.max(1, Math.ceil(chars / WS_BODY_CHARS)) * WS_BODY_LINE_MM + 2;
+    } else mm += 12;
+  });
+  return mm;
+}
+// Every "Answer: ____" row this question prints — one per part on a question
+// that has parts (a), (b), (c).
+function wsAnswerRowsMm(q) {
+  return WS_ANSWER_ROW_MM * Math.max(1, wsQuestionParts(q).length);
+}
 // Height of the blank working area. The answer row is carved OUT of the
 // question's total allowance rather than added on top of it, so switching from
-// ruled lines to blank space did not make every sheet a page longer.
+// ruled lines to blank space did not make every sheet a page longer — and the
+// whole lot is then capped at WHAT IS LEFT OF A PAGE once the question and its
+// answer rows have taken theirs.
 function wsWorkingSpaceMm(q) {
-  const total = wsAnswerLines(q) * WS_LINE_MM;
-  return Math.max(WS_WORK_MIN_MM, total - WS_ANSWER_ROW_MM);
+  const rows = wsAnswerRowsMm(q);
+  const want = Math.max(WS_WORK_MIN_MM, wsAnswerLines(q) * WS_LINE_MM - rows);
+  const room = WS_PAGE_WORK_MM - wsBodyEstimateMm(q) - rows;
+  return Math.max(WS_WORK_MIN_MM, Math.min(want, room));
 }
-// The one place a student writes their final answer: bottom right, under the
-// working. Printed on every non-MCQ, non-annotation question.
-function wsAnswerBlankHtml() {
-  return `<div class="ws-answer-final"><span>Answer:</span><i></i></div>`;
+// ---- A question with parts gets an answer field per part -----------------
+// "(a) Find ∠BCD. (b) Find ∠ABE. (c) Find ∠BEF." is three questions wearing
+// one number, and three answers cannot be written on one line. The labels are
+// READ OFF the question rather than stored: nothing about a question says how
+// many parts it has, and a teacher who edits the wording must not have to
+// remember to update a count somewhere else.
+const WS_PART_LETTERS = "abcdefgh";
+// The question's text with its line breaks intact. stripHtml alone reads
+// through textContent, which welds "(a) Find ∠BCD.</p><p>(b) Find ∠ABE." into
+// one line — and then no part marker is at the start of a line any more.
+function wsQuestionTextLines(q) {
+  return (q && q.blocks || []).filter(b => b && b.type === "text")
+    .map(b => stripHtml(String(b.content || "")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/(p|div|li|h[1-6]|tr)>/gi, "\n")))
+    .join("\n");
+}
+// The parts, in order, or [] for a question that has none. A marker only
+// counts at the START of a line and only in sequence from (a): "(a)" written
+// mid-sentence is prose, and a lone "(a)" with no "(b)" after it is not a
+// question in parts. Two markers are the minimum — anything less is one
+// answer, which is what the plain blank already gives.
+function wsQuestionParts(q) {
+  if (!q || wsHasMcq(q) || questionIsAnnotation(q)) return [];
+  const text = wsQuestionTextLines(q);
+  if (!text) return [];
+  const out = [];
+  let from = 0;
+  for (const ch of WS_PART_LETTERS) {
+    // The marker has to be followed by a space or the end of its line: "(a)"
+    // wedged straight against the next character is prose, not a part label.
+    const m = new RegExp("(?:^|\\n)[ \\t]*\\(?" + ch + "\\)(?=[ \\t\\n]|$)", "i").exec(text.slice(from));
+    if (!m) break;
+    out.push(ch);
+    from += m.index + m[0].length;
+  }
+  return out.length >= 2 ? out : [];
+}
+// Where a student writes their final answer: bottom right, under the working.
+// One row, or one row per part, each labelled with the part it answers.
+function wsAnswerBlankHtml(q) {
+  const parts = wsQuestionParts(q);
+  if (!parts.length) return `<div class="ws-answer-final"><span>Answer:</span><i></i></div>`;
+  return `<div class="ws-answer-parts">${parts.map(ch =>
+    `<div class="ws-answer-final"><span>Answer (${ch}):</span><i></i></div>`).join("")}</div>`;
 }
 function wsQuestionChunkHtml(q, n, qrSvg) {
   const qr = qrSvg ? `<div class="ws-qr">${qrSvg}<div class="ws-qr-cap">📱 Scan to AI-mark<br>&amp; watch the solution</div></div>` : "";
@@ -15626,7 +15702,7 @@ function wsQuestionChunkHtml(q, n, qrSvg) {
     : questionIsAnnotation(q)
     ? `<div class="ws-annot-note">✍️ Write and draw your answer directly on the diagram above.</div>`
     // Blank working space, then the answer blank at the bottom right.
-    : `<div class="ws-answer-box"><div class="ws-work" style="height:${wsWorkingSpaceMm(q)}mm"></div>${wsAnswerBlankHtml()}</div>`;
+    : `<div class="ws-answer-box"><div class="ws-work" style="height:${wsWorkingSpaceMm(q)}mm"></div>${wsAnswerBlankHtml(q)}</div>`;
   return `<section class="ws-chunk${questionIsAnnotation(q) ? " ws-chunk-annot" : ""}">
     ${qr}
     <!-- Just the number. The level and topic are the teacher's filing labels,
@@ -15728,7 +15804,15 @@ function wsPrintCss() {
     /* Blank (unruled) working space, sized from the model answer, closed off by
        a single answer blank at the bottom right. Nothing is drawn inside the
        working area on purpose — see wsWorkingSpaceMm. */
-    .ws-answer-box { margin-top: 3mm; }
+    /* The answer blank NEVER leaves its working space. A question that is
+       taller than what is left of the page has to break somewhere, and left to
+       itself the browser breaks at the last opportunity — which strands the
+       "Answer: ____" line alone at the top of the next page, belonging to
+       nothing. Keeping the box whole moves the working and the answer over
+       together instead; wsWorkingSpaceMm is what stops that happening often. */
+    .ws-answer-box { margin-top: 3mm; break-inside: avoid; page-break-inside: avoid; }
+    /* One answer row per part on a question that has parts (a), (b), (c). */
+    .ws-answer-parts { display: grid; gap: 4mm; }
     .ws-work { width: 100%; }
     /* clear:right keeps the blank clear of the question's QR float, so it is
        always the full width on the right edge instead of being narrowed. */
@@ -22528,7 +22612,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.42.0 · 2026-08-16";
+const APP_VERSION = "v1.43.0 · 2026-08-16";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
