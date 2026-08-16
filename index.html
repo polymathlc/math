@@ -5062,6 +5062,7 @@ body.lore-reading { overflow: hidden; }
     <div class="overlay-head"><h3>🧠 AI Engine</h3><button class="close" data-close="aiEngineOverlay">×</button></div>
     <div class="overlay-body">
       <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:18px;line-height:1.65;">Choose which AI powers every mode in this app — the AI answer &amp; explanation, Build from screenshot / PDF, Rapid add, marking, and the ✨ art generator in 🌌 Nova Protocol. Your choice is saved <b>on this device only</b> and stays until you change it. If ChatGPT ever fails, the app falls back to Gemini automatically, so nobody is ever left without an AI.</p>
+      <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:18px;line-height:1.65;">🔗 <b>One key covers all four subjects.</b> Maths, Science, English and Chinese share this browser's storage, so a key saved here is saved for all of them — and 🔍 <b>Check answer keys</b> can put ChatGPT and Gemini side by side in whichever app you are in.</p>
       <div class="editor-field"><label>Engine</label>
         <label class="ai-engine-opt">
           <input type="radio" name="aiEngineChoice" value="gemini" checked>
@@ -5903,7 +5904,42 @@ async function askGeminiImageEdit(prompt, media) {
 // localStorage on this device only. When active, askGemini/askGeminiVision
 // route through OpenAI first and fall back to Gemini on any failure, so
 // students without a key are never affected.
-const AI_ENGINE_STORE = { engine: 'mq_ai_engine', key: 'mq_openai_key', model: 'mq_openai_model', imageModel: 'mq_openai_image_model' };
+//
+// ── ONE KEY, ALL FOUR PORTALS ─────────────────────────────────────────
+// The four apps are sibling folders on ONE GitHub Pages origin
+// (polymathlc.github.io/{math,english,chinese,cer}), so they already share a
+// localStorage — they were simply writing DIFFERENT slots in it. Naming the
+// same slots in all four is what makes a key pasted once, into whichever app
+// the admin happened to have open, the key every app then has.
+//
+// That is not a convenience: 🔍 Answer key cross-check needs ChatGPT and
+// Gemini BOTH live to be worth running at all, and a key that only worked in
+// the app it was pasted into meant pasting it again per subject — and, when
+// nobody did, a cross-check quietly running with one column and no second
+// opinion in it.
+//
+// The names are the Science app's original `sq_` ones because that is where
+// the key already is. A tidier subject-neutral name would read better and
+// would sign every app out at once on the day it shipped.
+//
+// The key itself is NEVER in this file. These are public, static, GitHub
+// Pages sites served to every student's browser, so a key committed here
+// would be a key handed to the whole school; it lives in the admin's own
+// browser and is read from there.
+const AI_ENGINE_STORE = { engine: 'sq_ai_engine', key: 'sq_openai_key', model: 'sq_openai_model', imageModel: 'sq_openai_image_model' };
+// What THIS app wrote before the slots were shared. Copied across once, and
+// only into a slot that is empty: a key saved here is a real key somebody
+// pasted, but the shared one may be newer, and overwriting it would sign the
+// other three apps out in order to rescue this one.
+const AI_ENGINE_STORE_LEGACY = { engine: 'mq_ai_engine', key: 'mq_openai_key', model: 'mq_openai_model', imageModel: 'mq_openai_image_model' };
+(function _aiEngineAdoptLegacySettings() {
+  try {
+    Object.keys(AI_ENGINE_STORE).forEach(k => {
+      const had = localStorage.getItem(AI_ENGINE_STORE_LEGACY[k]);
+      if (had && !localStorage.getItem(AI_ENGINE_STORE[k])) localStorage.setItem(AI_ENGINE_STORE[k], had);
+    });
+  } catch (e) { /* private browsing: the panel still works, it just won't persist */ }
+})();
 const OPENAI_DEFAULT_MODEL = 'gpt-5.6-sol';
 function getAiEngine() { try { return localStorage.getItem(AI_ENGINE_STORE.engine) || 'gemini'; } catch (e) { return 'gemini'; } }
 function getOpenAiKey() { try { return (localStorage.getItem(AI_ENGINE_STORE.key) || '').trim(); } catch (e) { return ''; } }
@@ -7953,7 +7989,9 @@ function saveAiEngineSettings() {
     else localStorage.removeItem(AI_ENGINE_STORE.key);
   } catch (e) { toast("Could not save: " + (e && e.message ? e.message : e), "error"); return; }
   $("aiEngineOverlay").classList.remove("show");
-  toast(eng === "openai" ? `AI engine set to ChatGPT (${model}) — saved on this device` : "AI engine set to Gemini", "success");
+  // Saying "all four subjects" is what tells the admin they do NOT have to go
+  // and do this again in Science, English and Chinese.
+  toast(eng === "openai" ? `AI engine set to ChatGPT (${model}) — saved on this device, for all four subjects` : "AI engine set to Gemini — for all four subjects", "success");
 }
 $("navAiEngine").addEventListener("click", openAiEngineSettings);
 $("saveAiEngineBtn").addEventListener("click", saveAiEngineSettings);
@@ -22612,7 +22650,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.43.0 · 2026-08-16";
+const APP_VERSION = "v1.44.0 · 2026-08-16";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
