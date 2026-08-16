@@ -464,6 +464,49 @@ owner turned sharing off.
 - `wvReelShow` checks `_wvReel.idx === i` before advancing: a superseded player
   firing `ended` late must not drag a student back to where they were.
 
+## ✍️ The printed answer fields — one per part, never on the next page (v1.43.0)
+
+`wsQuestionParts` / `wsAnswerBlankHtml` / `wsBodyEstimateMm` / `wsAnswerRowsMm`
+/ `wsWorkingSpaceMm`, plus `.ws-answer-box` and `.ws-answer-parts` in
+`wsPrintCss`.
+
+Two faults on one printed question, and both of them silent — the sheet prints
+either way and nobody finds out until a class is sitting in front of it.
+
+- **The working area is asked for in MILLIMETRES and a page only has so many.**
+  The allowance is sized from the model answer, so a long marking guide asked
+  for the maximum however tall the question already was; the chunk then
+  outgrew the page, `break-inside: avoid` could not be honoured, and the
+  browser broke at the last opportunity — stranding the *Answer: ____* line at
+  the top of the next page under nothing at all.
+  - **`WS_PAGE_WORK_MM` is what one A4 page actually holds** after the page
+    margins and the band the repeating copyright `<tfoot>` reserves.
+    `wsWorkingSpaceMm` now takes the SMALLER of what the answer wants and what
+    the page has left once `wsBodyEstimateMm` and `wsAnswerRowsMm` have taken
+    theirs.
+  - **`wsBodyEstimateMm` deliberately OVER-estimates**, reserving every picture
+    the full `WS_IMG_MM` its max-height allows. Reserving too much costs a
+    little blank space; reserving too little puts the answer field on the next
+    page, which is the bug.
+  - **`.ws-answer-box` is `break-inside: avoid`** — the last line of defence. A
+    question that still cannot fit takes its working AND its answer rows to the
+    next page together, rather than leaving the answer behind.
+- **A question in parts gets an answer field PER PART**, labelled *Answer (a):*
+  … Three answers cannot be written on one line.
+  - **The parts are READ OFF the wording** (`wsQuestionParts`), never stored:
+    nothing about a question records how many parts it has, and a teacher
+    editing the wording must not have to update a count somewhere else.
+  - **A marker only counts at the START of a line and only in sequence from
+    (a)**, with at least two of them. "…the area (a) in cm² and (b) in m²" is
+    prose; a lone (a) is one answer, which the plain blank already gives.
+  - **`wsQuestionTextLines` puts the line breaks back before reading.**
+    `stripHtml` goes through `textContent`, which welds
+    `(a) …</p><p>(b) …` into one line — and then no marker is at the start of
+    anything.
+  - An MCQ and an annotation question never get part fields: their options and
+    their diagram ARE the answer space.
+- Run **`node tools/worksheet-answer-fields-tests.mjs`** after touching any of it.
+
 ## 🔍 Answer key cross-check — TWO engines at once (v1.42.0)
 
 `akc*` (search `ANSWER KEY CROSS-CHECK`), plus `#akcOverlay`, the `#akcBankBar`
@@ -1049,6 +1092,13 @@ that door: a line to type in, and the same image model behind it.
   obvious the first time anyone picks the tool; a preview centred on the WRONG
   source point looks exactly like a working one and aims every stamp a little
   way off — which is worse than the pin-and-guess it replaced.
+- After touching **the printed answer fields or the working-space sizing**
+  (`wsQuestionParts`, `wsAnswerBlankHtml`, `wsBodyEstimateMm`,
+  `wsAnswerRowsMm`, `wsWorkingSpaceMm`), run
+  `node tools/worksheet-answer-fields-tests.mjs`. Both halves fail silently:
+  a working area sized past what the page has left strands the answer line
+  alone on the next page, and a part reader that is a shade too greedy prints
+  three answer fields on a question with one.
 - After touching **the answer key cross-check** (`akcCompare`,
   `akcAnswersAgree`, `akcAskEngine`, `akcPrompt`, `akcRecentQuestions`), run
   `node tools/answer-key-check-tests.mjs`. Every failure here looks like a
