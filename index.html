@@ -4232,6 +4232,74 @@ body.lore-reading { overflow: hidden; }
 }
 @media print { .subject-switch { display: none !important; } }
 
+/* ── 🔍 Answer key cross-check — two engines, side by side ────────────────
+   The bar that starts a run (on the Question Bank) and the report overlay
+   both live here. The report is a comparison, so the two engines' columns
+   are deliberately identical: anything that styles one differently reads as
+   a verdict before a verdict has been reached. */
+.akc-bar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 14px;
+  padding: 16px 18px; margin-bottom: 16px;
+  border: 1.5px solid var(--border); border-radius: var(--radius-md);
+  background: var(--surface-alt);
+}
+.akc-bar-text { flex: 1 1 280px; min-width: 0; line-height: 1.6; }
+.akc-bar-text b { display: block; font-size: 0.92rem; margin-bottom: 3px; }
+.akc-bar-text span { font-size: 0.79rem; color: var(--text-muted); }
+.akc-bar-pick { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--text-muted); }
+.akc-bar-pick select { padding: 8px 10px; border-radius: var(--radius-sm); border: 1.5px solid var(--border); background: var(--surface); font-family: inherit; font-size: 0.82rem; }
+.akc-note { font-size: 0.8rem; color: var(--text-muted); line-height: 1.65; margin-bottom: 16px; }
+.akc-note.warn { color: var(--accent-red); }
+.akc-progress { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; font-size: 0.84rem; color: var(--text-muted); }
+.akc-progress-track { flex: 1; height: 7px; border-radius: 99px; background: var(--surface-alt); overflow: hidden; }
+.akc-progress-fill { height: 100%; background: var(--primary); border-radius: 99px; transition: width 0.25s; }
+.akc-tallies { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+.akc-tally {
+  flex: 1 1 120px; padding: 13px 15px; border-radius: var(--radius-md);
+  border: 1.5px solid var(--border); background: var(--surface); line-height: 1.5;
+}
+.akc-tally b { display: block; font-size: 1.35rem; font-weight: 700; }
+.akc-tally span { font-size: 0.74rem; color: var(--text-muted); }
+.akc-tally.good b { color: var(--accent-green, #2f855a); }
+.akc-tally.warn b { color: #b7791f; }
+.akc-tally.bad b { color: var(--accent-red); }
+.akc-filter { display: flex; gap: 8px; margin-bottom: 16px; }
+.akc-rows { display: grid; gap: 14px; }
+.akc-row {
+  border: 1.5px solid var(--border); border-left-width: 5px; border-radius: var(--radius-md);
+  padding: 16px 18px; background: var(--surface);
+}
+.akc-row.good { border-left-color: var(--accent-green, #2f855a); }
+.akc-row.warn { border-left-color: #d69e2e; }
+.akc-row.bad { border-left-color: var(--accent-red); }
+.akc-row.idle { border-left-color: var(--border); }
+.akc-row-head { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.akc-row-title { flex: 1 1 220px; min-width: 0; font-size: 0.93rem; font-weight: 600; line-height: 1.5; }
+.akc-row-title small { display: block; font-weight: 400; font-size: 0.75rem; color: var(--text-muted); margin-top: 3px; }
+.akc-verdict { flex: 0 0 auto; font-size: 0.73rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 6px 11px; border-radius: 99px; background: var(--surface-alt); color: var(--text-muted); }
+.akc-verdict.good { background: var(--primary-light); color: var(--primary-dark, var(--primary)); }
+.akc-verdict.warn { background: #fdf3dd; color: #975a16; }
+.akc-verdict.bad { background: var(--accent-red-light); color: var(--accent-red); }
+.akc-cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 14px; }
+@media (max-width: 760px) { .akc-cols { grid-template-columns: 1fr; } }
+.akc-col { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 13px; background: var(--surface-alt); min-width: 0; }
+.akc-col-lbl { font-family: 'Space Mono', monospace; font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 7px; }
+.akc-col-ans { font-size: 0.9rem; font-weight: 600; line-height: 1.55; overflow-wrap: anywhere; }
+.akc-col-ans.none { font-weight: 400; color: var(--text-muted); font-style: italic; }
+.akc-col-meta { font-size: 0.74rem; color: var(--text-muted); margin-top: 7px; line-height: 1.55; }
+.akc-rec { margin-top: 14px; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--surface-alt); font-size: 0.87rem; line-height: 1.65; }
+.akc-rec b { font-weight: 700; }
+.akc-rec.bad { background: var(--accent-red-light); }
+.akc-rec.warn { background: #fdf3dd; }
+.akc-issues { margin: 10px 0 0; padding-left: 20px; font-size: 0.82rem; color: var(--text-muted); line-height: 1.7; }
+.akc-more { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+.akc-work { display: none; margin-top: 12px; }
+.akc-row.open .akc-work { display: block; }
+.akc-work-box { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; background: var(--surface-alt); margin-bottom: 10px; }
+.akc-work-box pre { margin: 6px 0 0; white-space: pre-wrap; font-family: inherit; font-size: 0.83rem; line-height: 1.65; color: #444; }
+.akc-spin { display: inline-block; width: 13px; height: 13px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: akcspin 0.8s linear infinite; vertical-align: -2px; }
+@keyframes akcspin { to { transform: rotate(360deg); } }
+
 </style>
 </head>
 <body>
@@ -4625,6 +4693,19 @@ body.lore-reading { overflow: hidden; }
               Grid
             </button>
           </div>
+        </div>
+        <!-- 🔍 Cross-check the answer keys of everything added recently. The
+             window is a filter ON TOP of what the bank is already showing, so
+             the count on the button is always the set the eye can see. -->
+        <div class="akc-bar" id="akcBankBar">
+          <div class="akc-bar-text">
+            <b>🔍 Check answer keys</b>
+            <span>ChatGPT and Gemini each solve the question from scratch, at the same time. The report compares their two answers with your stated answer, your working and your marking guide, and recommends what to do.</span>
+          </div>
+          <label class="akc-bar-pick">Added in the past
+            <select id="akcWindow" title="Only questions saved inside this window are checked"></select>
+          </label>
+          <button class="btn btn-primary btn-sm" id="akcBankBtn">🔍 Check</button>
         </div>
         <div class="bank-pick-bar" id="bankPickBar" style="display:none;"></div>
         <div class="bank-list" id="bankList"></div>
@@ -5184,6 +5265,19 @@ body.lore-reading { overflow: hidden; }
   </div>
 </div>
 
+<!-- 🔍 Answer key cross-check. Two engines — ChatGPT and Gemini — solve every
+     question independently AND at the same time, and this report puts their
+     two answers beside the teacher's own key. It only READS: the one thing it
+     changes is what the teacher decides to do next, which is why every row
+     ends in a recommendation rather than an edit. -->
+<div class="overlay" id="akcOverlay">
+  <div class="overlay-card wide">
+    <div class="overlay-head"><h3>🔍 Answer key cross-check</h3><button class="close" id="akcCloseX">×</button></div>
+    <div class="overlay-body" id="akcBody"></div>
+    <div class="overlay-foot" id="akcFoot"></div>
+  </div>
+</div>
+
 <div class="overlay" id="wsEditOverlay">
   <div class="overlay-card wide">
     <div class="overlay-head"><h3>✎ Worksheet questions</h3><button class="close" data-close="wsEditOverlay">×</button></div>
@@ -5714,11 +5808,15 @@ function aiErrorMessage(e) {
   return raw;
 }
 
-async function askGeminiVision(prompt, media, { maxOutputTokens = 1024, json = true, models = geminiTextModels, modelNames = AI_TEXT_MODEL_NAMES, thinkingBudget = 0 } = {}) {
+async function askGeminiVision(prompt, media, { maxOutputTokens = 1024, json = true, models = geminiTextModels, modelNames = AI_TEXT_MODEL_NAMES, thinkingBudget = 0, skipOpenAi = false } = {}) {
   // The optional ChatGPT engine (admin-only, device-local key) goes first and
   // falls back to Gemini on ANY failure, so a student with no key is never
   // affected. openAiActive() is defined in the AI ENGINE block below.
-  if (typeof openAiActive === "function" && openAiActive()) {
+  //
+  // `skipOpenAi` is for a caller that is running BOTH engines on purpose (the
+  // 🔍 answer key cross-check): there, "Gemini" has to mean Gemini, or the two
+  // columns of the comparison are the same model twice and every row agrees.
+  if (!skipOpenAi && typeof openAiActive === "function" && openAiActive()) {
     try { return await askOpenAI(prompt, media, { maxOutputTokens, json }); }
     catch (e) { console.warn("ChatGPT engine failed, falling back to Gemini:", e); }
   }
@@ -8335,6 +8433,7 @@ function renderBank() {
   const matches = _bankFilteredQuestions();
   _syncBankViewChrome();
   _renderBankPickBar(matches);
+  akcBankSync();   // "🔍 Check N questions added in the past …" counts THIS list
   list.classList.toggle("as-tiles", bankView === "grid");
   $("bankCount").textContent = !total ? ""
     : matches.length === total ? `${total} question${total > 1 ? "s" : ""}.`
@@ -13527,6 +13626,619 @@ $("checkAiBtn").addEventListener("click", checkQuestionWithAI);
 $("blocksList").addEventListener("input", invalidateCheckAiOnEdit);
 
 // =====================================================================
+// 🔍 ANSWER KEY CROSS-CHECK — TWO ENGINES, AT THE SAME TIME (v1.42.0)
+// =====================================================================
+// ✅ Check with AI (above) asks ONE model whether a question hangs together.
+// This asks TWO — ChatGPT and Gemini — to solve every question independently
+// and simultaneously, and then reports the two answers BESIDE the teacher's
+// own key.
+//
+// Why two: a single model that misreads a question is wrong quietly and
+// confidently, and there is nothing on screen to say so. Two models that were
+// never shown each other's work and still land on the same answer are worth
+// acting on; two that split are worth a human. That is the whole idea, and it
+// is why the two calls are `Promise.all`ed rather than chained — neither may
+// ever see the other's answer.
+//
+// It READS ONLY. Every row ends in a recommendation, never in a write: an
+// answer key is the teacher's, and a model that is confidently wrong must not
+// be able to overwrite one. `akcCompare` is what turns two answers into that
+// recommendation, and it is deliberately PLAIN CODE rather than a third AI
+// call — the arithmetic of "do these two agree" must be repeatable.
+//
+// Entry points: 🔍 Check answer keys on a saved worksheet (📄 My Worksheets),
+// and "everything added in the past N hours" on the Question Bank.
+const AKC_PAR = 3;              // questions in flight; each one is 2 model calls
+const AKC_MAX = 80;             // one run's ceiling — 160 model calls
+const AKC_CONFIRM_OVER = 20;    // ask before a run bigger than this
+const AKC_IMG_MAX = 4;          // images attached per question
+const AKC_WINDOW_STORE = "mq_akc_window";
+// "Added in the past …". `hours: 0` is every question the bank is showing,
+// which is also the only window an undated question can appear in — a question
+// saved before createdAt existed has no date to place it in a window at all.
+const AKC_WINDOWS = [
+  { hours: 1, text: "hour" },
+  { hours: 3, text: "3 hours" },
+  { hours: 6, text: "6 hours" },
+  { hours: 12, text: "12 hours" },
+  { hours: 24, text: "24 hours" },
+  { hours: 48, text: "2 days" },
+  { hours: 168, text: "7 days" },
+  { hours: 0, text: "— any time —" }
+];
+// The two engines. `id` is what the code keys on; `label` is what the report
+// says, and it names the actual model, because "ChatGPT" and "Gemini" are
+// families and the comparison is only meaningful if the reader knows which
+// two members of them answered.
+function akcEngines() {
+  const out = [];
+  // The ChatGPT key is device-local and admin-only. It is read here whatever
+  // the sidebar's engine toggle says: this feature is asking BOTH engines, so
+  // a saved key is enough to make ChatGPT one of them.
+  if (getOpenAiKey()) out.push({ id: "openai", label: "ChatGPT", model: getOpenAiModel() });
+  if (geminiRegenModels.length) out.push({ id: "gemini", label: "Gemini", model: AI_REGEN_MODEL });
+  return out;
+}
+let _akc = { rows: [], running: false, stop: false, title: "", filter: "all", engines: [], open: new Set(), startedAt: 0 };
+
+// ---- what the question says the answer is --------------------------------
+// An MCQ's answer is its option, and the option NUMBER is what everyone reads
+// off the screen (see mcqLabel) — so that is what both engines are asked for
+// and what the comparison keys on.
+function akcStatedAnswer(q) {
+  if (wsHasMcq(q) && Number.isInteger(q.correctOption) && q.options[q.correctOption] != null) {
+    return `${mcqLabel(q.correctOption)} ${q.options[q.correctOption]}`;
+  }
+  return String((q && q.expected) || "").trim();
+}
+function akcStatedOption(q) {
+  return wsHasMcq(q) && Number.isInteger(q.correctOption) ? q.correctOption + 1 : null;
+}
+
+// ---- do two answers agree? ------------------------------------------------
+// The measure the whole report rests on, so it is written to answer the
+// question a TEACHER would: would these two be marked the same?
+//
+// Numbers first, units second. "24" and "24 m" agree (one side just left the
+// unit off); "24 m" and "24 cm" do NOT, which is exactly the kind of mistake
+// this feature exists to catch — so a bare number-sequence comparison is not
+// enough on its own.
+const AKC_UNIT_CANON = {
+  metre: "m", metres: "m", meter: "m", meters: "m", m: "m",
+  centimetre: "cm", centimetres: "cm", centimeter: "cm", centimeters: "cm", cm: "cm",
+  millimetre: "mm", millimetres: "mm", mm: "mm",
+  kilometre: "km", kilometres: "km", km: "km",
+  gram: "g", grams: "g", g: "g", kilogram: "kg", kilograms: "kg", kg: "kg",
+  litre: "l", litres: "l", liter: "l", liters: "l", l: "l",
+  millilitre: "ml", millilitres: "ml", ml: "ml",
+  second: "s", seconds: "s", sec: "s", secs: "s", s: "s",
+  minute: "min", minutes: "min", min: "min", mins: "min",
+  hour: "h", hours: "h", hr: "h", hrs: "h", h: "h",
+  dollar: "$", dollars: "$", cent: "c", cents: "c",
+  percent: "%", "%": "%",
+  degree: "deg", degrees: "deg", deg: "deg",
+  square: "sq", sq: "sq", cubic: "cu", cu: "cu"
+};
+function akcNormAnswer(s) {
+  return String(s == null ? "" : s).toLowerCase()
+    .replace(/[\u2013\u2014]/g, "-")
+    .replace(/,(?=\d{3}\b)/g, "")                  // 1,200 → 1200
+    .replace(/\$/g, " dollars ")
+    .replace(/%/g, " percent ")
+    .replace(/\b(the|is|are|option|answer|ans|about|approximately|total|altogether)\b/g, " ")
+    .replace(/[^a-z0-9./\- ]/g, " ")
+    .replace(/\s+/g, " ").trim();
+}
+function akcNumbers(s) {
+  return (akcNormAnswer(s).match(/-?\d+(?:\.\d+)?/g) || []).map(n => {
+    const v = Number(n);
+    return Number.isFinite(v) ? String(Math.round(v * 1e6) / 1e6) : n;
+  });
+}
+// What is left once the numbers are taken out, with every unit spelt the one
+// way — "3 metres" and "3 m" must not read as a disagreement.
+function akcUnits(s) {
+  return akcNormAnswer(s).replace(/-?\d+(?:\.\d+)?/g, " ")
+    .split(/[\s/]+/).filter(Boolean)
+    .map(w => AKC_UNIT_CANON[w] || w.replace(/s$/, ""))
+    .filter(Boolean).sort().join(" ");
+}
+function akcAnswersAgree(a, b) {
+  const na = akcNormAnswer(a), nb = akcNormAnswer(b);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  const xa = akcNumbers(na), xb = akcNumbers(nb);
+  if (!xa.length || xa.length !== xb.length || !xa.every((v, i) => v === xb[i])) return false;
+  const ua = akcUnits(na), ub = akcUnits(nb);
+  // One side naming no unit at all is the model answering "24" to a question
+  // whose key says "24 m". Two DIFFERENT units is a real disagreement.
+  return !ua || !ub || ua === ub;
+}
+function akcResultsAgree(q, x, y) {
+  if (!x || !y) return false;
+  if (wsHasMcq(q) && x.optionNumber && y.optionNumber) return x.optionNumber === y.optionNumber;
+  return akcAnswersAgree(x.answer, y.answer);
+}
+// null = the question states no answer to agree or disagree with.
+function akcAgreesWithKey(q, r) {
+  const stated = akcStatedAnswer(q);
+  if (!stated || !r) return null;
+  const opt = akcStatedOption(q);
+  if (opt && r.optionNumber) return opt === r.optionNumber;
+  return akcAnswersAgree(stated, r.answer);
+}
+
+// ---- the prompt both engines get, word for word --------------------------
+// Identical for both on purpose: a comparison between two models asked
+// different questions compares the questions, not the models.
+function akcPrompt(q, imageNote) {
+  const text = (q.blocks || []).filter(b => b.type === "text").map(b => stripHtml(b.content).trim()).filter(Boolean).join("\n\n");
+  const opts = wsHasMcq(q)
+    ? `\nThis is a multiple-choice question. The options, as the student sees them:\n`
+      + q.options.map((o, i) => `${mcqLabel(i)} ${o}`).join("\n")
+      + `\nGive the option NUMBER you would choose in "optionNumber".\n`
+    : "";
+  return `You are a meticulous Singapore primary-school mathematics teacher checking a colleague's answer key.\n`
+    + `FIRST work the question out completely on your own, from scratch, as if no answer had been given. Only THEN look at the stated answer and marking guide below and say whether they are right.\n`
+    + `Do not talk yourself into the stated answer: if your own working gives something else, say so plainly.\n`
+    + imageNote
+    + `\nTitle: ${q.title || "(none)"}\nLevel: ${q.level || "(unspecified)"}\nTopics: ${(questionTopics(q) || []).join(", ") || "(unspecified)"}\n`
+    + `Question:\n${text || "(the question is carried by the attached image)"}\n`
+    + opts
+    + `\nThe teacher's stated final answer: ${akcStatedAnswer(q) || "(none given)"}\n`
+    + `The teacher's marking guide / worked solution: ${q.markingGuide || "(none given)"}\n`
+    + `\nJudge three things separately:\n`
+    + `- "answer": your own final answer, as short as possible, with the unit if there is one (e.g. "24 m", "$18.50", "3/4"). If the question has parts, give them as "(a) … (b) …".\n`
+    + `- "statedAnswerVerdict": "agree" if the teacher's stated answer is the same as yours, "disagree" if it is not, "unsure" only if the question cannot be worked out as written.\n`
+    + `- "markingGuideVerdict": "ok" if the working shown leads correctly to the right answer, "issue" if any step, number or explanation in it is wrong or contradicts the answer, "missing" if there is no working at all.\n`
+    + `Put every concrete problem as its own short, specific string in "issues" (an empty array when everything is right). Keep "working" to at most 4 short lines of YOUR OWN working, with line breaks escaped as \\n.\n`
+    + `Return ONLY valid JSON in this exact shape, with no markdown fences:\n`
+    + `{"answer":"<your final answer>","optionNumber":<the option number you chose, or null>,"working":"<your working>",`
+    + `"statedAnswerVerdict":"agree"|"disagree"|"unsure","markingGuideVerdict":"ok"|"issue"|"missing",`
+    + `"issues":["<short specific problem>"],"confidence":"high"|"medium"|"low"}`;
+}
+// Every picture the question carries, plus the answer-key image — the numbers
+// being checked are often only IN the diagram. Capped, because a run is many
+// questions and each image is uploaded to both engines.
+async function akcMediaFor(q) {
+  const urls = (q.blocks || []).filter(b => b.type === "image" && String(b.url || "").trim()).map(b => String(b.url).trim());
+  if (String(q.answerKeyImageUrl || "").trim()) urls.push(String(q.answerKeyImageUrl).trim());
+  const media = [];
+  for (const url of urls.slice(0, AKC_IMG_MAX)) {
+    try { const m = await imageUrlToInlineMedia(url); if (m) media.push(m); }
+    catch (e) { console.warn("cross-check: image could not be attached", e); }
+  }
+  return { media, wanted: urls.length };
+}
+// One engine, one question. Returns a normalised result — never throws, since
+// half a comparison is still worth printing.
+async function akcAskEngine(engine, prompt, media) {
+  const raw = engine.id === "openai"
+    ? await askOpenAI(prompt, media, { maxOutputTokens: 3072, json: true })
+    // skipOpenAi: this call must be Gemini even when the sidebar toggle has
+    // ChatGPT selected, or both columns are the same model.
+    : await askGeminiVision(prompt, media, {
+        maxOutputTokens: 3072, json: true, skipOpenAi: true,
+        models: geminiRegenModels, modelNames: AI_REGEN_MODEL_NAMES, thinkingBudget: -1
+      });
+  const res = parseAIJson(raw);
+  const num = Number(res.optionNumber);
+  return {
+    engine: engine.id, label: engine.label, model: engine.model, ok: true,
+    answer: String(res.answer == null ? "" : res.answer).trim(),
+    optionNumber: Number.isInteger(num) && num > 0 ? num : null,
+    working: String(res.working || "").trim(),
+    stated: String(res.statedAnswerVerdict || "").trim().toLowerCase(),
+    guide: String(res.markingGuideVerdict || "").trim().toLowerCase(),
+    issues: (Array.isArray(res.issues) ? res.issues : []).map(s => String(s || "").trim()).filter(Boolean),
+    confidence: String(res.confidence || "").trim().toLowerCase()
+  };
+}
+async function akcCheckQuestion(q, engines) {
+  const { media, wanted } = await akcMediaFor(q);
+  const imageNote = wanted
+    ? (media.length
+      ? `Attached: ${media.length} image${media.length > 1 ? "s" : ""} belonging to this question (its diagram(s), and the answer-key picture when there is one). Read every number, label and shape in them — they are part of the question, not decoration.\n`
+      : `This question has a diagram that could not be loaded for this check. Judge the wording, working and answer on their own and do not assume the diagram is wrong.\n`)
+    : "";
+  const prompt = akcPrompt(q, imageNote);
+  // BOTH AT ONCE, and neither is shown the other's answer — that independence
+  // is the only reason an agreement between them means anything.
+  const settled = await Promise.all(engines.map(e =>
+    akcAskEngine(e, prompt, media).catch(err => ({
+      engine: e.id, label: e.label, model: e.model, ok: false,
+      error: aiErrorMessage(err), issues: []
+    }))
+  ));
+  return settled;
+}
+
+// ---- two answers and a key become a recommendation -----------------------
+// Plain code, never a third model call: the report's whole value is that the
+// same two answers always produce the same advice.
+function akcCompare(q, results) {
+  const good = results.filter(r => r && r.ok && (r.answer || r.optionNumber));
+  const stated = akcStatedAnswer(q);
+  const names = list => list.map(r => r.label).join(" and ");
+  const flaggedGuide = good.filter(r => r.guide === "issue");
+  const guideNote = flaggedGuide.length
+    ? ` ${names(flaggedGuide)} also flagged the marking guide / working itself.` : "";
+  const agreeKey = {};
+  good.forEach(r => { agreeKey[r.engine] = akcAgreesWithKey(q, r); });
+
+  if (!good.length) {
+    const why = results.map(r => `${r.label}: ${r.error || "no answer"}`).join("; ");
+    return { status: "failed", tone: "idle", label: "Not checked", agreeKey,
+      rec: `Neither engine could check this one${why ? ` — ${why}` : ""}.` };
+  }
+  if (!stated) {
+    const same = good.length > 1 && akcResultsAgree(q, good[0], good[1]);
+    return { status: "no-key", tone: "warn", label: "No answer key", agreeKey,
+      rec: `This question states no answer at all. `
+        + (same ? `Both engines got <b>${escapeHtml(good[0].answer)}</b> — check that yourself and then write it in as the key.`
+                : `The engines did not settle on one answer${good.length < 2 ? " (only one of them ran)" : ""}, so work it out by hand before writing a key.`)
+        + guideNote };
+  }
+  if (good.length < 2) {
+    const r = good[0];
+    const matches = agreeKey[r.engine] === true;
+    return { status: "single", tone: matches ? "warn" : "bad", label: matches ? "One engine only" : "Disagrees", agreeKey,
+      rec: `Only ${r.label} answered, so there is no second opinion here. `
+        + (matches ? `It agrees with your key.` : `It got <b>${escapeHtml(r.answer)}</b> against your <b>${escapeHtml(stated)}</b> — work this one out by hand.`)
+        + guideNote };
+  }
+  const [a, b] = good;
+  const together = akcResultsAgree(q, a, b);
+  const backing = good.filter(r => agreeKey[r.engine] === true);
+  if (together && backing.length === good.length) {
+    return flaggedGuide.length
+      ? { status: "guide", tone: "warn", label: "Answer ok, working flagged", agreeKey,
+          rec: `Both engines got your answer, <b>${escapeHtml(stated)}</b>, so the key itself looks right —`
+            + ` but ${names(flaggedGuide)} says the marking guide does not lead to it. Read the working.` }
+      : { status: "agree", tone: "good", label: "Both agree with your key", agreeKey,
+          rec: `${names(good)} each worked it out separately and both got <b>${escapeHtml(stated)}</b>. Nothing to do.` };
+  }
+  if (together) {
+    return { status: "key-wrong", tone: "bad", label: "Both disagree with your key", agreeKey,
+      rec: `${names(good)} independently got <b>${escapeHtml(a.answer)}</b>, and your key says <b>${escapeHtml(stated)}</b>.`
+        + ` Two engines that never saw each other's working agreeing on a different answer is the strongest signal here —`
+        + ` check the working and, if they are right, change the answer key.` + guideNote };
+  }
+  if (backing.length) {
+    const other = good.filter(r => agreeKey[r.engine] !== true);
+    return { status: "split", tone: "warn", label: "The engines split", agreeKey,
+      rec: `${names(backing)} agrees with your key (<b>${escapeHtml(stated)}</b>), but ${names(other)} got `
+        + `<b>${escapeHtml(other.map(r => r.answer).join(" / "))}</b>. One of them has misread something — mark it by hand to settle it.` + guideNote };
+  }
+  return { status: "split-none", tone: "bad", label: "Three different answers", agreeKey,
+    rec: `Your key says <b>${escapeHtml(stated)}</b>, ${a.label} got <b>${escapeHtml(a.answer)}</b> and ${b.label} got <b>${escapeHtml(b.answer)}</b>.`
+      + ` Three answers to one question usually means the question itself is ambiguous or a number in it is wrong — rework this one.` + guideNote };
+}
+// `compare.tone` is the ONLY thing that colours a row, tallies it and sorts it
+// into "needs attention". A second table keyed on `status` would be a second
+// opinion about the first opinion: a lone engine CONTRADICTING the key is
+// `single` like a lone engine agreeing with it, but the two are not the same
+// colour, and only the tone the comparison itself returned knows that.
+function akcNeedsAttention(row) { return row.state === "done" && row.compare && row.compare.status !== "agree"; }
+function akcTone(row) { return row.state === "done" && row.compare ? (row.compare.tone || "warn") : "idle"; }
+
+// ---- running a batch ------------------------------------------------------
+// Questions run AKC_PAR at a time (each one is two model calls), the rows
+// appear as they land, and ⏹ Stop is honoured between questions — a run of
+// eighty is minutes of work and a teacher must be able to call it off.
+async function akcStart(questions, title) {
+  if (!canManageQuestions()) { toast("Only admin accounts can check answer keys", "error"); return; }
+  if (_akc.running) { toast("A check is already running", "error"); return; }
+  const engines = akcEngines();
+  if (!engines.length) { toast("No AI engine is available — check your connection, or add a ChatGPT key in the sidebar", "error"); return; }
+  let list = (questions || []).filter(q => q && (q.blocks || []).length);
+  if (!list.length) { toast("There are no questions to check here", "error"); return; }
+  let capped = 0;
+  if (list.length > AKC_MAX) { capped = list.length - AKC_MAX; list = list.slice(0, AKC_MAX); }
+  if (list.length > AKC_CONFIRM_OVER &&
+      !confirm(`Check ${list.length} questions with ${engines.length} engine${engines.length > 1 ? "s" : ""}? That is ${list.length * engines.length} AI calls and will take a few minutes.`)) return;
+
+  _akc = {
+    rows: list.map(q => ({ q, state: "pending", results: [], compare: null })),
+    running: true, stop: false, title, filter: "all", engines, capped,
+    open: new Set(), startedAt: Date.now()
+  };
+  $("akcOverlay").classList.add("show");
+  akcRender();
+
+  let next = 0;
+  const worker = async () => {
+    while (!_akc.stop) {
+      const i = next++;
+      if (i >= _akc.rows.length) return;
+      const row = _akc.rows[i];
+      row.state = "running";
+      akcRender();
+      try { row.results = await akcCheckQuestion(row.q, engines); }
+      catch (e) {
+        // akcCheckQuestion swallows per-engine failures, so anything here is
+        // the question itself (an image that would not load, say).
+        console.error("cross-check failed", e);
+        row.results = engines.map(en => ({ engine: en.id, label: en.label, model: en.model, ok: false, error: aiErrorMessage(e), issues: [] }));
+      }
+      row.compare = akcCompare(row.q, row.results);
+      row.state = "done";
+      akcRender();
+    }
+  };
+  try { await Promise.all(Array.from({ length: Math.min(AKC_PAR, _akc.rows.length) }, worker)); }
+  finally {
+    _akc.running = false;
+    akcRender();
+    if (!_akc.stop) {
+      const bad = _akc.rows.filter(akcNeedsAttention).length;
+      toast(bad ? `Checked — ${bad} question${bad === 1 ? "" : "s"} need a look` : "Checked — every answer key agreed", bad ? "" : "success");
+    }
+    akcBankSync();
+  }
+}
+function akcStop() {
+  if (!_akc.running) return;
+  _akc.stop = true;
+  toast("Stopping after the questions already in flight…", "");
+  akcRender();
+}
+function akcClose() {
+  // Closing stops the run rather than leaving model calls billing away behind
+  // a hidden overlay. The rows already gathered stay on screen until then.
+  if (_akc.running) {
+    if (!confirm("The check is still running. Close and stop it?")) return;
+    _akc.stop = true;
+  }
+  closeOverlay("akcOverlay");
+}
+
+// ---- the report -----------------------------------------------------------
+function akcEngineColHtml(row, engine) {
+  const r = (row.results || []).find(x => x.engine === engine.id);
+  const agree = row.compare ? row.compare.agreeKey[engine.id] : undefined;
+  const mark = agree === true ? "✓ agrees with your key" : agree === false ? "✗ differs from your key" : "";
+  if (row.state !== "done") {
+    return `<div class="akc-col"><div class="akc-col-lbl">${escapeHtml(engine.label)}</div>
+      <div class="akc-col-ans none">${row.state === "running" ? `<span class="akc-spin"></span> working…` : "waiting"}</div></div>`;
+  }
+  if (!r || !r.ok) {
+    return `<div class="akc-col"><div class="akc-col-lbl">${escapeHtml(engine.label)}</div>
+      <div class="akc-col-ans none">couldn't answer</div>
+      <div class="akc-col-meta">${escapeHtml((r && r.error) || "no response")}</div></div>`;
+  }
+  const bits = [mark];
+  if (r.guide === "issue") bits.push("flags the working");
+  else if (r.guide === "missing") bits.push("no working given");
+  if (r.confidence && r.confidence !== "high") bits.push(`${escapeHtml(r.confidence)} confidence`);
+  return `<div class="akc-col">
+    <div class="akc-col-lbl">${escapeHtml(engine.label)} · ${escapeHtml(r.model || "")}</div>
+    <div class="akc-col-ans">${escapeHtml(r.answer || "(no answer given)")}</div>
+    ${bits.filter(Boolean).length ? `<div class="akc-col-meta">${bits.filter(Boolean).join(" · ")}</div>` : ""}
+  </div>`;
+}
+function akcRowHtml(row, i) {
+  const q = row.q;
+  const c = row.compare;
+  const tone = akcTone(row);
+  const stated = akcStatedAnswer(q);
+  const issues = (row.results || []).filter(r => r.ok && r.issues.length)
+    .flatMap(r => r.issues.map(s => `<li><b>${escapeHtml(r.label)}:</b> ${escapeHtml(s)}</li>`)).join("");
+  const working = (row.results || []).filter(r => r.ok && r.working)
+    .map(r => `<div class="akc-work-box"><div class="akc-col-lbl">${escapeHtml(r.label)}'s own working</div><pre>${escapeHtml(r.working)}</pre></div>`).join("");
+  const meta = [q.level, adminTopicsLabel(q)].map(x => String(x || "").trim()).filter(Boolean).join(" · ");
+  // Which rows are expanded is STATE, not a class on a div: the report
+  // re-renders on every result that lands, so a panel opened mid-run would
+  // otherwise snap shut under the teacher reading it.
+  const open = _akc.open && _akc.open.has(i);
+  return `<div class="akc-row ${tone}${open ? " open" : ""}" data-akc-row="${i}">
+    <div class="akc-row-head">
+      <div class="akc-row-title">${i + 1}. ${escapeHtml(q.title || "Untitled")}
+        ${meta ? `<small>${escapeHtml(meta)}</small>` : ""}</div>
+      <span class="akc-verdict ${tone}">${row.state === "done" && c ? escapeHtml(c.label) : row.state === "running" ? "checking…" : "queued"}</span>
+    </div>
+    <div class="akc-cols">
+      <div class="akc-col">
+        <div class="akc-col-lbl">Your answer key</div>
+        <div class="akc-col-ans${stated ? "" : " none"}">${escapeHtml(stated || "(none written)")}</div>
+        ${q.markingGuide ? `<div class="akc-col-meta">Marking guide on file</div>` : `<div class="akc-col-meta">No marking guide</div>`}
+      </div>
+      ${_akc.engines.map(e => akcEngineColHtml(row, e)).join("")}
+    </div>
+    ${row.state === "done" && c ? `<div class="akc-rec ${tone === "good" ? "" : tone}">${c.rec}</div>` : ""}
+    ${issues ? `<ul class="akc-issues">${issues}</ul>` : ""}
+    <div class="akc-more">
+      ${working ? `<button class="btn btn-ghost btn-sm" data-akc-toggle="${i}">${open ? "🧮 Hide the working" : "🧮 Show both engines' working"}</button>` : ""}
+      <button class="btn btn-ghost btn-sm" data-akc-edit="${escapeHtml(String(q.id))}">✎ Edit this question</button>
+    </div>
+    ${working ? `<div class="akc-work">${working}</div>` : ""}
+  </div>`;
+}
+function akcRender() {
+  const body = $("akcBody"), foot = $("akcFoot");
+  if (!body || !foot) return;
+  const rows = _akc.rows || [];
+  const done = rows.filter(r => r.state === "done").length;
+  const tally = { agree: 0, warn: 0, bad: 0, failed: 0 };
+  rows.forEach(r => {
+    if (r.state !== "done" || !r.compare) return;
+    const tone = akcTone(r);
+    if (tone === "good") tally.agree++;
+    else if (tone === "bad") tally.bad++;
+    else if (tone === "idle") tally.failed++;
+    else tally.warn++;
+  });
+  const shown = _akc.filter === "attention" ? rows.filter(akcNeedsAttention) : rows;
+  const engineLine = _akc.engines.map(e => `<b>${escapeHtml(e.label)}</b> (${escapeHtml(e.model)})`).join(" and ");
+  const oneEngine = _akc.engines.length < 2;
+  body.innerHTML =
+    `<p class="akc-note">${escapeHtml(_akc.title || "Answer key check")} — ${rows.length} question${rows.length === 1 ? "" : "s"}, checked by ${engineLine || "no engine"}.
+      Each engine solves the question from scratch without seeing the other's answer; the recommendation compares the two with your own key.</p>
+    ${oneEngine ? `<p class="akc-note warn">Only one engine is available on this device, so there is no second opinion in this report. Add a ChatGPT API key in the sidebar's AI Engine panel to run both.</p>` : ""}
+    ${_akc.capped ? `<p class="akc-note warn">${_akc.capped} more question${_akc.capped === 1 ? " was" : "s were"} left out — one run checks at most ${AKC_MAX}.</p>` : ""}
+    <div class="akc-progress">
+      <div class="akc-progress-track"><div class="akc-progress-fill" style="width:${rows.length ? Math.round((done / rows.length) * 100) : 0}%"></div></div>
+      <span>${done} / ${rows.length}${_akc.running ? (_akc.stop ? " · stopping…" : " · checking…") : " · finished"}</span>
+    </div>
+    <div class="akc-tallies">
+      <div class="akc-tally good"><b>${tally.agree}</b><span>both engines agree with your key</span></div>
+      <div class="akc-tally warn"><b>${tally.warn}</b><span>worth a look</span></div>
+      <div class="akc-tally bad"><b>${tally.bad}</b><span>your key looks wrong</span></div>
+      <div class="akc-tally"><b>${tally.failed}</b><span>couldn't be checked</span></div>
+    </div>
+    <div class="akc-filter">
+      <button class="btn btn-sm ${_akc.filter === "all" ? "btn-primary" : "btn-ghost"}" data-akc-filter="all">All ${rows.length}</button>
+      <button class="btn btn-sm ${_akc.filter === "attention" ? "btn-primary" : "btn-ghost"}" data-akc-filter="attention">Needs attention ${rows.filter(akcNeedsAttention).length}</button>
+    </div>
+    <div class="akc-rows">${shown.length
+      ? shown.map(r => akcRowHtml(r, rows.indexOf(r))).join("")
+      : `<div class="empty-note">Nothing here — every answer key checked out.</div>`}</div>`;
+  foot.innerHTML =
+    `<button class="btn btn-ghost" id="akcCloseBtn">✕ Close</button>
+     ${_akc.running ? `<button class="btn btn-danger" id="akcStopBtn"${_akc.stop ? " disabled" : ""}>⏹ Stop</button>` : ""}
+     <button class="btn btn-outline" id="akcCopyBtn"${done ? "" : " disabled"}>📋 Copy the report</button>
+     <button class="btn btn-primary" id="akcPrintBtn"${done ? "" : " disabled"}>🖨️ Print / Save PDF</button>`;
+}
+// The report as plain text — for pasting into a message or a marking log.
+function akcReportText() {
+  const lines = [];
+  lines.push(`ANSWER KEY CROSS-CHECK — ${_akc.title || ""}`);
+  lines.push(`${new Date().toLocaleString()} · engines: ${_akc.engines.map(e => `${e.label} (${e.model})`).join(", ") || "none"}`);
+  lines.push("");
+  _akc.rows.forEach((row, i) => {
+    if (row.state !== "done" || !row.compare) return;
+    lines.push(`${i + 1}. ${row.q.title || "Untitled"} — ${row.compare.label}`);
+    lines.push(`   your key: ${akcStatedAnswer(row.q) || "(none written)"}`);
+    (row.results || []).forEach(r => {
+      lines.push(`   ${r.label}: ${r.ok ? (r.answer || "(no answer)") : "failed — " + (r.error || "")}`);
+    });
+    lines.push(`   → ${stripHtml(row.compare.rec)}`);
+    (row.results || []).filter(r => r.ok).forEach(r => r.issues.forEach(s => lines.push(`   · ${r.label}: ${s}`)));
+    lines.push("");
+  });
+  return lines.join("\n");
+}
+async function akcCopyReport() {
+  const text = akcReportText();
+  try { await navigator.clipboard.writeText(text); toast("Report copied", "success"); }
+  catch (e) { toast("Couldn't copy — your browser blocked it", "error"); }
+}
+// A printable version of the same report. Same window trick the worksheet
+// printer uses, and the same rule: what is on screen is what prints.
+function akcPrintReport() {
+  const w = window.open("", "_blank");
+  if (!w) { toast("Please allow pop-ups so the report can open", "error"); return; }
+  const rows = _akc.rows.filter(r => r.state === "done" && r.compare);
+  const html = rows.map((row, i) => {
+    const c = row.compare;
+    const tone = akcTone(row);
+    const cols = [`<div class="col"><b>Your answer key</b><div>${escapeHtml(akcStatedAnswer(row.q) || "(none written)")}</div></div>`]
+      .concat((row.results || []).map(r => `<div class="col"><b>${escapeHtml(r.label)}</b><div>${escapeHtml(r.ok ? (r.answer || "(no answer)") : "couldn't answer")}</div>${r.ok && r.working ? `<pre>${escapeHtml(r.working)}</pre>` : ""}</div>`))
+      .join("");
+    return `<section class="row ${tone}">
+      <h3>${_akc.rows.indexOf(row) + 1}. ${escapeHtml(row.q.title || "Untitled")} <span class="v">${escapeHtml(c.label)}</span></h3>
+      <div class="cols">${cols}</div>
+      <p class="rec">${c.rec}</p>
+      ${(row.results || []).filter(r => r.ok && r.issues.length).map(r => `<ul>${r.issues.map(s => `<li><b>${escapeHtml(r.label)}:</b> ${escapeHtml(s)}</li>`).join("")}</ul>`).join("")}
+    </section>`;
+  }).join("");
+  const css = `body{font-family:Arial,Helvetica,sans-serif;color:#2c2a27;margin:0;padding:24px;background:#fff;}
+    h1{font-size:19pt;margin:0 0 4px;} .sub{color:#7a756d;font-size:10pt;margin-bottom:18px;}
+    .row{border:1pt solid #ded8ce;border-left:4pt solid #ded8ce;border-radius:6px;padding:12px 14px;margin-bottom:12px;break-inside:avoid;}
+    .row.good{border-left-color:#2f855a;} .row.warn{border-left-color:#d69e2e;} .row.bad{border-left-color:#c53030;}
+    h3{font-size:11.5pt;margin:0 0 8px;} .v{font-size:8.5pt;color:#7a756d;font-weight:400;}
+    .cols{display:flex;gap:12px;flex-wrap:wrap;} .col{flex:1 1 30%;min-width:150px;background:#f7f5f1;border-radius:5px;padding:8px 10px;font-size:10pt;}
+    .col b{display:block;font-size:7.5pt;text-transform:uppercase;letter-spacing:.08em;color:#7a756d;margin-bottom:3px;}
+    pre{white-space:pre-wrap;font-family:inherit;font-size:9pt;color:#514d47;margin:6px 0 0;}
+    .rec{font-size:10.5pt;line-height:1.6;margin:10px 0 0;} ul{margin:8px 0 0;padding-left:18px;font-size:9.5pt;color:#514d47;line-height:1.6;}
+    .bar{position:fixed;top:14px;right:18px;display:flex;gap:8px;}
+    .bar button{font:600 13px Arial;padding:10px 15px;border:0;border-radius:9px;background:#4a7c59;color:#fff;cursor:pointer;}
+    @media print{.bar{display:none;}}`;
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Answer key cross-check</title><style>${css}</style></head>
+    <body><div class="bar"><button onclick="window.print()">🖨️ Print / Save PDF</button></div>
+    <h1>🔍 Answer key cross-check</h1>
+    <div class="sub">${escapeHtml(_akc.title || "")} · ${escapeHtml(new Date().toLocaleString())} · ${escapeHtml(_akc.engines.map(e => e.label + " (" + e.model + ")").join(" + ") || "no engine")}</div>
+    ${html || "<p>Nothing was checked.</p>"}</body></html>`);
+  w.document.close();
+}
+
+// ---- the two ways in ------------------------------------------------------
+function akcCheckWorksheet(id) {
+  const ws = wsFind(id);
+  if (!ws) return;
+  const questions = wsSavedQuestions(ws);
+  if (!questions.length) { toast("None of this worksheet's questions are in the bank any more", "error"); return; }
+  akcStart(questions, `${ws.title || "Worksheet"} — ${questions.length} question${questions.length === 1 ? "" : "s"}`);
+}
+function akcStoredWindow() {
+  try { return localStorage.getItem(AKC_WINDOW_STORE) || "24"; } catch (e) { return "24"; }
+}
+// The window is a filter ON TOP of what the bank is showing, so the number on
+// the button is always the set the eye can see — the same rule the pick bar
+// follows. An undated question (saved before createdAt existed) can only ever
+// appear under "any time".
+function akcRecentQuestions(hours) {
+  const shown = _bankFilteredQuestions();
+  if (!hours) return shown;
+  const cut = Date.now() - hours * 3600000;
+  return shown.filter(q => _questionRecency(q) >= cut);
+}
+function akcWindowLabel(hours) {
+  const w = AKC_WINDOWS.find(x => x.hours === hours);
+  return !hours ? "in the bank" : `added in the past ${w ? w.text : hours + " hours"}`;
+}
+function akcBankSync() {
+  const sel = $("akcWindow"), btn = $("akcBankBtn");
+  if (!sel || !btn) return;
+  if (!sel.options.length) {
+    sel.innerHTML = AKC_WINDOWS.map(w => `<option value="${w.hours}">${escapeHtml(w.text)}</option>`).join("");
+    const stored = akcStoredWindow();
+    if ([...sel.options].some(o => o.value === stored)) sel.value = stored;
+    sel.addEventListener("change", () => {
+      try { localStorage.setItem(AKC_WINDOW_STORE, sel.value); } catch (e) {}
+      akcBankSync();
+    });
+  }
+  const hours = Number(sel.value) || 0;
+  const n = akcRecentQuestions(hours).length;
+  btn.textContent = n ? `🔍 Check ${n} question${n === 1 ? "" : "s"}` : "🔍 Nothing in that window";
+  btn.disabled = !n || _akc.running;
+}
+function akcCheckRecent() {
+  const sel = $("akcWindow");
+  const hours = Number((sel || {}).value) || 0;
+  const list = akcRecentQuestions(hours);
+  if (!list.length) { toast("No questions were added in that window", "error"); return; }
+  akcStart(list, `Question bank — ${list.length} question${list.length === 1 ? "" : "s"} ${akcWindowLabel(hours)}`);
+}
+
+// One delegated handler each, bound once: the report re-renders itself on
+// every result that lands, so per-button listeners would be re-bound dozens of
+// times in a run.
+$("akcBankBtn").addEventListener("click", akcCheckRecent);
+$("akcCloseX").addEventListener("click", akcClose);
+$("akcOverlay").addEventListener("click", e => { if (e.target === $("akcOverlay")) akcClose(); });
+$("akcBody").addEventListener("click", e => {
+  const t = e.target.closest("[data-akc-toggle], [data-akc-filter], [data-akc-edit]");
+  if (!t) return;
+  if (t.dataset.akcFilter) { _akc.filter = t.dataset.akcFilter; akcRender(); return; }
+  if (t.dataset.akcToggle) {
+    const i = Number(t.dataset.akcToggle);
+    if (_akc.open.has(i)) _akc.open.delete(i); else _akc.open.add(i);
+    akcRender();
+    return;
+  }
+  if (t.dataset.akcEdit) { akcClose(); editQuestion(t.dataset.akcEdit); }
+});
+$("akcFoot").addEventListener("click", e => {
+  const id = (e.target.closest("button") || {}).id;
+  if (id === "akcCloseBtn") akcClose();
+  else if (id === "akcStopBtn") akcStop();
+  else if (id === "akcCopyBtn") akcCopyReport();
+  else if (id === "akcPrintBtn") akcPrintReport();
+});
+
+// =====================================================================
 // ADMIN TEXT TOOLS — 🎤 Dictate (Gemini transcription) + ✨ Improve
 // (rewrite for clarity without changing the content). Attached to every
 // admin text box: the question fields, the content blocks, and the
@@ -15355,6 +16067,7 @@ function renderSavedWorksheets() {
         <button class="btn btn-green btn-sm" data-ws-overview="${escapeHtml(ws.id)}" title="One shareable page with every question on this sheet, its answer key and its video solution — plus a player that works through all the videos in order. Copy the link from that page to give it to students.">🎬 Solutions &amp; videos</button>
         <button class="btn btn-ghost btn-sm" data-ws-preview="${escapeHtml(ws.id)}">👁️ Preview</button>
         <button class="btn btn-blue btn-sm" data-ws-practise="${escapeHtml(ws.id)}">✍️ Practise</button>
+        ${canManageQuestions() ? `<button class="btn btn-outline btn-sm" data-ws-akc="${escapeHtml(ws.id)}" title="ChatGPT and Gemini each solve every question on this sheet from scratch, at the same time, and the report compares their answers with your answer key, working and marking guide.">🔍 Check answer keys</button>` : ""}
         ${wsMine(ws) ? `<button class="btn btn-ghost btn-sm" data-ws-edit="${escapeHtml(ws.id)}" title="Change which questions are on this sheet">✎ Questions</button>
         <button class="btn btn-danger btn-sm" data-ws-del="${escapeHtml(ws.id)}">🗑 Delete</button>` : `<span class="ws-saved-meta" style="margin:0;align-self:center;">Set by your teacher</span>`}
       </div>
@@ -15363,6 +16076,7 @@ function renderSavedWorksheets() {
   grid.querySelectorAll("[data-ws-print]").forEach(b => b.addEventListener("click", () => openSavedWorksheet(b.dataset.wsPrint, true)));
   grid.querySelectorAll("[data-ws-overview]").forEach(b => b.addEventListener("click", () => openWorksheetOverview(wsFind(b.dataset.wsOverview))));
   grid.querySelectorAll("[data-ws-preview]").forEach(b => b.addEventListener("click", () => openSavedWorksheet(b.dataset.wsPreview, false)));
+  grid.querySelectorAll("[data-ws-akc]").forEach(b => b.addEventListener("click", () => akcCheckWorksheet(b.dataset.wsAkc)));
   grid.querySelectorAll("[data-ws-practise]").forEach(b => b.addEventListener("click", () => practiseWorksheet(b.dataset.wsPractise)));
   grid.querySelectorAll("[data-ws-edit]").forEach(b => b.addEventListener("click", () => wseOpen(b.dataset.wsEdit)));
   grid.querySelectorAll("[data-ws-del]").forEach(b => b.addEventListener("click", () => deleteSavedWorksheet(b.dataset.wsDel)));
@@ -21814,7 +22528,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.41.0 · 2026-08-16";
+const APP_VERSION = "v1.42.0 · 2026-08-16";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)

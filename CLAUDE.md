@@ -464,6 +464,54 @@ owner turned sharing off.
 - `wvReelShow` checks `_wvReel.idx === i` before advancing: a superseded player
   firing `ended` late must not drag a student back to where they were.
 
+## 🔍 Answer key cross-check — TWO engines at once (v1.42.0)
+
+`akc*` (search `ANSWER KEY CROSS-CHECK`), plus `#akcOverlay`, the `#akcBankBar`
+on the Question Bank and 🔍 Check answer keys on a 📄 My Worksheets card.
+
+✅ **Check with AI** in the editor asks ONE model whether a question hangs
+together. This asks **two** — ChatGPT (`gpt-5.6-sol` by default) and Gemini
+(`AI_REGEN_MODEL`) — to solve every question from scratch **simultaneously**,
+and reports their two answers beside the teacher's own key, with a
+recommendation. Admin-only; the answer key is admin-only to begin with.
+
+- **The two calls are `Promise.all`ed and neither model is shown the other's
+  answer.** That independence is the only reason an agreement between them
+  means anything — chain them and the second is just agreeing with the first.
+- **`skipOpenAi: true` on the Gemini call is load-bearing.** `askGeminiVision`
+  routes through ChatGPT whenever the sidebar's engine toggle says so, so
+  without it both columns are the same model twice: they would then agree
+  constantly and the report would read as a clean bill of health.
+- **Both engines get the identical prompt**, built once per question. A
+  comparison between two models asked different questions compares the
+  questions.
+- **It READS ONLY — no path here writes a question.** Every row ends in a
+  recommendation. A model that is confidently wrong must not be able to
+  overwrite a teacher's key; ✎ Edit opens the question in the editor instead.
+- **`akcCompare` is PLAIN CODE, never a third AI call.** The same two answers
+  must always produce the same advice. Its statuses: `agree` (green),
+  `guide` (answer right, working flagged), `split`, `no-key`, `single`,
+  `key-wrong` and `split-none` (both red), `failed`.
+- **`compare.tone` is the ONLY thing that colours, tallies and sorts a row.**
+  One status can carry two colours — a lone engine agreeing with the key is
+  amber, a lone engine contradicting it is red — so a lookup table keyed on
+  `status` would be a second opinion about the first.
+- **`akcAnswersAgree` answers what a TEACHER would.** Numbers first, then
+  units through `AKC_UNIT_CANON`: "24" and "24 m" agree (one side left the unit
+  off), "24 m" and "24 cm" do **not**. Too loose and every row is green, which
+  certifies wrong keys; too tight and every row is amber, which is a report
+  nobody reads. An MCQ is compared by **option number**, never by the words.
+- **The bank's window is a filter ON TOP of what the bank is showing**, so the
+  count on the button is the set the eye can see. An undated question (saved
+  before `createdAt` existed) can only ever appear under "any time".
+- **Which rows are expanded is state (`_akc.open`), not a class on a div** —
+  the report re-renders on every result that lands, so a panel opened mid-run
+  would snap shut under the teacher reading it.
+- Guards: `AKC_PAR` questions in flight, `AKC_MAX` per run, a confirm over
+  `AKC_CONFIRM_OVER`, ⏹ Stop honoured between questions, and closing the
+  overlay stops the run rather than leaving model calls billing away behind it.
+- Run **`node tools/answer-key-check-tests.mjs`** after touching any of it.
+
 ## ✏️ The sheet header is retyped ON the preview (v1.41.0)
 
 `wsHeadFieldHtml` / `wsHeaderEditScript` / `wsPreviewHeaderSave` /
@@ -1001,6 +1049,13 @@ that door: a line to type in, and the same image model behind it.
   obvious the first time anyone picks the tool; a preview centred on the WRONG
   source point looks exactly like a working one and aims every stamp a little
   way off — which is worse than the pin-and-guess it replaced.
+- After touching **the answer key cross-check** (`akcCompare`,
+  `akcAnswersAgree`, `akcAskEngine`, `akcPrompt`, `akcRecentQuestions`), run
+  `node tools/answer-key-check-tests.mjs`. Every failure here looks like a
+  working report: a loose agreement test turns the whole run green and
+  certifies wrong keys, a reversed comparison tells the teacher to change a
+  correct one, and a Gemini call that quietly went through ChatGPT is two
+  columns of the same model agreeing with itself.
 - After touching **the preview's editable header** (`wsHeadFieldHtml`,
   `wsHeaderEditScript`, `wsPreviewHeaderSave`, `wsHeaderOrgOf`), run
   `node tools/worksheet-header-tests.mjs`. It fails silently in both
