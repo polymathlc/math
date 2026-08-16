@@ -464,6 +464,45 @@ owner turned sharing off.
 - `wvReelShow` checks `_wvReel.idx === i` before advancing: a superseded player
   firing `ended` late must not drag a student back to where they were.
 
+## ✏️ The sheet header is retyped ON the preview (v1.41.0)
+
+`wsHeadFieldHtml` / `wsHeaderEditScript` / `wsPreviewHeaderSave` /
+`wsHeaderOrgOf` / `WS_HEADER_ORG` (search `EDITING THE SHEET HEADER FROM ITS OWN
+PREVIEW`), plus the `.ws-edit` / `.ws-editnote` rules in `wsPrintCss`.
+
+👁️ Preview and 🖨️ Print open the sheet as it will print — which is exactly
+where a wrong title is noticed, and the only way to fix it was to go back, find
+the sheet, and rebuild it. **The title and the line under it are now typed on
+the preview itself** and saved to the worksheet.
+
+- **Two fields and no others** — `title` (the worksheet doc's own `title`) and
+  `org` (`ws.headerOrg`, the line under it). `wsPreviewHeaderSave` is a door
+  another window calls through, so it names the two fields it accepts rather
+  than writing whatever key arrives.
+- **The cover and the sheet header carry the SAME field names**, because they
+  print the same two values twice; one edit updates every element wearing the
+  name. Rename one and the document silently prints two different titles.
+- **The preview is a window this app WROTE** (`window.open` + `document.write`),
+  so it is same-origin and calls back through `window.opener` — nothing is
+  posted anywhere and the parent tab does the write, as its own signed-in user.
+  `wsPreviewHeaderSave` is therefore on `window` for the same reason the inline
+  handlers are. With the app tab closed the edit still stands in the preview
+  (it is in the DOM, so it prints) and the bar says it was NOT saved.
+- **Ownership is re-checked on the way in**, never trusted from the flag the
+  preview was built with: a student can open the teacher's sheet from the same
+  My Worksheets list, and a preview opened an hour ago is not proof of anything.
+  A non-owner's preview is the plain header it always was.
+- **An emptied line is not a missing one.** `headerOrg: ""` is a teacher who
+  cleared it and prints nothing there; a sheet saved before the field existed
+  has no field and prints `WS_HEADER_ORG`. `wsHeaderOrgOf` keeps them apart —
+  `|| DEFAULT` would bring a cleared line back on the next print. An emptied
+  TITLE does fall back, because a headless sheet is nobody's intention.
+- **A failed write puts the in-memory copy back** and the preview reverts with
+  it, so the tab and the database cannot sit there disagreeing.
+- A diagnostic **is** a saved worksheet, so `dgPrintTest` hands the same two
+  fields over and gets the same editable header.
+- Run **`node tools/worksheet-header-tests.mjs`** after touching any of it.
+
 ## 📝 Worksheets — the ✎ Questions drawer
 A saved worksheet is an ordered **list of question ids**, so `wsEditOverlay`
 (`wse*`) edits that list and nothing else. Both its columns share one row
@@ -962,6 +1001,12 @@ that door: a line to type in, and the same image model behind it.
   obvious the first time anyone picks the tool; a preview centred on the WRONG
   source point looks exactly like a working one and aims every stamp a little
   way off — which is worse than the pin-and-guess it replaced.
+- After touching **the preview's editable header** (`wsHeadFieldHtml`,
+  `wsHeaderEditScript`, `wsPreviewHeaderSave`, `wsHeaderOrgOf`), run
+  `node tools/worksheet-header-tests.mjs`. It fails silently in both
+  directions: an editable header on somebody else's sheet is a field that looks
+  saveable and is not, and a field name that drifts between the cover and the
+  header prints two different titles on one document.
 - After editing `index.html`, validate the module: extract the
   `<script type="module">` body to a `.mjs` file and run `node --check` on it.
 - After touching **the subject switcher** or **⚡ Rapid add's batch level**, run
