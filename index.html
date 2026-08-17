@@ -828,6 +828,34 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .act-caret { color: var(--text-muted); font-size: 0.75rem; }
 .act-guess { display: inline-block; font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #9a6406; background: rgba(224,164,74,0.18); border: 1px solid #e0a44a; border-radius: 999px; padding: 1px 7px; margin-left: 6px; vertical-align: middle; }
 .act-detail-cell { background: var(--surface-alt); padding: 12px 14px 14px !important; }
+
+/* ---- 📊 Student Usage Tracker --------------------------------------------
+   The overlay is rendered from state, so nothing here may depend on a row's
+   position — a filter would repaint it wrong. */
+.sut-section { margin-bottom: 22px; }
+.sut-section-title { font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-muted); font-family: 'Space Mono', monospace; margin-bottom: 10px; }
+/* One look wherever a mode is named, so the breakdown and the log read as the
+   same vocabulary. */
+.sut-mode { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px;
+  border-radius: 999px; background: var(--surface-alt); border: 1px solid var(--border);
+  font-size: 0.76rem; font-weight: 700; white-space: nowrap; color: var(--text); }
+.sut-mode.g-practice { background: rgba(47,138,62,0.13); border-color: rgba(47,138,62,0.4); color: #2f8a3e; }
+.sut-mode.g-game     { background: rgba(122,86,214,0.13); border-color: rgba(122,86,214,0.4); color: #6b46c1; }
+.sut-mode.g-other    { background: rgba(224,164,74,0.15); border-color: #e0a44a; color: #9a6406; }
+.sut-filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+.sut-filters label { font-size: 0.78rem; color: var(--text-muted); display: inline-flex; align-items: center; gap: 6px; }
+.sut-filters select, .sut-filters input {
+  font-family: 'Space Grotesk', sans-serif; font-size: 0.83rem; padding: 6px 9px;
+  border: 1.5px solid var(--border); border-radius: var(--radius-md);
+  background: var(--surface-alt); color: var(--text);
+  -webkit-appearance: auto; appearance: auto;
+}
+.sut-filters input[type="search"] { min-width: 190px; }
+.sut-count { font-size: 0.78rem; color: var(--text-muted); margin-left: auto; }
+.sut-bar { display: block; height: 6px; border-radius: 999px; background: var(--surface-alt);
+  overflow: hidden; min-width: 74px; margin-bottom: 3px; }
+.sut-bar i { display: block; height: 100%; border-radius: 999px; }
 .act-lbl { font-family: 'Space Mono', monospace; font-size: 0.58rem; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-muted); margin: 8px 0 4px; }
 .act-lbl:first-child { margin-top: 0; }
 .act-skill { display: flex; align-items: center; gap: 9px; margin: 4px 0; font-size: 0.84rem; }
@@ -6973,24 +7001,39 @@ async function openStudentActivity(uid) {
   if (!uid) return;
   activityStudentUid = uid;
   const row = studentRosterRows.find(r => r && r.uid === uid) || {};
-  $("studentActivityTitle").textContent = (row.name || "Student") + " — activity";
-  $("studentActivityBody").innerHTML = `<div class="empty-note" style="padding:20px;">Loading activity…</div>`;
+  $("studentActivityTitle").textContent = (row.name || "Pupil") + " — every question they have done";
+  $("studentActivityBody").innerHTML = `<div class="empty-note" style="padding:20px;">Loading this pupil's question log…</div>`;
   $("studentActivityOverlay").classList.add("show");
   await loadStudentActivity(uid);
 }
+// The marked record is capped — a pupil two years in has thousands of rows and
+// the overlay only ever needs the recent picture. The GAME log is not: it is a
+// single-field query with no ordering, so there is nothing to page, and it is
+// the half that was invisible until now.
+const SUT_PERF_LIMIT = 400;
 async function loadStudentActivity(uid) {
   const row = studentRosterRows.find(r => r && r.uid === uid) || {};
-  let attempts = [], totals = null, loadError = false;
-  try {
-    const snap = await getDocs(query(collection(db, "users", uid, "mathPerformanceAttempts"), orderBy("createdAt", "desc"), limit(300)));
-    snap.forEach(d => attempts.push(Object.assign({ id: d.id }, d.data())));
-  } catch (e) { console.warn("activity attempts load", e); loadError = true; }
-  try {
-    const s = await getDoc(doc(db, "users", uid, "serverStats", "progress"));
-    if (s.exists()) totals = s.data();
-  } catch (e) { console.warn("activity stats load", e); }
+  let perf = [], game = [], loadError = false;
+  // Both reads run together — the overlay is useless until it has both halves,
+  // and a game answer and a marked one are interleaved in the same log.
+  const [perfRes, gameRes] = await Promise.allSettled([
+    getDocs(query(collection(db, "users", uid, "mathPerformanceAttempts"), orderBy("createdAt", "desc"), limit(SUT_PERF_LIMIT))),
+    getDocs(query(collection(db, "questionAttempts"), where("uid", "==", uid)))
+  ]);
+  if (perfRes.status === "fulfilled") perfRes.value.forEach(d => perf.push(Object.assign({ id: d.id }, d.data())));
+  else { console.warn("activity attempts load", perfRes.reason); loadError = true; }
+  // A failed GAME read is not a failed load: the marked record is the bigger
+  // half and showing it beats showing nothing. It is never silently empty
+  // either — the modes simply do not appear, which the breakdown makes obvious.
+  if (gameRes.status === "fulfilled") gameRes.value.forEach(d => game.push(Object.assign({ id: d.id }, d.data())));
+  else console.warn("activity game attempts load", gameRes.reason);
   if (activityStudentUid !== uid) return;   // a newer open superseded this one
-  renderStudentActivity(row, attempts, totals, loadError);
+  _sut = {
+    uid, name: row.name || "Pupil", rows: loadError ? [] : sutNormalise(perf, game),
+    mode: "", result: "", days: "", search: "", open: {},
+    loadError, capped: perf.length >= SUT_PERF_LIMIT
+  };
+  sutRender();
 }
 function formatGap(ms) {
   if (ms == null || !Number.isFinite(ms) || ms < 0) return "—";
@@ -7036,137 +7079,340 @@ function attemptDetailHtml(x) {
   if (x.learningNote) parts.push(`<div class="act-tag-row"><span class="act-lbl">Note</span> ${escapeHtml(String(x.learningNote))}</div>`);
   return parts.join("") || `<div class="sr-email">No method analysis was recorded for this attempt.</div>`;
 }
-function analyzeAttempts(attempts) {
-  // attempts arrive newest-first; walk chronologically to measure gaps
-  const chron = attempts.slice().reverse();
-  let rapid = 0, fastest = Infinity, lastMs = null, lastHour = 0, today = 0;
-  let skillSum = 0, skillCount = 0;
-  const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
-  const nowMs = Date.now();
-  const perQuestion = new Map();
-  const gaps = {};
-  const answerOnlyIds = new Set();   // correct, but weak method read or answered too fast
-  chron.forEach(a => {
-    let g = null;
-    const ms = Date.parse(a.createdAt || "");
-    if (Number.isFinite(ms)) {
-      if (lastMs != null) {
-        g = ms - lastMs;
-        gaps[a.id] = g;
-        if (g >= 0 && g < RAPID_SUBMIT_MS) rapid++;
-        if (g >= 0 && g < fastest) fastest = g;
-      }
-      lastMs = ms;
-      if (nowMs - ms <= 3600 * 1000) lastHour++;
-      if (ms >= dayStart.getTime()) today++;
-    }
-    const key = a.questionId || a.questionTitle || a.id;
-    const e = perQuestion.get(key) || { title: a.questionTitle || a.questionId || "Question", count: 0 };
-    e.count++; perQuestion.set(key, e);
-    // Understanding vs. answer-only: a "correct" with a weak method read, or
-    // one delivered too fast to have actually worked it, is worth a look.
-    const avgSkill = attemptAvgSkill(a);
-    if (avgSkill != null) { skillSum += avgSkill; skillCount++; }
-    const correct = String(a.verdict || "").toLowerCase() === "correct" || (Number(a.credit) || 0) >= 0.95;
-    const tooFast = g != null && g >= 0 && g < 20000;
-    if (correct && ((avgSkill != null && avgSkill < 40) || tooFast)) answerOnlyIds.add(a.id);
-  });
-  let mostRepeated = null;
-  perQuestion.forEach(e => { if (!mostRepeated || e.count > mostRepeated.count) mostRepeated = e; });
-  return {
-    rapid, fastest: fastest === Infinity ? null : fastest, gaps, mostRepeated,
-    lastHour, today, uniqueQuestions: perQuestion.size,
-    avgUnderstanding: skillCount ? Math.round(skillSum / skillCount) : null,
-    answerOnlyIds
-  };
+// ===== 📊 THE STUDENT USAGE TRACKER =================================
+// Every question one pupil has completed, the result they got, and the MODE
+// they did it in — marked practice, AI practice, a photo of their page, or any
+// of the games.
+//
+// **It merges TWO attempt sources, and that is the whole reason it exists.**
+// `mathPerformanceAttempts` is the server-written record of marked work, and it
+// is what this overlay used to read — on its own. But 🌌 Nova Protocol's
+// trainer, duel and Siege write to `questionAttempts` instead, so a pupil could
+// answer hundreds of questions inside the games and this page showed **none of
+// them**: three modes writing to a collection nothing on the teacher's side
+// ever read. `sutNormalise` folds both into one row shape, and everything after
+// it works on that one shape.
+//
+// The two are NOT interchangeable and the merge does not pretend they are. A
+// marked attempt carries the AI's read of HOW it was solved (skill scores,
+// strengths, a learning note) and a game answer is one tap on an MCQ — so the
+// method analysis stays on the rows that have it, and `src` records which
+// collection a row came from so the CSV can say so too.
+//
+// `USAGE_MODES` is the ONE place a raw mode becomes words. A mode with no entry
+// still shows, as its own string: an unlabelled mode is a missing label, but a
+// question dropped out of the log because nobody wrote a label for its mode is
+// a MISSING QUESTION, and two unlabelled modes merged into one row is a
+// breakdown that lies.
+//
+// It is READ-ONLY. Nothing in this block writes anything anywhere.
+const USAGE_MODES = {
+  'marked':     { icon: '📝', label: 'Marked practice',  group: 'practice' },
+  'ai-practice':{ icon: '✨', label: 'AI practice',      group: 'practice' },
+  'photo':      { icon: '📸', label: 'Photo marking',    group: 'practice' },
+  'generated':  { icon: '🤖', label: 'Generated practice', group: 'practice' },
+  'starter':    { icon: '🌱', label: 'Starter question', group: 'practice' },
+  'tcg-train':  { icon: '🎓', label: 'Nova Trainer',     group: 'game' },
+  'tcg-duel':   { icon: '🎴', label: 'Nexus Duel',       group: 'game' },
+  'tcg-siege':  { icon: '🌋', label: 'Orbital Siege',    group: 'game' },
+  'tcg-legends':{ icon: '⚔️', label: 'Nova Legends',     group: 'game' }
+};
+const USAGE_GROUP_ORDER = { practice: 0, game: 1, other: 2 };
+
+function usageMode(mode) {
+  const key = String(mode || '').trim();
+  if (!key) return { key: '', icon: '•', label: 'Not recorded', group: 'other' };
+  const m = USAGE_MODES[key];
+  return m ? { key, icon: m.icon, label: m.label, group: m.group }
+           : { key, icon: '•', label: key, group: 'other' };
 }
-function renderStudentActivity(row, attempts, totals, loadError) {
-  const body = $("studentActivityBody");
-  if (!body) return;
-  if (loadError) {
-    body.innerHTML = `<div class="empty-note" style="padding:20px;">Couldn't load this student's activity. If the grantAdminRole function isn't deployed your account may lack the admin claim Firestore rules require to read other students' records — deploy the Cloud Functions, then sign in again.</div>`;
-    return;
-  }
-  const a = analyzeAttempts(attempts);
-  const totalSubs = (totals && Number(totals.attempts)) || attempts.length;
-  const correct = totals && Number.isFinite(Number(totals.correct))
-    ? Number(totals.correct)
-    : attempts.filter(x => String(x.verdict || "").toLowerCase() === "correct").length;
-  const acc = totalSubs ? Math.round(correct / totalSubs * 100) + "%" : "—";
-  const capped = attempts.length >= 300;
-  const recentLogins = Array.isArray(row.recentLogins) ? row.recentLogins.slice(-8).reverse() : [];
+function usageModeChip(mode) {
+  const m = usageMode(mode);
+  return '<span class="sut-mode g-' + m.group + '">' + m.icon + ' ' + escapeHtml(m.label) + '</span>';
+}
 
-  const answerOnly = a.answerOnlyIds ? a.answerOnlyIds.size : 0;
-  const chips = [
-    `<div class="act-chip"><b>${totalSubs}</b>submissions</div>`,
-    `<div class="act-chip"><b>${acc}</b>correct (${correct})</div>`
-  ];
-  if (a.avgUnderstanding != null) chips.push(`<div class="act-chip${a.avgUnderstanding < 40 ? " warn" : ""}"><b>${a.avgUnderstanding}</b>avg method score</div>`);
-  chips.push(
-    `<div class="act-chip"><b>${a.uniqueQuestions}</b>questions${capped ? " (recent)" : ""}</div>`,
-    `<div class="act-chip"><b>${a.today}</b>today</div>`,
-    `<div class="act-chip"><b>${a.lastHour}</b>last hour</div>`,
-    `<div class="act-chip${a.rapid ? " warn" : ""}"><b>${a.rapid}</b>rapid (&lt;30s apart)</div>`,
-    `<div class="act-chip${a.fastest != null && a.fastest < RAPID_SUBMIT_MS ? " warn" : ""}"><b>${formatGap(a.fastest)}</b>fastest gap</div>`
-  );
-  if (attempts.length) chips.push(`<div class="act-chip${answerOnly ? " warn" : ""}"><b>${answerOnly}</b>answer-only?</div>`);
-  if (a.mostRepeated && a.mostRepeated.count >= 2) {
-    chips.push(`<div class="act-chip${a.mostRepeated.count >= 4 ? " warn" : ""}"><b>${a.mostRepeated.count}×</b>${escapeHtml(a.mostRepeated.title)}</div>`);
-  }
+// Which mode a SERVER-WRITTEN attempt was done in. The finer fields (`via`,
+// `practiceMode`) are only on attempts written since the Cloud Functions were
+// last deployed, so this reads them when they are there and falls back to
+// `source` — which every attempt has ever carried — when they are not. An old
+// attempt therefore reads as "Marked practice" rather than as a blank, and the
+// log never depends on a deploy having happened.
+function sutPerfMode(a) {
+  if (a && a.via === 'photo') return 'photo';
+  if (a && a.practiceMode) return 'ai-practice';
+  const src = String((a && a.source) || 'bank');
+  if (src === 'generated') return 'generated';
+  if (src === 'starter') return 'starter';
+  return 'marked';
+}
 
-  const concerns = [];
-  if (a.rapid >= 3) concerns.push(`${a.rapid} submissions came less than 30 seconds apart`);
-  if (answerOnly >= 3) concerns.push(`${answerOnly} correct answers showed a weak method read or came in too fast (possible answer-only / guessing)`);
-  if (a.mostRepeated && a.mostRepeated.count >= 4) concerns.push(`"${a.mostRepeated.title}" was submitted ${a.mostRepeated.count} times (possible answer-fishing)`);
-  if (a.fastest != null && a.fastest < 20000) concerns.push(`the fastest gap between two submissions was only ${formatGap(a.fastest)}`);
-  const noteHtml = concerns.length
-    ? `<div class="act-note">⚠️ Worth a closer look: ${escapeHtml(concerns.join("; "))}. Tap a question to see how they solved it.</div>`
-    : "";
-
-  const loginHtml = recentLogins.length
-    ? `<div style="margin:0 0 14px;font-size:0.85rem;color:var(--text-muted);"><b style="color:var(--text);">Recent logins:</b> ${recentLogins.map(t => escapeHtml(formatHistoryDate(t))).filter(Boolean).join("  ·  ")}</div>`
-    : "";
-
-  let tableHtml;
-  if (!attempts.length) {
-    tableHtml = `<div class="empty-note" style="padding:20px;">No marked attempts recorded yet for this student.</div>`;
-  } else {
-    const rowsHtml = attempts.map((x, idx) => {
-      const v = String(x.verdict || "").toLowerCase();
-      const vClass = v === "correct" ? "v-correct" : v === "partial" ? "v-partial" : "v-incorrect";
-      const marks = `${Math.round((Number(x.marks) || 0) * 10) / 10}/${Number(x.outOf) || 1}`;
-      const g = a.gaps[x.id];
-      const rapid = Number.isFinite(g) && g >= 0 && g < RAPID_SUBMIT_MS;
-      const topic = attemptTopicLabel(x);
-      const expandable = attemptHasAnalysis(x);
-      const flagged = a.answerOnlyIds && a.answerOnlyIds.has(x.id);
-      const mainRow = `<tr class="act-row${expandable ? " expandable" : ""}"${expandable ? ` data-act-idx="${idx}"` : ""}>
-        <td class="sr-when">${escapeHtml(formatHistoryDate(x.createdAt) || "—")}</td>
-        <td><div class="sr-name" style="font-weight:600;">${expandable ? `<span class="act-caret" id="actcar-${idx}">▸</span> ` : ""}${escapeHtml(x.questionTitle || x.questionId || "Question")}${flagged ? ` <span class="act-guess" title="Correct, but the method read was weak or it was answered very fast">answer-only?</span>` : ""}</div>${topic ? `<div class="sr-email">${escapeHtml(topic)}</div>` : ""}</td>
-        <td class="${vClass}">${escapeHtml(v || "—")}<div class="sr-email">${marks}</div></td>
-        <td class="sr-num">${escapeHtml(x.source || "bank")}</td>
-        <td class="sr-num">+${Number(x.xpAwarded) || 0}</td>
-        <td class="sr-num${rapid ? " act-flag" : ""}">${formatGap(g)}${rapid ? " ⚡" : ""}</td>
-      </tr>`;
-      const detailRow = expandable ? `<tr class="act-detail" id="actdet-${idx}" hidden><td colspan="6" class="act-detail-cell">${attemptDetailHtml(x)}</td></tr>` : "";
-      return mainRow + detailRow;
-    }).join("");
-    tableHtml = `<div class="sr-table-wrap"><table class="sr-table">
-      <thead><tr><th>Time</th><th>Question</th><th>Result</th><th>Source</th><th>XP</th><th>Gap</th></tr></thead>
-      <tbody>${rowsHtml}</tbody></table>
-      ${capped ? `<div class="sr-email" style="padding:9px 12px 0;">Showing the 300 most recent submissions.</div>` : ""}</div>`;
-  }
-
-  body.innerHTML = `<div class="act-chips">${chips.join("")}</div>` + loginHtml + noteHtml + tableHtml;
-  body.querySelectorAll(".act-row[data-act-idx]").forEach(tr => {
-    tr.addEventListener("click", () => {
-      const idx = tr.dataset.actIdx;
-      const det = document.getElementById("actdet-" + idx);
-      const car = document.getElementById("actcar-" + idx);
-      if (det) det.hidden = !det.hidden;
-      if (car) car.textContent = det && !det.hidden ? "▾" : "▸";
+// Milliseconds from whatever shape the stamp arrived in.
+function sutStamp(v) {
+  if (!v) return 0;
+  if (typeof v.toDate === 'function') return v.toDate().getTime();   // Firestore Timestamp
+  const t = (v instanceof Date) ? v.getTime() : Date.parse(v);
+  return Number.isFinite(t) ? t : 0;
+}
+// Both sources into ONE row shape. Everything downstream reads only this.
+function sutNormalise(perf, game) {
+  const rows = [];
+  (perf || []).forEach(a => {
+    const outOf = Number(a.outOf) || 0;
+    const marks = Number(a.marks) || 0;
+    const credit = Number.isFinite(Number(a.credit)) ? Number(a.credit)
+                 : (outOf > 0 ? marks / outOf : null);
+    rows.push({
+      id: a.id, t: Date.parse(a.createdAt || '') || 0, questionId: a.questionId || '',
+      title: a.questionTitle || '', topic: attemptTopicLabel(a),
+      mode: sutPerfMode(a), marks, outOf,
+      credit: credit == null ? null : Math.max(0, Math.min(1, credit)),
+      verdict: String(a.verdict || '').toLowerCase(), xp: Number(a.xpAwarded) || 0,
+      src: 'marked', raw: a
     });
   });
+  (game || []).forEach(a => {
+    const outOf = Number(a.totalBlanks) || 0;
+    const marks = Number(a.score) || 0;
+    rows.push({
+      // A Firestore Timestamp, an ISO string or a raw Date all arrive here.
+      // `Date.parse` must NOT be used on the last of those: it coerces through
+      // toString(), which drops the milliseconds — so two answers a few hundred
+      // ms apart would read as simultaneous and the rapid-fire gap would be
+      // measured wrong in exactly the case it matters.
+      id: a.id, t: sutStamp(a.timestamp),
+      questionId: a.questionId || '', title: a.questionTitle || '', topic: '',
+      mode: String(a.mode || ''), marks, outOf,
+      credit: outOf > 0 ? Math.max(0, Math.min(1, marks / outOf)) : null,
+      verdict: '', xp: 0, src: 'game', raw: a
+    });
+  });
+  // Chronological, so the gap to the PREVIOUS question can be measured across
+  // BOTH sources — a pupil who alternates between practice and a game has
+  // gaps that neither collection could see on its own.
+  rows.sort((x, y) => x.t - y.t);
+  let prev = null;
+  rows.forEach(r => {
+    r.gap = prev == null ? null : r.t - prev;
+    prev = r.t;
+    const q = r.questionId ? questionBank.find(x => x && x.id === r.questionId) : null;
+    if (q) {
+      if (q.title) r.title = q.title;                   // the bank is the authority
+      if (!r.topic) r.topic = studentTopicsLabel ? (studentTopicsLabel(q) || '') : (q.topic || '');
+    }
+    r.gone = !!(r.questionId && !q);
+    if (!r.title) r.title = r.questionId ? 'Question ' + r.questionId.slice(0, 8) : 'Question';
+  });
+  return rows;
+}
+
+// Right / part right / wrong. The server's own `verdict` wins where there is
+// one — it is what the marker actually decided — and the credit stands in for
+// a game answer, which has no verdict at all. The 0.95 floor is the same one
+// the Cloud Function's stats use, so a row and a counter cannot disagree.
+function sutVerdict(r) {
+  if (r.verdict === 'correct') return { key: 'correct', label: 'Correct',    cls: 'v-correct' };
+  if (r.verdict === 'partial') return { key: 'partial', label: 'Part right', cls: 'v-partial' };
+  if (r.verdict === 'incorrect') return { key: 'wrong', label: 'Wrong',      cls: 'v-incorrect' };
+  if (r.credit == null) return { key: 'unknown', label: '—', cls: '' };
+  if (r.credit >= 0.95) return { key: 'correct', label: 'Correct',    cls: 'v-correct' };
+  if (r.credit > 0)     return { key: 'partial', label: 'Part right', cls: 'v-partial' };
+  return { key: 'wrong', label: 'Wrong', cls: 'v-incorrect' };
+}
+
+let _sut = { uid: '', name: '', rows: [], mode: '', result: '', days: '', search: '', open: {} };
+
+// The ONE place the window is decided — the count, the table, the breakdown and
+// the CSV all read it, so an export can never hold rows the table did not show.
+function sutVisible() {
+  const cut = _sut.days ? Date.now() - Number(_sut.days) * 86400000 : 0;
+  const needle = _sut.search.trim().toLowerCase();
+  return _sut.rows.filter(r => {
+    if (_sut.mode && r.mode !== _sut.mode) return false;
+    if (_sut.result && sutVerdict(r).key !== _sut.result) return false;
+    if (cut && r.t < cut) return false;
+    if (needle && !((r.title + ' ' + r.topic).toLowerCase().includes(needle))) return false;
+    return true;
+  });
+}
+function sutByMode(rows) {
+  const map = new Map();
+  rows.forEach(r => {
+    const m = usageMode(r.mode);
+    const e = map.get(m.key) || { m, n: 0, correct: 0, sum: 0, scored: 0, last: 0 };
+    e.n++;
+    if (r.credit != null) { e.sum += r.credit; e.scored++; }
+    if (sutVerdict(r).key === 'correct') e.correct++;
+    if (r.t > e.last) e.last = r.t;
+    map.set(m.key, e);
+  });
+  return Array.from(map.values()).sort((x, y) =>
+    (USAGE_GROUP_ORDER[x.m.group] - USAGE_GROUP_ORDER[y.m.group]) || (y.n - x.n));
+}
+function sutSetFilter(key, value) {
+  if (!(key in _sut)) return;
+  _sut[key] = value == null ? '' : String(value);
+  sutRender();
+}
+
+function sutRender() {
+  const body = $("studentActivityBody");
+  if (!body) return;
+  if (_sut.loadError) {
+    body.innerHTML = `<div class="empty-note" style="padding:20px;">Couldn't load this pupil's question log. If the grantAdminRole function isn't deployed your account may lack the admin claim Firestore rules require to read another pupil's records — deploy the Cloud Functions, then sign in again.</div>`;
+    return;
+  }
+  if (!_sut.rows.length) {
+    body.innerHTML = `<div class="empty-note" style="padding:20px;">No questions recorded for this pupil yet. Attempts appear here as soon as they submit one — in practice, from a photo of their page, or in any of the games.</div>`;
+    return;
+  }
+  const rows = sutVisible();
+  const byMode = sutByMode(rows);
+
+  // ---- the window on show, not everything ever ----
+  let sum = 0, scored = 0, correct = 0, rapid = 0, xp = 0, skillSum = 0, skillN = 0;
+  const days = new Set();
+  rows.forEach(r => {
+    if (r.credit != null) { sum += r.credit; scored++; }
+    if (sutVerdict(r).key === 'correct') correct++;
+    if (r.gap != null && r.gap >= 0 && r.gap < RAPID_SUBMIT_MS) rapid++;
+    if (r.t) days.add(new Date(r.t).toDateString());
+    xp += r.xp;
+    const s = r.src === 'marked' ? attemptAvgSkill(r.raw) : null;
+    if (s != null) { skillSum += s; skillN++; }
+  });
+  const chips = [
+    `<div class="act-chip"><b>${rows.length}</b>questions done</div>`,
+    `<div class="act-chip"><b>${scored ? Math.round(sum / scored * 100) + "%" : "—"}</b>average score</div>`,
+    `<div class="act-chip"><b>${correct}</b>fully correct</div>`,
+    `<div class="act-chip"><b>${byMode.length}</b>modes used</div>`,
+    `<div class="act-chip"><b>${days.size}</b>days active</div>`
+  ];
+  if (skillN) chips.push(`<div class="act-chip${skillSum / skillN < 40 ? " warn" : ""}"><b>${Math.round(skillSum / skillN)}</b>avg method score</div>`);
+  chips.push(`<div class="act-chip"><b>+${xp}</b>XP earned</div>`,
+    `<div class="act-chip${rapid ? " warn" : ""}"><b>${rapid}</b>rapid (&lt;30s apart)</div>`);
+
+  // ---- what they have been doing, by mode ----
+  const modeRows = byMode.map(r => {
+    const pct = r.scored ? Math.round(r.sum / r.scored * 100) : null;
+    const col = pct == null ? "var(--text-muted)" : pct >= 70 ? "#2f8a3e" : pct >= 40 ? "#b07d12" : "#c0392b";
+    const share = rows.length ? Math.round(r.n / rows.length * 100) : 0;
+    return `<tr>
+      <td>${usageModeChip(r.m.key)}</td>
+      <td class="sr-num" style="text-align:right;font-weight:700;">${r.n}</td>
+      <td style="width:130px;"><span class="sut-bar"><i style="width:${share}%;background:${col};"></i></span><span class="sr-email">${share}% of the log</span></td>
+      <td class="sr-num" style="text-align:right;">${r.correct}</td>
+      <td class="sr-num" style="text-align:right;font-weight:700;color:${col};">${pct == null ? "—" : pct + "%"}</td>
+      <td class="sr-when">${r.last ? escapeHtml(formatHistoryDate(new Date(r.last).toISOString()) || "—") : "—"}</td>
+    </tr>`;
+  }).join("");
+  const breakdown = `<div class="sut-section">
+    <div class="sut-section-title">What they have been doing — by mode</div>
+    <div class="sr-table-wrap"><table class="sr-table">
+      <thead><tr><th>Mode</th><th style="text-align:right;">Questions</th><th>Share</th><th style="text-align:right;">Correct</th><th style="text-align:right;">Avg</th><th>Last done</th></tr></thead>
+      <tbody>${modeRows || `<tr><td colspan="6" class="empty-note">Nothing matches these filters.</td></tr>`}</tbody>
+    </table></div></div>`;
+
+  // ---- filters, built from the modes THIS pupil has actually used ----
+  const used = sutByMode(_sut.rows);
+  const opt = (v, lbl, cur) => `<option value="${escapeHtml(v)}"${cur === v ? " selected" : ""}>${escapeHtml(lbl)}</option>`;
+  const filters = `<div class="sut-filters">
+    <label>Mode <select data-sut="mode">${opt("", "All modes (" + _sut.rows.length + ")", _sut.mode)}${used.map(r => opt(r.m.key, r.m.icon + " " + r.m.label + " (" + r.n + ")", _sut.mode)).join("")}</select></label>
+    <label>Result <select data-sut="result">${opt("", "Any result", _sut.result)}${opt("correct", "✅ Correct", _sut.result)}${opt("partial", "🟡 Part right", _sut.result)}${opt("wrong", "❌ Wrong", _sut.result)}</select></label>
+    <label>When <select data-sut="days">${opt("", "All time", _sut.days)}${opt("1", "Today", _sut.days)}${opt("7", "Last 7 days", _sut.days)}${opt("30", "Last 30 days", _sut.days)}${opt("90", "Last 90 days", _sut.days)}</select></label>
+    <input type="search" data-sut="search" placeholder="Search question or topic…" value="${escapeHtml(_sut.search)}">
+    <span class="sut-count">${rows.length} of ${_sut.rows.length} shown</span>
+    <button class="btn btn-ghost" type="button" id="sutExportBtn" style="font-size:0.8rem;padding:5px 11px;">⬇️ Export CSV</button>
+  </div>`;
+
+  // ---- the log itself, newest first ----
+  const logRows = rows.slice().reverse().map((r, i) => {
+    const n = rows.length - i;
+    const v = sutVerdict(r);
+    const rapidRow = r.gap != null && r.gap >= 0 && r.gap < RAPID_SUBMIT_MS;
+    // Only a MARKED attempt carries the AI's read of how it was solved — a game
+    // answer is one tap on an MCQ, so there is nothing to expand.
+    const expandable = r.src === 'marked' && attemptHasAnalysis(r.raw);
+    const openNow = !!_sut.open[r.id];
+    const main = `<tr class="act-row${expandable ? " expandable" : ""}"${expandable ? ` data-sut-row="${escapeHtml(r.id)}"` : ""}>
+      <td class="sr-num" style="color:var(--text-muted);font-size:0.76rem;">${n}</td>
+      <td class="sr-when">${escapeHtml(formatHistoryDate(new Date(r.t).toISOString()) || "—")}</td>
+      <td><div class="sr-name">${expandable ? `<span class="act-caret">${openNow ? "▾" : "▸"}</span> ` : ""}${escapeHtml(r.title)}${r.gone ? ` <span class="sr-email">· removed from the bank</span>` : ""}</div>${r.topic ? `<div class="sr-email">${escapeHtml(r.topic)}</div>` : ""}</td>
+      <td>${usageModeChip(r.mode)}</td>
+      <td style="text-align:center;"><span class="${v.cls}">${v.label}</span><div class="sr-email sr-num">${r.outOf > 0 ? Math.round(r.marks * 10) / 10 + "/" + r.outOf : "—"}${r.credit == null ? "" : " · " + Math.round(r.credit * 100) + "%"}</div></td>
+      <td class="sr-num${rapidRow ? " act-flag" : ""}">${formatGap(r.gap)}${rapidRow ? " ⚡" : ""}</td>
+    </tr>`;
+    const detail = expandable
+      ? `<tr class="act-detail"${openNow ? "" : " hidden"} data-sut-detail="${escapeHtml(r.id)}"><td colspan="6" class="act-detail-cell">${attemptDetailHtml(r.raw)}</td></tr>`
+      : "";
+    return main + detail;
+  }).join("");
+  const log = `<div class="sut-section">
+    <div class="sut-section-title">Every question, newest first</div>${filters}
+    <div class="sr-table-wrap"><table class="sr-table">
+      <thead><tr><th style="width:34px;">#</th><th>Time</th><th>Question</th><th>Mode</th><th style="text-align:center;">Result</th><th>Gap</th></tr></thead>
+      <tbody>${logRows || `<tr><td colspan="6" class="empty-note">No questions match these filters — widen them to see more.</td></tr>`}</tbody>
+    </table>${_sut.capped ? `<div class="sr-email" style="padding:9px 12px 0;">Showing the ${SUT_PERF_LIMIT} most recent marked submissions, plus every game answer.</div>` : ""}</div></div>`;
+
+  body.innerHTML = `<div class="act-chips">${chips.join("")}</div>` + breakdown + log;
+
+  // One delegated pass per render — the body is replaced wholesale every time a
+  // filter moves, so nothing may be bound outside it.
+  body.querySelectorAll("[data-sut]").forEach(el => {
+    const ev = el.tagName === "INPUT" ? "input" : "change";
+    el.addEventListener(ev, () => {
+      // The caret in a search box survives because only the TABLE below it is
+      // rebuilt from a value the box itself supplied — but a re-render still
+      // blurs it, so the value is put back and the caret sent to the end.
+      const wasSearch = el.dataset.sut === "search";
+      sutSetFilter(el.dataset.sut, el.value);
+      if (wasSearch) {
+        const again = body.querySelector('[data-sut="search"]');
+        if (again) { again.focus(); again.setSelectionRange(again.value.length, again.value.length); }
+      }
+    });
+  });
+  const ex = $("sutExportBtn");
+  if (ex) ex.addEventListener("click", sutExportCsv);
+  body.querySelectorAll(".act-row[data-sut-row]").forEach(tr => {
+    tr.addEventListener("click", () => {
+      const id = tr.dataset.sutRow;
+      // Which rows are OPEN is state, not a class on a div: the body is
+      // replaced on every filter change, so a panel opened by hand would snap
+      // shut under the teacher reading it.
+      _sut.open[id] = !_sut.open[id];
+      const det = body.querySelector('[data-sut-detail="' + CSS.escape(id) + '"]');
+      const car = tr.querySelector(".act-caret");
+      if (det) det.hidden = !_sut.open[id];
+      if (car) car.textContent = _sut.open[id] ? "▾" : "▸";
+    });
+  });
+}
+
+// One pupil's whole log as a spreadsheet — exactly the rows on screen, so a
+// teacher who filtered to one mode exports that mode and nothing else.
+function sutExportCsv() {
+  const rows = sutVisible();
+  if (!rows.length) { toast("Nothing to export — widen the filters first", "error"); return; }
+  const esc = v => {
+    const s = v == null ? "" : String(v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const cols = ["#", "Time", "Question", "Question ID", "Topic", "Mode", "Mode (raw)",
+                "Marks", "Out of", "Percent", "Result", "XP", "Record", "Gap from previous"];
+  const lines = [cols.join(",")].concat(rows.map((r, i) => [
+    i + 1, r.t ? new Date(r.t).toISOString() : "", r.title, r.questionId, r.topic,
+    usageMode(r.mode).label, r.mode, r.outOf > 0 ? Math.round(r.marks * 10) / 10 : "", r.outOf || "",
+    r.credit == null ? "" : Math.round(r.credit * 100), sutVerdict(r).label, r.xp,
+    r.src === "marked" ? "marked submission" : "game answer", formatGap(r.gap)
+  ].map(esc).join(",")));
+  const blob = new Blob(["﻿" + lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "question-log-" + String(_sut.name || "pupil").replace(/[^a-z0-9]+/gi, "-").toLowerCase() + ".csv";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  toast("Exported " + rows.length + " question" + (rows.length === 1 ? "" : "s"), "success");
 }
 async function loadStudentLearningState(uid) {
   studentProgress = {};
@@ -22717,7 +22963,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.44.1 · 2026-08-16";
+const APP_VERSION = "v1.45.0 · 2026-08-17";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)

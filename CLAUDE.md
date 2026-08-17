@@ -1089,6 +1089,71 @@ fields**. Tabs: 📅 This Month / 🗓️ Last Month / ⭐ All-Time (XP, server-
   on the Leaderboard page state the current rule in one sentence — keep them in step
   with the code.
 
+## 📊 The Student Usage Tracker (v1.45.0)
+
+`USAGE_MODES` / `usageMode` / `sutNormalise` / `sutPerfMode` / `sutVerdict` /
+`sutVisible` / `sutByMode` / `sutRender` / `sutExportCsv` (search `THE STUDENT
+USAGE TRACKER`), plus the `.sut-*` CSS and `#studentActivityOverlay`. Opened by
+clicking a pupil on the Student Results roster. **All four portals carry this
+block — keep them in step**; what genuinely differs here is the merge below.
+
+Every question one pupil has completed, the result they got, and the **mode**
+they did it in. The old overlay listed the rows and nothing else, so a teacher
+looking at three hundred submissions could not answer either of the two
+questions they actually have — *what has this child been doing?* and *how are
+they getting on in it?*
+
+- **It merges TWO attempt sources, and that is the whole reason it exists.**
+  `users/{uid}/mathPerformanceAttempts` is the server-written record of marked
+  work, and this overlay used to read it **alone** — while 🌌 Nova Protocol's
+  trainer, duel and Siege write to `questionAttempts`. So three whole modes were
+  **invisible**: the collection was being written and nothing on the teacher's
+  side ever read it, and a pupil could answer hundreds of questions in the games
+  with this page showing none of them. `sutNormalise` folds both into one row
+  shape and everything after it works on that shape only.
+- **The merge does not pretend the two are the same.** A marked attempt carries
+  the AI's read of HOW it was solved (skill scores, strengths, a learning note)
+  and a game answer is one tap on an MCQ — so the expandable method analysis
+  stays on the rows that have it, and `src` records which collection a row came
+  from, including in the CSV.
+- **The GAP is measured across BOTH.** A pupil alternating between practice and
+  a game has gaps neither collection can see on its own, so measuring inside one
+  source under-reports rapid-fire answering exactly where it is most likely.
+- **`sutStamp` must never hand a raw `Date` to `Date.parse`.** That coerces
+  through `toString()`, which **drops the milliseconds**, so two answers a few
+  hundred ms apart read as simultaneous — the gap measured wrong in precisely
+  the case it exists for. A Firestore `Timestamp`, an ISO string and a `Date`
+  all arrive here.
+- **`sutPerfMode` reads the finer fields when they are there and falls back to
+  `source` when they are not.** `source` says where the QUESTION came from
+  (bank / generated / starter), which is a different axis; `via` and
+  `practiceMode` — added to the attempt doc in `functions/index.js` — say what
+  the pupil was actually doing. Every attempt written before that shipped still
+  reads as *Marked practice*: **the log must never depend on a Cloud Functions
+  deploy having happened.** (Deploy the functions to start getting 📸 Photo
+  marking and ✨ AI practice told apart on NEW attempts.)
+- **The SERVER's verdict wins** over a credit recomputed here — it is what the
+  marker actually decided, and overruling it would let the tracker and the
+  pupil's own result screen disagree about the same attempt. A game answer has
+  no verdict, so it falls back to its credit at the same ≥0.95 floor the Cloud
+  Function's stats use.
+- **`USAGE_MODES` is the ONE place a raw mode becomes words**, and a mode with
+  **no entry still shows** as its own raw string: an unlabelled mode is a
+  missing label, but a question dropped out of the log because nobody wrote a
+  label for its mode is a **missing question**, and two unlabelled modes merged
+  into one row is a breakdown that lies.
+- **`sutVisible()` is the ONE place the window is decided** — the count, the
+  table, the breakdown and the CSV all read it, so an export can never hold rows
+  the table did not show.
+- **Which rows are EXPANDED is state (`_sut.open`), not a class on a div** — the
+  body is replaced wholesale on every filter change, so a panel opened by hand
+  would snap shut under the teacher reading it. Same reason the answer-key
+  cross-check keeps `_akc.open`.
+- The marked record is capped at `SUT_PERF_LIMIT` (400) and says so; the game
+  log is not, because it is a single-field query with nothing to page.
+- It is **READ-ONLY**. Nothing in the block writes anything anywhere.
+- Run **`node tools/usage-tracker-tests.mjs`** after touching any of it.
+
 ## The clone stamp shows what it is about to stamp (vv1.39.0)
 
 `_annotClonePeekSrc` / `_annotUpdateClonePeek` / `ANNOT_PEEK_MIN` and the
@@ -1161,6 +1226,17 @@ that door: a line to type in, and the same image model behind it.
   left sitting in the box** one Enter away from being run on this one.
 
 ## House rules
+- After touching **the Student Usage Tracker** (`USAGE_MODES`, `usageMode`,
+  `sutNormalise`, `sutStamp`, `sutPerfMode`, `sutVerdict`, `sutVisible`,
+  `sutByMode`, `sutExportCsv`) or the `via` / `practiceMode` fields the Cloud
+  Function stamps on an attempt, run `node tools/usage-tracker-tests.mjs`. Every
+  failure here is silent and a teacher acts on it: drop either source and a
+  pupil's work disappears with nothing on screen to say a source is missing
+  (which is the bug this feature fixes — three game modes were writing to a
+  collection nothing read), measure the gap inside one source and rapid-fire
+  answering is under-reported exactly where it is most likely, and let a
+  recomputed credit overrule the marker's own verdict and the tracker
+  contradicts the pupil's result screen about the same attempt.
 - After touching **the clone stamp's live preview** (`_annotClonePeekSrc`,
   `_annotUpdateClonePeek`, `ANNOT_PEEK_MIN`, `_annotUpdateBrushRing`), run
   `node tools/clone-preview-tests.mjs`. A preview that does not appear is

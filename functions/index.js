@@ -873,7 +873,7 @@ function synthMcqVerdict(q, selectedOption, correctOption) {
     learningNote: isCorrect ? "" : `Revisit ${topic}.`
   };
 }
-async function markKnownQuestion({ uid, isAdmin, isGuest = false, displayName = "", q, source, adminUid, statsBefore, media, mediaNote, submissionNote, keyAttached, typedWorking = "", finalAnswer = "", practiceMode = false, selectedOption = undefined, studentWorkPresent = true, annotAnswerPics = 0 }) {
+async function markKnownQuestion({ uid, isAdmin, isGuest = false, displayName = "", q, source, adminUid, statsBefore, media, mediaNote, submissionNote, keyAttached, typedWorking = "", finalAnswer = "", practiceMode = false, via = "worksheet", selectedOption = undefined, studentWorkPresent = true, annotAnswerPics = 0 }) {
   const [settings, preamble, prereqNote] = await Promise.all([
     loadMarkingSettings(adminUid),
     studentLearningPreamble(uid, isAdmin),
@@ -1020,7 +1020,16 @@ async function markKnownQuestion({ uid, isAdmin, isGuest = false, displayName = 
     nextReviewAt: progress.nextReviewAt,
     xpAwarded: 0, // finalized below after the stats transaction
     createdAt: nowIso,
-    markedBy: "server"
+    markedBy: "server",
+    // HOW this question was done, for the teacher's Student Usage Tracker.
+    // `source` says where the QUESTION came from (bank / generated / starter),
+    // which is a different axis and was all the tracker had to go on. These two
+    // say what the pupil was actually doing. The tracker reads them when they
+    // are there and falls back to `source` when they are not, so every attempt
+    // written before this shipped still reads as "Marked practice" — the log
+    // must never depend on a deploy having happened.
+    via,
+    practiceMode: !!practiceMode
   };
 
   // ---- Apply to the authoritative ledger ----
@@ -1131,7 +1140,7 @@ export const markAttempt = onCall(CALL_OPTS, async (request) => {
   return await markKnownQuestion({
     uid, isAdmin, isGuest: isGuestAuth(auth), displayName: displayNameFromAuth(auth), q, source, adminUid: settingsAdminUid, statsBefore,
     media, mediaNote, submissionNote, keyAttached: keyMedia.length > 0,
-    typedWorking, finalAnswer, practiceMode,
+    typedWorking, finalAnswer, practiceMode, via: "worksheet",
     selectedOption, studentWorkPresent, annotAnswerPics: annotMedia.length
   });
 });
@@ -1213,7 +1222,7 @@ export const markFromPhoto = onCall(CALL_OPTS, async (request) => {
   const result = await markKnownQuestion({
     uid, isAdmin, isGuest: isGuestAuth(auth), displayName: displayNameFromAuth(auth), q, source, adminUid: settingsAdminUid, statsBefore,
     media, mediaNote, submissionNote, keyAttached: keyMedia.length > 0,
-    typedWorking: "", finalAnswer: "", practiceMode: false, annotAnswerPics: annotMedia.length
+    typedWorking: "", finalAnswer: "", practiceMode: false, via: "photo", annotAnswerPics: annotMedia.length
   });
 
   return Object.assign({
