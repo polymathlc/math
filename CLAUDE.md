@@ -905,6 +905,21 @@ one they stopped using.
   switcher floats over them. The block is fixed to the viewport rather than
   dropped into `.topbar-actions` so that it stays byte-for-byte the one the
   other three portals carry — they have no global top bar at all.
+- **It must be a direct child of `<body>`, and that is the one thing that broke
+  it.** From v1.36.0 to v1.45.0 the markup sat INSIDE `#tcgLoreBook` — the Nova
+  Protocol lore-book overlay, which is `display:none` until a pupil opens the
+  Codex — because that overlay was never closed and the browser auto-closed it
+  at `</body>`, swallowing everything appended after it. So the pill was in the
+  file, wore the right label, listed the right four urls, passed every case in
+  the harness, and **no pupil ever saw it**: the other three portals were
+  connected and this one silently was not. Being `position: fixed` makes it
+  worse rather than better — a fixed element still inherits an ancestor's
+  `display: none`, so `subjectShow()` setting display on the WRAP could never
+  bring it back. The same unclosed div had already swallowed `#appVersion`, the
+  badge that tells the user whether a deploy went through, which is why nothing
+  on screen ever hinted at any of it. **Anything appended near `</body>` goes
+  after the last overlay closes, never inside one**, and the harness now parses
+  the markup and pins both ids at depth 0.
 - Run **`node tools/subject-level-tests.mjs`** after touching any of it.
 
 ## ⚡ Rapid add: the level a BATCH is filed at (v1.36.0)
@@ -1277,7 +1292,10 @@ that door: a line to type in, and the same image model behind it.
   is the same failure delayed until the centre moves domain. On the level side,
   `qLevelCeiling` takes the MAX over `q.level` and every objective tag, so a
   question stamped P5 that keeps one P6 objective is a P6 question wearing a P5
-  badge.
+  badge. It also parses the MARKUP and pins that `#subjectSwitch` and
+  `#appVersion` are direct children of `<body>`: the switcher shipped nested
+  inside the `display:none` lore-book overlay and stayed invisible for nine
+  minor versions while every other case in this harness passed.
 - After touching **the vetting list's bulk delete** (`_vetSelected`,
   `vetDeleteMany`, `vetPruneSelection`, `vetRenderBulkBar`, `vetDeleteAll`,
   `vetDeleteSelected`), run `node tools/vetting-bulk-delete-tests.mjs`. One

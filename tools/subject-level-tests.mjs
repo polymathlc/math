@@ -162,6 +162,78 @@ test('every level the picker offers is one rapidApplyLevel accepts', () => {
   });
 });
 
+
+// ── the switcher has to be a direct child of <body> ──────────────────────────
+// This is the failure that shipped: from v1.36.0 to v1.45.0 the markup sat
+// INSIDE #tcgLoreBook — the Nova Protocol lore-book overlay, which is
+// display:none until a pupil opens the Codex — because that overlay was never
+// closed and the browser auto-closed it at </body>, swallowing everything
+// appended after it. So the pill was in the file, wore the right label, listed
+// the right four urls and passed every case above, and no pupil ever saw it.
+//
+// It is `position: fixed`, which makes it worse rather than better: a fixed
+// element still inherits an ancestor's `display: none`, so subjectShow()
+// setting display on the WRAP could never bring it back. Nothing throws, the
+// harness stays green, and the only symptom is an app that looks like it was
+// never given the feature.
+//
+// The markup is read as markup — scripts, styles and comments come out first,
+// because the module is inside <body> and holds thousands of `<div` in its
+// template strings.
+const VOID = new Set(['area','base','br','col','embed','hr','img','input',
+                      'link','meta','param','source','track','wbr']);
+
+function ancestorsOf(id, html) {
+  const clean = html
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '');
+  const from = clean.search(/<body\b/i);
+  ok(from >= 0, 'no <body> in index.html');
+  const stack = [];
+  const tag = /<(\/?)([a-zA-Z][\w-]*)((?:"[^"]*"|'[^']*'|[^>])*?)(\/?)>/g;
+  tag.lastIndex = from;
+  let m;
+  while ((m = tag.exec(clean))) {
+    const [, close, name, attrs, selfShut] = m;
+    const lower = name.toLowerCase();
+    if (lower === 'body' && close) break;
+    if (!close && new RegExp('\\bid\\s*=\\s*["\']' + id + '["\']').test(attrs)) {
+      return stack.filter(t => t.tag !== 'body').map(t => t.label);
+    }
+    if (VOID.has(lower) || selfShut) continue;
+    if (close) {
+      // Match on the TAG, not the label pushed: a stack entry may carry an id.
+      for (let i = stack.length - 1; i >= 0; i--) {
+        if (stack[i].tag === lower) { stack.length = i; break; }
+      }
+    } else {
+      // Named by its id where it has one, so a failure says WHICH overlay
+      // swallowed the pill rather than reporting an anonymous <div>.
+      const idm = attrs.match(/\bid\s*=\s*["']([^"']+)["']/);
+      stack.push({ tag: lower, label: idm ? '#' + idm[1] : lower });
+    }
+  }
+  return null;   // the id was never found
+}
+
+test('the switcher is a direct child of <body>, not inside a hidden overlay', () => {
+  const anc = ancestorsOf('subjectSwitch', src);
+  ok(anc !== null, 'no element with id="subjectSwitch" in index.html');
+  eq(anc, [], 'the switcher is nested inside <' + (anc || []).join('> <') +
+              '> — an ancestor that is display:none hides it whatever ' +
+              'subjectShow() sets on the wrap');
+});
+
+test('every overlay before the switcher is CLOSED', () => {
+  // The same unclosed div swallowed the version badge, which is the one thing
+  // that tells the user whether a deploy actually went through — so it had
+  // been invisible for even longer than the switcher.
+  const anc = ancestorsOf('appVersion', src);
+  ok(anc !== null, 'no element with id="appVersion" in index.html');
+  eq(anc, [], 'the version badge is nested inside <' + (anc || []).join('> <') + '>');
+});
+
 // ── runner ───────────────────────────────────────────────────────────────────
 
 const only = process.argv[2];
