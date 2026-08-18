@@ -53,7 +53,7 @@ const block = cut('const USAGE_MODES = {', '\nfunction sutRender()', 'tracker');
 
 const T = new Function(FIXTURE + block + `
 return {
-  usageMode, sutPerfMode, sutNormalise, sutVerdict, sutVisible, sutByMode, MODES: USAGE_MODES,
+  usageMode, sutPerfMode, sutNormalise, sutVerdict, sutVisible, sutByMode, sutLegacyGameRows, MODES: USAGE_MODES,
   seed(perf, game, bank) {
     questionBank = bank || [];
     _sut = { uid: 'u1', name: 'T', rows: sutNormalise(perf || [], game || []),
@@ -261,6 +261,70 @@ test('a question deleted since is SAID to be gone, never dropped from the log', 
 test('a row with no title at all is still identifiable', () => {
   const rows = T.seed([], [game({ questionId: 'abcdef123456', questionTitle: '' })], []);
   ok(rows[0].title.includes('abcdef'), 'it must fall back to the id, never to a blank cell');
+});
+
+// ── this dashboard shows THIS subject's work and nothing else ───────────────
+//
+// The Firebase project is shared with the Science app, and Nova Protocol is a
+// re-themed port of Realm of Embers with the mode strings deliberately kept
+// identical. So while both apps wrote one top-level `questionAttempts`, a pupil
+// taught both subjects had their Ember Siege answers listed here as Orbital
+// Siege — a wrong dashboard that renders, filters and exports perfectly.
+
+test('the tracker reads THIS app\'s own attempt collection, never the shared one', () => {
+  const m = /const ATTEMPTS_COL\s*=\s*"([^"]+)"/.exec(src);
+  ok(m, 'ATTEMPTS_COL must be named once, at the top of the module');
+  ok(m[1] !== 'questionAttempts',
+     'that is the SCIENCE app\'s collection — sharing it merges two subjects silently');
+  ok(/math/i.test(m[1]), 'the name must be subject-marked, like enQuestionAttempts / zhQuestionAttempts');
+  ok(src.includes('collection(db, ATTEMPTS_COL)'),
+     'the read and every write must go through the constant, never a literal');
+});
+
+test('no game writes a literal questionAttempts any more', () => {
+  ok(!/collection\(db,\s*['"]questionAttempts['"]\)/.test(src),
+     'a literal here puts this app back inside the Science app\'s log');
+});
+
+test('EVERY game logs, through the one door', () => {
+  for (const mode of ['tcg-train', 'tcg-duel', 'tcg-siege', 'tcg-legends'])
+    ok(src.includes("logGameAttempt(q, correct, '" + mode + "'"),
+       mode + " must call logGameAttempt — Nova Legends paid points and logged nothing, "
+       + "so its questions were invisible on this page");
+  ok(!src.includes('function _duelLogAttempt') && !src.includes('function _emsLogAttempt'),
+     'a second copy of the logger is how a fourth mode gets forgotten');
+});
+
+test('every mode a game writes has a label', () => {
+  for (const mode of ['tcg-train', 'tcg-duel', 'tcg-siege', 'tcg-legends'])
+    ok(T.MODES[mode], mode + ' is written by a game and must be labelled');
+});
+
+test('a legacy row is kept only when the question is in THIS bank', () => {
+  T.seed([], [], [{ id: 'mine1' }, { id: 'mine2' }]);   // this admin's bank
+  const kept = T.sutLegacyGameRows([
+    { questionId: 'mine1', mode: 'tcg-siege' },      // ours
+    { questionId: 'science7', mode: 'tcg-siege' },   // the other subject's, same mode string
+    { questionId: 'mine2', mode: 'tcg-duel' }
+  ]);
+  eq(kept.length, 2, 'both of ours must survive the rename');
+  ok(!kept.some(r => r.questionId === 'science7'),
+     "a Science row must never reach the Maths dashboard — it is indistinguishable once it does");
+});
+
+test('a legacy row with no question id is never guessed at', () => {
+  T.seed([], [], [{ id: 'mine1' }]);
+  eq(T.sutLegacyGameRows([{ mode: 'tcg-siege' }, { questionId: '', mode: 'tcg-duel' }]).length, 0,
+     'unattributable is not the same as ours');
+  eq(T.sutLegacyGameRows([]).length, 0, 'nothing in, nothing out');
+});
+
+test('the legacy shim is a MIGRATION, named apart from the live collection', () => {
+  const m = /const ATTEMPTS_COL_LEGACY\s*=\s*"([^"]+)"/.exec(src);
+  ok(m, 'the old collection must be named, so it can be deleted on purpose later');
+  eq(m[1], 'questionAttempts', 'it is the Science app\'s collection, read once for history');
+  ok(src.includes('sutLegacyGameRows(legacy)'),
+     'nothing from it may reach the log unfiltered');
 });
 
 // ── run ─────────────────────────────────────────────────────────────────────
