@@ -78,6 +78,24 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // The game attempt log — one row per question answered inside Nova
+    // Protocol (the trainer, Nexus Duel, Orbital Siege and Nova Legends).
+    // This is what the Student Usage Tracker reads, and it is namespaced
+    // like every other collection in this app because the project is shared
+    // with the Science app: both used to write a top-level `questionAttempts`
+    // with the SAME mode strings, so each subject's dashboard listed the
+    // other's game answers as its own.
+    //
+    // A pupil creates their own rows from the browser (these are game MCQs,
+    // not marked work — the authoritative marking record is server-written
+    // into users/{uid}/mathPerformanceAttempts). Any signed-in account may
+    // read, which is what lets the admin dashboard aggregate the class.
+    match /mathQuestionAttempts/{docId} {
+      allow read:   if signedIn();
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
     // Weekly class raid boss. Damage is contributed by the markAttempt
     // function only — clients just read it.
     match /raidBoss/{docId} {

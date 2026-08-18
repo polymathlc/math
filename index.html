@@ -5735,6 +5735,29 @@ function _thinkingConfigFor(modelName, budget) {
 const AI_REGEN_MODEL = "gemini-3.7-flash";
 const ADMIN_EMAILS = ['chungzhikai@gmail.com', 'abigail.yew@stanfordmanpower.com'];
 
+// =====================================================================
+// THE GAME ATTEMPT LOG LIVES IN THIS APP'S OWN COLLECTION
+// =====================================================================
+// Named here, ONCE, because this Firebase project is shared with the Science
+// app (polymathlc/cer) and that app owns a top-level `questionAttempts`. Both
+// apps were writing into it, with the SAME mode strings — 'tcg-train',
+// 'tcg-duel', 'tcg-siege' — because Nova Protocol is a re-themed port of Realm
+// of Embers and the identifiers were deliberately kept identical.
+//
+// So a pupil taught both subjects had their Realm of Embers answers listed on
+// the MATHS dashboard as Orbital Siege, and their Nova Protocol answers listed
+// on the SCIENCE one as Ember Siege. Nothing threw, nothing looked wrong, and
+// the numbers were plausible — the same silent-merge failure the English
+// portal hit with its question bank, and the reason every collection name in
+// the three language portals is subject-marked.
+const ATTEMPTS_COL = "mathQuestionAttempts";
+// Rows written before that split, still sitting in the Science app's
+// collection. They are read once more so a pupil's Nova Protocol history is
+// not lost — filtered by sutLegacyGameRows, which is the only thing that can
+// tell them from the Science rows beside them. Delete both when that history
+// stops mattering.
+const ATTEMPTS_COL_LEGACY = "questionAttempts";
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
@@ -7016,9 +7039,13 @@ async function loadStudentActivity(uid) {
   let perf = [], game = [], loadError = false;
   // Both reads run together — the overlay is useless until it has both halves,
   // and a game answer and a marked one are interleaved in the same log.
-  const [perfRes, gameRes] = await Promise.allSettled([
+  const [perfRes, gameRes, oldRes] = await Promise.allSettled([
     getDocs(query(collection(db, "users", uid, "mathPerformanceAttempts"), orderBy("createdAt", "desc"), limit(SUT_PERF_LIMIT))),
-    getDocs(query(collection(db, "questionAttempts"), where("uid", "==", uid)))
+    getDocs(query(collection(db, ATTEMPTS_COL), where("uid", "==", uid))),
+    // The third read is the MIGRATION SHIM, not a third source: game rows
+    // written before this app had a collection of its own. Everything it
+    // returns goes through sutLegacyGameRows before it is believed.
+    getDocs(query(collection(db, ATTEMPTS_COL_LEGACY), where("uid", "==", uid)))
   ]);
   if (perfRes.status === "fulfilled") perfRes.value.forEach(d => perf.push(Object.assign({ id: d.id }, d.data())));
   else { console.warn("activity attempts load", perfRes.reason); loadError = true; }
@@ -7027,6 +7054,13 @@ async function loadStudentActivity(uid) {
   // either — the modes simply do not appear, which the breakdown makes obvious.
   if (gameRes.status === "fulfilled") gameRes.value.forEach(d => game.push(Object.assign({ id: d.id }, d.data())));
   else console.warn("activity game attempts load", gameRes.reason);
+  // A refused legacy read is not a failure either — it only means the history
+  // from before the split is unavailable, and everything since is unaffected.
+  if (oldRes.status === "fulfilled") {
+    const legacy = [];
+    oldRes.value.forEach(d => legacy.push(Object.assign({ id: d.id }, d.data())));
+    sutLegacyGameRows(legacy).forEach(a => game.push(a));
+  } else console.warn("activity legacy attempts load", oldRes.reason);
   if (activityStudentUid !== uid) return;   // a newer open superseded this one
   _sut = {
     uid, name: row.name || "Pupil", rows: loadError ? [] : sutNormalise(perf, game),
@@ -7152,6 +7186,22 @@ function sutStamp(v) {
   if (typeof v.toDate === 'function') return v.toDate().getTime();   // Firestore Timestamp
   const t = (v instanceof Date) ? v.getTime() : Date.parse(v);
   return Number.isFinite(t) ? t : 0;
+}
+// Game rows written before this app had an attempt collection of its own.
+// They sit in the SCIENCE app's `questionAttempts`, under the same uid, with
+// the same mode strings, beside that app's own rows — so nothing in the row
+// itself says which subject it belongs to. The one thing that does is WHOSE
+// BANK the question is in: a Science question id is never in the Maths bank.
+//
+// The test is deliberately one-directional. A Maths question DELETED since is
+// dropped rather than shown, because putting another subject's work on this
+// dashboard is the failure being fixed here and a missing old row is not — and
+// a row that cannot be attributed must never be guessed at. Rows written since
+// the split need none of this: they are in this app's own collection.
+function sutLegacyGameRows(rows) {
+  if (!Array.isArray(rows) || !rows.length) return [];
+  const ids = new Set((questionBank || []).map(q => q && q.id).filter(Boolean).map(String));
+  return rows.filter(a => a && a.questionId && ids.has(String(a.questionId)));
 }
 // Both sources into ONE row shape. Everything downstream reads only this.
 function sutNormalise(perf, game) {
@@ -22963,7 +23013,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.45.1 · 2026-08-17";
+const APP_VERSION = "v1.46.0 · 2026-08-18";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -23794,6 +23844,47 @@ const GAME_Q_POINTS_WRONG = 1;    // effort, so a struggling student still build
 const GAME_Q_POINTS_RUSHED = 1;   // right, but answered too fast to have read the question
 const GAME_Q_WRONG_RUN_STOP = 3;  // wrong this many times in a row and wrong answers stop paying
 let _gameRunPts = 0;
+// ---------------------------------------------------------------------------
+// THE GAME ATTEMPT LOG — one door, so no mode can be forgotten
+// ---------------------------------------------------------------------------
+// The Student Usage Tracker promises the teacher EVERY question a pupil has
+// completed, and in what mode. That promise is only as good as the weakest
+// game: a mode that pays points and writes no attempt is a mode whose
+// questions the teacher cannot see at all, and nothing on any screen says so.
+//
+// ⚔️ Nova Legends was exactly that — it called rpgAwardGameQuestion, so the
+// points, the ⚡ bar and the board counters all moved, and it wrote no attempt.
+// A pupil could answer two hundred questions inside it and the tracker showed
+// none of them, while USAGE_MODES carried a "Nova Legends" label for a mode
+// nothing ever wrote.
+//
+// Three near-identical copies of this had already been written (the trainer,
+// the duel, the Siege) and a fourth was simply missed. So there is now ONE, and
+// every game calls it. Adding a mode means adding a call here and a label in
+// USAGE_MODES — never a fourth copy.
+//
+// It is deliberately fire-and-forget: a failed log must never interrupt a game
+// mid-answer. The local rotation stamp comes FIRST, so a question answered
+// offline still stops being re-served.
+function logGameAttempt(q, correct, mode, ms) {
+  if (!q || !q.db || !q.id) return;          // a built-in TCG_QUIZ row is not the teacher's
+  try { _gqMark(q.id); } catch (e) {}
+  if (!(currentUser && currentUser.role === 'student')) return;
+  try { noteAttemptLocally(q.id, correct ? 1 : 0, 1); } catch (e) {}
+  try {
+    addDoc(collection(db, ATTEMPTS_COL), {
+      uid: currentUser.uid, email: currentUser.email, displayName: currentUser.name,
+      questionId: q.id,
+      // The bank is the authority on the title and a game question is served
+      // from it, so the tracker resolves the title at READ time and this stays
+      // as the games have always written it.
+      questionTitle: q.title || '',
+      score: correct ? 1 : 0, totalBlanks: 1, answerHash: '',
+      ms: Math.max(0, Math.round(Number(ms) || 0)),
+      timestamp: Timestamp.now(), mode: String(mode || 'game')
+    }).catch(err => console.warn('game attempt log failed', err));
+  } catch (e) {}
+}
 function rpgAwardGameQuestion(questionId, correct, ms) {
   if (!rpgState) return 0;
   const qid = String(questionId || '');
@@ -30851,22 +30942,11 @@ function _tcgQuizAnswer(idx) {
   // Training answers on real bank questions count as attempts everywhere else:
   // stamp the shared game rotation and write the teacher-visible attempt log,
   // so practice/quests/games stop re-serving trainer-grinded questions as new.
-  if (q.db && q.id) {
-    try { _gqMark(q.id); } catch (e) {}
-    if (currentUser && currentUser.role === 'student') {
-      try { noteAttemptLocally(q.id, correct ? 1 : 0, 1); } catch (e) {}
-      try {
-        addDoc(collection(db, 'questionAttempts'), {
-          uid: currentUser.uid, email: currentUser.email, displayName: currentUser.name,
-          questionId: q.id, questionTitle: '', score: correct ? 1 : 0, totalBlanks: 1,
-          answerHash: '', ms: 0, timestamp: Timestamp.now(), mode: 'tcg-train'
-        }).catch(err => console.warn('tcg attempt log failed', err));
-      } catch (e) {}
-    }
-  }
+  const _trainMs = _tcgQuiz.at ? (performance.now() - _tcgQuiz.at) : 0;
+  logGameAttempt(q, correct, 'tcg-train', _trainMs);
   // Training answers pay points like every other game mode — training a
   // unit up and saving for the next booster pack are the same session now.
-  const pts = rpgAwardGameQuestion(q && q.id, correct, _tcgQuiz.at ? performance.now() - _tcgQuiz.at : 0);
+  const pts = rpgAwardGameQuestion(q && q.id, correct, _trainMs);
   const ptsBit = pts ? ' <span class="tcg-fb-pts">🪙 +' + pts + ' points</span>' : '';
   const body = document.getElementById('tcgqBody');
   const btns = body ? body.querySelectorAll('.tcg-quiz-opt') : [];
@@ -34856,7 +34936,7 @@ function duelAnswer(i) {
   // not rpgAwardGameQuestion decided to pay for it, because the board ranks on
   // questions done, not on points earned.
   try { duelNoteQuestion(correct); } catch (_) {}
-  try { _duelLogAttempt(q, correct); } catch (_) {}
+  try { logGameAttempt(q, correct, 'tcg-duel', ms); } catch (_) {}
   const box = document.getElementById('duelQuiz');
   (box || document).querySelectorAll('.duel-quiz-opt').forEach((b, n) => {
     b.disabled = true;
@@ -34924,21 +35004,6 @@ function duelRefreshBoard() {
     any = true;
   });
   return any;
-}
-// The teacher's attempt log — same shape as the Siege's, with its own mode
-// string so duel answers are tellable apart in My Progress.
-function _duelLogAttempt(q, correct) {
-  if (!q || !q.db || !q.id) return;                 // never log a fallback question
-  try { _gqMark(q.id); } catch (e) {}
-  if (!(currentUser && currentUser.role === 'student')) return;
-  try { noteAttemptLocally(q.id, correct ? 1 : 0, 1); } catch (e) {}
-  try {
-    addDoc(collection(db, 'questionAttempts'), {
-      uid: currentUser.uid, email: currentUser.email, displayName: currentUser.name,
-      questionId: q.id, questionTitle: '', score: correct ? 1 : 0, totalBlanks: 1,
-      answerHash: '', ms: 0, timestamp: Timestamp.now(), mode: 'tcg-duel'
-    }).catch(err => console.warn('duel attempt log failed', err));
-  } catch (e) {}
 }
 
 // =====================================================================
@@ -36066,7 +36131,7 @@ function emsAnswer(i) {
   emsSyncHud();
   emsRenderDeck();
   emsManaPop(gain);
-  _emsLogAttempt(q, correct);
+  logGameAttempt(q, correct, 'tcg-siege', ms);
   const body = document.getElementById('emsQuizBody');
   const btns = body ? body.querySelectorAll('.ems-quiz-opt') : [];
   btns.forEach(b => { b.disabled = true; const bi = +b.dataset.i; if (bi === q.a) b.classList.add('right'); else if (bi === i) b.classList.add('wrong'); });
@@ -36093,21 +36158,6 @@ function emsAnswer(i) {
     }
   }
   setTimeout(() => { if (emsRun && emsRun.quiz && emsRun.quiz.answered && document.getElementById('emsQuiz')) emsNextQuestion(); }, correct ? 900 : 1900);
-}
-// Siege answers count like every other attempt in the app: same shared
-// rotation, same teacher-visible attempt log.
-function _emsLogAttempt(q, correct) {
-  if (!q || !q.db || !q.id) return;
-  try { _gqMark(q.id); } catch (e) {}
-  if (!(currentUser && currentUser.role === 'student')) return;
-  try { noteAttemptLocally(q.id, correct ? 1 : 0, 1); } catch (e) {}
-  try {
-    addDoc(collection(db, 'questionAttempts'), {
-      uid: currentUser.uid, email: currentUser.email, displayName: currentUser.name,
-      questionId: q.id, questionTitle: '', score: correct ? 1 : 0, totalBlanks: 1,
-      answerHash: '', ms: 0, timestamp: Timestamp.now(), mode: 'tcg-siege'
-    }).catch(err => console.warn('siege attempt log failed', err));
-  } catch (e) {}
 }
 function emsManaPop(gain) {
   const host = document.querySelector('.ems-mana');
@@ -37708,6 +37758,9 @@ function elgAnswer(i) {
   r.answered++;
   const pts = rpgAwardGameQuestion(q && q.id, correct, ms);
   r.qPoints = (r.qPoints | 0) + pts;
+  // …and the teacher sees it. Legends paid points and wrote no attempt, so
+  // every question answered in here was invisible on the usage dashboard.
+  try { logGameAttempt(q, correct, 'tcg-legends', ms); } catch (_) {}
   let extra = '';
   if (correct) {
     r.correct++; r.streak++; r.bestStreak = Math.max(r.bestStreak, r.streak);

@@ -1169,6 +1169,72 @@ they getting on in it?*
 - It is **READ-ONLY**. Nothing in the block writes anything anywhere.
 - Run **`node tools/usage-tracker-tests.mjs`** after touching any of it.
 
+### This dashboard shows THIS subject's work only (v1.46.0)
+
+`ATTEMPTS_COL` / `ATTEMPTS_COL_LEGACY` / `sutLegacyGameRows` / `logGameAttempt`
+(search `THE GAME ATTEMPT LOG LIVES IN THIS APP'S OWN COLLECTION`).
+
+The tracker read a **top-level `questionAttempts`** — and so did the Science app
+(`polymathlc/cer`), in the same Firebase project, under the same uid. 🌌 Nova
+Protocol is a re-themed port of Realm of Embers with the identifiers
+deliberately kept identical, so both apps wrote the same mode strings into it:
+`tcg-train`, `tcg-duel`, `tcg-siege`.
+
+So a pupil taught both subjects had their **Ember Siege answers listed here as
+Orbital Siege**, and their Nova Protocol answers listed on the Science
+dashboard as Ember Siege. It is the failure this app's own naming rules exist
+to prevent, and it is completely silent: the overlay opens, the breakdown
+tallies, the CSV exports, and the numbers are plausible.
+
+- **`ATTEMPTS_COL` is `mathQuestionAttempts`**, named ONCE at the top of the
+  module beside `ADMIN_EMAILS`, and every write and the read go through it —
+  never a literal. That is the same rule the three language portals follow
+  (`enQuestionAttempts` / `zhQuestionAttempts`), and it is why they were never
+  affected. **It needs the `firestore.rules` block that ships with it**, or the
+  collection fails closed: reads come back empty, writes are denied, and
+  nothing on screen explains why. See the DEPLOY WARNING at the top of that
+  file — it is shared with the Science app.
+- **`mathPerformanceAttempts` was never affected**, because it lives under
+  `users/{uid}` and is server-written. Only the GAME half was shared, which is
+  also why the bug survived: the bigger, more-read half of the merge was
+  correct all along.
+- **`ATTEMPTS_COL_LEGACY` is a MIGRATION SHIM, not a third source.** It reads
+  the old collection once more so a pupil's Nova Protocol history is not lost
+  to the rename, and **everything it returns goes through `sutLegacyGameRows`
+  before it is believed**. Delete both when that history stops mattering.
+- **`sutLegacyGameRows` attributes a legacy row by WHOSE BANK its question is
+  in**, because nothing in the row itself says. A Science question id is never
+  in the Maths bank. The test is **one-directional on purpose**: a Maths
+  question deleted since is dropped rather than shown, since putting another
+  subject's work on this dashboard is the failure being fixed and a missing old
+  row is not. A row that cannot be attributed is never guessed at.
+- **A failed legacy read is not a failed load**, the same way the game read
+  already was not: it only means the history from before the split is
+  unavailable, and everything since is unaffected.
+- Rows the Science app already holds are **not** rewritten. They stop arriving
+  from this app; the ones written before v1.46.0 stay in its collection, where
+  its own tracker marks them *removed from the bank*.
+
+### Every mode must actually log (v1.46.0)
+
+The tracker is only as good as the weakest game: a mode that pays points and
+writes no attempt is a mode whose questions the teacher cannot see at all, and
+nothing on any screen says so.
+
+- **`logGameAttempt(q, correct, mode, ms)` is the ONE door.** Three
+  near-identical copies had already been written — the trainer's inline block,
+  `_duelLogAttempt` and `_emsLogAttempt` — and a fourth was simply missed:
+  **⚔️ Nova Legends called `rpgAwardGameQuestion` and logged nothing**, so a
+  pupil could answer two hundred questions inside it and this page showed none
+  of them, while `USAGE_MODES` carried a "Nova Legends" label for a mode
+  nothing ever wrote. Adding a game is a call here plus a row in `USAGE_MODES`,
+  never a fourth copy.
+- It is **fire-and-forget** — a failed log must never interrupt a game
+  mid-answer — and the local rotation stamp (`_gqMark`) comes FIRST, so a
+  question answered offline still stops being re-served.
+- A built-in `TCG_QUIZ` row is never logged (`q.db && q.id`): it is not the
+  teacher's question and writes no teacher-visible mark anywhere else either.
+
 ## The clone stamp shows what it is about to stamp (vv1.39.0)
 
 `_annotClonePeekSrc` / `_annotUpdateClonePeek` / `ANNOT_PEEK_MIN` and the
@@ -1243,15 +1309,20 @@ that door: a line to type in, and the same image model behind it.
 ## House rules
 - After touching **the Student Usage Tracker** (`USAGE_MODES`, `usageMode`,
   `sutNormalise`, `sutStamp`, `sutPerfMode`, `sutVerdict`, `sutVisible`,
-  `sutByMode`, `sutExportCsv`) or the `via` / `practiceMode` fields the Cloud
-  Function stamps on an attempt, run `node tools/usage-tracker-tests.mjs`. Every
+  `sutByMode`, `sutExportCsv`), **`ATTEMPTS_COL` / `ATTEMPTS_COL_LEGACY` /
+  `sutLegacyGameRows` / `logGameAttempt`**, or the `via` / `practiceMode`
+  fields the Cloud Function stamps on an attempt, run
+  `node tools/usage-tracker-tests.mjs`. Every
   failure here is silent and a teacher acts on it: drop either source and a
   pupil's work disappears with nothing on screen to say a source is missing
   (which is the bug this feature fixes — three game modes were writing to a
   collection nothing read), measure the gap inside one source and rapid-fire
   answering is under-reported exactly where it is most likely, and let a
   recomputed credit overrule the marker's own verdict and the tracker
-  contradicts the pupil's result screen about the same attempt.
+  contradicts the pupil's result screen about the same attempt. And put a
+  literal `questionAttempts` back anywhere and this dashboard is listing the
+  SCIENCE app's game answers as Nova Protocol ones, on a page that renders,
+  filters and exports perfectly.
 - After touching **the clone stamp's live preview** (`_annotClonePeekSrc`,
   `_annotUpdateClonePeek`, `ANNOT_PEEK_MIN`, `_annotUpdateBrushRing`), run
   `node tools/clone-preview-tests.mjs`. A preview that does not appear is
