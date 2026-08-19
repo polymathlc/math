@@ -388,6 +388,56 @@ mode breaks:
     transparency visible, and its tile is sized from `_annotUpdateTransform` so
     it stays put on screen at any zoom.
 
+## 🎨 Nova Protocol's art store is this app's OWN document (v1.47.0)
+
+`TCG_ART_DOC` / `TCG_ART_DOC_LEGACY` / `TCG_ART_RESET_CHUNK` / `_tcgArtLoadFailed`
+/ `tcgArtLegacyOffer` / `tcgArtAdoptLegacy` (search `NOVA PROTOCOL'S ART LIVES IN
+ITS OWN DOCUMENT`).
+
+Every picture in the game — card art, `:av` battle avatars, `fx:` / `dfx:` frames,
+`pk:` pack frames, `arti:`, `hero:`, `logo:`, `set:`, `lore:` — is one key in ONE
+Firestore document's `overrides` map. That map is the index; the pictures
+themselves are in Storage.
+
+**This app and the Science app (`polymathlc/cer`) share one Firebase project, one
+sign-in and therefore one admin uid** — and Nova Protocol is a port of that app's
+Realm of Embers with the identifiers *deliberately* kept identical, which is what
+lets a fix in one be copied to the other. So both games number their cards
+`c001`, `c002`, …, both name a battle avatar `<id>:av` — and both used to write
+`users/{uid}/settings/tcgArt`.
+
+One map, two games, the same keys. **It cost a complete set of Realm of Embers
+artwork**: every Nova picture drawn replaced the Ember picture in the same slot,
+and one press of ♻️ Reset ALL art blanked both games at once.
+
+- **The document name is a CONSTANT and it is this app's own.** `TCG_ART_DOC` is
+  `novaArt`; the Science app keeps `tcgArt`. The identifiers stay shared on
+  purpose — only the STORE is split, so a fix still copies across.
+- **`TCG_ART_DOC_LEGACY` is READ-ONLY, always.** The Science app is still serving
+  from that document, so writing to it or deleting out of it would repeat the
+  original fault from the other direction. It is read exactly once, to offer its
+  contents back.
+- **The old map is OFFERED, never adopted silently.** Nothing anywhere records
+  which game a given `c001` belonged to, and the likeliest answer is the wrong one
+  — Realm of Embers was drawn there first and in far greater quantity. So the
+  Card Art tab says what the old document holds and the admin decides.
+  `tcgArtAdoptLegacy` **copies** into empty slots only, and never touches the
+  source.
+- **A reset is SURGICAL — `deleteField()` under `{ merge: true }`, chunked.**
+  Never `setDoc({ overrides: {} })`: a whole-document overwrite takes out every
+  field the document holds, *including any this app did not put there*, and that
+  one call is what destroyed the other game's collection. The document is this
+  app's own now; the write stays surgical anyway, because being blunt is what
+  made the damage possible.
+- **A failed read is NOT an empty store.** An empty map looks exactly like a
+  wipe, so `tcgLoadArt` records `_tcgArtLoadFailed` and ♻️ Reset ALL art refuses
+  to run on top of one — otherwise it clears a set the app cannot currently see.
+- **The pictures were never in danger.** This app uploads to `mathImages/` and
+  the Science app to its own `cer-images/`, so the two have always been separate
+  in Storage. What collided was the index, which is why a wiped map is
+  recoverable at all — see the Science app's 🛟 Art safety panel.
+- Run **`node tools/art-store-tests.mjs`** after touching any of it.
+
 ## 🗑️ The Bin — deleting a question is a MOVE (v1.34.0)
 Both delete buttons — 📋 Vetting's `🗑 Delete` (`vetDelete`) and the Question
 Bank's `Delete` (`removeQuestion`) — write a bin copy FIRST and only then drop
@@ -1307,6 +1357,17 @@ that door: a line to type in, and the same image model behind it.
   left sitting in the box** one Enter away from being run on this one.
 
 ## House rules
+- After touching **the card game's art store** (`TCG_ART_DOC`,
+  `TCG_ART_DOC_LEGACY`, `tcgLoadArt`, `_tcgArtStore`, `tcgResetAllArt`,
+  `resetTcgArt`, `tcgArtAdoptLegacy`, `tcgRepairArtBackgrounds`), run
+  `node tools/art-store-tests.mjs`. This is the one that has already cost real
+  work: put the literal `'tcgArt'` back in any read or write and this app is
+  silently sharing the Science app's art map again, overwriting Realm of Embers
+  card by card with nothing on any screen to say so — and one blunt
+  `setDoc({ overrides: {} })` then wipes both games in a single press. The
+  harness also pins that the legacy document is never written, that a failed
+  read cannot be mistaken for an empty store, and that uploads stay in
+  `mathImages/`.
 - After touching **the Student Usage Tracker** (`USAGE_MODES`, `usageMode`,
   `sutNormalise`, `sutStamp`, `sutPerfMode`, `sutVerdict`, `sutVisible`,
   `sutByMode`, `sutExportCsv`), **`ATTEMPTS_COL` / `ATTEMPTS_COL_LEGACY` /
