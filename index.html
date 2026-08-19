@@ -2376,6 +2376,9 @@ body.practising-as .page-body { padding-bottom: 64px; }
 .tcg-gen-panel h4 { margin: 0 0 10px; font-size: 1.02rem; font-weight: 800; }
 .tcg-gen-panel p { margin: 0 0 20px; font-size: 0.86rem; color: var(--text-muted); line-height: 1.6; }
 .tcg-gen-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.tcg-legacy-offer { max-width: 620px; margin: 20px auto 0; padding: 18px 22px; border: 1px solid var(--border); border-radius: 14px; background: rgba(148,163,184,0.08); text-align: left; line-height: 1.6; }
+.tcg-legacy-offer b { display: block; margin-bottom: 8px; }
+.tcg-legacy-offer p { margin: 0 0 12px; font-size: 0.85rem; color: var(--muted, #94a3b8); }
 .tcg-gen-actions .btn { font-size: 0.85rem; }
 .tcg-gen-track { height: 8px; border-radius: 999px; background: var(--surface-alt); border: 1px solid var(--border); overflow: hidden; margin: 20px auto 0; max-width: 460px; }
 .tcg-gen-track i { display: block; height: 100%; background: linear-gradient(90deg,#8E24AA,#7B1FA2); transition: width 0.3s ease; }
@@ -23013,7 +23016,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.46.0 · 2026-08-18";
+const APP_VERSION = "v1.47.0 · 2026-08-19";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -25167,15 +25170,59 @@ async function tcgInit() {
 }
 
 // ---- Card art overrides (admin pastes a PNG per unit on Game Objects) ----
+// =====================================================================
+// NOVA PROTOCOL'S ART LIVES IN ITS OWN DOCUMENT
+// =====================================================================
+// This app and the Science app (polymathlc/cer) share ONE Firebase project,
+// one sign-in and therefore one admin uid. Nova Protocol is a port of that
+// app's Realm of Embers with the identifiers deliberately kept identical --
+// which is what lets a fix in one be copied to the other -- so both games
+// number their cards `c001`, `c002`, ..., both name a battle avatar
+// `<id>:av`, and both used to write `users/{uid}/settings/tcgArt`.
+//
+// ONE MAP, TWO GAMES, THE SAME KEYS. Every Nova Protocol picture drawn
+// overwrote the Realm of Embers picture in the same slot, and one press of
+// "Reset ALL art" below blanked BOTH games at once -- which is exactly what
+// happened: a complete set of Realm of Embers artwork disappeared on the day
+// this game's art was drawn.
+//
+// So the document name is a CONSTANT, and it is this app's own. Neither game
+// can reach the other's pictures now, whatever either does to its own map.
+// The IDENTIFIERS stay deliberately shared (see the Nova Protocol section of
+// CLAUDE.md); it is only the STORE that is split.
+//
+// The pictures themselves were never in danger: this app uploads to
+// mathImages/ and the Science app to its own cer-images/ folder, so the two
+// have always been separate in Storage. What collided was the INDEX, not the
+// artwork -- which is why the pictures are still there to be re-filed.
+const TCG_ART_DOC = 'novaArt';
+// The old SHARED document. It is only ever READ -- once, to offer its
+// contents back on the Card Art tab (tcgArtLegacyOffer). Nothing in this app
+// may write to it or delete from it again: it is the Science app's art store
+// now, and what is in it is far likelier to be that app's pictures than this
+// one's. Nothing anywhere records which game a given `c001` belonged to, so
+// the admin is ASKED rather than guessed at.
+const TCG_ART_DOC_LEGACY = 'tcgArt';
+// Keys cleared per write when resetting -- comfortably inside Firestore's
+// per-write limits at a couple of hundred cards' worth of slots.
+const TCG_ART_RESET_CHUNK = 200;
+
 let _tcgArt = null;
+// A read that FAILED is not an empty art store, and the difference is the
+// whole story here: an empty map looks exactly like a wipe, so a permission
+// error or a dropped connection presents as "every picture is gone" -- and
+// anything then offering to redraw or reset would be acting on a set it
+// simply could not see. Everything destructive asks this first.
+let _tcgArtLoadFailed = false;
 async function tcgLoadArt(force) {
   if (_tcgArt && !force) return _tcgArt;
   const uid = _tcgOwnerUid();
   if (!uid) { _tcgArt = _tcgArt || {}; return _tcgArt; }
   try {
-    const snap = await getDoc(doc(db, 'users', uid, 'settings', 'tcgArt'));
+    const snap = await getDoc(doc(db, 'users', uid, 'settings', TCG_ART_DOC));
     _tcgArt = (snap.exists() && snap.data().overrides) ? snap.data().overrides : {};
-  } catch (e) { console.warn('tcg art load', e); _tcgArt = _tcgArt || {}; }
+    _tcgArtLoadFailed = false;
+  } catch (e) { console.warn('tcg art load', e); _tcgArtLoadFailed = true; _tcgArt = _tcgArt || {}; }
   try { tcgApplyLogo(); } catch (e) {}   // put the crest on as soon as we know there is one
   return _tcgArt;
 }
@@ -25218,7 +25265,7 @@ async function _tcgArtStore(id, dataUrl, opts) {
   const scaled = await _scaleDownDataUrl(dataUrl, maxSide);
   const url = await uploadImageDataUrl(scaled);
   const uid = _tcgOwnerUid(); if (!uid) throw new Error('Not signed in');
-  await setDoc(doc(db, 'users', uid, 'settings', 'tcgArt'), { overrides: { [id]: url } }, { merge: true });
+  await setDoc(doc(db, 'users', uid, 'settings', TCG_ART_DOC), { overrides: { [id]: url } }, { merge: true });
   (_tcgArt = _tcgArt || {})[id] = url;
   return url;
 }
@@ -25245,16 +25292,33 @@ function onTcgArtPick(id, e) { const file = e.target && e.target.files && e.targ
 // shows, so clearing that is what resets the art.
 async function tcgResetAllArt() {
   if (!_isAdmin()) { showToast('Admins only', 'error'); return; }
+  // An art store that could not be READ presents as an empty map, so a reset
+  // on top of one would be clearing a set this app cannot currently see.
+  if (_tcgArtLoadFailed) { showToast('The art store could not be read just now \u2014 reload the page before resetting', 'error'); return; }
   const n = _tcgArt ? Object.keys(_tcgArt).length : 0;
   if (!n) { showToast('There is no card art stored yet', 'info'); return; }
-  if (!confirm('Reset ALL ' + n + ' stored pictures?\n\nEvery card, avatar, artifact, hero, pack frame, effect frame and banner goes back to its placeholder, and the set can be drawn again from scratch. This cannot be undone.')) return;
+  if (!confirm('Reset ALL ' + n + ' stored Nova Protocol pictures?\n\nEvery card, avatar, artifact, hero, pack frame, effect frame and banner goes back to its placeholder, and the set can be drawn again from scratch. This cannot be undone.\n\nRealm of Embers, in the Science app, keeps its own art and is not touched.')) return;
   const btn = document.getElementById('tcgResetAllBtn');
   const orig = btn ? btn.textContent : '';
   if (btn) { btn.disabled = true; btn.textContent = 'Resetting…'; }
   try {
     const uid = _tcgOwnerUid();
     if (!uid) throw new Error('no admin bank to reset');
-    await setDoc(doc(db, 'users', uid, 'settings', 'tcgArt'), { overrides: {} });
+    // Clear the keys ONE BY ONE with deleteField() under { merge: true },
+    // never `setDoc({ overrides: {} })`. A whole-document overwrite takes out
+    // every field the document holds, INCLUDING ANY THIS APP DID NOT PUT
+    // THERE -- which is how one press of this button destroyed another game's
+    // entire art collection while this one was sharing its document. Merging
+    // deletes exactly the keys listed and leaves the rest of the document
+    // alone, so the blast radius is this map and nothing else. The document
+    // is this app's own now; the write stays surgical anyway, because that is
+    // the property that made the damage possible in the first place.
+    const keys = Object.keys(_tcgArt || {});
+    for (let i = 0; i < keys.length; i += TCG_ART_RESET_CHUNK) {
+      const patch = {};
+      keys.slice(i, i + TCG_ART_RESET_CHUNK).forEach(k => { patch[k] = deleteField(); });
+      await setDoc(doc(db, 'users', uid, 'settings', TCG_ART_DOC), { overrides: patch }, { merge: true });
+    }
     _tcgArt = {};
     tcgArtRefresh();
     try { tcgApplyLogo(); } catch (e) {}
@@ -25267,11 +25331,77 @@ async function tcgResetAllArt() {
 async function resetTcgArt(id) {
   try {
     const uid = _tcgOwnerUid(); if (!uid) return;
-    await setDoc(doc(db, 'users', uid, 'settings', 'tcgArt'), { overrides: { [id]: deleteField() } }, { merge: true });
+    await setDoc(doc(db, 'users', uid, 'settings', TCG_ART_DOC), { overrides: { [id]: deleteField() } }, { merge: true });
     if (_tcgArt) delete _tcgArt[id];
     tcgArtRefresh();
     showToast('Reset to default', 'success');
   } catch (e) { console.error('tcg art reset', e); showToast('Reset failed', 'error'); }
+}
+// ---------------------------------------------------------------------
+// The old SHARED art store, offered back rather than adopted silently
+// ---------------------------------------------------------------------
+// Nothing anywhere records which game a `c001` in the old shared map belonged
+// to, so copying that map into Nova Protocol automatically would be a guess
+// -- and the likeliest answer is the wrong one, because Realm of Embers was
+// drawn there first and in far greater quantity. The Card Art tab therefore
+// SAYS what the old document holds and lets the admin decide, once.
+//
+// Adopting COPIES; it never moves and never deletes. The Science app is
+// still reading that document, so taking pictures out of it would repeat the
+// original fault from the other direction.
+let _tcgArtLegacy = null;               // null = not looked yet
+async function tcgArtLegacyLoad(force) {
+  if (_tcgArtLegacy && !force) return _tcgArtLegacy;
+  const uid = _tcgOwnerUid();
+  if (!uid) return (_tcgArtLegacy = {});
+  try {
+    const snap = await getDoc(doc(db, 'users', uid, 'settings', TCG_ART_DOC_LEGACY));
+    _tcgArtLegacy = (snap.exists() && snap.data().overrides) ? snap.data().overrides : {};
+  } catch (e) { console.warn('legacy art load', e); _tcgArtLegacy = {}; }
+  return _tcgArtLegacy;
+}
+// Only the slots this app has NOTHING in are worth offering: anything already
+// drawn under the current art direction beats an unattributed old picture.
+function _tcgArtLegacyNew(legacy) {
+  return Object.keys(legacy || {}).filter(k => !(_tcgArt && _tcgArt[k]));
+}
+async function tcgArtLegacyOffer() {
+  const host = document.getElementById('tcgArtLegacyOffer');
+  if (!host || !_isAdmin()) return;
+  const legacy = await tcgArtLegacyLoad();
+  const fresh = _tcgArtLegacyNew(legacy);
+  if (!fresh.length) { host.innerHTML = ''; return; }
+  host.innerHTML = '<div class="tcg-legacy-offer">'
+    + '<b>\u{1F5C3}\uFE0F ' + fresh.length + ' picture' + (fresh.length === 1 ? '' : 's') + ' in the old shared art store</b>'
+    + '<p>Nova Protocol and the Science app\u2019s Realm of Embers used to share one art store, and both games name their cards the same way \u2014 so nothing here records which game these belong to. They are <b>most likely Realm of Embers artwork</b>, in which case leave them alone: the Science app is still reading them.</p>'
+    + '<p>Adopt them only if these are Nova Protocol pictures drawn before the two stores were split. Adopting <b>copies</b> \u2014 the old store is never changed, and slots that already have art are left as they are.</p>'
+    + '<button type="button" class="btn btn-outline" id="tcgLegacyAdoptBtn" onclick="tcgArtAdoptLegacy()">\u{1F4E5} Adopt ' + fresh.length + ' into Nova Protocol</button>'
+    + '</div>';
+}
+async function tcgArtAdoptLegacy() {
+  if (!_isAdmin()) { showToast('Admins only', 'error'); return; }
+  const legacy = await tcgArtLegacyLoad(true);
+  const fresh = _tcgArtLegacyNew(legacy);
+  if (!fresh.length) { showToast('Nothing left to adopt', 'info'); tcgArtLegacyOffer(); return; }
+  if (!confirm('Copy ' + fresh.length + ' picture' + (fresh.length === 1 ? '' : 's') + ' from the old shared art store into Nova Protocol?\n\nThese may be Realm of Embers artwork \u2014 the two games shared one store and name their cards identically, so nothing records which game they came from.\n\nThe old store is not changed, and \u267B\uFE0F Reset ALL art clears them again.')) return;
+  const btn = document.getElementById('tcgLegacyAdoptBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Adopting…'; }
+  try {
+    const uid = _tcgOwnerUid();
+    if (!uid) throw new Error('not signed in');
+    for (let i = 0; i < fresh.length; i += TCG_ART_RESET_CHUNK) {
+      const patch = {};
+      fresh.slice(i, i + TCG_ART_RESET_CHUNK).forEach(k => { patch[k] = legacy[k]; });
+      await setDoc(doc(db, 'users', uid, 'settings', TCG_ART_DOC), { overrides: patch }, { merge: true });
+      Object.assign((_tcgArt = _tcgArt || {}), patch);
+    }
+    tcgArtRefresh();
+    tcgArtLegacyOffer();
+    showToast('Adopted ' + fresh.length + ' picture' + (fresh.length === 1 ? '' : 's'), 'success');
+  } catch (e) {
+    console.error('adopt legacy art', e);
+    showToast('Adopt failed: ' + (e && e.message ? e.message : e), 'error');
+  } finally { if (btn) { btn.disabled = false; } }
 }
 // =====================================================================
 // AI ART GENERATOR (admin, Card Art tab)
@@ -25842,6 +25972,9 @@ function tcgArtGenPanelHtml() {
     + '</div>'
     + '<div class="tcg-gen-track" id="tcgGenTrack" style="display:none;"><i id="tcgGenFill" style="width:0%;"></i></div>'
     + '<div class="tcg-gen-status" id="tcgGenStatus"></div>'
+    // Filled in after paint: it needs a Firestore read, and the panel is a
+    // plain string builder that every art surface calls.
+    + '<div id="tcgArtLegacyOffer"></div>'
     + '</div>';
 }
 // ---- Element projectile animations (Orbital Siege) --------------------
@@ -26489,7 +26622,7 @@ async function tcgRepairArtBackgrounds() {
       const cleaned = await _recleanStoredArt(_tcgArt[id], _tcgStrictBg(id));
       if (!cleaned) continue;
       const url = await uploadImageDataUrl(cleaned);
-      await setDoc(doc(db, 'users', uid, 'settings', 'tcgArt'), { overrides: { [id]: url } }, { merge: true });
+      await setDoc(doc(db, 'users', uid, 'settings', TCG_ART_DOC), { overrides: { [id]: url } }, { merge: true });
       _tcgArt[id] = url;
       fixed++;
     } catch (e) {
@@ -29034,7 +29167,7 @@ function tcgRenderBody() {
   else if (tcgTab === 'board') { host.innerHTML = '<div class="ga-loading" style="text-align:center;color:#94a3b8;padding:30px;">Loading rankings…</div>'; tcgRenderBoard(); }
   else if (tcgTab === 'lore') host.innerHTML = tcgLoreHtml();
   else if (tcgTab === 'guide') host.innerHTML = tcgGuideHtml();
-  else if (tcgTab === 'art') host.innerHTML = _isAdmin() ? tcgArtAdminHtml() : tcgDexHtml(s);
+  else if (tcgTab === 'art') { host.innerHTML = _isAdmin() ? tcgArtAdminHtml() : tcgDexHtml(s); if (_isAdmin()) tcgArtLegacyOffer().catch(() => {}); }
   else host.innerHTML = tcgArenaHtml(s);
 }
 // -- Collection tab --
@@ -38673,6 +38806,7 @@ window.onTcgArtDrop = onTcgArtDrop;
 window.onTcgArtPick = onTcgArtPick;
 window.resetTcgArt = resetTcgArt;
 window.tcgResetAllArt = tcgResetAllArt;
+window.tcgArtAdoptLegacy = tcgArtAdoptLegacy;
 window.tcgOpenFromAnnounce = tcgOpenFromAnnounce;
 // Expansion news CTAs — the community post's buttons are inline onclick
 window.tcgOpenExpansionPacks = tcgOpenExpansionPacks;
