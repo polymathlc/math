@@ -9012,6 +9012,10 @@ function renderEditorBlocks() {
     const ed = wrap.querySelector(`.block-edit[data-block="${btn.dataset.blockShorten}"]`);
     if (ed) aiRunShorten(ed, btn);
   }));
+  wrap.querySelectorAll("[data-block-complete]").forEach(btn => btn.addEventListener("click", () => {
+    const ed = wrap.querySelector(`.block-edit[data-block="${btn.dataset.blockComplete}"]`);
+    if (ed) aiRunComplete(ed, btn);
+  }));
   // wire image url + paste/drop
   wrap.querySelectorAll("[data-imgurl]").forEach(inp => inp.addEventListener("input", () => {
     const val = inp.value.trim();
@@ -9065,6 +9069,7 @@ function textBlockHtml(b) {
       <button type="button" class="ai-tool-btn ai-dictate-btn" data-block-dictate="${b.id}" title="Dictate with AI">🎤 Dictate</button>
       <button type="button" class="ai-tool-btn ai-improve-btn" data-block-improve="${b.id}" title="Improve the wording with AI (keeps the meaning)">✨ Improve</button>
       <button type="button" class="ai-tool-btn ai-improve-btn" data-block-shorten="${b.id}" title="Shorten with AI — trims the words but keeps every number, unit and the exact meaning">✂️ Shorten</button>
+      <button type="button" class="ai-tool-btn ai-complete-btn" data-block-complete="${b.id}" title="Carry on writing with AI from where you stopped — it only adds to the end and never changes a word you have already typed">✍️ AI complete</button>
     </div>`;
 }
 function imgBlockHtml(b) {
@@ -14611,6 +14616,86 @@ function aiToolsCleanText(s) {
   return String(s || "").trim().replace(/^```[a-z]*\s*/i, "").replace(/```$/, "").trim().replace(/^["']|["']$/g, "").trim();
 }
 
+// ── ✍️ AI COMPLETE ──────────────────────────────────────────────────────────
+// The third sibling of ✨ Improve and ✂️ Shorten, and the ONE of the three that
+// may not touch a word the author has already typed: it carries the paragraph
+// ON from where they stopped. The other two rewrite the box wholesale, which is
+// honest for what they do — but a "complete" that rewrote the opening would be
+// the same button doing a different job, and the author would only find out by
+// re-reading a paragraph they thought they had finished with.
+//
+// So the guarantee is STRUCTURAL, not something the prompt asks for: the reply
+// is APPENDED and the existing markup is never re-serialised. What is already
+// in the box cannot change, whatever the model returns.
+const AIC_ECHO_MAX = 400;   // how far back a restated tail is looked for
+const AIC_ECHO_MIN = 10;    // shorter than this and an overlap is a coincidence
+const AIC_WORDS    = 90;    // roughly how much the model is asked for
+
+// Whitespace-folded, lower-cased text PLUS an index back into the original, so
+// a match found on the folded text can be cut out of the raw string. `idx` has
+// one entry per folded character and a closing sentinel, so idx[folded.length]
+// is always the end of the source.
+function _aicNormIdx(s) {
+  const str = String(s == null ? '' : s);
+  const out = [], idx = [];
+  let sp = false;
+  for (let i = 0; i < str.length; i++) {
+    const c = str[i];
+    if (/\s/.test(c)) { if (out.length && !sp) { out.push(' '); idx.push(i); sp = true; } continue; }
+    sp = false; out.push(c.toLowerCase()); idx.push(i);
+  }
+  while (out.length && out[out.length - 1] === ' ') { out.pop(); idx.pop(); }
+  idx.push(str.length);
+  return { s: out.join(''), idx };
+}
+function _aicNorm(s) { return _aicNormIdx(s).s; }
+
+// A model asked to "carry on" restates the last sentence first far more often
+// than not — and sometimes the WHOLE paragraph. Appended verbatim, that is how
+// the author's own opening ends up in the box twice, which reads exactly like
+// the button having mangled it. Whatever of the existing text the reply opens
+// with is cut off; anything it opens with that is NOT already there is kept.
+function _aicTrimEcho(before, reply) {
+  const raw = String(reply == null ? '' : reply);
+  const B = _aicNorm(before);
+  const O = _aicNormIdx(raw);
+  if (!B || !O.s) return raw.trim();
+  const cutAt = (k) => raw.slice(O.idx[k]).replace(/^\s+/, '').trim();
+  if (O.s.startsWith(B)) return cutAt(B.length);          // the whole thing echoed back
+  const max = Math.min(B.length, AIC_ECHO_MAX);
+  for (let k = max; k >= AIC_ECHO_MIN; k--) {             // longest restated tail wins
+    if (O.s.startsWith(B.slice(B.length - k))) return cutAt(k);
+  }
+  return raw.trim();
+}
+
+// 中文 and 华文 are written without spaces between characters, so a space welded
+// on between two of them is a space in the middle of a word. Latin either side
+// gets the space it needs, and text the author left ending in one keeps theirs.
+function _aicCjk(ch) { return /[\u2E80-\u9FFF\uF900-\uFAFF\uFF00-\uFFEF]/.test(String(ch || '')); }
+function _aicJoin(before, add) {
+  const b = String(before == null ? '' : before);
+  const a = String(add == null ? '' : add).trim();
+  if (!b.trim() || !a) return '';
+  if (/\s$/.test(b)) return '';
+  if (_aicCjk(b.trim().slice(-1)) || _aicCjk(a.charAt(0))) return '';
+  return ' ';
+}
+
+// A model told "plain text only" still wraps its reply in quotation marks now
+// and then. Only a matched pair around the WHOLE reply comes off — a completion
+// that legitimately opens a line of dialogue keeps its opening quote.
+function _aicUnquote(s) {
+  const t = String(s == null ? '' : s).trim();
+  const m = t.match(/^(["'“‘「『])([\s\S]*)(["'”’」』])$/);
+  return m && m[2] && !m[2].includes(m[1]) ? m[2].trim() : t;
+}
+
+// How much was added, for the toast. Its own helper so the whole block above is
+// one self-contained, portable unit: all four portals carry it byte for byte,
+// and one harness pins it for all four.
+function _aicWords(t) { return (String(t == null ? '' : t).trim().match(/\S+/g) || []).length; }
+
 // ---- ✨ Improve: tidy wording without changing the meaning ----
 async function aiImproveValue(text) {
   const t = String(text || "").trim();
@@ -14659,6 +14744,71 @@ async function aiRunRewrite(el, btn, worker, okMsg, label) {
 }
 async function aiRunShorten(el, btn) {
   await aiRunRewrite(el, btn, aiShortenValue, "Shortened — check nothing was lost", "Shorten");
+}
+
+// ---- ✍️ AI complete: carry the paragraph ON from where you stopped ----
+// The third of the three, and the only one that may not touch what is already
+// written. Improve and Shorten hand their reply to aiFieldWrite, which REPLACES
+// the box; this one appends, so nothing the teacher typed can change whatever
+// the model returns.
+async function aiCompleteValue(text) {
+  const t = String(text || "").trim();
+  if (!t) return "";
+  const prompt =
+    "Carry on writing the text between <<< and >>>. It comes from a teacher's Singapore primary-school (PSLE) maths materials \u2014 a question being written, a worked solution or a marking guide.\n" +
+    "RULES - follow every one:\n" +
+    "1. Return ONLY the NEW text that continues it. Do NOT repeat, quote or restate any part of the text given - not even its last few words.\n" +
+    "2. Do NOT rewrite, correct, re-order or comment on what is already there. It stays exactly as it is and your text is added straight after it.\n" +
+    "3. Continue from exactly where it stops. If it stops in the middle of a sentence, carry THAT sentence on from that word - do not start a new one.\n" +
+    "4. Finish the sentence in progress, complete the paragraph, and then STOP. About " + AIC_WORDS + " words at most.\n" +
+    "5. Match the voice, tense, register and reading level of what is there, and keep every number, unit and name consistent with it. Do not invent new quantities the question has not given.\n" +
+    "6. If the text is a QUESTION being written, finish ASKING it - never solve it and never give the answer away.\n" +
+    "7. Plain text only - no markdown, no quotation marks around your reply, no labels, no commentary.\n" +
+    "Return ONLY the continuation.\n\n" +
+    "<<<\n" + t + "\n>>>";
+  const raw = String(await askGeminiVision(prompt, [], { maxOutputTokens: 700, json: false }) || "")
+    .replace(/^\s*```[a-z]*\s*|\s*```\s*$/gi, "").trim();
+  return _aicUnquote(raw);
+}
+// Append at the very END of the box, never at the caret \u2014 aiFieldInsert (used
+// by \ud83c\udfa4 Dictate) writes wherever the cursor happens to be, which for a
+// completion would drop it into the middle of a sentence. execCommand keeps the
+// browser's own undo stack, so one Ctrl+Z takes the whole completion back off.
+function aiFieldAppend(el, sep, text) {
+  if (!el || !text) return;
+  const add = (sep || "") + text;
+  el.focus();
+  let ok = false;
+  if (el.isContentEditable) {
+    try {
+      const r = document.createRange(); r.selectNodeContents(el); r.collapse(false);
+      const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      ok = document.execCommand("insertText", false, add);
+    } catch (_) {}
+    if (!ok) el.innerText = (el.innerText || "") + add;
+  } else {
+    const v = el.value || "";
+    try { el.selectionStart = el.selectionEnd = v.length; } catch (_) {}
+    try { ok = document.execCommand("insertText", false, add); } catch (_) {}
+    if (!ok) el.value = v + add;
+  }
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+}
+async function aiRunComplete(el, btn) {
+  if (!canManageQuestions()) { toast("Only admin accounts can use this", "error"); return; }
+  const text = aiFieldRead(el).trim();
+  // A completion from an empty box is not a completion, it is a question
+  // written from nothing - a different job, and not this button's.
+  if (!text) { toast("Write the start of it first \u2014 AI complete carries on from what is already in the box", "error"); return; }
+  if (!aiReady()) { toast("AI isn't ready yet \u2014 please wait a moment", "error"); return; }
+  const orig = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<span class="spinner dark"></span>';
+  try {
+    const add = _aicTrimEcho(text, await aiCompleteValue(text));
+    if (!add) { toast("The AI only gave back what you had already written \u2014 nothing was added", ""); return; }
+    aiFieldAppend(el, _aicJoin(text, add), add);
+    toast("Carried on \u270d\ufe0f " + _aicWords(add) + " words added \u2014 nothing you had typed was changed", "success");
+  } catch (e) { console.error(e); toast("AI complete failed: " + aiErrorMessage(e), "error"); }
+  finally { btn.disabled = false; btn.innerHTML = orig; }
 }
 
 // ---- 🎤 Dictate: record the mic, transcribe with Gemini ----
@@ -14765,7 +14915,7 @@ function aiMakeToolBtn(cls, html, title) {
   if (title) b.title = title;
   return b;
 }
-function aiToolbarFor(el, { dictate = true, improve = true, shorten = null } = {}) {
+function aiToolbarFor(el, { dictate = true, improve = true, shorten = null, complete = null } = {}) {
   const bar = document.createElement("div");
   bar.className = "ai-text-tools";
   if (dictate) {
@@ -14784,6 +14934,13 @@ function aiToolbarFor(el, { dictate = true, improve = true, shorten = null } = {
     const s = aiMakeToolBtn("ai-improve-btn", "✂️ Shorten", "Shorten with AI — trims the words but keeps every number, unit and the exact meaning");
     s.addEventListener("click", () => aiRunShorten(el, s));
     bar.appendChild(s);
+  }
+  // ✍️ AI complete follows the same rule: wherever prose can be improved it can
+  // also be carried on, so it is on by default on exactly the boxes Improve is.
+  if (complete === null ? improve : complete) {
+    const c = aiMakeToolBtn("ai-complete-btn", "✍️ AI complete", "Carry on writing with AI from where you stopped — it only adds to the end and never changes a word you have already typed");
+    c.addEventListener("click", () => aiRunComplete(el, c));
+    bar.appendChild(c);
   }
   return bar;
 }
@@ -23016,7 +23173,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.47.0 · 2026-08-19";
+const APP_VERSION = "v1.48.0 · 2026-08-19";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
