@@ -244,6 +244,60 @@ is what lets a fix in one app be copied to the other. Only the *world* differs.
     serve both. `elgFireApex` takes the hero's multi-shot count — drop it and a
     whole skill node silently stops working for every apex hero.
 
+## 🎯 The siege squad — three per role, chosen before the gate opens (v1.49.0)
+
+`EMS_SQUAD_PER_ROLE` / `emsSquadClean` / `emsSquadDefault` / `emsSquadSaved` /
+`emsSquadStore` / `emsOpenSquad` / `emsLaunch` (search `CHOOSING A SQUAD`), plus
+the `.ems-pick-*` CSS and `siege.squad` on the save.
+
+A collection past 200 cards turned 🌋 Orbital Siege's deck column into a scroll:
+six shelves, forty tiles on some of them, and a wave walking on the gate while
+the student hunts for the medic they meant to deploy. Shelving by role was the
+first half of that fix; this is the second — **a run is fought with a SQUAD
+chosen before it starts**, at most three from each role, so the deck is a dozen
+tiles that all fit without scrolling.
+
+- **It is a FILTER on the deck and nothing else.** Every unit is still owned,
+  still levels, still fights in the arena, a duel and ⚔️ Nova Legends. What the
+  squad decides is which of them are on the bench for this siege.
+- **The cap is PER ROLE, never a flat total.** "Three of each" is a line-up a
+  student can reason about; a flat eighteen is the same hunt with a shorter
+  list, and it lets somebody field eighteen attackers and no medic — which is
+  the mess this exists to end, wearing a tidier heading.
+- **`emsSquadClean` is the ONE place the cap and the ownership test are
+  applied**, and every read goes through it: the saved squad, the pick screen's
+  ⚔️ Start, and the run itself. A card merged away, sold, or carried in from
+  another account's save drops out rather than sitting on the bench as a tile
+  that costs mana and deploys nothing.
+- **A squad is never EMPTY.** The deck column is the only way to deploy
+  anything, so an empty one is a game that renders perfectly and cannot be
+  played. `emsSquadDefault` fields the best three of every role (by
+  `tcgCardPower`, so BOTH progression tracks count), `emsSquadSaved` falls back
+  to it, and `emsRenderDeck` falls back to it again.
+- **The squad is REMEMBERED** on `siege.squad`, so a student who has settled on
+  a line-up is not made to re-pick it every run. `tcgHydrateState` is a
+  **WHITELIST**, so that field has to stay in its `siege` literal or it is
+  dropped on the next load — and it validates OWNERSHIP only: the per-role cap
+  is applied on the way out, because the `EMS_*` constants sit far below the
+  hydrator (the same temporal-dead-zone trap as `var editorLos`).
+- **The pick screen is its own overlay, shown BEFORE the battlefield exists.**
+  The field, the FX preload and the wave timer all start on ⚔️ Start
+  (`emsLaunch`, which is the old `emsOpen` body), so nothing is running behind a
+  student who is still choosing.
+- **A full role REFUSES a fourth rather than swapping one out.** Which of the
+  three to drop is the student's decision, and a silent replacement takes a unit
+  off the bench they never asked to lose.
+- It reuses the deck column's own tiles (`.ems-role` / `.ems-role-grid` /
+  `.ems-card`) rather than forking a second set, so a unit looks the same being
+  chosen as it does being deployed — and it carries the same 👁, which is how a
+  student reads what a unit does in the Siege before committing to it.
+- ↻ **Play again** keeps the squad (it is the same fight); 🎴 **Change squad** on
+  the result card goes back to the picker, because a siege that just fell is
+  exactly when a student knows what they wanted instead.
+- **`polymathlc/cer` carries the same block** for 🌋 Ember Siege — keep the two
+  in step.
+- Run **`node tools/siege-squad-tests.mjs`** after touching any of it.
+
 ## ⚔️ Nova Legends — the skill wheel (v1.28.0)
 Each role's tree is **~55 nodes over 6 rings**: 21-22 hand-written notables
 (`ELG_TREES`, with `ELG_REQS` naming each one's parent) plus `ELG_SMALL_TIERS`
@@ -1409,6 +1463,17 @@ they actually wanted, they typed themselves.
 - Run **`node tools/ai-complete-tests.mjs`** after touching any of it.
 
 ## House rules
+- After touching **the siege squad** (`EMS_SQUAD_PER_ROLE`, `emsSquadClean`,
+  `emsSquadDefault`, `emsSquadSaved`, `emsSquadStore`, `emsRenderDeck`'s squad
+  read, or the `squad` field in `tcgHydrateState`'s `siege` literal), run
+  `node tools/siege-squad-tests.mjs`. Every failure is silent and lands on a
+  student mid-game: lose the per-role cap and a squad is eighteen attackers and
+  no medic, lose the ownership test and a merged-away unit sits on the bench
+  costing mana and deploying nothing, and lose either the deck read or the save
+  field and the pick screen is decoration — the choice is made, confirmed, and
+  then ignored by the battlefield or forgotten by the next run. An EMPTY squad
+  is the worst of them: the deck column is the only way to deploy anything, so
+  the game renders perfectly and cannot be played.
 - After touching **the card game's art store** (`TCG_ART_DOC`,
   `TCG_ART_DOC_LEGACY`, `tcgLoadArt`, `_tcgArtStore`, `tcgResetAllArt`,
   `resetTcgArt`, `tcgArtAdoptLegacy`, `tcgRepairArtBackgrounds`), run
