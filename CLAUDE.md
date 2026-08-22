@@ -1462,7 +1462,61 @@ they actually wanted, they typed themselves.
   button itself. ✂️ Shorten has carried the same guard from the start.
 - Run **`node tools/ai-complete-tests.mjs`** after touching any of it.
 
+## 📷 A question that came off a photograph (v1.50.0)
+
+`vetIsScanned` / `SCANNED_SOURCE` (search `A QUESTION THAT CAME OFF A PHOTOGRAPH`), plus
+the purple outline and the **📷 From the Scan app** badge on a vetting card.
+
+The Scan app (`polymathlc/scan`) reads a worksheet or an exam paper on a phone.
+The teacher can now send any question it read straight into **this app's
+vetting list** — `users/{uid}/mathVetting` — and it arrives as an
+ordinary pending question with one extra field.
+
+- **`source: "scan"` is the whole contract between two repositories that
+  cannot see each other**, and it fails silently in both directions. Rename
+  the value on either side and the card still arrives, still renders and still
+  approves; it simply stops being purple and stops saying where it came from,
+  with nothing anywhere to say so. **Ship a change to the word in all five
+  repos together** (`scan`, `cer`, `math`, `english`, `chinese`).
+- **It has to be LOUD, because a scanned question is not like a typed one.** It
+  was read by a model from a picture of somebody's worksheet: the wording may
+  be half a line short, **the diagram is not there at all**, and no topic is
+  set at all — and a topic is what decides the LEVEL here, so it is not a
+  guess to make from a phone; the card wears the app's own **No objective**
+  and **Diagram missing** warnings on top of the purple.
+  A card that looked like every other draft would be approved at the same speed
+  as one somebody typed and checked, and reach the bank with a figure missing.
+- **`vetIsScanned` is the ONE predicate**, and the outline and the badge both read
+  it. Two tests would drift into a card that is purple with no badge (which
+  reads as a styling bug) or badged with no outline (which is the warning made
+  invisible).
+- **The CSS ORDER is the ranking.** `.vet-card.is-new`, `.is-scan` and
+  `.is-picked` weigh exactly the same, so only their order in the stylesheet
+  decides which border a ticked card shows. `.is-scan` sits between the other
+  two on purpose: put it last and the author cannot see what they are about to
+  delete.
+- **It lands in VETTING and nowhere else.** The Scan app writes one document
+  into this app's vetting collection and touches nothing else — not the bank,
+  not a student's progress, not the notebook. Approving it is the ordinary
+  approve, and from then on it is an ordinary question.
+- **The child's work never travels.** The Scan app marks what the student wrote
+  on the paper; none of that is in the document. A bank question is the
+  QUESTION, its options, its answer and why.
+- Run **`node tools/scanned-question-tests.mjs`** after touching any of it.
+
 ## House rules
+- After touching **📷 a question that came off a photograph** (`SCANNED_SOURCE`,
+  `vetIsScanned`, the `scanBadge` in `renderVettingList`, or the CSS order of
+  `.vet-card.is-new` / `.is-scan` / `.is-picked`), run
+  `node tools/scanned-question-tests.mjs`. One word — `source: "scan"` — is the
+  whole contract with `polymathlc/scan`, and every way it goes wrong is silent:
+  rename the value and the card still arrives, still renders and still approves,
+  it simply stops being purple and stops saying it came off a photograph. A
+  scanned question has no diagram and no topic — and the topic is what decides
+  the LEVEL here — so a card that looks like every other draft is approved at
+  the same speed as one somebody typed and checked. Those three classes weigh
+  the same, so only their ORDER in the stylesheet decides which border a ticked
+  card shows.
 - After touching **the siege squad** (`EMS_SQUAD_PER_ROLE`, `emsSquadClean`,
   `emsSquadDefault`, `emsSquadSaved`, `emsSquadStore`, `emsRenderDeck`'s squad
   read, or the `squad` field in `tcgHydrateState`'s `siege` literal), run

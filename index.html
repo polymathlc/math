@@ -402,6 +402,13 @@ a { color: var(--primary); }
 .vet-pick { appearance: auto; -webkit-appearance: auto; width: 15px; height: 15px; margin: 0; flex: 0 0 auto; cursor: pointer; accent-color: var(--accent-red); }
 .vet-pick-wrap { display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); font-size: 0.78rem; font-weight: 600; color: var(--text-muted); cursor: pointer; user-select: none; }
 .vet-pick-wrap:hover { border-color: var(--accent-red); color: var(--accent-red); }
+/* 📷 Sent here from the Scan app — see vetIsScanned in the script. Purple,
+   and the SAME purple that app paints its own button with, so the card and
+   the button that made it are plainly the same thing. It sits ABOVE .is-new
+   and BELOW .is-picked on purpose: these three weigh the same, so only the
+   order decides which border a card ticked for deletion shows. */
+.vet-card.is-scan { border-color: #a855f7; box-shadow: 0 0 0 1px #a855f7; }
+.vet-badge.scan { background: #f3e8ff; color: #7e22ce; }
 .vet-card.is-picked { border-color: var(--accent-red); box-shadow: 0 0 0 1px var(--accent-red); }
 .vet-bulk { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; padding: 14px 18px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-alt); }
 .vet-bulk-count { font-size: 0.85rem; font-weight: 700; color: var(--text); }
@@ -12727,6 +12734,31 @@ function dupWatchBind() {
   page.addEventListener("change", dupWatchKick);
 }
 
+// =====================================================================
+// 📷 A QUESTION THAT CAME OFF A PHOTOGRAPH
+//
+// The Scan app (`polymathlc/scan`) reads a worksheet or an exam paper on a
+// phone, and the teacher can send any question it read straight into THIS
+// app's vetting list. It lands as an ordinary vetting doc with one extra
+// field, `source: "scan"` — that word is the whole contract between the two
+// apps, and renaming it here breaks nothing and reports nothing: the card
+// still arrives, still renders and still approves, it simply stops being
+// purple and stops saying where it came from.
+//
+// It has to be VISIBLE, because a scanned question is not like a typed one.
+// It was read by a model from a picture of somebody's worksheet: the wording
+// may be half a line short, the DIAGRAM IS NOT THERE AT ALL, and no topic is
+// set (the topic decides the level here, and that is not a guess to make from
+// a phone) — so it wears the app's own "No objective" / "Diagram missing"
+// warnings on top of the purple. A card that looked like every other draft
+// would be approved at the same speed as one somebody typed and checked.
+//
+// `vetIsScanned` is the ONE predicate — the outline and the badge read it, so
+// the two can never disagree about the same card.
+// =====================================================================
+const SCANNED_SOURCE = "scan";
+function vetIsScanned(q) { return !!q && q.source === SCANNED_SOURCE; }
+
 function vetPreviewHtml(q) {
   const blocks = (q.blocks || []).map(b => b.type === "image"
     ? (b.url ? `<img src="${escapeHtml(b.url)}" alt="Question diagram">` : `<div style="color:var(--accent-orange);">🖼 Diagram slot — nothing attached yet</div>`)
@@ -12766,13 +12798,16 @@ function renderVettingList() {
     const loGap = los ? "" : (_rapidFilingIds.has(q.id)
       ? `<span class="vet-badge busy"><span class="spinner dark"></span> Filing…</span>`
       : `<span class="vet-badge warn">No objective</span>`);
+    const scanned = vetIsScanned(q);
+    const scanBadge = scanned
+      ? `<span class="vet-badge scan" title="Read off a photograph in the Scan &amp; Answer app and sent here for vetting. Check the wording, attach the diagram and set the topic before you approve it.">📷 From the Scan app</span>` : "";
     const picked = _vetSelected.has(q.id);
-    return `<div class="vet-card${_rapidJustAdded.has(q.id) ? " is-new" : ""}${picked ? " is-picked" : ""}">
+    return `<div class="vet-card${_rapidJustAdded.has(q.id) ? " is-new" : ""}${scanned ? " is-scan" : ""}${picked ? " is-picked" : ""}">
       <div class="vet-card-head"><h4>${escapeHtml(q.title || "Untitled question")}</h4></div>
       <div class="vet-meta">
         <span class="vet-badge">${escapeHtml(q.level || "no level")}</span>
         <span class="vet-badge">${escapeHtml(adminTopicsLabel(q))}</span>
-        ${los}${loGap}${noAns}${gap}${dup}
+        ${scanBadge}${los}${loGap}${noAns}${gap}${dup}
       </div>
       <div class="vet-preview">${vetPreviewHtml(q)}</div>
       <div class="vet-actions">
@@ -23191,7 +23226,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.49.0 · 2026-08-20";
+const APP_VERSION = "v1.50.0 · 2026-08-22";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
