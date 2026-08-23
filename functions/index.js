@@ -1561,6 +1561,59 @@ export const askOpenAi = onCall(OPENAI_OPTS, async (request) => {
   return { text: text.trim(), model: OPENAI_MODEL };
 });
 
+// =====================================================================
+// ⚙️ aiEngineConfig — WHICH ENGINE EVERY DEVICE USES
+// ---------------------------------------------------------------------
+// The engine choice used to live in `localStorage`, which meant it was a
+// choice about ONE BROWSER. The teacher would switch to ChatGPT on their
+// laptop, see it work, and every student stayed on the capped Gemini —
+// the setting looked like it had taken effect, because on the machine
+// they set it on it had.
+//
+// So the choice lives here instead: the admin sets it once and every
+// signed-in device follows, until they set it back.
+//
+// WHY A CALLABLE AND NOT A FIRESTORE DOC THE CLIENTS READ DIRECTLY. The
+// shared `firestore.rules` in this repo does NOT contain the Science app's
+// own rules — it carries a placeholder telling you to paste them in from
+// the console before deploying — so ANY rules deploy from here is a manual
+// assembly job with the whole project's access as the blast radius. A new
+// world-readable document would need exactly that. This function writes
+// through the Admin SDK, which bypasses rules altogether, so the shared
+// setting costs no rules change at all: the deploy that switches ChatGPT
+// on switches this on with it, and there is no second thing to get wrong.
+//
+// Reading is open to any signed-in user (it is one word, and every device
+// has to know it); WRITING is the admin's alone.
+// =====================================================================
+const AI_ENGINE_DOC = "config/aiEngine";
+const AI_ENGINES = ["gemini", "openai"];
+
+export const aiEngineConfig = onCall(LIGHT_OPTS, async (request) => {
+  const auth = requireAuth(request);
+  const d = request.data || {};
+  const wanted = d.set == null ? null : String(d.set);
+
+  if (wanted !== null) {
+    if (!isAdminAuth(auth)) throw new HttpsError("permission-denied", "Only the teacher can change the AI engine.");
+    if (!AI_ENGINES.includes(wanted)) throw new HttpsError("invalid-argument", "Unknown engine.");
+    await db.doc(AI_ENGINE_DOC).set({
+      engine: wanted,
+      updatedAt: new Date().toISOString(),
+      updatedBy: auth.token && auth.token.email ? auth.token.email : auth.uid
+    }, { merge: true });
+    return { engine: wanted, updatedAt: new Date().toISOString() };
+  }
+
+  const snap = await db.doc(AI_ENGINE_DOC).get();
+  const data = snap.exists ? (snap.data() || {}) : {};
+  // An unset document means nobody has chosen, which is Gemini — the same
+  // default the apps have always had, so a project where this was never
+  // touched behaves exactly as it did before.
+  const engine = AI_ENGINES.includes(data.engine) ? data.engine : "gemini";
+  return { engine, updatedAt: data.updatedAt || null, updatedBy: data.updatedBy || null };
+});
+
 export const getWorksheetSolutions = onCall(LIGHT_OPTS, async (request) => {
   const auth = requireAuth(request);
   const d = request.data || {};
