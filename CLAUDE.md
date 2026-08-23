@@ -13,6 +13,37 @@ Guidance for Claude when working in this repo.
 - `game.html` — the standalone RPG preview.
 - `functions/` — Cloud Functions (marking, hints, XP, admin claims). Anything a
   student could otherwise forge lives here, not in the browser.
+  - **`askOpenAi` is the whole family's BACKUP AI, and it is here because of
+    where a key can safely live.** Every Polymath app answers through Gemini
+    on the shared `mathgen--app` project, so when that project's billing cap
+    is hit they all die at once and identically. ChatGPT is the second engine;
+    the Science portal, the Scan app and the three other portals each carry a
+    browser-side `askOpenAI` reading a key out of `localStorage`, which
+    rescues the teacher's laptop and **no student's phone** — and a key cannot
+    be shipped in those pages instead, because they are public static sites
+    served to every student's browser. So the key is a Firebase secret
+    (`OPENAI_API_KEY`) behind this callable, and a browser only ever asks.
+    - **It needs `firebase functions:secrets:set OPENAI_API_KEY` and a deploy**
+      before it answers. Until then it returns `failed-precondition`, named
+      precisely so the calling app can tell "not set up yet" (a deploy) from
+      "the key was refused" (a bill) — the apps print those as different
+      sentences, and one that reported both as *AI error* would send the
+      teacher looking in the wrong place.
+    - **The guards are all here rather than in any page, because it is the
+      centre's own OpenAI bill**: sign-in required, the model chosen
+      SERVER-side (a client that could name a model could name an expensive
+      one), the same image caps the marking call uses, `MIN_OPENAI_INTERVAL_MS`
+      between calls and `DAILY_OPENAI_CAP` a day per account.
+    - **`reserveOpenAiSlot` uses its OWN fields** (`openAiDay` / `openAiCount`
+      / `lastOpenAiAt`) on the server stats document. Sharing `dailyKey` /
+      `dailyCount` with the marking cap would let a scanned paper spend a
+      student's marking allowance, and they would be told they had finished
+      for the day by a limit they had never reached.
+    - The gap between calls is deliberately small (a scan sends its pages up
+      in batches, back to back, and a 15-second interval would break a run of
+      one paper); the DAILY cap is what actually bounds the bill.
+    - `polymathlc/scan` calls it through `askOpenAiServer` — **ship a change to
+      the argument shape in both repos together.**
 - `firestore.rules` / `storage.rules` — **the Firebase project is SHARED with the
   Science app (`polymathlc/cer`)**. Deploying either file replaces the rules for the
   WHOLE project; paste the Science app's rules into the marked section first.
