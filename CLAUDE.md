@@ -44,6 +44,33 @@ Guidance for Claude when working in this repo.
       one paper); the DAILY cap is what actually bounds the bill.
     - `polymathlc/scan` calls it through `askOpenAiServer` — **ship a change to
       the argument shape in both repos together.**
+  - **`askKimi` is the THIRD engine, and it is here for the same reason.**
+    Gemini and ChatGPT are two suppliers on two bills, so the morning the
+    Firebase project is capped AND the OpenAI balance is at zero used to
+    leave every app in the family dead at once. Kimi (Moonshot AI) is a
+    third company on a third bill.
+    - **It needs `firebase functions:secrets:set MOONSHOT_API_KEY`** and a
+      deploy, and until then it returns `failed-precondition` — named
+      precisely, so an app in front of it says *the key is not switched on
+      yet* rather than *AI error*.
+    - **It is the ONE call here that takes the MODEL from the client**, which
+      `askOpenAi` deliberately refuses. Moonshot renames its flagship with
+      every release (`kimi-k2-…`, `kimi-k3-…`) and a teacher cannot redeploy a
+      Cloud Function to follow it, so an id frozen here is a 404 on every call
+      a few months from now with a fix nobody knows they need. What keeps it
+      from being "a client naming an expensive model on the centre's bill" is
+      **`KIMI_MODEL_RE`**: it can only ever be a Moonshot id, and anything
+      else falls back to `KIMI_MODEL`.
+    - **A PDF is refused by name.** A PDF is an OpenAI `file` part and
+      Moonshot has no such part, so a request that silently lost its pages
+      would come back fluent and about nothing at all.
+    - **`reserveBackupSlot` is now the ONE throttle** and each engine passes
+      its own field names (`openAiDay…` / `kimiDay…`). Sharing them would let
+      a capped ChatGPT day silently close Kimi too — on exactly the day Kimi
+      is the one engine still answering. `reserveOpenAiSlot` is kept as a thin
+      wrapper so its call site is unchanged.
+    - `AI_ENGINES` in `aiEngineConfig` gained `"kimi"`, or the shared setting
+      would refuse the very engine the apps can now be switched to.
 - `firestore.rules` / `storage.rules` — **the Firebase project is SHARED with the
   Science app (`polymathlc/cer`)**. Deploying either file replaces the rules for the
   WHOLE project; paste the Science app's rules into the marked section first.
@@ -154,6 +181,19 @@ backend, so the model calls are byte-for-byte the same requests. Search
   `openAiGenerateImageDataUrl`) is admin-only and device-local: the key lives in
   `localStorage` on one machine. When active it goes FIRST and falls back to Gemini
   on any failure, so a student with no key is never affected.
+- The optional **Kimi engine** (`kimiActive`, `askKimiEngine`, `askKimiServer`,
+  `askKimiDirect`, `kimiListModels`) is the THIRD one, and it differs from
+  ChatGPT here in one way that matters: **its real key is on the SERVER**
+  (`askKimi` in `functions/`), so choosing it needs no key on the device at
+  all — a key in this browser is only the route behind that one. It goes FIRST
+  when chosen and falls back to Gemini on any failure, exactly as ChatGPT does,
+  and `skipOpenAi` skips it too — that flag means "this caller wants real
+  Gemini", which is what keeps 🔍 Answer key cross-check comparing two
+  different models rather than one twice.
+- **The Kimi model is a FIELD, not a constant.** Moonshot renames its flagship
+  with every release, so an id hard-coded in this file is a 404 on every call a
+  few months from now with nothing on screen to say the id is merely out of
+  date. 🔄 **Load models** asks the account itself.
 
 ## 🌌 Nova Protocol — the trading card game
 Ported whole from the Science app's Realm of Embers and re-themed as science

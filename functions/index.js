@@ -35,6 +35,10 @@ const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 // server — and not in any browser, which is the whole point of `askOpenAi`
 // below: see the block above that function.
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
+// The THIRD engine's key, here for exactly the same reason. Gemini and
+// ChatGPT are two suppliers on two bills; the morning both are out is the
+// morning `askKimi` below is the only thing still answering.
+const MOONSHOT_API_KEY = defineSecret("MOONSHOT_API_KEY");
 
 // Server-side admin allowlist. Keep in sync with ADMIN_EMAILS in the app —
 // this list is the one that actually grants power.
@@ -76,6 +80,7 @@ const ENFORCE_APP_CHECK = false;
 
 const CALL_OPTS = { secrets: [GEMINI_API_KEY], timeoutSeconds: 240, memory: "512MiB", maxInstances: 10, enforceAppCheck: ENFORCE_APP_CHECK };
 const OPENAI_OPTS = { secrets: [OPENAI_API_KEY], timeoutSeconds: 240, memory: "512MiB", maxInstances: 10, enforceAppCheck: ENFORCE_APP_CHECK };
+const KIMI_OPTS = { secrets: [MOONSHOT_API_KEY], timeoutSeconds: 240, memory: "512MiB", maxInstances: 10, enforceAppCheck: ENFORCE_APP_CHECK };
 const LIGHT_OPTS = { timeoutSeconds: 30, memory: "256MiB", maxInstances: 10, enforceAppCheck: ENFORCE_APP_CHECK };
 
 // Mirrors the client's starter fallback bank (client copies no longer
@@ -1454,28 +1459,33 @@ const OPENAI_MAX_OUTPUT = 32000;
 const MIN_OPENAI_INTERVAL_MS = 1500;
 const DAILY_OPENAI_CAP = 120;
 
-async function reserveOpenAiSlot(uid) {
+// EVERY BACKUP ENGINE COUNTS ON ITS OWN FIELDS. Sharing `dailyKey`/
+// `dailyCount` with the marking cap would let a scanned paper spend a
+// student's marking allowance, and the student would be told they had
+// finished for the day by a limit they had never reached — and sharing one
+// set of fields BETWEEN the backups would do the same thing to each other:
+// a capped ChatGPT day would silently close Kimi too, which is the one
+// engine still answering on exactly that day.
+async function reserveBackupSlot(uid, f) {
   const ref = statsRef(uid);
   return db.runTransaction(async tx => {
     const snap = await tx.get(ref);
     const stats = snap.exists ? (snap.data() || {}) : {};
     const now = Date.now();
     const today = new Date().toISOString().slice(0, 10);
-    // Its OWN day key and counter. Sharing `dailyKey`/`dailyCount` with the
-    // marking cap would let a scanned paper spend a student's marking
-    // allowance, and the student would be told they had finished for the day
-    // by a limit they had never reached.
-    const day = stats.openAiDay === today ? (stats.openAiCount || 0) : 0;
-    if (now - (stats.lastOpenAiAt || 0) < MIN_OPENAI_INTERVAL_MS) {
+    const day = stats[f.day] === today ? (stats[f.count] || 0) : 0;
+    if (now - (stats[f.last] || 0) < f.interval) {
       throw new HttpsError("resource-exhausted", "One request at a time — give it a couple of seconds.");
     }
-    if (day >= DAILY_OPENAI_CAP) {
+    if (day >= f.cap) {
       throw new HttpsError("resource-exhausted", "The backup AI's daily limit for this account has been reached — it will reset tomorrow.");
     }
-    tx.set(ref, { openAiDay: today, openAiCount: day + 1, lastOpenAiAt: now, updatedAt: new Date().toISOString() }, { merge: true });
+    tx.set(ref, { [f.day]: today, [f.count]: day + 1, [f.last]: now, updatedAt: new Date().toISOString() }, { merge: true });
     return day + 1;
   });
 }
+const OPENAI_SLOT = { day: "openAiDay", count: "openAiCount", last: "lastOpenAiAt", interval: MIN_OPENAI_INTERVAL_MS, cap: DAILY_OPENAI_CAP };
+function reserveOpenAiSlot(uid) { return reserveBackupSlot(uid, OPENAI_SLOT); }
 
 export const askOpenAi = onCall(OPENAI_OPTS, async (request) => {
   const auth = requireAuth(request);
@@ -1562,6 +1572,123 @@ export const askOpenAi = onCall(OPENAI_OPTS, async (request) => {
 });
 
 // =====================================================================
+// 🌙 askKimi — THE THIRD ENGINE, WITH ITS KEY ON THE SERVER TOO
+// ---------------------------------------------------------------------
+// `askOpenAi` above exists because one supplier is not a backup plan. Two
+// is barely one: Gemini and ChatGPT are two accounts on two bills, and the
+// morning BOTH are out — a capped Firebase project and an OpenAI balance
+// at zero — used to leave every app in the family dead at once, with the
+// same error on every device and nothing to switch to.
+//
+// Kimi (Moonshot AI) is a third supplier entirely. Everything about why the
+// key is HERE rather than in the pages is written out above `askOpenAi` and
+// is true here word for word: the six apps are public static sites served
+// to every student's browser, so a key in one of them is a key handed to
+// the whole school. Setting it is one command:
+//   firebase functions:secrets:set MOONSHOT_API_KEY
+// followed by `npm --prefix functions run deploy`. Until that is done this
+// answers "failed-precondition" — named precisely, so the app in front of
+// it can say "nobody has set the key up yet" rather than "AI error", which
+// are a deploy step and a bill and lead to different places.
+//
+// THE ONE THING IT DOES THAT `askOpenAi` DELIBERATELY DOES NOT is take the
+// model id from the client. That rule is there so a client cannot name an
+// expensive model on the centre's bill — and it holds here, because the id
+// is checked against `KIMI_MODEL_RE` and can only ever be a Moonshot model.
+// It has to be allowed at all because Moonshot renames its flagship with
+// every release (kimi-k2-…, kimi-k3-…) and a teacher cannot redeploy a
+// Cloud Function to follow it: an id frozen here would be a 404 on every
+// call a few months from now, and the fix would be a deploy nobody knows
+// they need. An id it will not accept falls back to KIMI_MODEL rather than
+// failing the call.
+// =====================================================================
+const KIMI_URL = "https://api.moonshot.ai/v1/chat/completions";
+// What is used when the client names nothing, or names something that is
+// not a Moonshot model.
+const KIMI_MODEL = "kimi-k3";
+const KIMI_MODEL_RE = /^(kimi|moonshot)[A-Za-z0-9._-]*$/;
+const KIMI_MAX_OUTPUT = 32000;
+const MIN_KIMI_INTERVAL_MS = 1500;
+const DAILY_KIMI_CAP = 120;
+const KIMI_SLOT = { day: "kimiDay", count: "kimiCount", last: "lastKimiAt", interval: MIN_KIMI_INTERVAL_MS, cap: DAILY_KIMI_CAP };
+
+export const askKimi = onCall(KIMI_OPTS, async (request) => {
+  const auth = requireAuth(request);
+  const key = (MOONSHOT_API_KEY.value() || "").trim();
+  if (!key) throw new HttpsError("failed-precondition", "No Kimi key is configured on the server.");
+
+  const d = request.data || {};
+  const prompt = cleanText(d.prompt, 200000);
+  const system = cleanText(d.system, 200000);
+  if (!prompt) throw new HttpsError("invalid-argument", "Nothing to ask.");
+
+  const model = KIMI_MODEL_RE.test(String(d.model || "")) ? String(d.model) : KIMI_MODEL;
+
+  // Images only. A PDF is an OpenAI `file` part and Moonshot has no such
+  // part, so it is REFUSED BY NAME — a request that silently lost its pages
+  // comes back fluent and about nothing at all, and the app in front of
+  // this then falls to a route that can read it.
+  const parts = [];
+  let total = 0;
+  const incoming = Array.isArray(d.media) ? d.media : (Array.isArray(d.images) ? d.images : []);
+  for (const raw of incoming.slice(0, 12)) {
+    if (!raw) continue;
+    const mimeType = String(raw.mimeType || "");
+    const data = String(raw.data || "");
+    if (!mimeType.startsWith("image/")) throw new HttpsError("invalid-argument", `Kimi cannot read a ${mimeType || "file"} attachment — that one needs Gemini or ChatGPT.`);
+    if (!data || data.length > MAX_IMAGE_B64) throw new HttpsError("invalid-argument", "Attachment: missing or too large (max ~7 MB).");
+    total += data.length;
+    if (total > MAX_TOTAL_B64) throw new HttpsError("invalid-argument", "Combined attachments too large — send fewer pages at a time.");
+    parts.push({ mimeType, data });
+  }
+
+  await reserveBackupSlot(auth.uid, KIMI_SLOT);
+
+  const content = [{ type: "text", text: prompt }];
+  parts.forEach(m => content.push({ type: "image_url", image_url: { url: `data:${m.mimeType};base64,${m.data}` } }));
+  const messages = [];
+  if (system) messages.push({ role: "system", content: system });
+  messages.push({ role: "user", content });
+
+  const body = {
+    model,
+    messages,
+    max_tokens: Math.max(1024, Math.min(Number(d.maxOutputTokens) || 512, KIMI_MAX_OUTPUT))
+  };
+  if (d.json) {
+    body.response_format = { type: "json_object" };
+    // Strict JSON mode is REFUSED unless the word appears in the messages,
+    // so a prompt that never says it would 400 rather than answer.
+    if (!/json/i.test(prompt + " " + system)) content.push({ type: "text", text: "Reply with JSON only." });
+  }
+  if (d.temperature !== undefined) body.temperature = Number(d.temperature);
+
+  let res;
+  try {
+    res = await fetch(KIMI_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+      body: JSON.stringify(body)
+    });
+  } catch (e) {
+    throw new HttpsError("unavailable", "Could not reach Kimi: " + (e.message || e));
+  }
+  if (!res.ok) {
+    let detail = "";
+    try { const ej = await res.json(); detail = ej && ej.error ? (ej.error.message || "") : ""; } catch (_) { /* non-JSON error body */ }
+    // The model id is carried into the message on purpose: an id a release
+    // out of date is the commonest way this route dies, and unsaid it reads
+    // as "Kimi is broken" rather than "press Load models".
+    throw new HttpsError(res.status === 429 ? "resource-exhausted" : "internal",
+      `Kimi API error ${res.status} (model ${model})${detail ? ": " + detail : ""}`);
+  }
+  const data = await res.json();
+  const text = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+  if (typeof text !== "string" || !text.trim()) throw new HttpsError("internal", "Kimi returned an unexpected response shape.");
+  return { text: text.trim(), model };
+});
+
+// =====================================================================
 // ⚙️ aiEngineConfig — WHICH ENGINE EVERY DEVICE USES
 // ---------------------------------------------------------------------
 // The engine choice used to live in `localStorage`, which meant it was a
@@ -1587,7 +1714,7 @@ export const askOpenAi = onCall(OPENAI_OPTS, async (request) => {
 // has to know it); WRITING is the admin's alone.
 // =====================================================================
 const AI_ENGINE_DOC = "config/aiEngine";
-const AI_ENGINES = ["gemini", "openai"];
+const AI_ENGINES = ["gemini", "openai", "kimi"];
 
 export const aiEngineConfig = onCall(LIGHT_OPTS, async (request) => {
   const auth = requireAuth(request);
