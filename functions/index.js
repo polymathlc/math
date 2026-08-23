@@ -31,6 +31,10 @@ initializeApp();
 const db = getFirestore();
 
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
+// The BACKUP engine's key. It lives here — as a Firebase secret, on the
+// server — and not in any browser, which is the whole point of `askOpenAi`
+// below: see the block above that function.
+const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 
 // Server-side admin allowlist. Keep in sync with ADMIN_EMAILS in the app —
 // this list is the one that actually grants power.
@@ -71,6 +75,7 @@ const MAX_TOTAL_B64 = 14_000_000;
 const ENFORCE_APP_CHECK = false;
 
 const CALL_OPTS = { secrets: [GEMINI_API_KEY], timeoutSeconds: 240, memory: "512MiB", maxInstances: 10, enforceAppCheck: ENFORCE_APP_CHECK };
+const OPENAI_OPTS = { secrets: [OPENAI_API_KEY], timeoutSeconds: 240, memory: "512MiB", maxInstances: 10, enforceAppCheck: ENFORCE_APP_CHECK };
 const LIGHT_OPTS = { timeoutSeconds: 30, memory: "256MiB", maxInstances: 10, enforceAppCheck: ENFORCE_APP_CHECK };
 
 // Mirrors the client's starter fallback bank (client copies no longer
@@ -1400,6 +1405,151 @@ async function isTeacherUid(uid) {
   } catch (e) { console.warn("owner lookup failed", uid, e.message || e); }
   try { return uid === await getAdminUid(); } catch (_) { return false; }
 }
+// =====================================================================
+// 🤖 askOpenAi — THE BACKUP ENGINE, WITH THE KEY ON THE SERVER
+// ---------------------------------------------------------------------
+// Every Polymath app answers through Gemini on the shared `mathgen--app`
+// project, so when that project's billing cap is hit they ALL die at once
+// and identically: "[429] Your billing account has exceeded its monthly
+// spending cap", on every call, on every device, until the month turns over.
+// ChatGPT is the second engine, and this is the door to it.
+//
+// WHY IT IS HERE AND NOT IN THE PAGE. The Science portal, the Scan app and
+// the three other portals all carry a browser-side `askOpenAI` that reads a
+// key out of `localStorage`. That is not a backend: the key has to be pasted
+// into every device separately, so it rescues the teacher's laptop and no
+// student's phone — which is the half of the school that matters. A key
+// cannot simply be shipped in those pages instead: they are public static
+// sites served to every student's browser, so a key in one is a key handed
+// to the whole school, and any of them could then spend it without limit.
+//
+// The key therefore lives HERE, as a Firebase secret. A student's browser
+// never sees it, never holds it and cannot read it back; it only asks this
+// function, signed in, and gets an answer. Setting it is one command:
+//   firebase functions:secrets:set OPENAI_API_KEY
+// followed by `npm --prefix functions run deploy`. Until that is done the
+// function answers "failed-precondition" and every app falls back to
+// whatever it had before — which is Gemini, and a device key where one was
+// pasted.
+//
+// WHAT KEEPS IT FROM BEING AN OPEN TAP. It is the centre's own OpenAI bill,
+// so the guards are not optional and they are all here rather than in any
+// page: sign-in is required, the model is chosen SERVER-SIDE (a client that
+// could name a model could name an expensive one), the prompt and the
+// pictures are capped by the same limits the marking call uses, and each
+// account gets `MIN_OPENAI_INTERVAL_MS` between calls and
+// `DAILY_OPENAI_CAP` calls a day. Those counters live in their OWN fields on
+// the server stats document, so a paper scanned on a capped day can never
+// eat into the marking allowance or the other way round.
+// =====================================================================
+const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
+// The model is the SERVER's choice. A client that could name one could name
+// an expensive one, and the bill is the centre's.
+const OPENAI_MODEL = "gpt-5.6-sol";
+// An over-large budget is a 400 rather than a long answer, so it is clamped.
+const OPENAI_MAX_OUTPUT = 32000;
+// A scan sends its pages up in batches, back to back, so the gap between
+// calls has to be small enough not to break a run of one paper — the DAILY
+// cap is what actually bounds the bill.
+const MIN_OPENAI_INTERVAL_MS = 1500;
+const DAILY_OPENAI_CAP = 120;
+
+async function reserveOpenAiSlot(uid) {
+  const ref = statsRef(uid);
+  return db.runTransaction(async tx => {
+    const snap = await tx.get(ref);
+    const stats = snap.exists ? (snap.data() || {}) : {};
+    const now = Date.now();
+    const today = new Date().toISOString().slice(0, 10);
+    // Its OWN day key and counter. Sharing `dailyKey`/`dailyCount` with the
+    // marking cap would let a scanned paper spend a student's marking
+    // allowance, and the student would be told they had finished for the day
+    // by a limit they had never reached.
+    const day = stats.openAiDay === today ? (stats.openAiCount || 0) : 0;
+    if (now - (stats.lastOpenAiAt || 0) < MIN_OPENAI_INTERVAL_MS) {
+      throw new HttpsError("resource-exhausted", "One request at a time — give it a couple of seconds.");
+    }
+    if (day >= DAILY_OPENAI_CAP) {
+      throw new HttpsError("resource-exhausted", "The backup AI's daily limit for this account has been reached — it will reset tomorrow.");
+    }
+    tx.set(ref, { openAiDay: today, openAiCount: day + 1, lastOpenAiAt: now, updatedAt: new Date().toISOString() }, { merge: true });
+    return day + 1;
+  });
+}
+
+export const askOpenAi = onCall(OPENAI_OPTS, async (request) => {
+  const auth = requireAuth(request);
+  const key = (OPENAI_API_KEY.value() || "").trim();
+  // Named precisely, because the app in front of this has to be able to tell
+  // "nobody has set the key up yet" from "the key was refused" — the first is
+  // a deploy step and the second is a bill.
+  if (!key) throw new HttpsError("failed-precondition", "No OpenAI key is configured on the server.");
+
+  const d = request.data || {};
+  const prompt = cleanText(d.prompt, 200000);
+  const system = cleanText(d.system, 200000);
+  if (!prompt) throw new HttpsError("invalid-argument", "Nothing to ask.");
+
+  const images = [];
+  let total = 0;
+  for (const img of Array.isArray(d.images) ? d.images.slice(0, 12) : []) {
+    const part = validImagePart(img, "Page");
+    if (!part) continue;
+    total += part.data.length;
+    if (total > MAX_TOTAL_B64) throw new HttpsError("invalid-argument", "Combined images too large — send fewer pages at a time.");
+    images.push(part);
+  }
+
+  await reserveOpenAiSlot(auth.uid);
+
+  const content = [{ type: "text", text: prompt }];
+  for (const img of images) {
+    content.push({ type: "image_url", image_url: { url: `data:${img.mimeType};base64,${img.data}`, detail: "high" } });
+  }
+  const messages = [];
+  if (system) messages.push({ role: "system", content: system });
+  messages.push({ role: "user", content });
+
+  const body = {
+    model: OPENAI_MODEL,
+    messages,
+    max_completion_tokens: Math.max(1024, Math.min(Number(d.maxOutputTokens) || 512, OPENAI_MAX_OUTPUT))
+  };
+  if (d.json) {
+    body.response_format = { type: "json_object" };
+    // Strict JSON mode is REFUSED unless the word appears in the messages, so
+    // a prompt that never says it would 400 rather than answer.
+    if (!/json/i.test(prompt + " " + system)) content.push({ type: "text", text: "Reply with JSON only." });
+  }
+  // A gpt-5 model runs only at its own default temperature; sending one is a
+  // 400 — not a worse answer, no answer at all.
+  if (d.temperature !== undefined && !/^gpt-5/.test(OPENAI_MODEL)) body.temperature = Number(d.temperature);
+
+  let res;
+  try {
+    res = await fetch(OPENAI_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+      body: JSON.stringify(body)
+    });
+  } catch (e) {
+    throw new HttpsError("unavailable", "Could not reach the backup AI: " + (e.message || e));
+  }
+  if (!res.ok) {
+    let detail = "";
+    try { const ej = await res.json(); detail = ej && ej.error ? ej.error.message : ""; } catch (_) { /* non-JSON error body */ }
+    // The status is carried through so the page can say what actually
+    // happened — "the key was rejected" and "the account is out of credit"
+    // are different sentences and lead to different fixes.
+    throw new HttpsError(res.status === 429 ? "resource-exhausted" : "internal",
+      `ChatGPT API error ${res.status}${detail ? ": " + detail : ""}`);
+  }
+  const data = await res.json();
+  const text = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+  if (typeof text !== "string" || !text.trim()) throw new HttpsError("internal", "ChatGPT returned an unexpected response shape.");
+  return { text: text.trim(), model: OPENAI_MODEL };
+});
+
 export const getWorksheetSolutions = onCall(LIGHT_OPTS, async (request) => {
   const auth = requireAuth(request);
   const d = request.data || {};
