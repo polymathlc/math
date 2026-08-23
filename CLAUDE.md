@@ -16,6 +16,19 @@ Guidance for Claude when working in this repo.
 - `firestore.rules` / `storage.rules` — **the Firebase project is SHARED with the
   Science app (`polymathlc/cer`)**. Deploying either file replaces the rules for the
   WHOLE project; paste the Science app's rules into the marked section first.
+  - They also carry the rules for the **Scan app** (`polymathlc/scan`), which has no
+    rules file of its own — one shared file, one source of truth. Three blocks:
+    `users/{uid}/scanMistakes` (a student's own mistake book), `scanPapers`
+    (a worksheet made out of it, read by `cer/mistakes.html`) and
+    `scan-mistakes/{uid}/…` in Storage (the cropped figures).
+  - **`mail/{mailId}` is no longer admin-only on create**, and the widening is
+    deliberately narrow: `mailToSelf()` lets a signed-in user enqueue a message
+    **only to the address on their own token**, with no other fields on the
+    document. That is what lets the Scan app email a student the link to their
+    own worksheet without a backend. Reading the queue back stays admin-only —
+    it is every address the centre has ever written to. Do not relax the `to`
+    comparison: taking it off the token and onto the document is what would turn
+    this into an open relay.
 
 ## Versioning convention — applies to EVERY change (do this every time)
 1. **Bump the version.** Update `const APP_VERSION = 'vX.Y.Z'` (search `APP_VERSION`).

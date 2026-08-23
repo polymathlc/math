@@ -19,6 +19,19 @@ service firebase.storage {
         && request.resource.contentType.matches('image/.*');
     }
 
+    // The Scan app's mistake book: the figure cropped out of a photographed
+    // page, and the cleaned-up version of it the Science app's mistakes.html
+    // writes back. Both live under the STUDENT's uid — the teacher may write
+    // there too, because it is their device that caches the clean version
+    // when they open a pupil's worksheet.
+    match /scan-mistakes/{uid}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && (request.auth.uid == uid || request.auth.token.admin == true)
+        && request.resource.size < 7 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
     // ===============================================================
     // !! SCIENCE APP STORAGE RULES GO HERE !! (copy from the console)
     // ===============================================================
