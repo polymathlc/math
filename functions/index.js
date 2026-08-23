@@ -1490,22 +1490,33 @@ export const askOpenAi = onCall(OPENAI_OPTS, async (request) => {
   const system = cleanText(d.system, 200000);
   if (!prompt) throw new HttpsError("invalid-argument", "Nothing to ask.");
 
-  const images = [];
+  // Pictures AND pdfs. The Science portal's bulk import hands whole PDFs to
+  // its ChatGPT route, so a door that took images only would quietly drop the
+  // attachment and answer fluently about nothing at all. `images` is the old
+  // field name and is still read, so a caller written against the first
+  // version of this function keeps working.
+  const parts = [];
   let total = 0;
-  for (const img of Array.isArray(d.images) ? d.images.slice(0, 12) : []) {
-    const part = validImagePart(img, "Page");
-    if (!part) continue;
-    total += part.data.length;
-    if (total > MAX_TOTAL_B64) throw new HttpsError("invalid-argument", "Combined images too large — send fewer pages at a time.");
-    images.push(part);
+  const incoming = Array.isArray(d.media) ? d.media : (Array.isArray(d.images) ? d.images : []);
+  for (const raw of incoming.slice(0, 12)) {
+    if (!raw) continue;
+    const mimeType = String(raw.mimeType || "");
+    const data = String(raw.data || "");
+    const isPdf = mimeType === "application/pdf";
+    if (!isPdf && !mimeType.startsWith("image/")) throw new HttpsError("invalid-argument", "Attachment: only images and PDFs.");
+    if (!data || data.length > MAX_IMAGE_B64) throw new HttpsError("invalid-argument", "Attachment: missing or too large (max ~7 MB).");
+    total += data.length;
+    if (total > MAX_TOTAL_B64) throw new HttpsError("invalid-argument", "Combined attachments too large — send fewer pages at a time.");
+    parts.push({ mimeType, data, isPdf });
   }
 
   await reserveOpenAiSlot(auth.uid);
 
   const content = [{ type: "text", text: prompt }];
-  for (const img of images) {
-    content.push({ type: "image_url", image_url: { url: `data:${img.mimeType};base64,${img.data}`, detail: "high" } });
-  }
+  parts.forEach((m, i) => {
+    if (m.isPdf) content.push({ type: "file", file: { filename: `upload-${i + 1}.pdf`, file_data: `data:${m.mimeType};base64,${m.data}` } });
+    else content.push({ type: "image_url", image_url: { url: `data:${m.mimeType};base64,${m.data}`, detail: "high" } });
+  });
   const messages = [];
   if (system) messages.push({ role: "system", content: system });
   messages.push({ role: "user", content });
