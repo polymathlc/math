@@ -103,17 +103,58 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Trigger Email extension queue. Only admins may enqueue mail; the
-    // extension itself reads with a service account and bypasses rules.
+    // Trigger Email extension queue. The extension itself reads with a
+    // service account and bypasses rules.
+    //
+    // A signed-in user may enqueue mail ONLY TO THEMSELVES, which is what
+    // lets the Scan app's mistake book email a student the link to their own
+    // worksheet without a backend. The address is compared against the token,
+    // never against anything in the document, so this cannot be turned into a
+    // way of sending mail to somebody else — and a `to` of any other shape
+    // (several addresses, an object, a different address) fails the test.
+    // Reading the queue back stays admin-only: it is every address the centre
+    // has ever written to.
+    function mailToSelf() {
+      return signedIn()
+        && request.resource.data.to == [request.auth.token.email]
+        && request.resource.data.keys().hasOnly(['to', 'message']);
+    }
     match /mail/{mailId} {
-      allow create: if isAdmin();
+      allow create: if isAdmin() || mailToSelf();
       allow read, update, delete: if isAdmin();
+    }
+
+    // ---------------------------------------------------------------
+    // The Scan app's worksheets (polymathlc/scan → polymathlc/cer's
+    // mistakes.html). One document per worksheet a student makes out of
+    // their own mistake book; the standalone page in the Science repo reads
+    // it and caches the cleaned-up figures back onto it.
+    //
+    // It is a child's own marked work, so the link alone is deliberately not
+    // enough: only the account that made it, or the teacher, can read it.
+    // `owner` is pinned to the creator's uid at create time and the update
+    // may not move it, or a paper could be quietly handed to another account.
+    // ---------------------------------------------------------------
+    match /scanPapers/{paperId} {
+      allow create: if signedIn() && request.resource.data.owner == request.auth.uid;
+      allow read, delete: if isAdmin() || (signedIn() && resource.data.owner == request.auth.uid);
+      allow update: if (isAdmin() || (signedIn() && resource.data.owner == request.auth.uid))
+        && request.resource.data.owner == resource.data.owner;
     }
 
     match /users/{uid} {
       // No documents are stored directly on /users/{uid} today, but keep it
       // owner-locked in case that changes.
       allow read, write: if isOwner(uid) || isAdmin();
+
+      // The Scan app's mistake book — every question this account got wrong
+      // on a photographed paper. It is the account's OWN, nobody else's, and
+      // it is deliberately NOT called `mistakes`: that name is the Science
+      // app's own mistake log under this very same uid, and sharing it would
+      // merge two apps' data with nothing anywhere throwing.
+      match /scanMistakes/{mid} {
+        allow read, write: if isOwner(uid) || isAdmin();
+      }
 
       // Public half of the question bank (no answers). Any signed-in user
       // may read; only admins write (and only into their own bank).
