@@ -5164,6 +5164,10 @@ body.lore-reading { overflow: hidden; }
         <input type="password" id="aiEngineKey" placeholder="sk-..." autocomplete="off" spellcheck="false">
         <p style="color:var(--text-muted);font-size:0.78rem;margin-top:8px;line-height:1.55;">The key is saved only in this browser (localStorage) on this device — never uploaded, synced or committed anywhere. Anyone with this device's developer tools could read it, so paste it only on machines you control. Devices without a key simply keep using Gemini.</p>
       </div>
+      <div class="editor-field"><label>🎙️ Speech</label>
+        <p id="aiEngineMicNote" style="color:var(--text-muted);font-size:0.85rem;line-height:1.65;margin:0;"></p>
+        <p style="color:var(--text-muted);font-size:0.78rem;margin-top:8px;line-height:1.55;">Dictation has its own model and is <b>not</b> switched by the choice above: a speech model transcribes better than a chat model, and the chat model stands behind it so a mic never simply stops working.</p>
+      </div>
     </div>
     <div class="overlay-foot"><button class="btn btn-ghost" data-close="aiEngineOverlay">Cancel</button><button class="btn btn-primary" id="saveAiEngineBtn">Save AI Engine</button></div>
   </div>
@@ -5864,6 +5868,64 @@ try {
 } catch (e) { console.warn("Firebase image AI init failed:", e); }
 const aiReady = () => !!geminiModel;
 const imageAiReady = () => geminiImageModels.length > 0;
+
+// =====================================================================
+// 🎙️ TRANSCRIPTION — ONE MODEL, ONE DOOR
+// ---------------------------------------------------------------------
+// Speech is its own job and it has its own model. `gemini-3.5-transcribe` is
+// asked for every piece of audio this app turns into text — 🎤 Dictate on a
+// question field, and any mic added after it — through `aiTranscribeAudio`,
+// which is the ONE door. A call site that reaches past it to askGeminiVision
+// is a surface still transcribing on the general model, and nothing on any
+// screen would say so: the words come back either way, a little worse.
+//
+// THE MODEL IS A ROUTE, NOT A PROMISE. A model id gets renamed, withdrawn and
+// rolled out region by region, and an id this project cannot reach is a
+// 400/404 on every dictation — which reads as "the mic is broken" rather than
+// "that id is a release out of date". So it is TRIED FIRST with the ordinary
+// text model behind it: a refusal is remembered for AI_TRANSCRIBE_DOWN_MS and
+// the fallback carries the mic meanwhile, rather than every recording paying
+// for the same refusal. A success clears the mark, so the day the id starts
+// answering this app starts using it with nothing redeployed.
+//
+// NO THINKING CONFIG IS SENT. _thinkingConfigFor exists because a level a
+// model does not know is a 400 rather than a worse answer, and a speech model
+// has no reason to know the chat models' scale — so the one call that could
+// break it is deliberately not made. Transcription is reading, not reasoning.
+const AI_TRANSCRIBE_MODEL = "gemini-3.5-transcribe";
+const AI_TRANSCRIBE_DOWN_MS = 10 * 60 * 1000;
+const TRANSCRIBE_PROMPT =
+  "Transcribe the spoken audio to text exactly and accurately. Return ONLY the transcription as plain text " +
+  "with correct spelling, capitalisation and punctuation. Do not translate, summarise, answer, add quotes, " +
+  "labels or commentary. If there is no clear speech, return an empty string.";
+let geminiTranscribeModel = null;
+let _transcribeDownUntil = 0;
+let _transcribeWhy = "";
+function _transcribeModelGet() {
+  if (geminiTranscribeModel) return geminiTranscribeModel;
+  try { geminiTranscribeModel = getGenerativeModel(aiBackend, { model: AI_TRANSCRIBE_MODEL }, AI_REQUEST_OPTIONS); }
+  catch (e) { _transcribeWhy = String((e && e.message) || e); return null; }
+  return geminiTranscribeModel;
+}
+// A model asked for "only the transcription" still hands back a quoted string
+// or a "Transcription:" label often enough to be worth taking off here rather
+// than leaving it in the teacher's field.
+function _transcribeClean(text) {
+  let s = String(text || "").trim();
+  s = s.replace(/^(?:transcription|transcript)\s*[:\-—]\s*/i, "").trim();
+  if (s.length > 1 && /^["'“”]/.test(s) && /["'“”]$/.test(s)) s = s.slice(1, -1).trim();
+  return s;
+}
+// What the AI status line prints about the mic — only what it knows: which
+// model the last recording really went to, and what the dedicated one said
+// the last time it refused.
+function transcribeRouteNote() {
+  if (Date.now() < _transcribeDownUntil) {
+    return "Speech is going through " + AI_MODEL + " for a few minutes: " + AI_TRANSCRIBE_MODEL +
+           " refused a moment ago" + (_transcribeWhy ? " (" + _transcribeWhy + ")" : "") + ".";
+  }
+  return "Speech is transcribed by " + AI_TRANSCRIBE_MODEL + ", with " + AI_MODEL + " behind it.";
+}
 
 function isAiTimeoutError(e) {
   return /abort|timed? ?out|deadline/.test(String((e && e.message) || e || "").toLowerCase());
@@ -8427,6 +8489,11 @@ function openAiEngineSettings() {
   if (kModel) kModel.value = getKimiModel();
   const kKey = $("aiEngineKimiKey");
   if (kKey) kKey.value = getKimiKey();
+  // The mic is its own model and its own failure, so it gets its own line: an
+  // app quietly dictating on the general model looks exactly like one using
+  // the speech model, only a little worse.
+  const micNote = $("aiEngineMicNote");
+  if (micNote) micNote.textContent = "🎙️ " + transcribeRouteNote();
   $("aiEngineOverlay").classList.add("show");
 }
 function saveAiEngineSettings() {
@@ -15316,13 +15383,29 @@ function aiDictateClick(el, btn) {
   if (aiDictation) aiStopDictation();
   else aiStartDictation(el, btn);
 }
+// THE ONE DOOR every recording in this app goes through. The dedicated speech
+// model first; the ordinary text model behind it, so a model id that has been
+// renamed under us costs a worse transcription rather than no mic at all.
 async function aiTranscribeAudio(blob) {
   const data = await aiAudioToWavBase64(blob);
-  const prompt =
-    "Transcribe the speech in this audio recording into clear written text for a teacher filling in a form. " +
-    "Return ONLY the transcription, with sensible capitalization and punctuation and nothing else — no quotes, no labels, no commentary. " +
-    "If the audio has no intelligible speech, return an empty string.";
-  return aiToolsCleanText(await askGeminiVision(prompt, [{ mimeType: "audio/wav", data }], { maxOutputTokens: 2048, json: false }));
+  const media = [{ mimeType: "audio/wav", data }];
+  const model = Date.now() >= _transcribeDownUntil ? _transcribeModelGet() : null;
+  if (model) {
+    try {
+      const parts = [{ text: TRANSCRIBE_PROMPT }, { inlineData: { mimeType: "audio/wav", data } }];
+      const res = await model.generateContent({
+        contents: [{ role: "user", parts }],
+        generationConfig: { maxOutputTokens: 2048, temperature: 0 }
+      });
+      _transcribeDownUntil = 0; _transcribeWhy = "";
+      return _transcribeClean(aiToolsCleanText((res.response.text() || "").trim()));
+    } catch (e) {
+      _transcribeDownUntil = Date.now() + AI_TRANSCRIBE_DOWN_MS;
+      _transcribeWhy = String((e && e.message) || e);
+      console.warn("The " + AI_TRANSCRIBE_MODEL + " route refused — falling back to " + AI_MODEL + ":", e);
+    }
+  }
+  return _transcribeClean(aiToolsCleanText(await askGeminiVision(TRANSCRIBE_PROMPT, media, { maxOutputTokens: 2048, json: false })));
 }
 // Decode the recorded audio and re-encode it as 16 kHz mono WAV, which Gemini
 // reliably accepts (browser MediaRecorder output is webm/mp4, which it may not).
@@ -23626,7 +23709,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.52.0 · 2026-08-23";
+const APP_VERSION = "v1.53.0 · 2026-08-28";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
