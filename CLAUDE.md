@@ -1662,7 +1662,51 @@ ordinary pending question with one extra field.
   QUESTION, its options, its answer and why.
 - Run **`node tools/scanned-question-tests.mjs`** after touching any of it.
 
+## 🎙️ Transcription — ONE MODEL, ONE DOOR (v1.53.0)
+
+`AI_TRANSCRIBE_MODEL` / `AI_TRANSCRIBE_DOWN_MS` / `TRANSCRIBE_PROMPT` /
+`_transcribeModelGet` / `_transcribeClean` / **`aiTranscribeAudio`** /
+`transcribeRouteNote`, plus the 🎙️ Speech line in the 🧠 AI Engine dialog.
+**Every Polymath app that turns speech into text carries this block — ship a
+change to all of them together.**
+
+🎤 Dictate is read by `gemini-3.5-transcribe` now rather than by the chat
+model. `aiTranscribeAudio` is **the ONE door** every recording goes through; a
+call site that reaches past it to `askGeminiVision` is a mic still dictating on
+the general model, and nothing on any screen would say so.
+
+- **THE MODEL IS A ROUTE, NOT A PROMISE.** An id that has been renamed under
+  us is a 400/404 on every recording — "the mic is broken" rather than "that
+  id is out of date" — so it is tried first with `AI_MODEL` behind it, a
+  refusal is remembered for `AI_TRANSCRIBE_DOWN_MS`, and a success clears the
+  mark. That is the same reasoning `AI_FALLBACK_MODELS` already exists for.
+- **NO THINKING CONFIG IS SENT.** `_thinkingConfigFor` exists because a level
+  a model does not know is a 400 rather than a worse answer, and a speech
+  model has no reason to know the chat models' scale — so the one call that
+  could break it is deliberately not made.
+- **`aiAudioToWavBase64` still runs first.** Browser MediaRecorder output is
+  webm or mp4, which the API may refuse; 16 kHz mono WAV it takes. That was
+  true of the chat model and is no less true of the speech one.
+- **The dialog SAYS which model answered** (`transcribeRouteNote`), and says
+  in as many words that dictation is **not** switched by the engine radio
+  above it: a speech model transcribes better than a chat model, and the chat
+  model stands behind it so a mic never simply stops working.
+
 ## House rules
+- After touching **🎙️ transcription** (`AI_TRANSCRIBE_MODEL`,
+  `transcribeAudio`, `_transcribeModelGet`, `_transcribeClean`,
+  `TRANSCRIBE_PROMPT`, `transcribeRouteNote`, or any mic call site), record
+  something and check it comes back. Every failure here is silent in the one
+  direction that matters: a call site that goes back to `askGeminiVision`
+  still transcribes, so the mic keeps working and quietly stops using the
+  speech model — the words are simply a little worse, and nothing anywhere
+  says which model wrote them. Lose the fallback and a model id renamed under
+  us is a 400 on every recording, which reads as "the mic is broken"; lose the
+  down-mark and every recording pays for the same refusal; and send a
+  `thinkingConfig` to a speech model and it is a 400 rather than a worse
+  answer. The census exemption is the other half: a transcriber grounded in
+  the marking standards writes down the answer somebody wanted rather than
+  the one that was spoken.
 - After touching **📷 a question that came off a photograph** (`SCANNED_SOURCE`,
   `vetIsScanned`, the `scanBadge` in `renderVettingList`, or the CSS order of
   `.vet-card.is-new` / `.is-scan` / `.is-picked`), run
