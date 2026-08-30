@@ -215,16 +215,18 @@ def build_roster(write_avatars: bool = True) -> None:
                 if number in HERO_CROPS:
                     source_cell = _keep_largest_component(source_cell)
                 stem = f"c{number:03d}"
+                # Each equal-grid cell can contain a narrow disconnected sliver
+                # from the neighbouring row. Isolate the intended central
+                # silhouette before either export so atlas bleed cannot appear
+                # in collection cards, previews, or battles.
+                isolated_source = _keep_largest_component(source_cell, threshold=40)
                 if write_avatars:
-                    avatar = _fit_subject(source_cell)
+                    avatar = _fit_subject(isolated_source)
                     avatar.save(avatars / f"{stem}.webp", "WEBP", lossless=True, method=6)
                 elif not (avatars / f"{stem}.webp").exists():
                     raise FileNotFoundError(f"Missing preserved battle avatar: {stem}.webp")
 
-                # Equal-grid atlas cells sometimes contain a sliver of the next
-                # row. Clean only the card composite; retained battle-avatar
-                # files stay byte-for-byte untouched by --cards-only.
-                card_avatar = _fit_subject(_keep_largest_component(source_cell, threshold=40))
+                card_avatar = avatar if write_avatars else _fit_subject(isolated_source)
                 card = _story_backdrop(number, ELEMENTS[number - 1])
                 shadow = Image.new("RGBA", card.size, (0, 0, 0, 0))
                 a = card_avatar.getchannel("A").filter(ImageFilter.GaussianBlur(10))
@@ -311,10 +313,16 @@ def build_artifacts() -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Build Aetherfall image assets from the source atlases.")
-    parser.add_argument(
+    build_scope = parser.add_mutually_exclusive_group()
+    build_scope.add_argument(
         "--cards-only",
         action="store_true",
         help="Rebuild card art and apex cards without rewriting transparent battle avatars or unrelated assets.",
+    )
+    build_scope.add_argument(
+        "--roster-only",
+        action="store_true",
+        help="Rebuild card art and isolated battle avatars without rewriting modes, packs, or artifacts.",
     )
     args = parser.parse_args()
 
@@ -322,6 +330,8 @@ if __name__ == "__main__":
     build_apex_cards()
     if args.cards_only:
         print("Created 101 story-backed card artworks; transparent battle avatars were left untouched.")
+    elif args.roster_only:
+        print("Created 101 story-backed card artworks and 101 isolated transparent battle avatars.")
     else:
         build_modes()
         build_packs()

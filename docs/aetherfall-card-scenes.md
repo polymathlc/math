@@ -2,7 +2,7 @@
 
 Every card shows a character in a real place. The environment remains deliberately quiet: one landmark, one ground plane, and at most one distant layer. It gives the illustration narrative context without competing with the silhouette or making the set look procedurally overdesigned.
 
-The card compositor never changes the roster atlas or the transparent battle avatars. Students keep the same collectible IDs, rarities, and ownership records; this art pass only replaces each card's old gradient plate.
+The roster atlas remains the source of truth, but every grid cell is isolated to its largest central silhouette before export. This prevents a neighboring head, weapon, glow, or wing from spilling into another card or battle avatar. Students keep the same collectible IDs, rarities, and ownership records.
 
 ## Meridian Exodus locations
 

@@ -30,9 +30,12 @@ assert.match(slicer, /AETHARI_SCENES/);
 assert.match(slicer, /MANA_SCENES/);
 assert.match(slicer, /apex-seraphine-scene\.png/);
 assert.match(slicer, /--cards-only/);
+assert.match(slicer, /--roster-only/);
+assert.match(slicer, /isolated_source = _keep_largest_component/);
 
 const app = await readFile(path.join(root, 'index.html'), 'utf8');
 assert.match(app, /Never use a flat single-colour field or a gradient-only backdrop/);
 assert.match(app, /one real story-world location/);
+assert.match(app, /TCG_BUNDLED_ART_VERSION = '2026-08-31-scenes-2'/);
 
 console.log('Aetherfall card-scene assets and prompt rules are complete.');

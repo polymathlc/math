@@ -26750,8 +26750,11 @@ async function tcgLoadArt(force) {
 // Every playable slot ships with local art, so a clean install never displays
 // a question mark or emoji placeholder. Admin uploads remain optional overrides.
 const TCG_BUNDLED_ART_ROOT = 'assets/aetherfall';
-function tcgBundledCardUrl(id) { return /^c\d{3}$/.test(String(id || '')) ? TCG_BUNDLED_ART_ROOT + '/cards/' + id + '.webp' : null; }
-function tcgBundledAvatarUrl(id) { return /^c\d{3}$/.test(String(id || '')) ? TCG_BUNDLED_ART_ROOT + '/avatars/' + id + '.webp' : null; }
+// Bump this whenever a bundled roster is repainted or re-sliced. GitHub Pages
+// and school devices otherwise keep the old image bytes under the same URL.
+const TCG_BUNDLED_ART_VERSION = '2026-08-31-scenes-2';
+function tcgBundledCardUrl(id) { return /^c\d{3}$/.test(String(id || '')) ? TCG_BUNDLED_ART_ROOT + '/cards/' + id + '.webp?v=' + TCG_BUNDLED_ART_VERSION : null; }
+function tcgBundledAvatarUrl(id) { return /^c\d{3}$/.test(String(id || '')) ? TCG_BUNDLED_ART_ROOT + '/avatars/' + id + '.webp?v=' + TCG_BUNDLED_ART_VERSION : null; }
 function tcgBundledPackUrl(setKey, tier) {
   return TCG_SETS[setKey] && ['bronze', 'silver', 'gold'].includes(tier)
     ? TCG_BUNDLED_ART_ROOT + '/packs/' + setKey + '-' + tier + '.webp' : null;
