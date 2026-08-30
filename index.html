@@ -26752,7 +26752,7 @@ async function tcgLoadArt(force) {
 const TCG_BUNDLED_ART_ROOT = 'assets/aetherfall';
 // Bump this whenever a bundled roster is repainted or re-sliced. GitHub Pages
 // and school devices otherwise keep the old image bytes under the same URL.
-const TCG_BUNDLED_ART_VERSION = '2026-08-31-scenes-3';
+const TCG_BUNDLED_ART_VERSION = '2026-08-31-scenes-4';
 function tcgBundledCardUrl(id) { return /^c\d{3}$/.test(String(id || '')) ? TCG_BUNDLED_ART_ROOT + '/cards/' + id + '.webp?v=' + TCG_BUNDLED_ART_VERSION : null; }
 function tcgBundledAvatarUrl(id) { return /^c\d{3}$/.test(String(id || '')) ? TCG_BUNDLED_ART_ROOT + '/avatars/' + id + '.webp?v=' + TCG_BUNDLED_ART_VERSION : null; }
 function tcgBundledPackUrl(setKey, tier) {
