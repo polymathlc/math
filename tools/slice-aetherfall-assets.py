@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 from collections import deque
+from collections.abc import Callable
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFilter, ImageOps
 
@@ -109,11 +110,17 @@ ARTIFACT_IDS = [
 
 
 def _cell(im: Image.Image, col: int, row: int, cols: int, rows: int) -> Image.Image:
-    x0 = round(col * im.width / cols)
-    x1 = round((col + 1) * im.width / cols)
-    y0 = round(row * im.height / rows)
-    y1 = round((row + 1) * im.height / rows)
+    x0, y0, x1, y1 = _cell_bounds(im, col, row, cols, rows)
     return im.crop((x0, y0, x1, y1)).convert("RGBA")
+
+
+def _cell_bounds(im: Image.Image, col: int, row: int, cols: int, rows: int) -> tuple[int, int, int, int]:
+    return (
+        round(col * im.width / cols),
+        round(row * im.height / rows),
+        round((col + 1) * im.width / cols),
+        round((row + 1) * im.height / rows),
+    )
 
 
 def _fit_subject(cell: Image.Image, size: int = 384, margin: int = 18) -> Image.Image:
@@ -134,12 +141,36 @@ def _fit_subject(cell: Image.Image, size: int = 384, margin: int = 18) -> Image.
 
 def _keep_largest_component(im: Image.Image, threshold: int = 72) -> Image.Image:
     """Discard neighbouring atlas figures while retaining the main silhouette."""
+    return _keep_scored_component(im, threshold, lambda component: (len(component),))
+
+
+def _keep_core_component(
+    im: Image.Image,
+    core: tuple[int, int, int, int],
+    threshold: int = 72,
+) -> Image.Image:
+    """Keep the component occupying the intended grid cell, including overhang."""
+    x0, y0, x1, y1 = core
+
+    def score(component: list[tuple[int, int]]) -> tuple[int, int]:
+        in_core = sum(x0 <= x < x1 and y0 <= y < y1 for x, y in component)
+        return in_core, len(component)
+
+    return _keep_scored_component(im, threshold, score)
+
+
+def _keep_scored_component(
+    im: Image.Image,
+    threshold: int,
+    score: Callable[[list[tuple[int, int]]], tuple[int, ...]],
+) -> Image.Image:
     alpha = im.getchannel("A")
     solid = alpha.point(lambda v: 255 if v >= threshold else 0)
     w, h = im.size
     pix = solid.load()
     seen = bytearray(w * h)
     best: list[tuple[int, int]] = []
+    best_score: tuple[int, ...] = (-1,)
     for y in range(h):
         for x in range(w):
             idx = y * w + x
@@ -157,8 +188,10 @@ def _keep_largest_component(im: Image.Image, threshold: int = 72) -> Image.Image
                         if not seen[ni] and pix[nx, ny]:
                             seen[ni] = 1
                             q.append((nx, ny))
-            if len(comp) > len(best):
+            component_score = score(comp)
+            if component_score > best_score:
                 best = comp
+                best_score = component_score
     mask = Image.new("L", (w, h), 0)
     mp = mask.load()
     for x, y in best:
@@ -167,6 +200,25 @@ def _keep_largest_component(im: Image.Image, threshold: int = 72) -> Image.Image
     cleaned = im.copy()
     cleaned.putalpha(Image.composite(alpha, Image.new("L", (w, h), 0), mask))
     return cleaned
+
+
+def _expanded_cell(
+    sheet: Image.Image,
+    col: int,
+    row: int,
+    cols: int,
+    rows: int,
+    overlap: float = 0.22,
+) -> Image.Image:
+    """Recover hair, capes, weapons, and effects that overhang a tight atlas cell."""
+    x0, y0, x1, y1 = _cell_bounds(sheet, col, row, cols, rows)
+    pad_x = round((x1 - x0) * overlap)
+    pad_y = round((y1 - y0) * overlap)
+    ex0, ey0 = max(0, x0 - pad_x), max(0, y0 - pad_y)
+    ex1, ey1 = min(sheet.width, x1 + pad_x), min(sheet.height, y1 + pad_y)
+    expanded = sheet.crop((ex0, ey0, ex1, ey1)).convert("RGBA")
+    core = (x0 - ex0, y0 - ey0, x1 - ex0, y1 - ey0)
+    return _keep_core_component(expanded, core, threshold=40)
 
 
 def _story_backdrop(number: int, element: str, size: int = 384) -> Image.Image:
@@ -211,7 +263,7 @@ def build_roster(write_avatars: bool = True) -> None:
                 number = start + row * cols + col
                 if number > 101:
                     continue
-                source_cell = sheet.crop(HERO_CROPS[number]).convert("RGBA") if number in HERO_CROPS else _cell(sheet, col, row, cols, rows)
+                source_cell = sheet.crop(HERO_CROPS[number]).convert("RGBA") if number in HERO_CROPS else _expanded_cell(sheet, col, row, cols, rows)
                 if number in HERO_CROPS:
                     source_cell = _keep_largest_component(source_cell)
                 stem = f"c{number:03d}"
@@ -219,7 +271,7 @@ def build_roster(write_avatars: bool = True) -> None:
                 # from the neighbouring row. Isolate the intended central
                 # silhouette before either export so atlas bleed cannot appear
                 # in collection cards, previews, or battles.
-                isolated_source = _keep_largest_component(source_cell, threshold=40)
+                isolated_source = _keep_largest_component(source_cell, threshold=40) if number in HERO_CROPS else source_cell
                 if write_avatars:
                     avatar = _fit_subject(isolated_source)
                     avatar.save(avatars / f"{stem}.webp", "WEBP", lossless=True, method=6)
