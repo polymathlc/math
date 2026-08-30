@@ -1714,6 +1714,16 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .graph-spawn-menu .sm-ico { font-size: 1.05rem; line-height: 1.1; }
 .graph-spawn-menu .sm-title { display: block; font-weight: 600; font-size: 0.86rem; color: var(--text); }
 .graph-spawn-menu .sm-sub { display: block; font-size: 0.72rem; color: var(--text-muted); line-height: 1.3; }
+/* 🪄 The command box in the question creator — see TELL THE AI WHAT TO CHANGE. */
+.qcmd-panel { background: var(--surface, #fff); border: 1px solid var(--border, #e2e8f0); border-left: 4px solid var(--primary, #4a7c59);
+              border-radius: 14px; padding: 20px 22px; margin-bottom: 22px; max-width: 880px; }
+.qcmd-panel h4 { margin: 0 0 8px; font-size: 1rem; font-weight: 700; }
+.qcmd-panel .qcmd-intro { margin: 0 0 16px; font-size: 0.86rem; line-height: 1.65; color: var(--text-muted, #6b7280); }
+.qcmd-panel textarea { width: 100%; box-sizing: border-box; padding: 12px 14px; border: 1px solid var(--border, #e2e8f0);
+                       border-radius: 10px; font-family: inherit; font-size: 0.92rem; line-height: 1.6; resize: vertical; }
+.qcmd-panel textarea:disabled { background: var(--bg, #f6f7f9); color: var(--text-muted, #6b7280); }
+.qcmd-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 14px; }
+.qcmd-status { font-size: 0.83rem; color: var(--text-muted, #6b7280); min-height: 18px; }
 .regen-split { display: inline-flex; align-items: stretch; }
 .regen-split #regenQBtn { border-top-right-radius: 0; border-bottom-right-radius: 0; }
 .regen-split .regen-caret { border-top-left-radius: 0; border-bottom-left-radius: 0; border-left: 0; padding: 11px 9px; }
@@ -4662,6 +4672,25 @@ body.lore-reading { overflow: hidden; }
         <!-- Raised by checkEditorDuplicate whenever what is in the editor looks
              like a question already in the bank or already waiting in vetting. -->
         <div class="dup-warn" id="dupWarnBanner"></div>
+        <!-- 🪄 TELL THE AI WHAT TO CHANGE — see THE COMMAND BOX IN THE QUESTION
+             CREATOR. Reads the question open in this editor, follows the
+             instructions typed here, and redraws the figure from the figure
+             already on it. Nothing is saved until 💾 Save is pressed. -->
+        <div class="qcmd-panel" id="qcmdPanel">
+          <h4>🪄 Tell the AI what to change</h4>
+          <p class="qcmd-intro">
+            Makes a <strong>new question</strong> out of the one open in this editor. What you type decides how the wording
+            changes — and where the new wording no longer fits the figure, the diagram is <strong>redrawn from the diagram
+            already on this question</strong>. The original is never touched, and nothing is saved until you press
+            💾 Save. Leave it empty and use 🔄 Regenerate variant instead for a plain variant.
+          </p>
+          <textarea id="qcmdInput" rows="3" maxlength="600"
+                    placeholder="e.g. Change the cylinder to a cone and make the radius 7 cm · Swap the context to a bakery and change every number · Make it one step harder · Redraw the bar model with four units instead of three"></textarea>
+          <div class="qcmd-row">
+            <button class="btn btn-primary" id="qcmdRunBtn" type="button">🪄 Make the new question</button>
+            <span class="qcmd-status" id="qcmdStatus" role="status" aria-live="polite"></span>
+          </div>
+        </div>
         <div class="editor-grid">
           <div class="editor-field"><label>Title</label><input id="qTitleInput" type="text" placeholder="e.g. Fractions — pizza left over"></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
@@ -14158,10 +14187,156 @@ window.addEventListener("beforeunload", e => {
 // makes sense (numbers work out, solvable, unambiguous) and writes the verified
 // answer key before anything is shown. Rejected variants are retried with the
 // checker's feedback so the numbers get fixed.
+
+// =====================================================================
+// 🪄 TELL THE AI WHAT TO CHANGE — the command box in the question creator
+// =====================================================================
+// A box at the top of the editor: say what you want different, and the question
+// open in front of you comes back as a NEW one. The instructions decide the
+// wording — and, where the new wording no longer fits the figure, the picture is
+// REDRAWN FROM THE PICTURE ALREADY ON IT rather than invented from nothing.
+//
+//  • THE ORIGINAL IS NEVER TOUCHED. The variant is loaded back into the editor
+//    as a NEW question (the editor's editing id is cleared), so Save adds one
+//    rather than overwriting the question it came from, and nothing reaches the
+//    bank until the author presses Save. That is the whole reason this is a box
+//    in the creator rather than a button that writes a copy behind your back.
+//  • THE PICTURE IS AN EDIT, NEVER A NEW DRAWING. The existing figure is the
+//    reference image on every image call and the model is told to change only
+//    what the instruction names. A figure drawn from scratch comes back in a
+//    different style, at a different size, with labels nobody asked for — and it
+//    is a fresh picture of the same thing, which is exactly what an author with
+//    a scanned exam figure does not want.
+//  • A PICTURE THAT COULD NOT BE REDRAWN IS KEPT, AND SAID SO IN WORDS. The one
+//    silent failure this feature can produce is a question whose new wording
+//    talks about a figure still showing the old numbers — it prints perfectly
+//    and is only found in front of a class — so a refused or failed redraw is
+//    reported rather than swallowed. The picture is never dropped either: a
+//    question with no figure at all is worse than one with the old figure.
+//  • WHICH PICTURE a change belongs to is POSITIONAL. `diagramChanges` carries
+//    one entry per image placeholder, in order, so a model that answers about
+//    picture 2 alone can never have that change applied to picture 1 — the
+//    wrong figure redrawn is the mistake nothing on screen would reveal.
+//  • Run `node tools/ai-command-tests.mjs` after touching any of it.
+const QCMD_MAX_CHARS = 600;   // one instruction, not an essay
+const QCMD_MAX_REF   = 4;     // how many of the question's pictures the reading call sees
+
+// A model asked "what must change in this picture?" answers "none", "-", "N/A"
+// and "no change" at least as often as it returns an empty string, and every one
+// of those, treated as an INSTRUCTION, hands the image model a word to paint
+// into the figure. So the empty answer is recognised in all its spellings.
+const QCMD_NO_CHANGE_RE = /^(?:-+|—+|n\/?a|none|no|nil|null|undefined|false|no change|nochange|unchanged|not changed|same|the same|keep|keep it|keep the same|keep as is|as is|no changes needed|not applicable)[.!。]?$/i;
+function qcmdNeedsRedraw(change) {
+  // An instruction is TEXT. A number, an object or an array arriving here is a
+  // model that answered in the wrong shape, and `String()`-ing it would hand the
+  // image model "12" or "[object Object]" to draw into somebody's figure.
+  if (typeof change !== 'string') return false;
+  const s = change.trim();
+  return !!s && !QCMD_NO_CHANGE_RE.test(s);
+}
+
+// One entry per picture, in the order the picture placeholders appear. A short
+// reply is padded with "" and a long one is cut: a change is applied to the
+// picture at its OWN index or to no picture at all.
+function qcmdChangesFor(parsed, imageCount) {
+  const raw = parsed && (parsed.diagramChanges != null ? parsed.diagramChanges : parsed.diagramChange);
+  const list = Array.isArray(raw) ? raw : (raw == null ? [] : [raw]);
+  const n = Math.max(0, imageCount | 0);
+  const out = [];
+  for (let i = 0; i < n; i++) out.push(qcmdNeedsRedraw(list[i]) ? String(list[i]).trim() : '');
+  return out;
+}
+
+// What the image model is told. Everything here exists to keep the reply a
+// version of the SAME figure: an image model handed a loose brief redraws the
+// subject in its own style, and a question then carries a picture that no longer
+// looks like it came off the paper it was scanned from.
+const QCMD_DIAGRAM_RULES =
+  'You are EDITING one existing exam-paper figure. The picture attached IS that figure. ' +
+  'Redraw it with ONLY the change described below applied, and keep everything else identical: the same layout and composition, the same drawing style and line weight, the same lettering, the same labels, arrows and shading, the same proportions and the same aspect ratio. ' +
+  'Do NOT restyle it, do NOT make it photo-realistic, do NOT add shading, gradients, textures, colour or a 3-D look the figure does not already have, and do NOT add, move, resize or remove anything the change does not ask for. ' +
+  'Never invent a label, number, unit, axis value or arrow the change does not name, and never add a title, caption, border or watermark. ' +
+  'The result must read as the same figure from the same paper with one thing altered. Output ONLY the image.';
+
+function qcmdDiagramPrompt(change) {
+  return QCMD_DIAGRAM_RULES + '\n\nTHE ONE CHANGE TO MAKE: ' + String(change == null ? '' : change).trim();
+}
+
+// The paragraph the BUILD prompt gains when the question has pictures. It is
+// what makes "diagramChanges" positional and what stops the model asking for a
+// picture to be drawn from nothing.
+function qcmdDiagramPromptRules(n, placeholders) {
+  const one = n === 1;
+  return `- THE PICTURE${one ? '' : 'S'}. This question has ${n} picture${one ? '' : 's'}, and the teacher's own picture${one ? ' is' : 's are'} attached.\n` +
+    (placeholders === false ? '' :
+      `- ${one ? 'It is' : 'They are'} reused automatically, so keep one "image" placeholder for EVERY one of them, in the same position as the original.\n`) +
+    `- A picture can be REDRAWN from the teacher's original. For EACH picture, in order, decide whether your new wording still fits it exactly. If it does, leave that picture alone. If your new numbers, labels or objects — or the teacher's instructions — mean the figure would no longer match the question, say what must be different about it.\n` +
+    `- Put that in "diagramChanges": an array of EXACTLY ${n} entr${one ? 'y' : 'ies'}, one per picture, in the SAME ORDER as the pictures appear in the question. Entry i is either an empty string "" (picture i stays exactly as it is) or a short instruction describing ONLY what must be different in picture i, written as an EDIT of the existing picture — e.g. "change the label on the left beaker from 20 °C to 55 °C and leave everything else identical".\n` +
+    `- An entry is never a description of a whole new picture, never asks for a restyle, a new layout or a new drawing style, and never asks for a picture the original does not have. If nothing about the figures changes, return ${n} empty string${one ? '' : 's'}.\n`;
+}
+
+// The sentence the author is told afterwards. A redraw that failed must be
+// NAMED: silence there is a question whose wording and figure disagree.
+function qcmdSummary(r) {
+  const bits = [];
+  const redrawn = Math.max(0, (r && r.redrawn) | 0), kept = Math.max(0, (r && r.kept) | 0);
+  if (redrawn) bits.push(redrawn === 1 ? 'the picture was redrawn' : redrawn + ' pictures were redrawn');
+  if (kept) bits.push(kept === 1
+    ? 'one picture could NOT be redrawn and was kept exactly as it was — check the wording still matches it'
+    : kept + ' pictures could NOT be redrawn and were kept exactly as they were — check the wording still matches them');
+  return bits.join('; ');
+}
+
+// ---- the app-side half ----------------------------------------------
+let _qcmdBusy = false;
+
+function qcmdStatus(msg) {
+  const el = $("qcmdStatus");
+  if (el) el.textContent = msg || "";
+}
+
+function _qcmdSetBusy(busy) {
+  _qcmdBusy = !!busy;
+  const btn = $("qcmdRunBtn");
+  if (btn) { btn.disabled = !!busy; btn.innerHTML = busy ? '<span class="spinner dark"></span> Working…' : "🪄 Make the new question"; }
+  const ta = $("qcmdInput");
+  if (ta) ta.disabled = !!busy;
+  if (!busy) qcmdStatus("");
+}
+
+// The ONE place a picture is redrawn. Reads the picture that is on the question
+// now, hands it to the image model as the reference, and returns the URL of the
+// result — so every redraw here is an edit of the author's own figure.
+async function qcmdRedrawDiagram(url, change) {
+  if (!imageAiReady()) throw new Error("the image AI is not available in this project");
+  const dataUrl = await _urlToDataUrlRobust(transformImageUrl(url));
+  const parsed = _parseImageDataUrl(dataUrl);
+  if (!parsed) throw new Error("the existing picture could not be read");
+  const out = await generateEnhancedImageDataUrl(qcmdDiagramPrompt(change), [{ mimeType: parsed.mime, data: dataUrl.split(",")[1] || "" }]);
+  return await uploadImageDataUrl(out);
+}
+
+// The command box itself. It is deliberately the SAME door as 🔄 Regenerate
+// variant — instructions and all — so the checker subagent, the MCQ handling
+// and the save-as-a-new-question rule are written once.
+async function qcmdRun() {
+  if (!canManageQuestions()) { toast("Only admin accounts can regenerate questions", "error"); return; }
+  if (_qcmdBusy) return;
+  const input = $("qcmdInput");
+  const instruction = String(input ? input.value : "").trim().slice(0, QCMD_MAX_CHARS);
+  // An empty box is refused rather than quietly meaning "vary it somehow" —
+  // 🔄 Regenerate variant beside it already is that button.
+  if (!instruction) { toast("Type what you want changed first — 🔄 Regenerate variant is the no-instructions version", "error"); if (input) input.focus(); return; }
+  await regenerateQuestionVariant("same", instruction);
+}
+
 function setRegenBusy(busy) {
   const btn = $("regenQBtn"), label = $("regenQLabel");
   btn.disabled = busy;
   label.innerHTML = busy ? '<span class="spinner dark"></span> Regenerating…' : "🔄 Regenerate variant";
+  // The 🪄 command box is the same door, so it goes busy with it — two buttons
+  // that can both start the one job is two jobs racing over one editor.
+  _qcmdSetBusy(busy);
 }
 // Checker subagent: a separate AI call (on the pro model) that independently
 // re-solves a freshly generated variant and decides whether it actually makes
@@ -14187,7 +14362,13 @@ async function verifyGeneratedQuestion(variant, media) {
   // fails with "Unexpected end of JSON input".
   return parseAIJson(await askGeminiVision(prompt, media, { maxOutputTokens: 4096, json: true, models: geminiRegenModels, modelNames: AI_REGEN_MODEL_NAMES, thinkingBudget: -1 }));
 }
-async function regenerateQuestionVariant(difficulty = "same") {
+// `instruction` is what the 🪄 command box typed. Blank is the plain
+// 🔄 Regenerate variant this function has always been, byte for byte: the
+// diagram paragraph below still forbids touching the figure, and nothing asks
+// for a redraw. With instructions it is the teacher speaking, so they outrank
+// the defaults — and the figure may then be REDRAWN from the figure already
+// on the question.
+async function regenerateQuestionVariant(difficulty = "same", instruction = "") {
   if (!canManageQuestions()) { toast("Only admin accounts can regenerate questions", "error"); return; }
   if (!aiReady()) { toast("AI isn't ready yet — please wait a moment", "error"); return; }
   const diff = (difficulty === "easier" || difficulty === "harder") ? difficulty : "same";
@@ -14201,7 +14382,12 @@ async function regenerateQuestionVariant(difficulty = "same") {
   const variantRootId = currentEditingId ? (q.variantOf || q.id) : "";
   const sourceText = editorBlocks.filter(b => b.type === "text").map(b => (b.content || "").trim()).filter(Boolean).join("\n\n");
   const hasDiagram = editorBlocks.some(b => b.type === "image");
-  const diagramUrl = (editorBlocks.find(b => b.type === "image" && (b.url || "").trim()) || {}).url || "";
+  // Every picture the question carries, in order. `diagramChanges` is POSITIONAL
+  // against this list, so it is the one list the reading call, the redraw loop
+  // and the prompt all count from.
+  const imgBlocks = editorBlocks.filter(b => b.type === "image" && (b.url || "").trim());
+  const diagramUrl = (imgBlocks[0] || {}).url || "";
+  const note = String(instruction || "").trim().slice(0, QCMD_MAX_CHARS);
   if (!sourceText && !hasDiagram) { toast("Add or build a question first, then regenerate a variant", "error"); return; }
   setRegenBusy(true);
   try {
@@ -14221,9 +14407,20 @@ async function regenerateQuestionVariant(difficulty = "same") {
           : `Create a NEW version of THE SAME question that tests the exact same concept, method, structure, number of steps and difficulty, but is clearly different: change the people's names, the objects/context, and the numbers, quantities and proportions WHERE IT MAKES SENSE. `
       ) +
       `Keep the numbers clean and realistic so everything still works out neatly, and keep the wording natural.\n` +
+      (note
+        ? `TEACHER'S INSTRUCTIONS for this new question — follow them closely, and let them override the guidance above wherever the two disagree: ${note}\n`
+        : ``) +
       (hasDiagram
-        ? `IMPORTANT: this question relies on a figure/diagram that you CANNOT redraw, so the diagram stays exactly as it is${diagramUrl ? " (it is attached)" : ""}. ` +
-          `Do NOT change any length, angle, measurement or value that is read from or fixed by the diagram — only change things that are independent of the figure (such as names or context), and make sure the new wording still matches the diagram.\n`
+        // `imgBlocks` and not `hasDiagram`: an image block with no picture in it
+        // yet is a figure the model cannot see and cannot be asked to edit.
+        ? (note && imgBlocks.length
+            // With instructions the figure is no longer frozen: it is redrawn FROM
+            // the figure already on the question, and the model says what must
+            // differ in it, one entry per picture.
+            ? `THE FIGURE${imgBlocks.length === 1 ? "" : "S"}: this question relies on ${imgBlocks.length === 1 ? "a figure/diagram" : imgBlocks.length + " figures/diagrams"}, attached. A figure CAN now be redrawn — as an EDIT of the attached one, never as a new drawing.\n` +
+              qcmdDiagramPromptRules(imgBlocks.length, false)
+            : `IMPORTANT: this question relies on a figure/diagram that you CANNOT redraw, so the diagram stays exactly as it is${diagramUrl ? " (it is attached)" : ""}. ` +
+              `Do NOT change any length, angle, measurement or value that is read from or fixed by the diagram — only change things that are independent of the figure (such as names or context), and make sure the new wording still matches the diagram.\n`)
         : ``) +
       `Then act as a careful checker: confirm the new question is complete, unambiguous and solvable, solve it yourself, and write the answer key. ` +
       `If anything does not work out (numbers no longer divide nicely, the diagram no longer fits, etc.) set "ok" to false and explain in "issues"; otherwise set "ok" to true and leave "issues" empty.\n` +
@@ -14239,10 +14436,14 @@ async function regenerateQuestionVariant(difficulty = "same") {
       `"questionText":"<full new question text>","expected":"<the correct final answer, with units>",` +
       `"markingGuide":"<full worked solution and what to look for in the working — this is the answer key>"` +
       (isMcq ? `,"options":["<option 1>","<option 2>", ...],"correctOption":<0-based index of the correct option>` : ``) +
+      (note && imgBlocks.length ? `,"diagramChanges":[${new Array(imgBlocks.length).fill('""').join(",")}]` : ``) +
       `}`;
+    // With instructions every figure is in play, so the model sees them all (up
+    // to QCMD_MAX_REF). Without them this is exactly what it always was: the one
+    // diagram, attached so the new wording keeps fitting it.
     let media = [];
-    if (diagramUrl) {
-      try { const m = await imageUrlToInlineMedia(diagramUrl); if (m) media = [m]; }
+    for (const u of (note ? imgBlocks.slice(0, QCMD_MAX_REF).map(b => b.url) : (diagramUrl ? [diagramUrl] : []))) {
+      try { const m = await imageUrlToInlineMedia(u); if (m) media.push(m); }
       catch (e) { console.warn("diagram could not be attached for regeneration", e); }
     }
 
@@ -14259,10 +14460,16 @@ async function regenerateQuestionVariant(difficulty = "same") {
       const genText = String(gen.questionText || "").trim();
       if (!genText) throw new Error("the AI did not return a new question");
 
+      // Which pictures the model says must change — positional, one per picture.
+      const changes = note ? qcmdChangesFor(gen, imgBlocks.length) : new Array(imgBlocks.length).fill("");
+      const willRedraw = changes.some(Boolean);
+      // A figure that is about to be redrawn is NOT the figure this question will
+      // carry, so showing it to the checker makes it reject a perfectly good
+      // variant for not matching a picture that is on its way out.
       const check = await verifyGeneratedQuestion({
         title: gen.title || q.title, questionText: genText, expected: gen.expected, markingGuide: gen.markingGuide,
         level: q.level, topic: q.topic, concept: q.concept
-      }, media);
+      }, willRedraw ? [] : media);
       const sane = check.makesSense !== false && !String(check.issues || "").trim();
       // When the checker is satisfied, trust its independently re-derived answer key.
       chosen = {
@@ -14272,6 +14479,7 @@ async function regenerateQuestionVariant(difficulty = "same") {
         markingGuide: String((sane && check.markingGuide) || gen.markingGuide || check.markingGuide || "").trim(),
         options: isMcq && Array.isArray(gen.options) ? gen.options.map(o => String(o == null ? "" : o).trim()).filter(Boolean) : [],
         correctOption: isMcq && Number.isInteger(gen.correctOption) ? gen.correctOption : 0,
+        diagramChanges: changes,
       };
       if (sane) { verified = true; lastIssues = ""; break; }
       lastIssues = String(check.issues || "").trim() || "the numbers didn't check out";
@@ -14291,6 +14499,32 @@ async function regenerateQuestionVariant(difficulty = "same") {
     }
     if (!replacedText) rebuilt.unshift({ id: genBlockId(), type: "text", content: newText });
     editorBlocks = rebuilt;
+
+    // …and now the pictures. Each one is an EDIT of the picture already on the
+    // question, and a picture that could not be redrawn is KEPT and reported —
+    // never dropped, and never left unmentioned, because a question whose new
+    // wording talks about a figure still showing the old numbers prints
+    // perfectly and is only found in front of a class.
+    let picsRedrawn = 0, picsKept = 0;
+    const wanted = Array.isArray(chosen.diagramChanges) ? chosen.diagramChanges : [];
+    if (wanted.some(Boolean)) {
+      const live = editorBlocks.filter(b => b.type === "image" && (b.url || "").trim());
+      for (let i = 0; i < wanted.length; i++) {
+        if (!wanted[i]) continue;
+        const b = live[i];
+        if (!b) continue;
+        qcmdStatus(`Redrawing picture ${i + 1}…`);
+        try {
+          _imgSeedOriginal(b.id);        // so "↩ Use original" can still get back
+          b.url = await qcmdRedrawDiagram(b.url, wanted[i]);
+          picsRedrawn++;
+        } catch (e) {
+          console.warn("the picture could not be redrawn", e);
+          picsKept++;
+        }
+      }
+      qcmdStatus("");
+    }
 
     // A variant is saved as a NEW question so the original is never overwritten;
     // remember which original it came from so practice can serve it on a miss.
@@ -14319,8 +14553,9 @@ async function regenerateQuestionVariant(difficulty = "same") {
     navigateTo("create");
 
     const diffWord = diff === "easier" ? "easier " : diff === "harder" ? "harder " : "";
-    if (verified) toast(`New ${diffWord}variant ready — a second AI pass checked the numbers and wrote the verified answer key. Review and save as a new question.`, "success");
-    else toast(`${diffWord ? diffWord.charAt(0).toUpperCase() + diffWord.slice(1) : ""}Variant ready, but the checker still flagged: ` + lastIssues + " — please double-check the numbers before saving.", "error");
+    const picNote = qcmdSummary({ redrawn: picsRedrawn, kept: picsKept });
+    if (verified) toast(`New ${diffWord}variant ready — a second AI pass checked the numbers and wrote the verified answer key. Review and save as a new question.` + (picNote ? ` (${picNote})` : ""), picsKept ? "error" : "success");
+    else toast(`${diffWord ? diffWord.charAt(0).toUpperCase() + diffWord.slice(1) : ""}Variant ready, but the checker still flagged: ` + lastIssues + " — please double-check the numbers before saving." + (picNote ? ` (${picNote})` : ""), "error");
   } catch (e) {
     console.error(e);
     toast("Regenerate failed: " + aiErrorMessage(e), "error");
@@ -14329,6 +14564,7 @@ async function regenerateQuestionVariant(difficulty = "same") {
   }
 }
 $("regenQBtn").addEventListener("click", () => regenerateQuestionVariant("same"));
+$("qcmdRunBtn").addEventListener("click", () => qcmdRun());
 $("regenQCaret").addEventListener("click", () => openDifficultyMenu($("regenQCaret"), d => regenerateQuestionVariant(d)));
 
 // =====================================================================
@@ -23709,7 +23945,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.53.0 · 2026-08-28";
+const APP_VERSION = "v1.54.0 · 2026-08-30";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
