@@ -175,7 +175,12 @@ test('a blank page is an outcome, not a failure', () => {
   ok(/blank: true/.test(body), 'processRapidJob does not report a blank page back to the PDF feeder');
   ok(/return \{ added: added\.length \}/.test(body), 'processRapidJob does not report how many questions it added');
   ok(/rapidPayloads\(/.test(body), 'processRapidJob reads one question out of a whole page again');
-  ok(/whole: !many/.test(body), 'the whole-screenshot backup is no longer held back on a multi-question page');
+  // Every question on a multi-question page must end up with SOMETHING in its
+  // picture slot. An empty one reaches Vetting wearing "Diagram missing", and
+  // the only way back is to go and find the paper again.
+  ok(/sharePage/.test(body), 'a multi-question page no longer falls back to the whole page — its questions land with an empty picture slot');
+  ok(/_cleanToBlackAndWhite/.test(body) && /_pagePromise/.test(body), 'the whole page is not prepared ONCE and shared — five questions would each pay to clean the same sheet');
+  ok(/diagramWhole/.test(body), 'a question wearing the whole page is not marked, so its card reads as finished work');
 });
 
 // ── the door ────────────────────────────────────────────────────────────────

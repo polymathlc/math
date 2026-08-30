@@ -12613,6 +12613,8 @@ function aiQuestionReadPrompt(isPdf, withBox = false, many = false) {
         `  • The test: if you deleted every other question on the page, would this one still make complete sense on its own? If yes they are separate questions; if no they belong together as one.\n` +
         `  • A cover page, an instructions page, a blank page or an answer key with no question wording holds NO questions — return {"questions":[]} for it.\n` +
         `  • NEVER write the paper's own question number into "questionText": a bank question stands on its own, and one that opens at "24." reads as though twenty-three are missing. Put it in "number" instead.\n` +
+        `  • EVERY entry that sets "hasDiagram" true MUST carry its own "diagramBox". A figure is drawn on the page, not on a question, so ONE figure printed above SEVERAL questions belongs to EVERY one of them: each of those entries sets hasDiagram true and each repeats the SAME rectangle. Never leave the second question's diagramBox null because the first one already has it — a question whose figure is missing cannot be answered at all.\n` +
+        `  • If a question genuinely relies on no figure, set hasDiagram false and diagramBox null. Do not set hasDiagram true and leave the rectangle out.\n` +
         `Read every question carefully and return ONLY valid JSON in this exact shape — one entry per question, in the order they appear on the page. Escape any line breaks inside string values as \\n and do not include markdown fences:\n` +
         `{"questions":[` + one + `]}`
       : `Read the question carefully and return ONLY valid JSON in this exact shape. Escape any line breaks inside string values as \\n and do not include markdown fences:\n` + one);
@@ -13151,6 +13153,12 @@ function renderVettingList() {
       ? `<span class="vet-badge warn">No answer key</span>` : "";
     const gap = (q.blocks || []).some(b => b.type === "image" && !(b.url || "").trim())
       ? `<span class="vet-badge warn">Diagram missing</span>` : "";
+    // A WHOLE PAGE sitting in a picture slot looks exactly like a figure
+    // somebody has already cropped — which on a vetting card reads as finished
+    // work, and the question is then approved into the bank showing the whole
+    // sheet. It has to say so.
+    const wholePic = (!gap && q.diagramWhole)
+      ? `<span class="vet-badge warn" title="No rectangle came back for this question's figure, so the whole page is in the picture slot. Open ✎ Edit and use ✂️ Crop.">🖼 Whole page — crop it</span>` : "";
     // What the AI filed it under. Auto-filing happens without an editor stop, so
     // the objectives have to be visible on the card — this is where they get
     // checked before the question goes into the bank.
@@ -13170,7 +13178,7 @@ function renderVettingList() {
       <div class="vet-meta">
         <span class="vet-badge">${escapeHtml(q.level || "no level")}</span>
         <span class="vet-badge">${escapeHtml(adminTopicsLabel(q))}</span>
-        ${scanBadge}${los}${loGap}${noAns}${gap}${dup}
+        ${scanBadge}${los}${loGap}${noAns}${gap}${wholePic}${dup}
       </div>
       <div class="vet-preview">${vetPreviewHtml(q)}</div>
       <div class="vet-actions">
@@ -14001,8 +14009,29 @@ async function processRapidJob(jobId, file, batchLevel, opts) {
     }
     const many = rows.length > 1;
 
+    // THE WHOLE PAGE, PREPARED ONCE. On a page of five questions, every one of
+    // them whose rectangle came back unusable falls back to this — so the page
+    // is cleaned and uploaded on the FIRST question that needs it and the URL
+    // is handed to the rest. Five separate clean-ups of the same sheet is five
+    // image-model calls for one picture; five separate uploads is five copies
+    // of it in Storage.
+    let _pagePromise = null;
+    const sharePage = () => (_pagePromise || (_pagePromise = (async () => {
+      const full = "data:" + media.mimeType + ";base64," + media.data;
+      try {
+        // Cleaned, because the author is going to look at it and crop it: a
+        // grey photocopy of a whole sheet is very hard to cut a figure out of.
+        const cleaned = await _cleanToBlackAndWhite(full);
+        return { url: await uploadDataUrlToStorage(cleaned, "mathImages"), dataUrl: cleaned };
+      } catch (e) {
+        console.warn("whole-page backup clean-up failed; attaching the page as it is", e);
+        try { return { url: await uploadDataUrlToStorage(full, "mathImages"), dataUrl: full }; }
+        catch (e2) { console.warn("whole-page backup upload failed", e2); return null; }
+      }
+    })()));
+
     const added = [];
-    let filedTotal = 0, picNote = "";
+    let filedTotal = 0, picNote = "", wholePages = 0;
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const q = questionFromAiData(row);
@@ -14027,11 +14056,11 @@ async function processRapidJob(jobId, file, batchLevel, opts) {
       renderVettingList();
 
       // The diagram: crop the rectangle the AI drew for THIS question out of
-      // the screenshot — never the reply's, or five questions on one page would
-      // share the first one's picture. If it gave no usable rectangle, attach
-      // the WHOLE screenshot instead… except on a page of several, where that
-      // would give every one of them the same whole-page picture, which is
-      // worse than no picture at all.
+      // the page — never the reply's, or five questions on one page would all
+      // wear the first one's picture. No usable rectangle → the WHOLE page,
+      // which is one ✂️ crop away from being right; an EMPTY picture block is
+      // not an outcome, it is a question that reaches Vetting with a hole in
+      // it and nothing but the paper to fix it from.
       const imgBlock = q.blocks.find(b => b.type === "image");
       if (imgBlock) {
         // ONE door, shared with ✨ Build with AI: cut it out, check the cut,
@@ -14041,7 +14070,11 @@ async function processRapidJob(jobId, file, batchLevel, opts) {
           const r = await autoDiagramIntoBlock(imgBlock, row.diagramBox || row.box_2d, media, m => {
             setRapidJobState(jobId, { title: q.title || "Question", sub: lead + m });
             renderVettingList();
-          }, { whole: !many });
+          }, many ? { sharePage } : {});
+          // A whole page in a picture slot looks exactly like a figure somebody
+          // has already cropped, so the question is MARKED and the vetting card
+          // says so — otherwise it is approved into the bank uncropped.
+          if (r.whole || (r.url && !r.cropped)) { q.diagramWhole = true; wholePages++; }
           if (!r.cropped || !r.url) picNote = " — " + autoDiagramNote(r);
         } catch (e) { console.warn("rapid diagram failed", e); picNote = " — the picture could not be attached"; }
       }
@@ -14071,9 +14104,10 @@ async function processRapidJob(jobId, file, batchLevel, opts) {
     // are already visible as vetting cards either way.
     if (!o.source) {
       const what = many ? `${added.length} separate questions` : `“${added[0].title || "question"}”`;
+      const uncropped = wholePages ? ` — ${wholePages} picture${wholePages === 1 ? "" : "s"} came back as the whole page, crop ${wholePages === 1 ? "it" : "them"} by hand` : "";
       // The level is named back to the author. Filing at a level they chose and
       // never confirming it is how a whole pile ends up at the wrong one.
-      setRapidStatus(`✓ Added ${what}${batchLevel ? ` at ${batchLevel}` : ""} to vetting${filedTotal ? ` — filed under ${filedTotal} objective${filedTotal === 1 ? "" : "s"}` : ""}${picNote}.`);
+      setRapidStatus(`✓ Added ${what}${batchLevel ? ` at ${batchLevel}` : ""} to vetting${filedTotal ? ` — filed under ${filedTotal} objective${filedTotal === 1 ? "" : "s"}` : ""}${uncropped || picNote}.`);
     }
     return { added: added.length };
   } catch (err) {
@@ -14495,17 +14529,26 @@ async function _cleanToBlackAndWhite(dataUrl) {
 
 // THE ONE DOOR. Fills one image block from the rectangle the model drew on the
 // screenshot, and reports what actually happened so the caller can say so.
-// `opts.whole` is the WHOLE-SCREENSHOT BACKUP, and it is on for everything
-// except a page that held several questions. On such a page the backup would
-// give every one of them the same picture of the whole sheet — five questions
-// each carrying a photograph of all five, which is worse than no picture at
-// all and reads on a vetting card as five figures nobody has cropped yet.
+// `opts.sharePage` is the WHOLE-PAGE BACKUP for a page that held SEVERAL
+// questions: a function returning `{ url, dataUrl }` for that page, uploaded
+// ONCE and handed to every question on it that ended up with no rectangle of
+// its own. Two things make it necessary rather than nice:
+//
+//  • AN EMPTY PICTURE BLOCK IS THE WORST OUTCOME. v1.56.0 suppressed the
+//    backup on a multi-question page, reasoning that five identical
+//    whole-sheet pictures were worse than none. They are not: a question with
+//    an empty slot reaches Vetting wearing "Diagram missing", and the only way
+//    back is to go and find the paper again. A whole page in the slot is one
+//    ✂️ crop away from being right — which is exactly what the single-question
+//    path has always done.
+//  • CLEANING IT ONCE. Five questions each paying to re-render the same sheet
+//    in black and white is five image-model calls for one picture, so the page
+//    is prepared once by the caller and shared.
 async function autoDiagramIntoBlock(imgBlock, box, media, onStatus, opts) {
   const o = opts || {};
-  const wholeOk = o.whole !== false;
   const say = typeof onStatus === 'function' ? onStatus : function () {};
   const full = 'data:' + media.mimeType + ';base64,' + media.data;
-  const out = { cropped: false, refined: false, cleaned: false, skipped: false, url: '' };
+  const out = { cropped: false, refined: false, cleaned: false, whole: false, url: '' };
   if (!imgBlock) return out;
 
   say('Cutting the picture out of the screenshot…');
@@ -14521,10 +14564,20 @@ async function autoDiagramIntoBlock(imgBlock, box, media, onStatus, opts) {
     crop = refined;
   }
 
-  // No usable rectangle → the WHOLE screenshot, cleaned. The figure is never
-  // lost; it just needs cropping by hand. The one exception is a page that held
-  // several questions — see `opts.whole` above.
-  if (!crop && !wholeOk) { out.skipped = true; return out; }
+  // No usable rectangle → the WHOLE page, so the figure is never lost; it just
+  // needs cropping by hand. On a page that held several questions that page is
+  // prepared once and shared — see `opts.sharePage` above.
+  if (!crop && o.sharePage) {
+    say('No rectangle — attaching the whole page to crop by hand…');
+    const page = await o.sharePage();
+    if (page && page.url) {
+      out.whole = true;
+      out.url = page.url;
+      imgBlock.url = page.url;
+      _imgEnhanceState[imgBlock.id] = { originalDataUrl: full, originalUrl: page.url, currentDataUrl: page.dataUrl || full };
+    }
+    return out;
+  }
   say(crop ? 'Cleaning the picture up (black & white)…' : 'No rectangle — cleaning the whole screenshot…');
   const cleaned = await _cleanToBlackAndWhite(crop || full);
   out.cleaned = cleaned !== (crop || full);
@@ -14551,8 +14604,8 @@ async function autoDiagramIntoBlock(imgBlock, box, media, onStatus, opts) {
 // question wearing a whole screenshot instead of its figure looks like one
 // nobody has cropped yet, and on a vetting card that reads as finished work.
 function autoDiagramNote(r) {
-  if (r && r.skipped) return 'no rectangle came back for this one, so its picture is empty — crop it out of the page by hand';
   if (!r || !r.url) return 'the picture could not be attached — paste it by hand';
+  if (r.whole) return 'no rectangle came back, so the WHOLE page is attached — crop it by hand';
   if (!r.cropped) return 'no rectangle came back, so the WHOLE screenshot is attached — crop it by hand';
   return r.cleaned ? 'picture cut out and cleaned up' : 'picture cut out';
 }
@@ -24502,7 +24555,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.57.0 · 2026-08-31";
+const APP_VERSION = "v1.58.0 · 2026-08-31";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
