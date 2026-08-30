@@ -1123,14 +1123,14 @@ to drag. The camera and the gallery are the way in there.
   already caps every image at 1800px and re-encodes it as JPEG on the way to the
   model, so the phone route inherits that for free.
 
-## 📄 A whole PDF in ⚡ Rapid add — every page read as its own screenshot (v1.57.0)
+## 📄 A whole PDF in ⚡ Rapid add — every page read as its own screenshot (v1.58.0)
 
 `_loadPdfJs` / `_pdfRenderPage` / `PDF_PAGE_MAX_SIDE` / `RAPID_PDF_MAX_PAGES` /
 `RAPID_PDF_PAR` / `rapidAddFiles` / `_rapidQueuePdf` / `_rapidPdfPump` /
 `_rapidExpandPdf` / `_rapidPageFile` / `failRapidJob` (search
 `A PDF IS EXPLODED INTO PAGES`), plus `startRapidJob`'s turn-away,
 `processRapidJob`'s `blankOk`, `rapidPayloads` and `autoDiagramIntoBlock`'s
-`opts.whole`. **All four portals carry the same block — ship a change to all of
+`opts.sharePage`. **All four portals carry the same block — ship a change to all of
 them together.**
 
 Paste, drop or pick a pile of PDFs on the pad and every question in every one of
@@ -1189,7 +1189,7 @@ and the red failure card all follow for free.
   paint. A blocked load is not remembered, so the next attempt tries again.
 - Run **`node tools/rapid-pdf-tests.mjs`** after touching any of it.
 
-### …and a PAGE holds several questions (v1.57.0)
+### …and a PAGE holds several questions (v1.58.0)
 
 `rapidPayloads` and the `many` argument to `aiQuestionReadPrompt`.
 
@@ -1218,11 +1218,27 @@ card.
   are missing.
 - **Each question crops from ITS OWN rectangle** (`row.diagramBox`), or five
   questions on one page share the first one's picture.
-- **The whole-screenshot backup is single-question only**
-  (`autoDiagramIntoBlock`'s `opts.whole`). On a page of five it would give every
-  one of them the same photograph of the whole sheet, which is worse than no
-  picture at all — and `autoDiagramNote` says so rather than leaving an empty
-  picture block that reads as finished work.
+- **EVERY QUESTION ENDS UP WITH A PICTURE, and the page is prepared ONCE**
+  (v1.58.0, `autoDiagramIntoBlock`'s `opts.sharePage`). A figure printed above
+  two questions belongs to both, so the prompt says in as many words that every
+  entry setting `hasDiagram` carries its OWN `diagramBox` and that two
+  questions sharing one figure repeat the SAME rectangle. When a question's
+  rectangle still comes back unusable it falls back to the WHOLE PAGE, which is
+  one ✂️ crop away from being right.
+  - **v1.57.0 held that backup off a multi-question page**, reasoning that five
+    identical whole-sheet pictures were worse than none. **They are not**, and
+    that is what the reported bug was: a shared pie chart above Q7(a) and Q7(b)
+    left both with an empty slot and a *Diagram missing* badge, and the only
+    way back is to go and find the paper again.
+  - The page is cleaned and uploaded **on the first question that needs it**
+    and the URL handed to the rest (`sharePage`, memoised on `_pagePromise` in
+    `processRapidJob`). Five clean-ups of one sheet is five image-model calls
+    for one picture, and five uploads is five copies of it in Storage. The DOOR
+    asks for the page each time; the CALLER is what memoises it.
+  - **`q.diagramWhole` marks it and the vetting card SAYS so** (🖼 Whole page —
+    crop it). A whole page in a picture slot looks exactly like a figure
+    somebody has already cropped, which reads as finished work and is approved
+    into the bank uncropped.
 - **Each question is saved as it is built**, not batched at the end: a failure
   on question 4 must not lose the three that already read perfectly.
 
@@ -1941,7 +1957,7 @@ in the EDITOR. `sylAutoFileEditor` is the same call applied to the editor — th
   `RAPID_PDF_MAX_PAGES`, `RAPID_PDF_PAR`, `rapidAddFiles`, `_rapidQueuePdf`,
   `_rapidPdfPump`, `_rapidExpandPdf`, `_rapidPageFile`, `failRapidJob`,
   `startRapidJob`'s PDF turn-away, `processRapidJob`'s `blankOk`,
-  `rapidPayloads`, or `autoDiagramIntoBlock`'s `opts.whole`), run
+  `rapidPayloads`, or `autoDiagramIntoBlock`'s `opts.sharePage`), run
   `node tools/rapid-pdf-tests.mjs`. Every failure is silent and questions still
   land in vetting: send a PDF whole again and the paper comes back with every
   figure missing and its last questions quietly truncated away; read the batch
@@ -1952,9 +1968,10 @@ in the EDITOR. `sylAutoFileEditor` is the same call applied to the editor — th
   forty simultaneous AI calls, whose rate-limit failures read as "that PDF could
   not be read"; stop reading `questions` out of the reply and four of the five
   questions on every page are thrown away, on a page that still produces one
-  perfectly good vetting card; and let the whole-screenshot backup run on a
-  multi-question page and all five of them come back wearing the same
-  photograph of the whole sheet.
+  perfectly good vetting card; and hold the whole-page backup off a
+  multi-question page and every question whose rectangle came back unusable
+  lands with an EMPTY picture slot — which is exactly the "Diagram missing"
+  this was reported for.
 - After touching **🔍 the figure found, cut out and cleaned** (`autoDiagramIntoBlock`,
   `autoDiagramNote`, `_aiRefineCrop`, `_cleanToBlackAndWhite`, `_BW_ENHANCE_PROMPT`,
   `finishAiBuild`, `aiFinishBar`, `sylAutoFileEditor`, `populateEditorFromAi`'s

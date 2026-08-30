@@ -109,6 +109,61 @@ test('no usable rectangle → the WHOLE screenshot, and it SAYS so', async () =>
   ok(/by hand/i.test(M.autoDiagramNote(r)), 'the author must be told what to do about it');
 });
 
+// ---------------------------------------------------------------------
+// the WHOLE-PAGE backup on a page that held several questions
+// ---------------------------------------------------------------------
+// v1.56.0 suppressed the backup there, reasoning that five identical
+// whole-sheet pictures were worse than none. They are not: an empty picture
+// block reaches Vetting wearing "Diagram missing" and the only way back is the
+// paper itself, while a whole page is one ✂️ crop away from being right.
+
+test('a multi-question page still gets a picture — the SHARED page', async () => {
+  const { M, state } = makeDoor({ crop: async () => null });
+  let prepared = 0;
+  const sharePage = async () => { prepared++; return { url: 'https://store/PAGE', dataUrl: 'data:image/png;base64,PAGE-BW' }; };
+  const a = { id: 'a' }, b = { id: 'b' };
+  const r1 = await M.autoDiagramIntoBlock(a, null, MEDIA, null, { sharePage });
+  const r2 = await M.autoDiagramIntoBlock(b, null, MEDIA, null, { sharePage });
+  eq(a.url, 'https://store/PAGE', 'the first question got no picture');
+  eq(b.url, 'https://store/PAGE', 'the second question on the page got no picture');
+  ok(r1.whole && r2.whole, 'a whole page must report itself as one');
+  eq(prepared, 2, 'the door must ASK for the page each time — the caller is what memoises it');
+  ok(state.a && state.a.originalDataUrl === FULL, '↩ Use original must still go back to the page');
+});
+
+test('a whole page in the slot SAYS it is one', async () => {
+  const { M } = makeDoor({ crop: async () => null });
+  const r = await M.autoDiagramIntoBlock({ id: 'a' }, null, MEDIA, null, {
+    sharePage: async () => ({ url: 'https://store/PAGE', dataUrl: 'd' })
+  });
+  // A whole page that looks like a cropped figure is approved into the bank
+  // uncropped, and nobody finds out until the sheet is printed.
+  ok(/WHOLE page/i.test(M.autoDiagramNote(r)), 'the author is not told it is the whole page');
+  ok(/by hand/i.test(M.autoDiagramNote(r)), 'the author is not told what to do about it');
+});
+
+test('a REAL rectangle still wins on a multi-question page', async () => {
+  // The shared page is the fallback, never the first answer: a question whose
+  // own rectangle came back must be cropped to it.
+  const { M } = makeDoor();
+  let prepared = 0;
+  const blk = { id: 'a' };
+  const r = await M.autoDiagramIntoBlock(blk, [100, 100, 500, 500], MEDIA, null, {
+    sharePage: async () => { prepared++; return { url: 'https://store/PAGE', dataUrl: 'd' }; }
+  });
+  ok(r.cropped, 'the rectangle was ignored');
+  ok(!r.whole, 'a cropped figure must not be reported as a whole page');
+  eq(prepared, 0, 'the whole page was prepared for a question that did not need it');
+});
+
+test('a page the caller could not prepare leaves the slot empty, not broken', async () => {
+  const { M } = makeDoor({ crop: async () => null });
+  const blk = { id: 'a' };
+  const r = await M.autoDiagramIntoBlock(blk, null, MEDIA, null, { sharePage: async () => null });
+  ok(!r.url && !blk.url, 'a failed page upload must not put a broken url on the question');
+  ok(/could not be attached/i.test(M.autoDiagramNote(r)), 'the author must be told the picture is missing');
+});
+
 test('a crop that THREW is the same as no crop', async () => {
   const { M } = makeDoor({ crop: async () => { throw new Error('canvas tainted'); } });
   const blk = { id: 'b1' };
