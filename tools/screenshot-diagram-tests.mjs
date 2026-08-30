@@ -262,9 +262,36 @@ test('there is ONE door, and both readers take it', () => {
      'the door must exist');
   const uses = (src.match(/await autoDiagramIntoBlock\(/g) || []).length;
   ok(uses >= 2, `both ⚡ Rapid add and ✨ Build with AI must call the door (found ${uses})`);
-  // Nothing may crop a screenshot behind the door's back.
-  const raw = (src.match(/await cropBox2dFromImage\(/g) || []).length;
-  eq(raw, 1, 'cropBox2dFromImage must be reached through the door and nowhere else');
+  // NOTHING MAY CROP A QUESTION'S SCREENSHOT BEHIND THE DOOR'S BACK. A second
+  // crop written into a caller is how the two readers drift into producing
+  // different pictures from the same screenshot — so every raw call is
+  // resolved to the function it sits in, and any function that is neither the
+  // door nor named below FAILS. A stale name fails too: that is how a renamed
+  // function slips back through.
+  const CROPS_ITS_OWN_PICTURE = {
+    // The 🔑 answer key scanner cuts one handwritten worked answer out of a
+    // page holding several. It is not a question's figure: it must NOT be
+    // refined (the second cut hunts for a figure and would take the working
+    // instead) and it must NOT be re-rendered as black-and-white line work
+    // (that is a photocopy cleaner, and it destroys pencil).
+    aksProcessJob: 'crops a handwritten answer key, which is never enhanced or refined',
+  };
+  const owners = [];
+  const re = /await cropBox2dFromImage\(/g;
+  let m;
+  while ((m = re.exec(src))) {
+    const before = src.slice(0, m.index);
+    const fn = before.match(/(?:async )?function ([A-Za-z0-9_$]+)\s*\([^)]*\)\s*\{(?![\s\S]*(?:async )?function [A-Za-z0-9_$]+\s*\()/);
+    owners.push(fn ? fn[1] : '(unknown)');
+  }
+  eq(owners.filter(n => n === 'cropDiagramIntoBlock' || n === 'autoDiagramIntoBlock').length, 1,
+     'the door itself must crop exactly once');
+  const stray = owners.filter(n => n !== 'autoDiagramIntoBlock' && n !== 'cropDiagramIntoBlock' && !CROPS_ITS_OWN_PICTURE[n]);
+  eq(stray.join(", "), '', 'these crop a picture behind the door\'s back — route them through autoDiagramIntoBlock, or name them (with the reason) in CROPS_ITS_OWN_PICTURE');
+  for (const name of Object.keys(CROPS_ITS_OWN_PICTURE)) {
+    ok(owners.includes(name),
+       `${name} is exempted from the one-door rule and no longer crops anything — remove the stale exemption, or the next function to be renamed into that gap walks straight through it`);
+  }
 });
 
 test('✨ Build with AI actually asks for the rectangle', () => {

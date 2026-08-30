@@ -355,6 +355,63 @@ a { color: var(--primary); }
 .rapid-level select { padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 10px; background: var(--surface); font-family: inherit; font-size: 0.84rem; color: var(--text); }
 
 /* ===================================================================
+   🔑 THE ANSWER KEY SCANNER — one card per photographed worked answer,
+   showing the picture beside the question it has been matched to. The
+   picture and the match have to be readable TOGETHER: a card that only
+   named the question would be one nobody could check.
+   =================================================================== */
+.aks-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  box-shadow: var(--shadow-sm);
+}
+.aks-card.is-sure { border-color: var(--primary); }
+.aks-card.is-done { border-color: var(--primary); background: var(--primary-light); }
+.aks-card.is-busy { border-color: var(--primary); }
+.aks-card.is-error { border-color: var(--accent-red); background: var(--accent-red-light); }
+.aks-head h4, .aks-main h4 { font-size: 1rem; font-weight: 700; margin: 0 0 10px; line-height: 1.45; }
+.aks-body { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+.aks-thumb {
+  flex: 0 0 auto;
+  width: 168px;
+  max-height: 210px;
+  object-fit: contain;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: #fff;
+  padding: 4px;
+}
+.aks-thumb-empty { display: flex; align-items: center; justify-content: center; height: 120px; font-size: 2rem; color: var(--text-muted); }
+.aks-main { flex: 1 1 300px; min-width: 240px; }
+.aks-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.aks-qtext { font-size: 0.86rem; color: var(--text-muted); line-height: 1.7; margin-bottom: 10px; }
+.aks-note { font-size: 0.82rem; color: var(--text-muted); line-height: 1.7; margin-bottom: 10px; }
+.aks-note.aks-warn { color: var(--accent-orange); }
+.aks-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+.aks-empty { padding: 30px 22px; text-align: center; color: var(--text-muted); font-size: 0.88rem; line-height: 1.7; }
+.aks-pick-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 13px 16px;
+  margin-bottom: 10px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  cursor: pointer;
+  line-height: 1.6;
+  transition: all var(--transition);
+}
+.aks-pick-row:hover { border-color: var(--primary); background: var(--primary-light); }
+.aks-pick-row b { display: block; font-size: 0.92rem; font-weight: 700; margin-bottom: 4px; }
+.aks-pick-row span { display: block; font-size: 0.78rem; color: var(--text-muted); }
+.aks-pick-text { margin-top: 5px; }
+
+/* ===================================================================
    VETTING — the holding pen between "AI read it" and "students see it".
    =================================================================== */
 .vet-grid { display: grid; gap: 16px; }
@@ -4469,6 +4526,7 @@ body.lore-reading { overflow: hidden; }
       <div class="nav-item admin-only" data-page="create"><span class="ico">➕</span> Create Question</div>
       <div class="nav-item admin-only" data-page="vetting" title="Questions read in by Rapid add / the paper import, waiting for you to check them before they go live"><span class="ico">📋</span> Vetting <span class="nav-count" id="navVettingCount" style="display:none;"></span></div>
       <div class="nav-item admin-only" data-page="bank"><span class="ico">📚</span> Question Bank</div>
+      <div class="nav-item admin-only" data-page="answerkeys" title="Photograph the worked answers you have written by hand — each one finds the question it answers and files itself as that question's answer key"><span class="ico">🔑</span> Answer Keys</div>
       <div class="nav-item admin-only" data-page="bin" title="Questions you deleted, from the bank or from vetting. Restore one within 7 days — after that it is deleted forever"><span class="ico">🗑️</span> Bin <span class="nav-count" id="navBinCount" style="display:none;"></span></div>
       <div class="nav-item admin-only" data-page="graph" title="Map prerequisite links between questions — the AI reads this when guiding practice"><span class="ico">🕸️</span> Dependency Board</div>
       <div class="nav-item admin-only" data-page="students"><span class="ico">🎓</span> Student Results</div>
@@ -4857,6 +4915,57 @@ body.lore-reading { overflow: hidden; }
       </div>
       <div class="card card-pad">
         <div class="vet-grid" id="binList"></div>
+      </div>
+    </div>
+
+    <!-- ================= 🔑 ANSWER KEY SCANNER (admin) =================
+         Photograph the worked answers written out by hand; each one is read,
+         matched against the question it answers, and filed as that question's
+         answer key image. ADMIN-ONLY in three places — this nav item carries
+         `admin-only`, navigateTo rewrites the page for anybody else, and
+         aksStartJob refuses outright. An answer key is the one thing in this
+         app a student must never reach, and a hidden nav item is not a lock. -->
+    <div class="page" id="page-answerkeys">
+      <div class="page-head">
+        <h3>🔑 Answer key scanner</h3>
+        <p>Photograph the worked answers you have written out by hand — a page at a time, or a pile at once. Each one is read, matched against the question in your bank that it answers, and attached as that question's <b>answer key image</b>. A page holding several worked answers becomes several cards, each cropped to its own answer. <b>Nothing is filed until you can see which question it found</b>, and ↩ Undo puts any of it back.</p>
+      </div>
+      <div class="card card-pad">
+        <div class="rapid-pad" id="aksPad" tabindex="0">
+          <div class="rapid-pad-icon rapid-desk">📋</div>
+          <div class="rapid-pad-icon rapid-touch">📷</div>
+          <div class="rapid-pad-title rapid-desk">Paste a photograph of your answer key (Ctrl/⌘+V)</div>
+          <div class="rapid-pad-title rapid-touch">Tap here to photograph an answer key</div>
+          <div class="rapid-pad-sub rapid-desk">…or drop photographs here, as many as you like. Each is read in the background and looks for the question it answers.</div>
+          <div class="rapid-pad-sub rapid-touch">…or use the buttons below. Take them one after another — each is read in the background and looks for the question it answers.</div>
+        </div>
+        <!-- The phone route, which is how these photographs are actually taken.
+             Hidden on a mouse (`.rapid-touch`), and both buttons hand their
+             files to the same door a paste does. -->
+        <div class="rapid-touch rapid-upload-row">
+          <button class="btn btn-primary" id="aksCamBtn">📷 Take photo</button>
+          <button class="btn btn-ghost" id="aksPickBtn">🖼️ Choose photos</button>
+        </div>
+        <input type="file" accept="image/*" capture="environment" id="aksCam" class="hidden">
+        <input type="file" accept="image/*" multiple id="aksFile" class="hidden">
+        <div class="rapid-counts">
+          <div class="rapid-count"><b id="aksBusyCount">0</b><span>Reading now</span></div>
+          <div class="rapid-count"><b id="aksWaitCount">0</b><span>Waiting for you</span></div>
+          <div class="rapid-count"><b id="aksDoneCount">0</b><span>Filed</span></div>
+        </div>
+        <div class="rapid-status" id="aksStatus"></div>
+        <label class="rapid-autofile" title="Only a match the app is confident about is filed on its own — everything else waits here for you to press Attach">
+          <input type="checkbox" id="aksAuto" checked>
+          <span><b>🎯 File a confident match on its own</b>
+          <span>A photograph is filed automatically only when the local match and the AI's own choice agree on the same question <b>and</b> that question has no answer key image yet. Everything else waits here for you. ↩ Undo is on every card either way.</span></span>
+        </label>
+      </div>
+      <div class="card card-pad" style="margin-top:20px;">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+          <h4 style="margin:0;font-size:0.95rem;font-weight:700;flex:1;">Scanned answer keys</h4>
+          <button class="btn btn-ghost btn-sm" id="aksClearBtn" style="display:none;">Clear the filed ones</button>
+        </div>
+        <div id="aksList"></div>
       </div>
     </div>
 
@@ -5333,6 +5442,23 @@ body.lore-reading { overflow: hidden; }
       </div>
     </div>
     <div class="overlay-foot"><button class="btn btn-ghost" data-close="rapidAddOverlay">Done</button><button class="btn btn-primary" id="rapidGoVettingBtn">📋 Open vetting</button></div>
+  </div>
+</div>
+
+<!-- 🔑 Choosing the question a scanned answer key belongs to, by hand. With
+     nothing typed it offers the SHORTLIST the matcher already built — the
+     commonest correction is "not the first one, the second" — and a search
+     falls back to the whole bank. A question chosen here is never attached
+     automatically: the admin is right here, and one press is the point of
+     having chosen it. -->
+<div class="overlay" id="aksPickOverlay">
+  <div class="overlay-card wide">
+    <div class="overlay-head"><h3>🔍 Which question is this the answer to?</h3><button class="close" data-close="aksPickOverlay">×</button></div>
+    <div class="overlay-body">
+      <input id="aksPickSearch" type="text" placeholder="Search your question bank by title, wording or topic…" style="width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;font-family:inherit;font-size:0.9rem;margin-bottom:16px;">
+      <div id="aksPickList"></div>
+    </div>
+    <div class="overlay-foot"><button class="btn btn-ghost" data-close="aksPickOverlay">Cancel</button></div>
   </div>
 </div>
 
@@ -8482,7 +8608,7 @@ async function notifyQuestionSubscribers(q) {
 function navigateTo(page) {
   // My Worksheets is deliberately NOT on this list: a student's own saved
   // worksheets are their own documents, and reprinting one is the whole point.
-  if (["create", "bank", "bin", "worksheet", "vetting", "students", "graph", "diagnostic"].includes(page) && !canManageQuestions()) {
+  if (["create", "bank", "bin", "worksheet", "vetting", "students", "graph", "diagnostic", "answerkeys"].includes(page) && !canManageQuestions()) {
     page = "practice";
     toast("Student accounts can practise questions only", "error");
   }
@@ -8497,7 +8623,7 @@ function navigateTo(page) {
   // everything else is CSS, which is what makes the swap instant and
   // impossible to leave half-applied.
   document.body.classList.toggle("nova-protocol", page === "tcg");
-  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", bin: "Bin", vetting: "Vetting", graph: "Dependency Board", worksheet: "Create Worksheet", myworksheets: "My Worksheets", worksheetview: "Worksheet Overview", students: "Student Results", diagnostic: "Diagnostic Test", character: "Character", leaderboard: "Leaderboard", adventure: "Dungeon", tcg: "Aetherfall", syllabus: "Syllabus" };
+  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", bin: "Bin", vetting: "Vetting", graph: "Dependency Board", worksheet: "Create Worksheet", myworksheets: "My Worksheets", worksheetview: "Worksheet Overview", students: "Student Results", diagnostic: "Diagnostic Test", answerkeys: "Answer Key Scanner", character: "Character", leaderboard: "Leaderboard", adventure: "Dungeon", tcg: "Aetherfall", syllabus: "Syllabus" };
   $("topbarTitle").textContent = titles[page] || "";
   $("sidebar").classList.remove("open");
   if (page === "character") rpgRenderCharacterPage();
@@ -8510,6 +8636,7 @@ function navigateTo(page) {
   if (page === "practice") { renderQuestion(); setupCanvasSize(); }
   if (page === "vetting") renderVettingList();
   if (page === "bin") renderBinList();
+  if (page === "answerkeys") aksRender();
   if (page === "worksheet") { wsPopulateFilters(); renderWsQuestions(); }
   if (page === "myworksheets") renderSavedWorksheets();
   if (page === "worksheetview") renderWorksheetOverview();
@@ -12892,11 +13019,19 @@ function _vetTagDuplicate(q) {
 // questions sharing a stem but offering different choices are not the same
 // question. Everything asks this one function, so the badge, the banner and
 // the save dialog can never disagree about what "alike" means.
+// _qTokenSet is the ONE tokeniser. The duplicate warning and the 🔑 answer key
+// scanner both ask "how much of this wording is that wording", and two
+// tokenisers would drift into two different answers to the same question.
+function _qTokenSet(s) {
+  return new Set(
+    String(s || "").toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(w => w.length > 2)
+  );
+}
 function _vetTokens(q) {
   if (!q) return new Set();
   let s = String(q.title || "") + " " + String(questionText(q) || "");
   if (Array.isArray(q.options)) s += " " + q.options.join(" ");
-  return new Set(s.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(w => w.length > 2));
+  return _qTokenSet(s);
 }
 // Jaccard — shared over the UNION — and not containment (`shared / min size`),
 // which is what this was and which cannot tell a duplicate from a shared stem.
@@ -14789,6 +14924,606 @@ window.addEventListener("beforeunload", e => {
   e.returnValue = "";
   return "";
 });
+
+
+// =====================================================================
+// 🔑 THE ANSWER KEY SCANNER — photograph the keys you have written by
+// hand, and each one files itself against the question it answers.
+// =====================================================================
+// A teacher works a paper's answers out on paper. Getting those onto the
+// questions meant, per key: find the question in a bank of thousands, open it,
+// scroll to the answer-key panel, upload the photo, save. Nobody does that
+// thirty times, so the working stays in the folder and the bank's questions go
+// on with no worked answer at all.
+//
+// Here the photographs come in a pile and the app does the finding.
+//
+//  • IT IS ADMIN-ONLY, in THREE places rather than one. The nav item carries
+//    `admin-only` (hidden), `navigateTo` rewrites the page to `practice` for
+//    anyone else (a bookmark cannot walk in), and `aksStartJob` refuses
+//    outright. An answer key is the one thing in this app a student must never
+//    reach, and a hidden nav item is not a lock.
+//  • MATCHING IS DONE HERE, NOT BY THE MODEL ALONE. The bank runs to thousands
+//    of questions and none of them fit in a prompt, so the model READS the
+//    photograph (which is what it is good at) and `aksScore` shortlists
+//    locally (which is repeatable and free). Only then, and only when the local
+//    score is not decisive, is the model shown the photo beside the shortlist
+//    and asked which one it is.
+//  • THE WRONG QUESTION IS THE FAILURE TO DESIGN AGAINST, because it is
+//    SILENT: the question looks finished, and its answer key is somebody
+//    else's working. So an attach needs TWO signals agreeing — see
+//    `aksAutoOk` — and an existing answer key is never overwritten without
+//    being asked.
+//  • NOTHING IS UPLOADED UNTIL IT IS ATTACHED. A photograph that never finds
+//    its question would otherwise be an orphan file in Storage nobody can name.
+//    The preview and the AI call both run off the data URL already in hand.
+const AKS_SHORTLIST = 8;          // candidates the model is asked to choose between
+const AKS_MIN_SCORE = 0.08;       // below this a question is not a candidate at all
+const AKS_SURE_SCORE = 0.42;      // a local match this strong…
+const AKS_SURE_GAP = 0.15;        // …and this clear of the runner-up needs no second call
+const AKS_ANSWER_MULT = 1.6;      // a matching final answer promotes, never decides
+const AKS_ANSWER_FLOOR = 0.10;    // …and on its own only reaches the shortlist
+const AKS_MAX_BYTES = 25 * 1024 * 1024;
+const AKS_AUTO_KEY = "mathAksAuto";
+let aksRows = [];
+let _aksSeq = 0;
+
+// The tokeniser both the duplicate matcher and this one read through, so a
+// question is cut into words the same way whichever is asking.
+function aksTokens(s) { return _qTokenSet(s); }
+
+// ---- device-local switch --------------------------------------------------
+// Default ON: the whole point is that a pile of photographs files itself. It
+// is remembered per device, like the syllabus auto-file switch on the Rapid
+// add pad, and it only ever governs the CONFIDENT rows — see aksAutoOk.
+function aksAutoOn() {
+  try { return localStorage.getItem(AKS_AUTO_KEY) !== "0"; } catch (e) { return true; }
+}
+function setAksAuto(on) {
+  try { localStorage.setItem(AKS_AUTO_KEY, on ? "1" : "0"); } catch (e) { /* private mode — it still holds for this sitting */ }
+}
+
+// ---- ① reading the photograph ---------------------------------------------
+// One vision call per photograph. It reads the sheet and says what it is the
+// answer TO — never which question in the bank, which it cannot know.
+//
+// A sheet may hold SEVERAL worked answers (four short ones on one page is a
+// perfectly ordinary way to write them), so the reply is a LIST and each entry
+// carries its own rectangle. One entry means the whole photograph is the key
+// and nothing is cropped.
+function aksReadPrompt() {
+  return `The attached photograph is of a page on which a Singapore primary-school maths teacher has written out WORKED ANSWERS (an answer key) by hand. ` +
+    `Read it and say what each worked answer on the page is the answer TO.\n` +
+    `FIRST decide HOW MANY separate worked answers the page holds. One long worked solution is ONE entry. Four short answers written one under another, each for a different question, are FOUR entries.\n` +
+    `Return ONLY valid JSON, no markdown fences, line breaks inside strings escaped as \\n:\n` +
+    `{"keys":[{"questionNumber":"<the question number written on the page, e.g. 12 or 8(a); empty string if none is written>",` +
+    `"questionText":"<the QUESTION's own wording, transcribed verbatim, IF the question is printed or copied onto the page — otherwise an empty string>",` +
+    `"working":"<a short plain-text summary of the working: the quantities, the operations and what is being found>",` +
+    `"finalAnswer":"<the final answer exactly as written, with its units>",` +
+    `"topics":["<the maths topic, e.g. Fractions, Ratio, Speed, Area>"],"level":"<e.g. P5, or empty if it is not written>",` +
+    `"box_2d":[<ymin>,<xmin>,<ymax>,<xmax>]}]}\n` +
+    `Rules:\n` +
+    `- NEVER INVENT THE QUESTION. "questionText" is for wording that is actually ON the page. If all you can see is working, leave it empty and put what the working is about into "working" instead — a made-up question would be matched against the bank and file this page against the wrong question.\n` +
+    `- "working" matters as much as the answer: it is often the only thing that says WHICH question this is. Name the numbers that appear, what is being worked out, and the units.\n` +
+    `- "box_2d" is [ymin,xmin,ymax,xmax] as integers 0-1000 measured on the attached photograph — the rectangle around THAT worked answer only. When the page holds ONE worked answer, give the whole page: [0,0,1000,1000].\n` +
+    `- If the page holds no worked answer at all (a blank page, a photograph of something else, a question paper with nothing written on it), return {"keys":[]}.\n` +
+    `- Plain text only, no markdown.`;
+}
+
+// The reply becomes a list of readings. The ONE place that happens, so a page
+// holding one worked answer and a page holding four go down the same path.
+function aksReadings(parsed) {
+  if (!parsed || typeof parsed !== "object") return [];
+  const list = Array.isArray(parsed.keys) ? parsed.keys : (Array.isArray(parsed) ? parsed : null);
+  const rows = list ? list : [parsed];
+  return rows
+    .filter(r => r && typeof r === "object")
+    .map(r => ({
+      questionNumber: String(r.questionNumber || "").trim(),
+      questionText: String(r.questionText || "").trim(),
+      working: String(r.working || "").trim(),
+      finalAnswer: String(r.finalAnswer || "").trim(),
+      topics: Array.isArray(r.topics) ? r.topics.map(t => String(t || "").trim()).filter(Boolean) : [],
+      level: String(r.level || "").trim(),
+      box: r.box_2d || r.box || null
+    }))
+    // A reading with nothing on it at all cannot be matched against anything,
+    // and a row that can only ever say "no match" is a row nobody can act on.
+    .filter(r => r.questionText || r.working || r.finalAnswer || r.questionNumber);
+}
+
+// ---- ② scoring the bank ---------------------------------------------------
+// What a teacher would look at, in the order they would look at it. Every term
+// is a BONUS on top of the wording overlap rather than a filter: a mis-read
+// level or topic must narrow the search, never exclude the right question from
+// it altogether.
+function aksScore(read, q) {
+  if (!read || !q) return 0;
+  const said = aksTokens([read.questionText, read.working].filter(Boolean).join(" "));
+  let score = said.size ? _vetSim(said, _vetTokens(q)) : 0;
+
+  // THE FINAL ANSWER MULTIPLIES THE WORDING, IT DOES NOT ADD TO IT, and that
+  // is the difference between a shortlist that works and one that files a
+  // ribbon question against a speed question. A bank holds dozens of questions
+  // whose answer is 60 km/h, and wording overlap on a long question rarely
+  // passes 0.3 — so a flat bonus big enough to matter is a flat bonus big
+  // enough to out-rank the actual words, on the least specific signal there is.
+  // As a multiplier it can only ever promote a question there was already some
+  // reason to consider. `AKS_ANSWER_FLOOR` is what still puts an answer-only
+  // match on the SHORTLIST (it clears AKS_MIN_SCORE) without letting it lead
+  // one: on its own it is far below AKS_SURE_SCORE, so it can never be
+  // attached without the model being asked as well.
+  if (read.finalAnswer) {
+    const stated = akcStatedAnswer(q);
+    if (stated && akcAnswersAgree(read.finalAnswer, stated)) score = score * AKS_ANSWER_MULT + AKS_ANSWER_FLOOR;
+  }
+  // The paper's question number, which the paper import keeps as a title
+  // prefix ("Q12 — Fractions"). Only a whole-number match counts: "1" must not
+  // match "12".
+  if (read.questionNumber) {
+    const n = read.questionNumber.replace(/\s+/g, "").toLowerCase();
+    const title = String(q.title || "").replace(/\s+/g, "").toLowerCase();
+    if (n && new RegExp("(^|[^0-9a-z])q?" + n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "([^0-9a-z]|$)").test(title)) score += 0.25;
+  }
+  // Topic and level: a nudge each. They are the two things a photograph of
+  // working reveals least reliably.
+  const qTopics = questionTopics(q).map(t => String(t).toLowerCase());
+  if (read.topics.length && qTopics.length && read.topics.some(t => qTopics.some(x => x.includes(t.toLowerCase()) || t.toLowerCase().includes(x)))) score += 0.06;
+  if (read.level && String(q.level || "").trim().toUpperCase() === read.level.toUpperCase()) score += 0.04;
+  return Math.min(1, score);
+}
+
+// The candidates, best first. Scored over the WHOLE bank — it is a few
+// thousand string comparisons, which is nothing, and a pre-filter on topic or
+// level would throw the right question away whenever the photograph was read
+// slightly wrong.
+function aksShortlist(read, bank) {
+  return (bank || [])
+    .map(q => ({ q, score: aksScore(read, q) }))
+    .filter(r => r.score >= AKS_MIN_SCORE)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, AKS_SHORTLIST);
+}
+
+// Is the local match decisive on its own? Both halves are needed. A high score
+// with the runner-up right behind it is the case this exists to catch: two
+// questions off the same paper, worded almost alike, one of which is wrong.
+function aksLocallySure(list) {
+  if (!list.length) return false;
+  const gap = list.length > 1 ? list[0].score - list[1].score : list[0].score;
+  return list[0].score >= AKS_SURE_SCORE && gap >= AKS_SURE_GAP;
+}
+
+// ---- ③ letting the model choose, when the score cannot ---------------------
+// The photograph and the shortlist, together, in one call. This is the step
+// that earns the feature: a model CAN tell whether a page of working solves a
+// given question, and token overlap cannot.
+function aksPickPrompt(list) {
+  const lines = list.map((r, i) => {
+    const text = questionText(r.q).replace(/\s+/g, " ").slice(0, 400);
+    const ans = akcStatedAnswer(r.q);
+    return `${i + 1}. [${r.q.level || "?"} · ${adminTopicsLabel(r.q)}] ${String(r.q.title || "Untitled")}\n   ${text}${ans ? `\n   Answer on file: ${ans}` : ""}`;
+  }).join("\n");
+  return `The attached photograph is a WORKED ANSWER, written by hand by a Singapore primary-school maths teacher.\n` +
+    `Below are ${list.length} questions from that teacher's question bank. Decide which ONE of them the working on the photograph is the answer to.\n\n${lines}\n\n` +
+    `Read the working, follow the numbers, and check the final answer against each question. A question is the right one only if the working actually solves IT — the same numbers, the same quantities, the same thing being found.\n` +
+    `If NONE of the listed questions is the one this working answers, say 0. Saying 0 is a correct and useful answer: the question may simply not be in the list.\n` +
+    `Return ONLY JSON: {"choice":<the number 1-${list.length}, or 0 for none>,"confidence":"high|medium|low","why":"<one short sentence>"}`;
+}
+
+// A choice outside the list is NOT a near miss to be rounded into one — it is
+// a reply that cannot be acted on, and 0 (none of them) is the honest reading.
+function aksPickIndex(parsed, len) {
+  const n = Number(parsed && parsed.choice);
+  if (!Number.isInteger(n) || n < 1 || n > len) return 0;
+  return n;
+}
+
+// ---- ④ the pile ------------------------------------------------------------
+function aksTouch() {
+  try { return !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches); }
+  catch (e) { return false; }
+}
+// THE ONE DOOR every route hands its photographs to — the camera, the gallery,
+// a paste and a drop. A route with a pipeline of its own is a route that
+// drifts, and here the drift would be "the camera files them and the gallery
+// does not".
+function aksAddFiles(files, how) {
+  const list = Array.from(files || []).filter(f => f && f.type && f.type.startsWith("image/"));
+  const rejected = Array.from(files || []).length - list.length;
+  if (!list.length) {
+    if (rejected) toast("Please use photographs — a PDF of a marking scheme is not an answer key image", "error");
+    else if (how === "paste") aksStatus("That paste had no photograph in it — copy one and try again.");
+    return 0;
+  }
+  list.forEach(aksStartJob);
+  aksStatus(`Reading ${list.length} photograph${list.length === 1 ? "" : "s"}…`);
+  if (rejected) toast(`${rejected} file${rejected === 1 ? " was" : "s were"} not an image and ${rejected === 1 ? "was" : "were"} skipped`, "info");
+  return list.length;
+}
+function aksPickFiles(input) {
+  const files = Array.from((input && input.files) || []);
+  // Cleared FIRST: a picker still holding last time's file fires no change
+  // event for the same photo picked twice, so the second tap does nothing at
+  // all and reads as a broken button.
+  if (input) input.value = "";
+  aksAddFiles(files, "pick");
+}
+function aksPaste(e) {
+  const items = (e.clipboardData && e.clipboardData.items) || [];
+  const files = [];
+  for (const it of items) {
+    if (!it || it.kind !== "file") continue;
+    if (!String(it.type || "").startsWith("image/")) continue;
+    const f = it.getAsFile();
+    if (f) files.push(f);
+  }
+  if (files.length) e.preventDefault();
+  if (aksAddFiles(files, "paste")) setTimeout(() => { const z = $("aksPad"); if (z) z.focus(); }, 30);
+}
+function aksDrop(e) {
+  e.preventDefault();
+  const z = $("aksPad"); if (z) z.classList.remove("dragover");
+  aksAddFiles((e.dataTransfer && e.dataTransfer.files) || [], "drop");
+}
+
+function aksStartJob(file) {
+  // The third of the three admin gates. The other two are the hidden nav item
+  // and navigateTo's rewrite; this is the one a caller added later cannot walk
+  // past.
+  if (!canManageQuestions()) { toast("Only admin accounts can add answer keys", "error"); return; }
+  if (!aiReady()) { toast("AI isn't ready yet — please wait a moment", "error"); return; }
+  if (file.size > AKS_MAX_BYTES) { toast("That photograph is too large (max 25 MB)", "error"); return; }
+  const id = "aks_" + (++_aksSeq);
+  aksRows.unshift({ id, status: "reading", name: file.name || "photo", sub: "Reading the handwriting…" });
+  aksRender();
+  aksProcessJob(id, file);   // fire-and-forget; runs in the background
+}
+
+async function aksProcessJob(rowId, file) {
+  try {
+    const media = await imageFileToInlineMedia(file);
+    const full = "data:" + media.mimeType + ";base64," + media.data;
+    const parsed = parseAIJson(await askGeminiVision(
+      aksReadPrompt(), [media], { maxOutputTokens: 3000, json: true }));
+    const readings = aksReadings(parsed);
+    if (!readings.length) throw new Error("no worked answer could be read on that photograph");
+
+    // The page's first reading keeps the row it arrived on; the rest get their
+    // own, so a page of four answers becomes four rows to act on.
+    const many = readings.length > 1;
+    for (let i = 0; i < readings.length; i++) {
+      const read = readings[i];
+      const id = i === 0 ? rowId : "aks_" + (++_aksSeq);
+      if (i > 0) {
+        const at = aksRows.findIndex(r => r.id === rowId);
+        aksRows.splice(at < 0 ? 0 : at + i, 0, { id, status: "reading", name: file.name || "photo", sub: "Reading the handwriting…" });
+      }
+      aksSetRow(id, { status: "matching", sub: "Looking for the question it answers…", read, name: file.name || "photo" });
+      aksRender();
+      // Several answers on one page each get their OWN rectangle cut out of it,
+      // or all four questions end up wearing a photograph of all four answers —
+      // including the three that are not theirs. A rectangle that cannot be cut
+      // falls back to the whole page, which is readable and one ✂️ crop from
+      // right; an EMPTY picture is not an outcome.
+      let pic = full;
+      if (many) {
+        try { pic = (await cropBox2dFromImage(full, read.box)) || full; }
+        catch (e) { console.warn("answer key crop failed", e); }
+      }
+      aksSetRow(id, { dataUrl: pic });
+      await aksMatchRow(id);
+    }
+  } catch (err) {
+    console.error("answer key scan failed:", err);
+    aksSetRow(rowId, { status: "error", error: (err && err.message) ? err.message : String(err) });
+    aksRender();
+    toast("A photograph could not be read — see the red card", "error");
+  }
+}
+
+// The matching half, on its own so ↻ Try matching again can re-run it after the
+// bank has been edited without paying for the reading a second time.
+async function aksMatchRow(rowId) {
+  const row = aksRows.find(r => r.id === rowId);
+  if (!row || !row.read) return;
+  const list = aksShortlist(row.read, questionBank);
+  const localTop = list.length ? list[0] : null;
+  let match = null, sure = false, why = "";
+
+  if (aksLocallySure(list)) {
+    match = localTop.q;
+    sure = true;
+    why = "the wording, the numbers and the answer all line up";
+  } else if (list.length) {
+    aksSetRow(rowId, { sub: `Asking the AI which of ${list.length} it is…` });
+    aksRender();
+    try {
+      const media = dataUrlInfo(row.dataUrl);
+      const parsed = parseAIJson(await askGeminiVision(
+        aksPickPrompt(list), [{ mimeType: media.mimeType, data: media.data }], { maxOutputTokens: 700, json: true }));
+      const idx = aksPickIndex(parsed, list.length);
+      why = String((parsed && parsed.why) || "").trim();
+      if (idx) {
+        match = list[idx - 1].q;
+        // TWO SIGNALS AGREEING is what makes an attach automatic — never one.
+        // A model asked to choose from a list always sounds sure; the local
+        // score is an independent opinion, and their agreeing is the only
+        // thing here worth acting on without being asked.
+        sure = String((parsed && parsed.confidence) || "").toLowerCase() === "high"
+          && !!localTop && localTop.q.id === match.id;
+      }
+    } catch (e) {
+      console.warn("answer key pick failed", e);
+      match = null;
+    }
+  }
+
+  aksSetRow(rowId, {
+    status: "ready",
+    sub: "",
+    list,
+    match: match ? { id: match.id, title: match.title } : null,
+    sure,
+    why
+  });
+  aksRender();
+
+  // Automatic, but only where being automatic is safe — see aksAutoOk.
+  if (aksAutoOn() && aksAutoOk(aksRows.find(r => r.id === rowId))) await aksAttach(rowId);
+}
+
+// AUTOMATIC ATTACH — the two rules that make it safe to do without asking.
+//  ① The match is SURE: either the local score was decisive on its own, or the
+//     model's pick is the same question the score already put first. One
+//     confident-sounding model is exactly how a key lands on the wrong
+//     question, and it is silent when it does.
+//  ② The question has NO answer key image yet. Replacing one somebody put
+//     there by hand is destroying work, and it is not this feature's to do
+//     without being asked — the row offers it as a button instead.
+function aksAutoOk(row) {
+  if (!row || !row.match || !row.sure || row.status !== "ready") return false;
+  const q = questionBank.find(x => x.id === row.match.id);
+  if (!q) return false;
+  return !String(q.answerKeyImageUrl || "").trim();
+}
+
+// ---- ⑤ attaching -----------------------------------------------------------
+async function aksAttach(rowId, opts) {
+  const row = aksRows.find(r => r.id === rowId);
+  if (!row || !row.match || !row.dataUrl) return;
+  // Re-resolved by id rather than held from the match: the bank is re-read and
+  // re-assigned wholesale elsewhere, and a question can be edited or deleted
+  // between the photograph landing and the button being pressed.
+  const q = questionBank.find(x => x.id === row.match.id);
+  if (!q) { aksSetRow(rowId, { error: "that question is no longer in the bank" }); aksRender(); return; }
+  const had = String(q.answerKeyImageUrl || "").trim();
+  if (had && !(opts && opts.replace)) {
+    aksSetRow(rowId, { status: "ready", needsReplace: true });
+    aksRender();
+    return;
+  }
+  aksSetRow(rowId, { status: "saving", sub: "Uploading the photograph…" });
+  aksRender();
+  try {
+    // Uploaded HERE and nowhere earlier: a photograph that never found its
+    // question would otherwise leave a file in Storage nobody can name.
+    const url = await uploadDataUrlToStorage(row.dataUrl, "mathAnswerKeys");
+    q.answerKeyImageUrl = url;
+    await saveQuestionDoc(q);
+    aksSetRow(rowId, { status: "attached", url, prevUrl: had, needsReplace: false, sub: "" });
+    aksRender();
+    renderBank();
+    toast(`Answer key attached to “${q.title || "question"}”`, "success");
+  } catch (e) {
+    console.warn("answer key attach failed", e);
+    // Put the question back the way it was: a failed write must not leave the
+    // bank in memory disagreeing with the database about a key it does not have.
+    q.answerKeyImageUrl = had;
+    aksSetRow(rowId, { status: "ready", sub: "", error: "could not attach it: " + (e && e.message ? e.message : e) });
+    aksRender();
+  }
+}
+
+// ↩ Undo puts back exactly what was there — including nothing, which is what
+// it was for the great majority of questions. It is the whole reason an
+// automatic attach is safe to offer.
+async function aksUndo(rowId) {
+  const row = aksRows.find(r => r.id === rowId);
+  if (!row || row.status !== "attached" || !row.match) return;
+  const q = questionBank.find(x => x.id === row.match.id);
+  if (!q) { aksSetRow(rowId, { status: "ready", error: "that question is no longer in the bank" }); aksRender(); return; }
+  const attached = String(q.answerKeyImageUrl || "").trim();
+  q.answerKeyImageUrl = row.prevUrl || "";
+  try {
+    await saveQuestionDoc(q);
+    aksSetRow(rowId, { status: "ready", url: "", sub: "" });
+    aksRender();
+    renderBank();
+    toast("Put back", "success");
+  } catch (e) {
+    q.answerKeyImageUrl = attached;
+    toast("Could not undo that: " + (e && e.message ? e.message : e), "error");
+  }
+}
+
+function aksSetRow(id, patch) {
+  const row = aksRows.find(r => r.id === id);
+  if (row) Object.assign(row, patch);
+}
+function aksDismiss(id) { aksRows = aksRows.filter(r => r.id !== id); aksRender(); }
+function aksClearDone() { aksRows = aksRows.filter(r => r.status !== "attached"); aksRender(); }
+function aksStatus(msg) { const el = $("aksStatus"); if (el) el.textContent = msg || ""; }
+async function aksRetry(id) {
+  aksSetRow(id, { status: "matching", sub: "Looking for the question it answers…", error: "" });
+  aksRender();
+  await aksMatchRow(id);
+}
+
+// ---- ⑥ choosing the question by hand ---------------------------------------
+let _aksPickRow = "";
+function aksOpenPicker(rowId) {
+  _aksPickRow = rowId;
+  const box = $("aksPickSearch");
+  if (box) box.value = "";
+  aksRenderPicker();
+  $("aksPickOverlay").classList.add("show");
+  setTimeout(() => { if (box) box.focus(); }, 60);
+}
+function aksRenderPicker() {
+  const list = $("aksPickList");
+  if (!list) return;
+  const row = aksRows.find(r => r.id === _aksPickRow);
+  const term = String(($("aksPickSearch") || {}).value || "").trim().toLowerCase();
+  // With nothing typed the shortlist is what is offered — those are the
+  // questions the app already thinks it might be, and the commonest correction
+  // is "not the first one, the second".
+  let items;
+  if (!term) items = (row && row.list ? row.list.map(r => r.q) : questionBank.slice(0, 30));
+  else items = questionBank.filter(q => bankSearchHaystack(q).includes(term)).slice(0, 40);
+  if (!items.length) { list.innerHTML = `<div class="aks-empty">No question matches “${escapeHtml(term)}”.</div>`; return; }
+  list.innerHTML = items.map(q => {
+    const has = String(q.answerKeyImageUrl || "").trim();
+    return `<button type="button" class="aks-pick-row" data-akspick="${escapeHtml(q.id)}">
+      <b>${escapeHtml(q.title || "Untitled")}</b>
+      <span>${escapeHtml(q.level || "")} · ${escapeHtml(adminTopicsLabel(q))}${has ? " · already has an answer key image" : ""}</span>
+      <span class="aks-pick-text">${escapeHtml(questionText(q).replace(/\s+/g, " ").slice(0, 150))}</span>
+    </button>`;
+  }).join("");
+  list.querySelectorAll("[data-akspick]").forEach(b => b.addEventListener("click", () => aksChoose(b.dataset.akspick)));
+}
+function aksChoose(qid) {
+  const q = questionBank.find(x => x.id === qid);
+  const row = aksRows.find(r => r.id === _aksPickRow);
+  if (!q || !row) return;
+  // A hand-picked question is never auto-attached: the admin is right here,
+  // and one press is the whole point of having chosen it.
+  aksSetRow(row.id, { match: { id: q.id, title: q.title }, sure: false, why: "chosen by hand", needsReplace: false, error: "" });
+  closeOverlay("aksPickOverlay");
+  aksRender();
+}
+
+// ---- ⑦ the page -----------------------------------------------------------
+function aksRender() {
+  const auto = $("aksAuto"); if (auto) auto.checked = aksAutoOn();
+  const list = $("aksList");
+  if (!list) return;
+  const done = aksRows.filter(r => r.status === "attached").length;
+  const waiting = aksRows.filter(r => r.status === "ready").length;
+  const busy = aksRows.filter(r => r.status === "reading" || r.status === "matching" || r.status === "saving").length;
+  const set = (id, v) => { const el = $(id); if (el) el.textContent = String(v); };
+  set("aksDoneCount", done); set("aksWaitCount", waiting); set("aksBusyCount", busy);
+  const clear = $("aksClearBtn"); if (clear) clear.style.display = done ? "" : "none";
+  if (!aksRows.length) {
+    list.innerHTML = `<div class="aks-empty">Nothing scanned yet. Photograph a page of your worked answers and it will look for the question it belongs to.</div>`;
+    return;
+  }
+  list.innerHTML = aksRows.map(aksRowHtml).join("");
+  list.querySelectorAll("[data-aks-attach]").forEach(b => b.addEventListener("click", () => aksAttach(b.dataset.aksAttach)));
+  list.querySelectorAll("[data-aks-replace]").forEach(b => b.addEventListener("click", () => aksAttach(b.dataset.aksReplace, { replace: true })));
+  list.querySelectorAll("[data-aks-pick]").forEach(b => b.addEventListener("click", () => aksOpenPicker(b.dataset.aksPick)));
+  list.querySelectorAll("[data-aks-undo]").forEach(b => b.addEventListener("click", () => aksUndo(b.dataset.aksUndo)));
+  list.querySelectorAll("[data-aks-retry]").forEach(b => b.addEventListener("click", () => aksRetry(b.dataset.aksRetry)));
+  list.querySelectorAll("[data-aks-dismiss]").forEach(b => b.addEventListener("click", () => aksDismiss(b.dataset.aksDismiss)));
+}
+
+function aksRowHtml(row) {
+  if (row.status === "error") {
+    return `<div class="aks-card is-error">
+      <div class="aks-head"><h4>⚠ Couldn't read “${escapeHtml(row.name || "that photograph")}”</h4></div>
+      <div class="aks-note">${escapeHtml(row.error || "The AI could not read a worked answer on it.")} — try a clearer, better-lit photograph.</div>
+      <div class="aks-actions"><button class="btn btn-ghost btn-sm" data-aks-dismiss="${escapeHtml(row.id)}">Dismiss</button></div>
+    </div>`;
+  }
+  const thumb = row.dataUrl
+    ? `<img class="aks-thumb" src="${escapeHtml(row.dataUrl)}" alt="Answer key photograph">`
+    : `<div class="aks-thumb aks-thumb-empty">📷</div>`;
+  if (row.status === "reading" || row.status === "matching" || row.status === "saving") {
+    return `<div class="aks-card is-busy">
+      <div class="aks-body">${thumb}
+        <div class="aks-main"><h4><span class="spinner dark"></span> ${escapeHtml(row.name || "Photograph")}</h4>
+        <div class="aks-note">${escapeHtml(row.sub || "Working…")}</div></div>
+      </div>
+    </div>`;
+  }
+  const read = row.read || {};
+  const readBits = [
+    read.questionNumber ? `<span class="vet-badge">Q${escapeHtml(read.questionNumber)}</span>` : "",
+    read.finalAnswer ? `<span class="vet-badge">Answer: ${escapeHtml(read.finalAnswer)}</span>` : "",
+    read.topics.length ? `<span class="vet-badge">${escapeHtml(read.topics.join(", "))}</span>` : "",
+    read.level ? `<span class="vet-badge">${escapeHtml(read.level)}</span>` : ""
+  ].join("");
+
+  if (row.status === "attached") {
+    return `<div class="aks-card is-done">
+      <div class="aks-body">${thumb}
+        <div class="aks-main">
+          <h4>✓ Filed as the answer key for “${escapeHtml(row.match.title || "question")}”</h4>
+          <div class="aks-meta">${readBits}</div>
+          ${row.prevUrl ? `<div class="aks-note">It replaced an answer key image that was already there — ↩ Undo puts that one back.</div>` : ""}
+        </div>
+      </div>
+      <div class="aks-actions">
+        <button class="btn btn-ghost btn-sm" data-aks-undo="${escapeHtml(row.id)}">↩ Undo</button>
+        <button class="btn btn-ghost btn-sm" data-aks-dismiss="${escapeHtml(row.id)}">Dismiss</button>
+      </div>
+    </div>`;
+  }
+
+  const q = row.match ? questionBank.find(x => x.id === row.match.id) : null;
+  const has = q ? String(q.answerKeyImageUrl || "").trim() : "";
+  const head = q
+    ? `<h4>${row.sure ? "🎯" : "🤔"} ${escapeHtml(q.title || "Untitled")}</h4>
+       <div class="aks-meta">
+         <span class="vet-badge${row.sure ? "" : " warn"}">${row.sure ? "Confident match" : "Please check this match"}</span>
+         ${q.level ? `<span class="vet-badge">${escapeHtml(q.level)}</span>` : ""}
+         <span class="vet-badge">${escapeHtml(adminTopicsLabel(q))}</span>
+         ${has ? `<span class="vet-badge warn">Already has an answer key image</span>` : ""}
+       </div>
+       <div class="aks-qtext">${escapeHtml(questionText(q).replace(/\s+/g, " ").slice(0, 220))}</div>
+       ${row.why ? `<div class="aks-note">Why: ${escapeHtml(row.why)}</div>` : ""}`
+    : `<h4>🤷 No question in the bank matched this one</h4>
+       <div class="aks-note">The working could not be tied to a question — choose it by hand, or check the question is in the bank at all.</div>`;
+  const attachLabel = has ? "Replace the answer key" : "✓ Attach as the answer key";
+  const attachAttr = has ? `data-aks-replace="${escapeHtml(row.id)}"` : `data-aks-attach="${escapeHtml(row.id)}"`;
+  return `<div class="aks-card${row.sure ? " is-sure" : ""}">
+    <div class="aks-body">${thumb}
+      <div class="aks-main">
+        ${head}
+        <div class="aks-meta">${readBits}</div>
+        ${row.needsReplace ? `<div class="aks-note aks-warn">That question already has an answer key image. Attaching this one replaces it — ↩ Undo puts the old one back.</div>` : ""}
+        ${row.error ? `<div class="aks-note aks-warn">${escapeHtml(row.error)}</div>` : ""}
+      </div>
+    </div>
+    <div class="aks-actions">
+      ${q ? `<button class="btn btn-primary btn-sm" ${attachAttr}>${attachLabel}</button>` : ""}
+      <button class="btn btn-ghost btn-sm" data-aks-pick="${escapeHtml(row.id)}">🔍 ${q ? "Change the question" : "Choose the question"}</button>
+      <button class="btn btn-ghost btn-sm" data-aks-retry="${escapeHtml(row.id)}">↻ Match again</button>
+      <button class="btn btn-ghost btn-sm" data-aks-dismiss="${escapeHtml(row.id)}">Skip</button>
+    </div>
+  </div>`;
+}
+
+// ---- wiring ---------------------------------------------------------------
+$("aksPad").addEventListener("paste", aksPaste);
+$("aksPad").addEventListener("dragover", e => { e.preventDefault(); $("aksPad").classList.add("dragover"); });
+$("aksPad").addEventListener("dragleave", () => $("aksPad").classList.remove("dragover"));
+$("aksPad").addEventListener("drop", aksDrop);
+enableHoverPaste($("aksPad"), aksPaste);
+// On a touch screen the pad is a BUTTON, not a paste target.
+$("aksPad").addEventListener("click", () => { if (aksTouch()) $("aksFile").click(); });
+$("aksCamBtn").addEventListener("click", () => $("aksCam").click());
+$("aksPickBtn").addEventListener("click", () => $("aksFile").click());
+$("aksCam").addEventListener("change", e => aksPickFiles(e.target));
+$("aksFile").addEventListener("change", e => aksPickFiles(e.target));
+$("aksClearBtn").addEventListener("click", aksClearDone);
+$("aksAuto").addEventListener("change", e => {
+  setAksAuto(e.target.checked);
+  aksStatus(e.target.checked
+    ? "Confident matches are filed as they are read; everything else waits here for you."
+    : "Nothing is filed automatically — every match waits for you to press Attach.");
+});
+$("aksPickSearch").addEventListener("input", aksRenderPicker);
 
 // Regenerate a fresh variant of whatever question is currently in the editor:
 // same concept/structure/difficulty, but different names, objects and numbers
@@ -24555,7 +25290,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.58.0 · 2026-08-31";
+const APP_VERSION = "v1.59.0 · 2026-08-31";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)

@@ -1952,6 +1952,102 @@ in the EDITOR. `sylAutoFileEditor` is the same call applied to the editor — th
 - Run **`node tools/screenshot-diagram-tests.mjs`** after touching any of it.
 
 
+## 🔑 The answer key scanner — photograph the working, and it files itself (v1.59.0)
+
+`aks*` / `AKS_*` (search `THE ANSWER KEY SCANNER`), plus `#page-answerkeys`,
+`#aksPickOverlay`, the `.aks-*` CSS and the 🔑 **Answer Keys** nav item.
+**This app only** — it is a Maths feature (a worked answer is the thing a maths
+teacher writes out by hand), and none of the other three portals carry it.
+
+A teacher works a paper's answers out on paper. Getting those onto the
+questions meant, per key: find the question in a bank of thousands, open it,
+scroll to the answer-key panel, upload the photo, save. Nobody does that thirty
+times, so the working stays in the folder and the questions go on with no
+worked answer at all. Here the photographs arrive in a pile — camera, gallery,
+paste or drop — and the app does the finding.
+
+- **IT IS ADMIN-ONLY IN THREE PLACES, and that is not belt-and-braces.** The
+  nav item carries `admin-only` (hidden), `navigateTo` rewrites `answerkeys` to
+  `practice` for anyone else (so a bookmark or a deep link cannot walk in), and
+  `aksStartJob` refuses outright (so a caller added later cannot). The answer
+  key is the one thing in this app a student must never reach, and a hidden nav
+  item is not a lock.
+- **THE MATCHING IS DONE HERE, NOT BY THE MODEL ALONE.** The bank runs to
+  thousands of questions and none of them fit in a prompt. So the model READS
+  the photograph — which is what it is good at — and `aksScore` shortlists
+  locally, which is repeatable, instant and free. Only when the local score is
+  NOT decisive is the model shown the photograph beside the shortlist and asked
+  which one it is (`aksPickPrompt`). Two stages, each doing the half it can.
+- **THE WRONG QUESTION IS THE FAILURE TO DESIGN AGAINST**, because it is
+  silent: the question looks finished and its answer key is somebody else's
+  working. So an automatic attach needs **TWO SIGNALS AGREEING**
+  (`aksAutoOk`) — either the local score was decisive on its own
+  (`aksLocallySure`), or the model's high-confidence pick is the same question
+  the score already put first. One confident-sounding model is exactly how a
+  key lands on the wrong question.
+- **`aksLocallySure` needs a strong score AND a clear gap**, and the second
+  half is what it exists for: two questions off the same paper, worded almost
+  alike, one of which is wrong. A high score with the runner-up right behind it
+  is precisely the case that must go to the model.
+- **THE FINAL ANSWER MULTIPLIES THE WORDING, IT DOES NOT ADD TO IT**
+  (`AKS_ANSWER_MULT` / `AKS_ANSWER_FLOOR`). The first cut added a flat 0.35, and
+  it filed a ribbon question's working against a speed question: a bank holds
+  dozens of questions whose answer is 60 km/h, and Jaccard overlap on a long
+  question rarely passes 0.3 — so a flat bonus big enough to matter is one big
+  enough to out-rank the actual words, on the least specific signal there is. As
+  a multiplier it can only ever promote a question there was already some reason
+  to consider. The FLOOR is what still puts an answer-only match on the
+  shortlist (it clears `AKS_MIN_SCORE`) without letting it lead one — on its own
+  it is far below `AKS_SURE_SCORE`, so it can never be attached without the
+  model being asked too.
+- **Topic and level are a NUDGE each, never a filter.** They are the two things
+  a photograph of handwriting reveals least reliably, and a mis-read level that
+  EXCLUDED a question would throw away the right one silently. Everything in
+  `aksScore` is a bonus on top of the wording for the same reason.
+- **AN EXISTING ANSWER KEY IS NEVER OVERWRITTEN AUTOMATICALLY.** Replacing a
+  picture somebody put there by hand is destroying work; the card offers it as a
+  button that says so instead, and ↩ Undo puts the old URL back.
+- **NOTHING IS UPLOADED UNTIL IT IS ATTACHED.** The preview and both AI calls
+  run off the data URL already in hand, so a photograph that never finds its
+  question leaves no orphan file in Storage that nobody can name. Uploads go to
+  `mathAnswerKeys/`.
+- **The question is RE-RESOLVED by id at attach time**, never held from the
+  match: the bank is re-read and re-assigned wholesale elsewhere, and a question
+  can be edited or deleted between the photograph landing and the button being
+  pressed. A failed write puts `answerKeyImageUrl` back, so the bank in memory
+  and the database cannot sit there disagreeing.
+- **A page holding SEVERAL worked answers becomes several rows**, each cropped
+  to its own rectangle. Without that, four questions each get a photograph of
+  all four answers — including the three that are not theirs. **It crops through
+  `cropBox2dFromImage` directly and is exempted BY NAME** from the one-door
+  census in `tools/screenshot-diagram-tests.mjs`: this is not a question's
+  figure, so it must not be refined (the second cut hunts for a figure and would
+  take the working instead) and must not be re-rendered as black-and-white line
+  work (that is a photocopy cleaner, and it destroys pencil).
+- **`aksReadings` is the ONE place a reply becomes a list**, so a page holding
+  one worked answer and a page holding four go down the same path. A reading
+  with nothing on it at all is dropped — a row that can only ever say "no match"
+  is a row nobody can act on.
+- **The read prompt FORBIDS inventing the question** in as many words. Asked
+  what a page of bare working is the answer to, a model will happily write a
+  plausible question for it — and that invented question is then matched against
+  the bank and files the page against the wrong one. `questionText` is for
+  wording actually printed on the page; everything else goes in `working`.
+- **The pick prompt offers "none of them" as a real and useful answer.** A model
+  given no way out picks the least-wrong question instead of refusing, and
+  `aksPickIndex` treats a choice outside the list as 0 rather than rounding it
+  into a real question.
+- **`aksAddFiles` is the ONE DOOR** every route hands its photographs to — the
+  camera, the gallery, a paste and a drop — the same rule ⚡ Rapid add follows,
+  and the picker's `value` is cleared BEFORE the files are queued for the same
+  reason.
+- **A hand-picked question is never auto-attached.** The admin is right there,
+  and one press is the whole point of having chosen it.
+- **`_qTokenSet` is the shared tokeniser**, split out of `_vetTokens`: the
+  duplicate warning and this both ask "how much of this wording is that
+  wording", and two tokenisers would drift into two different answers.
+- Run **`node tools/answer-key-scan-tests.mjs`** after touching any of it.
+
 ## House rules
 - After touching **📄 whole-PDF rapid add** (`_loadPdfJs`, `_pdfRenderPage`,
   `RAPID_PDF_MAX_PAGES`, `RAPID_PDF_PAR`, `rapidAddFiles`, `_rapidQueuePdf`,
@@ -1972,6 +2068,22 @@ in the EDITOR. `sylAutoFileEditor` is the same call applied to the editor — th
   multi-question page and every question whose rectangle came back unusable
   lands with an EMPTY picture slot — which is exactly the "Diagram missing"
   this was reported for.
+- After touching **🔑 the answer key scanner** (`AKS_*`, `aksReadPrompt`,
+  `aksReadings`, `aksScore`, `aksShortlist`, `aksLocallySure`, `aksPickPrompt`,
+  `aksPickIndex`, `aksAutoOk`, `aksAttach`, `aksStartJob`, or the
+  `answerkeys` entries in `navigateTo`), run
+  `node tools/answer-key-scan-tests.mjs`. Every failure here is silent and
+  ends with a teacher's working filed against a question it does not answer,
+  on a card that renders perfectly and a question that looks finished: let the
+  final answer out-rank the wording again and a ribbon question's working is
+  attached to a speed question because both answer 60 km/h; read a
+  model choice out of range and round it into a real one and the key lands on
+  whichever question happened to be first; drop either half of the two-signal
+  rule and one confident-sounding model files it alone; and let an automatic
+  attach overwrite an existing answer key and work somebody put there by hand
+  is gone. The three admin gates are the other half — the page holds the one
+  thing in this app a student must never see, and a hidden nav item is not a
+  lock.
 - After touching **🔍 the figure found, cut out and cleaned** (`autoDiagramIntoBlock`,
   `autoDiagramNote`, `_aiRefineCrop`, `_cleanToBlackAndWhite`, `_BW_ENHANCE_PROMPT`,
   `finishAiBuild`, `aiFinishBar`, `sylAutoFileEditor`, `populateEditorFromAi`'s
