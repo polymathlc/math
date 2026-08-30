@@ -61,7 +61,7 @@ function makeRefine(reply, opts = {}) {
 const CROP = 'data:image/png;base64,FIRSTCUT';
 
 // ---- the door itself, against stubs ---------------------------------------
-const doorSrc = cut('async function autoDiagramIntoBlock(imgBlock, box, media, onStatus)', '\n}', 'autoDiagramIntoBlock')
+const doorSrc = cut('async function autoDiagramIntoBlock(imgBlock, box, media, onStatus, opts)', '\n}', 'autoDiagramIntoBlock')
   + '\n' + cut('function autoDiagramNote(r)', '\n}', 'autoDiagramNote');
 function makeDoor(stub = {}) {
   const state = {};
