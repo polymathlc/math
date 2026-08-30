@@ -1123,7 +1123,7 @@ to drag. The camera and the gallery are the way in there.
   already caps every image at 1800px and re-encodes it as JPEG on the way to the
   model, so the phone route inherits that for free.
 
-## 📄 A whole PDF in ⚡ Rapid add — every page read as its own screenshot (v1.56.0)
+## 📄 A whole PDF in ⚡ Rapid add — every page read as its own screenshot (v1.57.0)
 
 `_loadPdfJs` / `_pdfRenderPage` / `PDF_PAGE_MAX_SIDE` / `RAPID_PDF_MAX_PAGES` /
 `RAPID_PDF_PAR` / `rapidAddFiles` / `_rapidQueuePdf` / `_rapidPdfPump` /
@@ -1189,7 +1189,7 @@ and the red failure card all follow for free.
   paint. A blocked load is not remembered, so the next attempt tries again.
 - Run **`node tools/rapid-pdf-tests.mjs`** after touching any of it.
 
-### …and a PAGE holds several questions (v1.56.0)
+### …and a PAGE holds several questions (v1.57.0)
 
 `rapidPayloads` and the `many` argument to `aiQuestionReadPrompt`.
 
