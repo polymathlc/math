@@ -26750,8 +26750,11 @@ async function tcgLoadArt(force) {
 // Every playable slot ships with local art, so a clean install never displays
 // a question mark or emoji placeholder. Admin uploads remain optional overrides.
 const TCG_BUNDLED_ART_ROOT = 'assets/aetherfall';
-function tcgBundledCardUrl(id) { return /^c\d{3}$/.test(String(id || '')) ? TCG_BUNDLED_ART_ROOT + '/cards/' + id + '.webp' : null; }
-function tcgBundledAvatarUrl(id) { return /^c\d{3}$/.test(String(id || '')) ? TCG_BUNDLED_ART_ROOT + '/avatars/' + id + '.webp' : null; }
+// Bump this whenever a bundled roster is repainted or re-sliced. GitHub Pages
+// and school devices otherwise keep the old image bytes under the same URL.
+const TCG_BUNDLED_ART_VERSION = '2026-08-31-scenes-2';
+function tcgBundledCardUrl(id) { return /^c\d{3}$/.test(String(id || '')) ? TCG_BUNDLED_ART_ROOT + '/cards/' + id + '.webp?v=' + TCG_BUNDLED_ART_VERSION : null; }
+function tcgBundledAvatarUrl(id) { return /^c\d{3}$/.test(String(id || '')) ? TCG_BUNDLED_ART_ROOT + '/avatars/' + id + '.webp?v=' + TCG_BUNDLED_ART_VERSION : null; }
 function tcgBundledPackUrl(setKey, tier) {
   return TCG_SETS[setKey] && ['bronze', 'silver', 'gold'].includes(tier)
     ? TCG_BUNDLED_ART_ROOT + '/packs/' + setKey + '-' + tier + '.webp' : null;
@@ -27138,8 +27141,8 @@ function _tcgHumanArtPrompt(c) {
     + (c.art ? 'THIS CHARACTER SPECIFICALLY: ' + c.art + '\n' : '')
     + 'ELEMENT LOOK: ' + (TCG_ART_PALETTE[c.element] || 'controlled elemental colour') + '.\n'
     + (c.skillName ? 'SIGNATURE MOVE: "' + c.skillName + '" — let the pose and the effects hint at it.\n' : '')
-    + 'COMPOSITION: square full-bleed illustration, whole figure visible, centred three-quarter pose, simple atmospheric setting with only two or three large background shapes.\n'
-    + 'HARD RULES: no text, letters, numbers, signature, watermark, card frame or interface; exactly one character; modest fully-covering design.';
+    + 'COMPOSITION: square full-bleed illustration, whole figure visible, centred three-quarter pose. Show one real story-world location with only two or three large background shapes and quiet depth behind the figure.\n'
+    + 'HARD RULES: no text, letters, numbers, signature, watermark, card frame or interface; exactly one character; modest fully-covering design. Never use a flat single-colour field or a gradient-only backdrop, and never use crowded or ornate scenery.';
 }
 function tcgCardArtPrompt(c) {
   if (c && c.human) return _tcgHumanArtPrompt(c);
@@ -27159,8 +27162,8 @@ function tcgCardArtPrompt(c) {
     + 'SUBJECT: "' + c.name + '" — ' + an + elWord + '-element ' + built + ': ' + creature + '. ' + _tcgTierMood(c.stars) + ' (' + c.stars + ' of 7 stars).\n'
     + 'ELEMENT LOOK: ' + (TCG_ART_PALETTE[c.element] || 'controlled elemental colour') + '.\n'
     + (c.skillName ? 'SIGNATURE MOVE: "' + c.skillName + '" — let the pose and the effects hint at it.\n' : '')
-    + 'COMPOSITION: square full-bleed illustration; complete silhouette visible; simple atmospheric setting with only two or three large background shapes.\n'
-    + 'HARD RULES: absolutely no text, letters, numbers, signatures or watermarks anywhere; no card frame, border, banner or interface; exactly one creature; friendly for primary-school children — no blood, no gore, nothing frightening or gruesome.';
+    + 'COMPOSITION: square full-bleed illustration; complete silhouette visible. Show one real story-world location with only two or three large background shapes and quiet depth behind the creature.\n'
+    + 'HARD RULES: absolutely no text, letters, numbers, signatures or watermarks anywhere; no card frame, border, banner or interface; exactly one creature; friendly for primary-school children — no blood, no gore, nothing frightening or gruesome. Never use a flat single-colour field or a gradient-only backdrop, and never use crowded or ornate scenery.';
 }
 // ---- "Stand on nothing" — the ONE set of background rules ------------------
 // Battle avatars, element projectile frames and booster-pack frames are all

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 from collections import deque
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFilter, ImageOps
@@ -8,6 +9,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageOps
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "assets" / "aetherfall" / "source"
 OUT = ROOT / "assets" / "aetherfall"
+SCENE_SOURCE = SOURCE / "card-scenes"
 
 SHEETS = [
     ("roster-01.png", 1, 4, 4),
@@ -62,6 +64,39 @@ PALETTES = {
     "shadow": ((15, 17, 31), (50, 38, 83), (135, 94, 197)),
     "metal": ((26, 33, 45), (75, 91, 112), (192, 215, 224)),
     "cosmic": ((22, 25, 61), (57, 61, 143), (112, 216, 239)),
+}
+
+# Recurring places make the roster feel like one world rather than 101
+# unrelated portraits. Two choices per element keep repeats from becoming a
+# wallpaper while preserving a very small, readable visual vocabulary.
+AETHARI_SCENES = {
+    "flame": ("aethari-ashen-colony.png", "aethari-wormgate-concourse.png"),
+    "aqua": ("aethari-living-laboratory.png", "aethari-crown-observatory.png"),
+    "spark": ("aethari-crown-observatory.png", "aethari-astral-archive.png"),
+    "terra": ("aethari-ashen-colony.png", "aethari-living-laboratory.png"),
+    "flora": ("aethari-living-laboratory.png", "aethari-ashen-colony.png"),
+    "frost": ("aethari-astral-archive.png", "aethari-crown-observatory.png"),
+    "venom": ("aethari-devourer-rift.png", "aethari-ashen-colony.png"),
+    "psychic": ("aethari-astral-archive.png", "aethari-wormgate-concourse.png"),
+    "light": ("aethari-crown-observatory.png", "aethari-astral-archive.png"),
+    "shadow": ("aethari-devourer-rift.png", "aethari-ashen-colony.png"),
+    "metal": ("aethari-living-laboratory.png", "aethari-crown-observatory.png"),
+    "cosmic": ("aethari-wormgate-concourse.png", "aethari-astral-archive.png"),
+}
+
+MANA_SCENES = {
+    "flame": ("mana-emberpeak-forge.png", "mana-sunspire-highhold.png"),
+    "aqua": ("mana-tideglass-shrine.png", "mana-viridian-rootway.png"),
+    "spark": ("mana-sunspire-highhold.png", "mana-emberpeak-forge.png"),
+    "terra": ("mana-viridian-rootway.png", "mana-sunspire-highhold.png"),
+    "flora": ("mana-viridian-rootway.png", "mana-tideglass-shrine.png"),
+    "frost": ("mana-frostglass-pass.png", "mana-tideglass-shrine.png"),
+    "venom": ("mana-umbral-fen-ruins.png", "mana-viridian-rootway.png"),
+    "psychic": ("mana-umbral-fen-ruins.png", "mana-sunspire-highhold.png"),
+    "light": ("mana-sunspire-highhold.png", "mana-tideglass-shrine.png"),
+    "shadow": ("mana-umbral-fen-ruins.png", "mana-frostglass-pass.png"),
+    "metal": ("mana-emberpeak-forge.png", "mana-sunspire-highhold.png"),
+    "cosmic": ("mana-frostglass-pass.png", "mana-umbral-fen-ruins.png"),
 }
 
 ARTIFACT_IDS = [
@@ -134,24 +169,36 @@ def _keep_largest_component(im: Image.Image, threshold: int = 72) -> Image.Image
     return cleaned
 
 
-def _card_backdrop(element: str, size: int = 384) -> Image.Image:
-    top, bottom, glow = PALETTES[element]
-    im = Image.new("RGB", (size, size), top)
-    px = im.load()
+def _story_backdrop(number: int, element: str, size: int = 384) -> Image.Image:
+    """Select a quiet lore location and keep it subordinate to the unit."""
+    library = AETHARI_SCENES if number <= 51 else MANA_SCENES
+    choices = library[element]
+    filename = choices[(number - 1) % len(choices)]
+    scene = Image.open(SCENE_SOURCE / filename).convert("RGB")
+    scene = ImageOps.fit(scene, (size, size), method=Image.Resampling.LANCZOS)
+    scene = scene.filter(ImageFilter.GaussianBlur(0.45)).convert("RGBA")
+
+    # A restrained vignette and a low-opacity elemental halo keep pale and dark
+    # silhouettes legible without turning the location into an effects plate.
+    shade = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    shade_px = shade.load()
     for y in range(size):
-        t = y / max(1, size - 1)
         for x in range(size):
-            edge = abs(x / max(1, size - 1) - 0.5) * 0.18
-            u = min(1.0, max(0.0, t * 0.88 + edge))
-            px[x, y] = tuple(round(top[i] * (1 - u) + bottom[i] * u) for i in range(3))
+            nx = abs((x / max(1, size - 1)) - 0.5) * 2
+            ny = abs((y / max(1, size - 1)) - 0.48) * 1.6
+            alpha = round(min(46, max(0, (max(nx, ny) - 0.46) * 62)))
+            shade_px[x, y] = (4, 7, 13, alpha)
+    scene = Image.alpha_composite(scene, shade)
+
+    glow = PALETTES[element][2]
     halo = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(halo)
-    draw.ellipse((44, 16, size - 44, size - 32), fill=(*glow, 84))
-    halo = halo.filter(ImageFilter.GaussianBlur(52))
-    return Image.alpha_composite(im.convert("RGBA"), halo)
+    draw.ellipse((68, 34, size - 68, size - 18), fill=(*glow, 35))
+    halo = halo.filter(ImageFilter.GaussianBlur(48))
+    return Image.alpha_composite(scene, halo)
 
 
-def build_roster() -> None:
+def build_roster(write_avatars: bool = True) -> None:
     avatars = OUT / "avatars"
     cards = OUT / "cards"
     avatars.mkdir(parents=True, exist_ok=True)
@@ -167,15 +214,25 @@ def build_roster() -> None:
                 source_cell = sheet.crop(HERO_CROPS[number]).convert("RGBA") if number in HERO_CROPS else _cell(sheet, col, row, cols, rows)
                 if number in HERO_CROPS:
                     source_cell = _keep_largest_component(source_cell)
-                avatar = _fit_subject(source_cell)
                 stem = f"c{number:03d}"
-                avatar.save(avatars / f"{stem}.webp", "WEBP", lossless=True, method=6)
-                card = _card_backdrop(ELEMENTS[number - 1])
+                # Each equal-grid cell can contain a narrow disconnected sliver
+                # from the neighbouring row. Isolate the intended central
+                # silhouette before either export so atlas bleed cannot appear
+                # in collection cards, previews, or battles.
+                isolated_source = _keep_largest_component(source_cell, threshold=40)
+                if write_avatars:
+                    avatar = _fit_subject(isolated_source)
+                    avatar.save(avatars / f"{stem}.webp", "WEBP", lossless=True, method=6)
+                elif not (avatars / f"{stem}.webp").exists():
+                    raise FileNotFoundError(f"Missing preserved battle avatar: {stem}.webp")
+
+                card_avatar = avatar if write_avatars else _fit_subject(isolated_source)
+                card = _story_backdrop(number, ELEMENTS[number - 1])
                 shadow = Image.new("RGBA", card.size, (0, 0, 0, 0))
-                a = avatar.getchannel("A").filter(ImageFilter.GaussianBlur(10))
+                a = card_avatar.getchannel("A").filter(ImageFilter.GaussianBlur(10))
                 shadow.putalpha(a.point(lambda v: round(v * 0.38)))
                 card.alpha_composite(shadow, (4, 10))
-                card.alpha_composite(avatar)
+                card.alpha_composite(card_avatar)
                 card.convert("RGB").save(cards / f"{stem}.webp", "WEBP", quality=90, method=6)
                 made += 1
     if made != 101:
@@ -184,7 +241,7 @@ def build_roster() -> None:
 def build_apex_cards() -> None:
     cards = OUT / "cards"
     apex = {
-        "c050": "apex-seraphine.png",
+        "c050": "apex-seraphine-scene.png",
         "c051": "apex-ouroboros.png",
         "c100": "apex-lyssara.png",
         "c101": "apex-rhazakar.png",
@@ -255,9 +312,28 @@ def build_artifacts() -> None:
 
 
 if __name__ == "__main__":
-    build_roster()
+    parser = argparse.ArgumentParser(description="Build Aetherfall image assets from the source atlases.")
+    build_scope = parser.add_mutually_exclusive_group()
+    build_scope.add_argument(
+        "--cards-only",
+        action="store_true",
+        help="Rebuild card art and apex cards without rewriting transparent battle avatars or unrelated assets.",
+    )
+    build_scope.add_argument(
+        "--roster-only",
+        action="store_true",
+        help="Rebuild card art and isolated battle avatars without rewriting modes, packs, or artifacts.",
+    )
+    args = parser.parse_args()
+
+    build_roster(write_avatars=not args.cards_only)
     build_apex_cards()
-    build_modes()
-    build_packs()
-    build_artifacts()
-    print("Created 101 card artworks, 101 transparent battle avatars, 30 artifact icons, 6 mode paintings, and 6 set-specific pack fronts.")
+    if args.cards_only:
+        print("Created 101 story-backed card artworks; transparent battle avatars were left untouched.")
+    elif args.roster_only:
+        print("Created 101 story-backed card artworks and 101 isolated transparent battle avatars.")
+    else:
+        build_modes()
+        build_packs()
+        build_artifacts()
+        print("Created 101 card artworks, 101 transparent battle avatars, 30 artifact icons, 6 mode paintings, and 6 set-specific pack fronts.")
