@@ -43,7 +43,7 @@ function escapeHtml(s) { return String(s == null ? '' : s); }
 
 const section = [
   cut('const SUBJECT_KEY =', '\n// The menu is BUILT from SUBJECT_APPS', 'subject table'),
-  cut('function rapidApplyLevel(q, level)', '\nfunction startRapidJob(file)', 'level stamp'),
+  cut('function rapidApplyLevel(q, level)', '\n// ====', 'level stamp'),
   FIXTURE
 ].join('\n');
 
