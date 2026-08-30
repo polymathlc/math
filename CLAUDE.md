@@ -383,10 +383,15 @@ happened to draw.
   cannot be wrong — it removes measured empty paper and nothing else — and it is
   what `_expandRectToWhitespace` structurally cannot do, because that one only
   ever grows.
-- **there is no `_aiRefineCrop` here.** The three language portals follow these
-  passes with a second vision call that tidies each crop; this app has never had
-  one, so these passes are the whole defence and `cropBox2dFromImage` is the ONE
-  place they run.
+- **`_aiRefineCrop` runs on top of them now** (v1.55.0), the way the Science app
+  and the two language portals have always followed these passes with a second
+  vision call that tidies each crop. The pixel passes are free, instant and
+  deterministic and cannot tell a sentence of question wording from a caption
+  that belongs to the figure; that call can, and on a small already-roughly-
+  right picture it is a far easier question than on the whole page. Neither
+  replaces the other. `cropBox2dFromImage` is still the ONE place the pixel
+  passes run, and it is reached through `autoDiagramIntoBlock` — see 🔍 THE
+  FIGURE IS FOUND, CUT OUT AND CLEANED.
 
 ### 🔢 Picture answer options are ONE picture
 
@@ -1757,7 +1762,90 @@ THE PICTURE ALREADY ON THE QUESTION** rather than invented from nothing.
 - Run **`node tools/ai-command-tests.mjs`** after touching any of it.
 
 
+## 🔍 The figure is found, cut out and cleaned (v1.55.0)
+
+`autoDiagramIntoBlock` / `autoDiagramNote` / `_aiRefineCrop` /
+`_cleanToBlackAndWhite` / `_BW_ENHANCE_PROMPT` (search `THE FIGURE IS FOUND, CUT
+OUT AND CLEANED`), plus `finishAiBuild` / `aiFinishBar` and `sylAutoFileEditor`.
+**Ported from the Science app (`polymathlc/cer`), which carries the same ladder
+as `_fillBlocksFromAiBoxes` — keep the two in step.**
+
+⚡ Rapid add already cut the figure out of the screenshot; ✨ Build with AI did
+not. It asked for no rectangle at all, so it dropped an EMPTY picture block into
+the editor and the author pasted the diagram in by hand, screenshot after
+screenshot. Neither of them cleaned the picture up, and neither of them —
+Build with AI — filed the question on the syllabus map. All three are the same
+three steps the Science app already does, so this is that ladder, in ONE door.
+
+- **`autoDiagramIntoBlock` is the ONE door**, and BOTH readers go through it, so
+  the picture a question comes back with is the same picture whichever button
+  read it. ① `cropBox2dFromImage` cuts the model's rectangle out and runs the
+  pixel passes over it; ② `_aiRefineCrop` shows the crop ITSELF back to the model
+  and asks for the rectangle around just the figure; ③ `_cleanToBlackAndWhite`
+  re-renders it as crisp black line work, because these are photocopies and
+  phone photographs. `cropBox2dFromImage` is called in exactly one place and the
+  harness pins that — a second crop written into a caller is how the two readers
+  drift into producing different pictures from the same screenshot.
+- **A FIGURE IS NEVER SILENTLY LOST**, and every step falls back to the step
+  before it: a refusal at ② keeps the crop, a failure at ③ keeps the sharp crop,
+  and a rectangle that could not be cropped at all attaches the WHOLE screenshot
+  — cleaned, so it is still readable — to be cropped by hand.
+- **…and a whole screenshot SAYS it is one** (`autoDiagramNote`). It looks
+  exactly like a figure nobody has got round to cropping, which on a vetting
+  card reads as finished work.
+- **THE SECOND CUT REFUSES FAR MORE OFTEN THAN IT CUTS.** `clean:true`, a box
+  under 150/1000 on a side, a box that is ≈ the whole picture, and a box that
+  would throw away more than 80% of the crop all return the crop UNCHANGED. A
+  wrong second cut takes the figure instead of the wording, and that is worse
+  than a slightly generous first one.
+- **The whole screenshot is remembered as the block's ORIGINAL**
+  (`_imgEnhanceState`), which is what makes ↩ Use original a real way back from
+  a rectangle drawn in the wrong place. It is uploaded only when there IS a crop
+  — when the crop failed, the whole screenshot already IS the picture.
+- **A rectangle can only be measured on an IMAGE.** `wantBox` is `!source.isPdf`,
+  so a PDF still comes back with an empty picture block exactly as it always
+  did: there is no single page to measure a rectangle on.
+- **The picture and the objectives are two more AI calls, so ✨ Build with AI
+  finishes them in the BACKGROUND** (`finishAiBuild`) — the author reads the
+  wording straight away and `#aiFinishBar` says what is still coming. Without
+  that bar the editor looks finished, and a question saved a second too early is
+  a question with no figure and no objectives.
+- **BOTH halves are abandoned if the author moves on.** `editorBlocks` is
+  replaced wholesale by every path that opens a question, so the array the build
+  produced is the one thing that still says the editor is showing THIS question.
+  Without the check, a picture cut out of the last screenshot lands on the
+  question that is open now — and so do its objectives.
+
+### 🎯 …and the objectives are filed from the editor too
+
+`sylAutoFileLos` files a question OBJECT, which is why ⚡ Rapid add and the paper
+import have had objectives since v1.33.0 and ✨ Build with AI has not: it stops
+in the EDITOR. `sylAutoFileEditor` is the same call applied to the editor — the
+✨ Suggest button run for the author instead of waiting to be pressed.
+
+- **It never overwrites objectives that are already there** — the flag is
+  "unfiled", not "re-file" — it obeys the same `sylAutoFileOn()` switch on the
+  Rapid add pad, and it can never fail its caller.
+- **`populateEditorFromAi` clears `editorLos` and `pendingVariantOf`.** Both were
+  silent leaks: a question built from a screenshot kept the objectives of
+  whatever was open last and was SAVED with them, and a build straight after a
+  🔄 Regenerate was filed as a variant of a question it has nothing to do with.
+- Run **`node tools/screenshot-diagram-tests.mjs`** after touching any of it.
+
+
 ## House rules
+- After touching **🔍 the figure found, cut out and cleaned** (`autoDiagramIntoBlock`,
+  `autoDiagramNote`, `_aiRefineCrop`, `_cleanToBlackAndWhite`, `_BW_ENHANCE_PROMPT`,
+  `finishAiBuild`, `aiFinishBar`, `sylAutoFileEditor`, `populateEditorFromAi`'s
+  reset, or either reader's call into the door), run
+  `node tools/screenshot-diagram-tests.mjs`. Every failure is silent and the
+  question still lands: break a rung of the ladder and the figure is simply
+  gone from a question that otherwise reads perfectly; let a whole screenshot
+  through without saying so and it reads on a vetting card as a figure somebody
+  has already cropped; loosen the second cut's refusals and it takes the figure
+  instead of the question wording it was added to trim; and drop the
+  `editorBlocks !== owner` check and a picture cut out of the last screenshot —
+  with its objectives — lands on the question that is open now.
 - After touching **🪄 the command box in the question creator** (`QCMD_MAX_CHARS`,
   `QCMD_NO_CHANGE_RE`, `qcmdNeedsRedraw`, `qcmdChangesFor`, `QCMD_DIAGRAM_RULES`,
   `qcmdDiagramPrompt`, `qcmdDiagramPromptRules`, `qcmdSummary`,
