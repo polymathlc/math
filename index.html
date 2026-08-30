@@ -1714,6 +1714,12 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .graph-spawn-menu .sm-ico { font-size: 1.05rem; line-height: 1.1; }
 .graph-spawn-menu .sm-title { display: block; font-weight: 600; font-size: 0.86rem; color: var(--text); }
 .graph-spawn-menu .sm-sub { display: block; font-size: 0.72rem; color: var(--text-muted); line-height: 1.3; }
+.ai-finish-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; padding: 12px 16px; max-width: 880px;
+                 border: 1px solid var(--border, #e2e8f0); border-left: 4px solid var(--primary, #4a7c59);
+                 border-radius: 12px; background: var(--surface, #fff); font-size: 0.86rem; color: var(--text-muted, #6b7280); }
+/* `display: flex` above outweighs the browser's own [hidden] rule, so the bar
+   would never hide — the usual trap. */
+.ai-finish-bar[hidden] { display: none; }
 /* 🪄 The command box in the question creator — see TELL THE AI WHAT TO CHANGE. */
 .qcmd-panel { background: var(--surface, #fff); border: 1px solid var(--border, #e2e8f0); border-left: 4px solid var(--primary, #4a7c59);
               border-radius: 14px; padding: 20px 22px; margin-bottom: 22px; max-width: 880px; }
@@ -4672,6 +4678,10 @@ body.lore-reading { overflow: hidden; }
         <!-- Raised by checkEditorDuplicate whenever what is in the editor looks
              like a question already in the bank or already waiting in vetting. -->
         <div class="dup-warn" id="dupWarnBanner"></div>
+        <!-- What ✨ Build with AI is still doing after the wording lands: cutting
+             the figure out of the screenshot, cleaning it up, filing the
+             objectives. See THE FIGURE IS FOUND, CUT OUT AND CLEANED. -->
+        <div class="ai-finish-bar" id="aiFinishBar" hidden></div>
         <!-- 🪄 TELL THE AI WHAT TO CHANGE — see THE COMMAND BOX IN THE QUESTION
              CREATOR. Reads the question open in this editor, follows the
              instructions typed here, and redraws the figure from the figure
@@ -12575,20 +12585,75 @@ function aiQuestionReadPrompt(isPdf, withBox = false) {
 }
 async function runAiBuildFromMedia(source) {
   try {
-    const prompt = aiQuestionReadPrompt(source.isPdf);
-    const raw = await askGeminiVision(prompt, [{ mimeType: source.mimeType, data: source.data }], { maxOutputTokens: 2200, json: true });
+    // A rectangle can only be measured on an IMAGE. A PDF has no single page to
+    // measure one on, so it still comes back with an empty picture block to
+    // paste into by hand — exactly as it always did.
+    const wantBox = !source.isPdf;
+    const prompt = aiQuestionReadPrompt(source.isPdf, wantBox);
+    const raw = await askGeminiVision(prompt, [{ mimeType: source.mimeType, data: source.data }], { maxOutputTokens: wantBox ? 2400 : 2200, json: true });
     const data = parseAIJson(raw);
     populateEditorFromAi(data);
     closeOverlay("aiBuildOverlay");
     navigateTo("create");
     toast("Draft created — review and save", "success");
+    // The picture and the objectives are two more AI calls, so they are finished
+    // off in the BACKGROUND: the author can read the wording straight away, and
+    // the bar above the editor says what is still coming.
+    finishAiBuild(data, source, wantBox);
   } catch (e) {
     console.error(e);
     $("aiBuildStatus").textContent = aiBuildFailureText(e);
   }
 }
+// The line above the editor while the picture and the objectives are still
+// being fetched. Without it the editor looks finished, and a question saved a
+// second too early is a question with no figure and no objectives.
+function aiFinishBar(msg) {
+  const el = $("aiFinishBar");
+  if (!el) return;
+  if (msg) { el.innerHTML = `<span class="spinner dark"></span> ${escapeHtml(msg)}`; el.hidden = false; }
+  else { el.textContent = ""; el.hidden = true; }
+}
+// Everything the read leaves to do. BOTH halves are abandoned the moment the
+// author loads something else: `editorBlocks` is replaced wholesale by every
+// path that opens a question, so the array this build produced is the one thing
+// that still says the editor is showing THIS question. Without that check a
+// picture cut out of last screenshot lands on the question open now.
+async function finishAiBuild(data, source, wantBox) {
+  const owner = editorBlocks;
+  const imgBlock = wantBox ? owner.find(b => b.type === "image") : null;
+  if (!imgBlock && !sylAutoFileOn()) return;
+  let pic = null, ids = [];
+  try {
+    if (imgBlock) {
+      pic = await autoDiagramIntoBlock(imgBlock, data.diagramBox || data.box_2d, source, m => aiFinishBar(m));
+      if (editorBlocks !== owner) return;
+      renderEditorBlocks();
+    }
+    aiFinishBar("Filing it under the syllabus…");
+    ids = await sylAutoFileEditor(owner);
+    if (editorBlocks !== owner) return;
+  } catch (e) {
+    console.warn("finishing the AI build", e);
+  } finally {
+    aiFinishBar("");
+  }
+  const bits = [];
+  if (pic) bits.push(autoDiagramNote(pic));
+  if (ids.length) bits.push(`filed under ${ids.length} objective${ids.length === 1 ? "" : "s"}`);
+  if (!bits.length) return;
+  const clean = !pic || (pic.cropped && pic.url);
+  toast(`${bits.join(" · ")} — check ${clean ? "them" : "it"} before saving`, clean ? "success" : "error");
+}
 function populateEditorFromAi(d) {
   currentEditingId = null;
+  // A question read off a screenshot is a NEW question, so it starts with the
+  // editor's own leftovers cleared. Both of these were silent: the objectives
+  // of whatever was open last stayed on screen and were saved onto this
+  // question, and a build straight after a 🔄 Regenerate was filed as a variant
+  // of a question it has nothing to do with.
+  pendingVariantOf = null;
+  editorLos = []; sylEditorRender();
   imgChoices.clear();
   editorBlocks = [];
   const qt = String(d.questionText || "").trim();
@@ -13645,15 +13710,17 @@ async function processRapidJob(jobId, file, batchLevel) {
     // gave no usable rectangle, attach the WHOLE screenshot instead — the
     // figure is never silently lost, it just needs cropping by hand.
     const imgBlock = q.blocks.find(b => b.type === "image");
+    let picNote = "";
     if (imgBlock) {
-      setRapidJobState(jobId, { title: q.title || "Question", sub: "Cutting the diagram out of the screenshot…" });
-      renderVettingList();
-      const full = `data:${media.mimeType};base64,${media.data}`;
-      let dataUrl = null;
-      try { dataUrl = await cropBox2dFromImage(full, parsed.diagramBox || parsed.box_2d); }
-      catch (e) { console.warn("rapid diagram crop failed", e); }
-      try { imgBlock.url = await uploadDataUrlToStorage(dataUrl || full, "mathImages"); }
-      catch (e) { console.warn("rapid diagram upload failed", e); }
+      // ONE door, shared with ✨ Build with AI: cut it out, check the cut, clean
+      // it up. It never throws — a question is worth keeping without its figure.
+      try {
+        const r = await autoDiagramIntoBlock(imgBlock, parsed.diagramBox || parsed.box_2d, media, m => {
+          setRapidJobState(jobId, { title: q.title || "Question", sub: m });
+          renderVettingList();
+        });
+        if (!r.cropped || !r.url) picNote = " — " + autoDiagramNote(r);
+      } catch (e) { console.warn("rapid diagram failed", e); picNote = " — the picture could not be attached"; }
     }
 
     const filed = await filing;   // resolved by now in all but the fastest crops
@@ -13670,7 +13737,7 @@ async function processRapidJob(jobId, file, batchLevel) {
     saveVettingDoc(q).catch(e => { console.warn("vetting save", e); toast("Read it, but couldn't save it to vetting: " + e.message, "error"); });
     // The level is named back to the author. Filing at a level they chose and
     // never confirming it is how a whole pile ends up at the wrong one.
-    setRapidStatus(`✓ Added “${q.title || "question"}”${batchLevel ? ` at ${batchLevel}` : ""} to vetting${filed.length ? ` — filed under ${filed.length} objective${filed.length === 1 ? "" : "s"}` : ""}.`);
+    setRapidStatus(`✓ Added “${q.title || "question"}”${batchLevel ? ` at ${batchLevel}` : ""} to vetting${filed.length ? ` — filed under ${filed.length} objective${filed.length === 1 ? "" : "s"}` : ""}${picNote}.`);
   } catch (err) {
     console.error("rapid job failed:", err);
     // A failure must always leave a card behind. If the job was already removed
@@ -14000,6 +14067,159 @@ async function cropBox2dFromImage(dataUrl, box) {
   const png = canvas.toDataURL("image/png");
   return png.length > 6 * 1024 * 1024 ? canvas.toDataURL("image/jpeg", 0.92) : png;
 }
+// =====================================================================
+// 🔍 THE FIGURE IS FOUND, CUT OUT AND CLEANED — ported from the Science app
+// =====================================================================
+// A question read off a screenshot is text AND a figure, and the figure is the
+// half the model cannot write down. The Science app (`polymathlc/cer`) does
+// three things with it and this is the same three, in one door:
+//
+//   ① CUT IT OUT — `cropBox2dFromImage` takes the rectangle the model drew and
+//      runs the pixel passes over it (see WHAT COUNTS AS INK above).
+//   ② CHECK THE CUT — `_aiRefineCrop` shows the crop ITSELF back to the model
+//      and asks for the rectangle around just the figure. Pixels cannot tell a
+//      sentence from a caption; on a small, already-roughly-right picture the
+//      model can, and it is a far easier question than on the whole page.
+//   ③ CLEAN IT UP — the crop is re-rendered as crisp black-and-white line work,
+//      because these are photocopies and phone photographs of exam papers.
+//
+// **`autoDiagramIntoBlock` is the ONE door**, and ⚡ Rapid add and ✨ Build with
+// AI both go through it — so the picture a question comes back with is the same
+// picture whichever button read it, and a fix reaches both. Do not give either
+// of them its own crop.
+//
+// **A FIGURE IS NEVER SILENTLY LOST.** Every step falls back to the step before
+// it: a refusal at ② keeps the crop, a failure at ③ keeps the sharp crop, and a
+// rectangle that could not be cropped at all attaches the WHOLE screenshot —
+// cleaned, so it is still readable — for the author to crop by hand. A question
+// with no figure at all is the one outcome nothing on screen would explain.
+//
+// **The whole screenshot is remembered as the block's ORIGINAL** (`_imgEnhanceState`),
+// which is what makes ↩ Use original a real way back from a rectangle that was
+// drawn in the wrong place.
+
+// Clean a picture into a printable black-and-white figure. It opens with
+// SCAN_SOURCE_PROMPT so the model repairs the scan rather than faithfully
+// redrawing its damage — "the same diagram", not "the same pixels".
+const _BW_ENHANCE_PROMPT = SCAN_SOURCE_PROMPT + ' ' +
+  'TASK: clean up this ENTIRE image into a sharp BLACK-AND-WHITE line diagram — crisp black line-work and clearly legible black text on a clean white background, like a freshly printed textbook figure rather than a photocopy. Keep every diagram, detail, label, shape, proportion and all text the SAME and in the same positions, with the scanning damage described above repaired. Do NOT make it photo-realistic, do NOT add shading, gradients, rendering, textures, colour or a new style, and do NOT restyle, rearrange, add or remove anything. Output only the image, same aspect ratio.';
+
+// SECOND-CHANCE CLEANUP. The pixel passes cannot reliably tell a sentence of
+// question wording from a caption that belongs to the figure, so the crop is
+// shown back to the model on its own. Any refusal, any failure, anything that
+// looks like it would throw most of the picture away returns the crop UNCHANGED
+// — a wrong second cut is worse than a slightly generous first one.
+async function _aiRefineCrop(dataUrl) {
+  if (!aiReady()) return dataUrl;
+  try {
+    const prompt =
+      'The attached image is an auto-cropped figure for a Singapore primary-school MATH exam question. It should contain ONE figure (diagram, bar model, graph, number line, shape or data table) and NOTHING else.\n' +
+      'Sometimes the crop wrongly includes full sentences of question text above or below the figure.\n' +
+      'Reply ONLY with JSON:\n' +
+      '- If the image is already clean (no sentences of question text): {"clean":true}\n' +
+      '- Otherwise: {"clean":false,"box_2d":[ymin,xmin,ymax,xmax]} — integers 0-1000 measured on THIS image, the rectangle around the figure/table only.\n' +
+      'Rules for box_2d:\n' +
+      '- INCLUDE everything that belongs to the figure: labels, measurements, units, pointer lines, axis titles, axis numbers, and short captions like "Figure 1".\n' +
+      '- INCLUDE picture answer options — four little diagrams with their (1) (2) (3) (4) labels are the choices, not question text.\n' +
+      '- EXCLUDE full sentences / paragraphs of question or explanation text.\n' +
+      '- Never cut through a word, number or unit that belongs to the figure — when unsure, keep it.';
+    const raw = await askGeminiVision(prompt, [{ mimeType: 'image/png', data: dataUrl.split(',')[1] || '' }], { maxOutputTokens: 128, json: true });
+    const p = parseAIJson(raw) || {};
+    if (p.clean === true || !Array.isArray(p.box_2d) || p.box_2d.length !== 4) return dataUrl;
+    const [ymin, xmin, ymax, xmax] = p.box_2d.map(Number);
+    if (![ymin, xmin, ymax, xmax].every(v => Number.isFinite(v) && v >= 0 && v <= 1000)) return dataUrl;
+    if (ymax - ymin < 150 || xmax - xmin < 150) return dataUrl;   // suspiciously small → don't trust it
+    if (ymax - ymin > 960 && xmax - xmin > 960) return dataUrl;   // ≈ the whole picture → nothing to cut
+    const img = await loadImage(dataUrl);
+    const W = img.naturalWidth || img.width, H = img.naturalHeight || img.height;
+    if (!W || !H) return dataUrl;
+    const mx = W * 0.012, my = H * 0.012;   // a hair of margin; the white frame is re-added below
+    const x = Math.max(0, xmin / 1000 * W - mx), y = Math.max(0, ymin / 1000 * H - my);
+    const w = Math.min(W - x, (xmax - xmin) / 1000 * W + mx * 2);
+    const h = Math.min(H - y, (ymax - ymin) / 1000 * H + my * 2);
+    // Would throw away more than 80% of the crop → the model is cutting the
+    // figure, not the wording. Refuse.
+    if (w < 24 || h < 24 || (w * h) / (W * H) < 0.2) return dataUrl;
+    const pad = Math.round(Math.max(16, Math.max(w, h) * 0.035));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(w) + pad * 2;
+    canvas.height = Math.round(h) + pad * 2;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, x, y, w, h, pad, pad, Math.round(w), Math.round(h));
+    return canvas.toDataURL('image/png');
+  } catch (e) { console.warn('AI crop refine skipped', e); return dataUrl; }
+}
+
+// Clean one picture to black and white. Returns the picture UNCHANGED when
+// there is no image model or the call fails — a sharp crop is a perfectly good
+// figure, and a question with no picture is not.
+async function _cleanToBlackAndWhite(dataUrl) {
+  if (!imageAiReady()) return dataUrl;
+  try {
+    const info = dataUrlInfo(dataUrl);
+    if (!info.data) return dataUrl;
+    return await generateEnhancedImageDataUrl(_BW_ENHANCE_PROMPT, [{ mimeType: info.mimeType || 'image/png', data: info.data }]);
+  } catch (e) { console.warn('picture clean-up failed — keeping the sharp crop', e); return dataUrl; }
+}
+
+// THE ONE DOOR. Fills one image block from the rectangle the model drew on the
+// screenshot, and reports what actually happened so the caller can say so.
+async function autoDiagramIntoBlock(imgBlock, box, media, onStatus) {
+  const say = typeof onStatus === 'function' ? onStatus : function () {};
+  const full = 'data:' + media.mimeType + ';base64,' + media.data;
+  const out = { cropped: false, refined: false, cleaned: false, url: '' };
+  if (!imgBlock) return out;
+
+  say('Cutting the picture out of the screenshot…');
+  let crop = null;
+  try { crop = await cropBox2dFromImage(full, box); }
+  catch (e) { console.warn('diagram crop failed', e); }
+
+  if (crop) {
+    out.cropped = true;
+    say('Checking the picture for stray question text…');
+    const refined = await _aiRefineCrop(crop);
+    out.refined = refined !== crop;
+    crop = refined;
+  }
+
+  // No usable rectangle → the WHOLE screenshot, cleaned. The figure is never
+  // lost; it just needs cropping by hand.
+  say(crop ? 'Cleaning the picture up (black & white)…' : 'No rectangle — cleaning the whole screenshot…');
+  const cleaned = await _cleanToBlackAndWhite(crop || full);
+  out.cleaned = cleaned !== (crop || full);
+
+  say('Saving the picture…');
+  try {
+    out.url = await uploadDataUrlToStorage(cleaned, 'mathImages');
+    imgBlock.url = out.url;
+  } catch (e) {
+    console.warn('diagram upload failed', e);
+    return out;
+  }
+  // ↩ Use original goes back to the WHOLE screenshot, which is the only way
+  // back from a rectangle drawn in the wrong place.
+  let originalUrl = out.url;
+  if (crop) {
+    try { originalUrl = await uploadDataUrlToStorage(full, 'mathImages'); }
+    catch (e) { console.warn('original screenshot upload failed', e); }
+  }
+  _imgEnhanceState[imgBlock.id] = { originalDataUrl: full, originalUrl, currentDataUrl: cleaned };
+  return out;
+}
+// What the author is told about the picture. A crop that failed is NAMED: a
+// question wearing a whole screenshot instead of its figure looks like one
+// nobody has cropped yet, and on a vetting card that reads as finished work.
+function autoDiagramNote(r) {
+  if (!r || !r.url) return 'the picture could not be attached — paste it by hand';
+  if (!r.cropped) return 'no rectangle came back, so the WHOLE screenshot is attached — crop it by hand';
+  return r.cleaned ? 'picture cut out and cleaned up' : 'picture cut out';
+}
+
 // File a batch of already-landed questions on the syllabus map. Used by the
 // whole-paper import, where the questions are in Vetting and saved long before
 // forty more AI calls could finish — so the ids in flight are held here and the
@@ -23945,7 +24165,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.54.0 · 2026-08-30";
+const APP_VERSION = "v1.55.0 · 2026-08-30";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -42029,6 +42249,29 @@ async function sylAutoFileLos(q) {
     if (ids.length) q.los = ids;
     return ids;
   } catch (e) { console.warn('auto-file objectives', e); return []; }
+}
+// ✨ Build with AI stops in the EDITOR rather than dropping into Vetting, so
+// `sylAutoFileLos` — which files a question object — cannot serve it. This is
+// the same call, applied to the editor: the ✨ Suggest button run for the author
+// instead of waiting to be pressed.
+// `owner` is the editorBlocks array the build produced. The objectives arrive
+// after an AI call, and by then the author may have opened something else — so
+// they are dropped rather than filed onto whatever is on screen now.
+// It can never fail its caller, for the same reason `sylAutoFileLos` cannot.
+async function sylAutoFileEditor(owner) {
+  if (!sylAutoFileOn()) return [];
+  if (editorLos.length) return [];        // filed by the read or by hand — never overwrite
+  try {
+    const q = collectQuestion();
+    if (!(q.blocks || []).some(b => b.type === "text" && b.content)) return [];
+    const level = String(q.level || "").trim().toUpperCase();
+    const ids = await sylSuggestLos(q, SYL_LEVELS.indexOf(level) >= 0 ? level : "");
+    if (owner && editorBlocks !== owner) return [];
+    if (!ids.length || editorLos.length) return [];
+    editorLos = SYL_LOS.filter(lo => ids.indexOf(lo.id) >= 0).map(lo => lo.id);
+    sylEditorRender();
+    return editorLos.slice();
+  } catch (e) { console.warn("auto-file objectives (editor)", e); return []; }
 }
 // The paper import lands up to forty questions in one go. They are filed a few
 // at a time and each one is re-saved as its own tagging returns — the questions
