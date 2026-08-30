@@ -24184,7 +24184,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.56.0 · 2026-08-31";
+const APP_VERSION = "v1.56.1 · 2026-08-31";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -25782,6 +25782,44 @@ function tcgSetHeroes(setKey) {
 }
 const TCG_BY_ID = {};
 TCG_CARDS.forEach(c => { TCG_BY_ID[c.id] = c; });
+// Nova Protocol -> Aetherfall identity migration. Ownership has always been
+// stored by positional id, never by display name, artwork or skill. Keep an
+// explicit ledger for every legacy 6★/7★ slot so a future roster edit cannot
+// silently demote, delete or re-key one of the rare cards a student earned.
+// The value is the former name; the live name/avatar/abilities always come
+// from TCG_BY_ID[id], which is now the Aetherfall character in that slot.
+const TCG_AETHERFALL_IDENTITY_VERSION = 'aetherfall-v1';
+const TCG_LEGACY_HIGH_RARITY = Object.freeze({
+  c043: 'Vorruk, the Extinction Flame',
+  c044: 'Thalgrath, the Abyssal Crown',
+  c045: 'Vaelstorm, the Storm Eternal',
+  c046: 'Lumindra, the First Light',
+  c047: 'Kryllon, the Iron Colossus',
+  c048: 'Seraphex, the Seraph Engine',
+  c049: 'Solvorax Prime, the Starforger',
+  c050: 'Vhorrukhaal, the Star Eater',
+  c051: 'Aeternax, the World Coil',
+  c094: 'Grand Castellan Vheldrin, the Unbroken',
+  c095: 'Arch-Psion Zaelith, the Starfall',
+  c096: 'Warmaster Tharnos, the Emberbanner',
+  c097: 'Void-Queen Morvanne, the Nullsong',
+  c098: 'Archbinder Vaskaal, the Pactmaker',
+  c099: 'Magos Ignatha, the Everflame',
+  c100: 'Ferrovax Omega, the Titan Engine',
+  c101: 'Cryovast Aegis, the Winter Engine'
+});
+function _tcgPreserveLegacyHighRarity(savedCards, cards) {
+  const src = (savedCards && typeof savedCards === 'object') ? savedCards : {};
+  Object.keys(TCG_LEGACY_HIGH_RARITY).forEach(id => {
+    const card = TCG_BY_ID[id];
+    // This is a build invariant, not a student-data error. Every old rare slot
+    // must still resolve to a 6★ or 7★ Aetherfall character.
+    if (!card || card.stars < 6) throw new Error('Aetherfall high-rarity migration lost ' + id);
+    const copies = src[id] | 0;
+    if (copies > 0) cards[id] = Math.max(cards[id] | 0, copies);
+  });
+  return cards;
+}
 // Deterministic ±6% jitter per card so the same unit has the same stats
 // on every device with no stored stat data.
 function _tcgJitter(id, salt) {
@@ -25968,6 +26006,10 @@ function tcgHydrateState(saved) {
   const s = (saved && typeof saved === 'object') ? saved : {};
   const cards = {};
   Object.keys(s.cards || {}).forEach(id => { if (TCG_BY_ID[id] && (s.cards[id] | 0) > 0) cards[id] = s.cards[id] | 0; });
+  // Belt-and-braces preservation for the cards that were hardest to earn in
+  // Nova Protocol. Quantities stay on the same ids; the new roster lookup then
+  // supplies the corresponding Aetherfall name, art, avatar and abilities.
+  _tcgPreserveLegacyHighRarity(s.cards, cards);
   // Per-card level (1–99) and progress toward the next level (0–4 correct answers).
   const levels = {}, lvlp = {};
   const sl = (s.levels && typeof s.levels === 'object') ? s.levels : {};
@@ -26016,6 +26058,7 @@ function tcgHydrateState(saved) {
   // 🎴 Convergence Duel: the win/loss record. The live board is never persisted.
   const dl = (s.duel && typeof s.duel === 'object') ? s.duel : {};
   return {
+    identityVersion: TCG_AETHERFALL_IDENTITY_VERSION,
     dungeon: { level: Math.max(1, dg.level | 0), cleared: Math.max(0, dg.cleared | 0) },
     // `squad` is the Manafront Siege bench (see 🎯 CHOOSING A SQUAD). This is a
     // WHITELIST, so it has to be carried here or a student's line-up is
