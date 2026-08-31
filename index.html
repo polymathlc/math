@@ -411,6 +411,34 @@ a { color: var(--primary); }
 .aks-pick-row span { display: block; font-size: 0.78rem; color: var(--text-muted); }
 .aks-pick-text { margin-top: 5px; }
 
+/* 🎬 The video link, typed on the card itself. The row is rebuilt whole on every
+   render, so the box is sized to be usable at a glance rather than to be lived
+   in — what is typed lives on the row, not in the DOM. */
+.aks-video { margin-top: 14px; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-alt); }
+.aks-video label { display: block; font-size: 0.78rem; font-weight: 700; margin-bottom: 8px; }
+.aks-video-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.aks-video-row input {
+  flex: 1 1 260px; min-width: 0; padding: 10px 12px; border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border); background: var(--surface); font-family: inherit; font-size: 0.85rem;
+}
+.aks-video .aks-note { margin: 10px 0 0; }
+
+/* The photograph, carried into the question editor by ✎ Edit this question, so
+   the two things a matched question is opened for — a video worked answer and
+   the photograph itself — are both one press from where it lands. */
+.aks-carry {
+  display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap;
+  margin: 0 0 18px; padding: 16px 18px;
+  border: 1.5px solid var(--primary); border-radius: var(--radius-md, 12px); background: var(--primary-light);
+}
+/* A worked answer is photographed in whatever shape the page was, and a tall
+   one would otherwise make the banner taller than the fields it sits over. */
+.aks-carry img { width: 150px; max-width: 40vw; max-height: 200px; object-fit: contain; border-radius: var(--radius-sm); border: 1px solid var(--border); background: #fff; }
+.aks-carry-main { flex: 1 1 260px; min-width: 220px; }
+.aks-carry-main b { display: block; font-size: 0.92rem; font-weight: 700; margin-bottom: 6px; }
+.aks-carry-main span { display: block; font-size: 0.82rem; color: var(--text-muted); line-height: 1.7; }
+.aks-carry-btns { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+
 /* ===================================================================
    VETTING — the holding pen between "AI read it" and "students see it".
    =================================================================== */
@@ -4819,6 +4847,22 @@ body.lore-reading { overflow: hidden; }
           <button class="btn btn-ghost btn-sm" id="mcqAddOptionBtn" type="button" style="margin-top:8px;">➕ Add option</button>
         </div>
         <div class="editor-field"><label>Marking guide <span style="color:var(--text-light);font-weight:400;">(per-question)</span></label><textarea id="qGuideInput" placeholder="Worked solution / what to look for in the working. e.g. Common denominator 20; 2/5=8/20, 1/4=5/20; eaten 13/20; left 7/20."></textarea><div class="hint">Private notes for the AI marker — students never see this.</div></div>
+        <!-- Carried in by ✎ Edit this question on a 🔑 answer key scanner card:
+             the photograph that was matched to THIS question, sitting directly
+             above the two fields it is opened for — the video link and the
+             answer key image. It is hidden (and cleared) for every other route
+             into the editor, which is what `qScanCarrySync` is for. -->
+        <div class="aks-carry" id="qScanCarry" hidden>
+          <img id="qScanCarryImg" alt="The photographed worked answer this question was matched to">
+          <div class="aks-carry-main">
+            <b>🔑 From the answer key scanner</b>
+            <span id="qScanCarryNote"></span>
+            <div class="aks-carry-btns">
+              <button class="btn btn-primary btn-sm" type="button" id="qScanCarryUse">📎 Use this photograph as the answer key</button>
+              <button class="btn btn-ghost btn-sm" type="button" id="qScanCarryBack">← Back to the scanner</button>
+            </div>
+          </div>
+        </div>
         <div class="editor-field"><label>Video explanation link <span style="color:var(--text-light);font-weight:400;">(optional)</span></label><input id="qVideoInput" type="text" placeholder="YouTube, Dropbox or Google Drive video link"><div class="hint">Shown only after a student uses AI marking. YouTube, Vimeo, Dropbox and Google Drive share links are converted for embedding automatically.</div>
           <button class="btn btn-ghost btn-sm" type="button" id="qVideoOverlayBtn" style="margin-top:10px;" title="Correct the video without re-recording it — put a note or a scribble over the film at the second it is needed">🎬 Video amendments</button>
         </div>
@@ -12520,6 +12564,7 @@ document.addEventListener("click", e => {
 function resetEditor() {
   currentEditingId = null;
   qEditReturn = null;   // an abandoned edit must not redirect the NEXT save
+  aksCarrySet(null);    // …and must not leave the last photograph on the next question
   pendingVariantOf = null;
   _vetPendingPromote = null;   // abandoning the edit leaves the vetting entry alone
   graphPendingSpawn = null;
@@ -12558,6 +12603,11 @@ function loadQuestionIntoEditor(q) {
   // promise the return is the CURRENT one: openers that want to come back
   // somewhere other than the bank set qEditReturn straight after calling this.
   qEditReturn = null;
+  // Same rule for the photograph an answer key scanner card hands over: it is
+  // cleared HERE, on every route in, so the next question opened from the bank
+  // cannot inherit the last one's picture and be offered somebody else's
+  // working as its answer key. `aksEditQuestion` sets it straight afterwards.
+  aksCarrySet(null);
   pendingVariantOf = null;
   imgChoices.clear();
   editorBlocks = JSON.parse(JSON.stringify(q.blocks || []));
@@ -15411,6 +15461,149 @@ function aksChoose(qid) {
   aksRender();
 }
 
+// ---- ⑥½ the question itself, from the card ------------------------------
+// A matched card names a question, and until now that was all it could do with
+// it: attach the photograph, or nothing. But a photographed worked answer is
+// exactly the moment a teacher thinks of the OTHER two things that question
+// wants — a video worked answer, and a better picture than the one in hand.
+//
+//  • ✎ EDIT THIS QUESTION opens the real editor rather than growing a second
+//    one here. Half an editor on a scanner card is a second place the question
+//    can be changed, and the two would drift the day a field is added.
+//  • THE PHOTOGRAPH TRAVELS WITH IT (`aksCarrySet`), because the reason to
+//    open the editor from here is to do something with THAT picture. It is the
+//    data URL already in hand — still nothing uploaded — shown in a banner
+//    directly above the video and answer-key fields.
+//  • SAVE AND CANCEL COME BACK HERE (`qEditReturn = { page: "answerkeys" }`).
+//    The pile is still on screen with rows waiting to be acted on, and landing
+//    on the bank instead reads as the scan having been thrown away.
+//  • 🎬 THE VIDEO LINK NEVER NEEDS THE EDITOR AT ALL. It is one field on one
+//    question, typed on the card and written straight to the bank, because the
+//    trip to the editor and back for a pasted URL is the friction this whole
+//    feature exists to remove.
+//  • ADMIN-ONLY IN THE HANDLERS, not merely on the buttons. Both of these
+//    WRITE to the question bank, and the page they sit on has three gates for a
+//    reason — a button that is never drawn is not a lock.
+let _aksCarry = null;
+
+// The ONE writer of the carried photograph, so the banner can never say
+// something the state does not. Called with null from `loadQuestionIntoEditor`
+// and `resetEditor` — every route into the editor clears it, or the next
+// question opened from the bank inherits the last one's picture.
+function aksCarrySet(carry) {
+  _aksCarry = carry || null;
+  qScanCarrySync();
+}
+
+function qScanCarrySync() {
+  const box = $("qScanCarry");
+  if (!box) return;
+  const carry = _aksCarry;
+  if (!carry || !carry.dataUrl) { box.hidden = true; return; }
+  box.hidden = false;
+  const img = $("qScanCarryImg"); if (img) img.src = carry.dataUrl;
+  const note = $("qScanCarryNote");
+  if (note) {
+    note.textContent = carry.used
+      ? "That photograph is in the answer key box below — press 💾 Save changes to keep it on this question."
+      : "The worked answer you photographed, matched to this question. Paste a video link below, or put the photograph itself in as the answer key image.";
+  }
+  const btn = $("qScanCarryUse");
+  if (btn) {
+    btn.disabled = !!carry.used;
+    btn.textContent = carry.used ? "✓ In the answer key box below" : "📎 Use this photograph as the answer key";
+  }
+}
+
+// The photograph into the editor's answer key box. It is uploaded HERE, which
+// is the one place this feature departs from "nothing is uploaded until it is
+// attached" — and deliberately: the editor's own paste, drop and file routes
+// have always uploaded on the spot and left the Save to commit the URL, so a
+// second rule for this one button would be a box whose picture behaves
+// differently depending on how it got there. SAVE is still what puts it on the
+// question.
+async function qScanUseImage() {
+  const carry = _aksCarry;
+  if (!carry || !carry.dataUrl || carry.used) return;
+  if (!canManageQuestions()) { toast("Only admin accounts can add answer keys", "error"); return; }
+  const btn = $("qScanCarryUse");
+  if (btn) { btn.disabled = true; btn.textContent = "Uploading…"; }
+  try {
+    const url = await uploadDataUrlToStorage(carry.dataUrl, "mathAnswerKeys");
+    setAnswerKeyImage(url);
+    carry.used = true;
+    toast("It is in the answer key box — press Save to keep it", "success");
+  } catch (e) {
+    console.warn("carrying the answer key photograph over failed", e);
+    toast("Could not upload that photograph: " + (e && e.message ? e.message : e), "error");
+  }
+  qScanCarrySync();
+}
+
+function aksEditQuestion(rowId) {
+  // The same third gate `aksStartJob` carries, for the same reason: this one
+  // opens the admin editor on a bank question.
+  if (!canManageQuestions()) { toast("Only admin accounts can edit questions", "error"); return; }
+  const row = aksRows.find(r => r.id === rowId);
+  if (!row || !row.match) return;
+  const q = questionBank.find(x => x.id === row.match.id);
+  if (!q) { aksSetRow(rowId, { error: "that question is no longer in the bank" }); aksRender(); return; }
+  loadQuestionIntoEditor(q);                     // clears both, so they are set after
+  qEditReturn = { page: "answerkeys" };
+  aksCarrySet({ rowId, dataUrl: row.dataUrl || "", used: false });
+  // The banner sits half way down a long editor and the page has just been
+  // scrolled to the top, so it is brought into view rather than left to be
+  // found.
+  setTimeout(() => { const b = $("qScanCarry"); if (b && !b.hidden && b.scrollIntoView) b.scrollIntoView({ block: "center", behavior: "smooth" }); }, 120);
+}
+
+// 🎬 The video link, typed on the card. Open it holding whatever the question
+// already has, so the box is an EDIT of the link rather than a blank that
+// silently replaces one.
+function aksToggleVideo(rowId) {
+  const row = aksRows.find(r => r.id === rowId);
+  if (!row || !row.match) return;
+  if (row.videoDraft == null) {
+    const q = questionBank.find(x => x.id === row.match.id);
+    row.videoDraft = q ? String(q.videoExplanationUrl || "") : "";
+  }
+  row.videoOpen = !row.videoOpen;
+  aksRender();
+  if (row.videoOpen) setTimeout(() => { const el = $("aksVideo_" + rowId); if (el) el.focus(); }, 30);
+}
+
+async function aksSaveVideo(rowId) {
+  if (!canManageQuestions()) { toast("Only admin accounts can edit questions", "error"); return; }
+  const row = aksRows.find(r => r.id === rowId);
+  if (!row || !row.match || row.videoSaving) return;
+  // Re-resolved by id at write time, exactly as the attach is: the bank is
+  // re-read and re-assigned wholesale elsewhere, and a question can be edited
+  // or deleted between the photograph landing and this button being pressed.
+  const q = questionBank.find(x => x.id === row.match.id);
+  if (!q) { aksSetRow(rowId, { error: "that question is no longer in the bank", videoOpen: false }); aksRender(); return; }
+  const el = $("aksVideo_" + rowId);
+  const url = String((el ? el.value : row.videoDraft) || "").trim();
+  const had = String(q.videoExplanationUrl || "");
+  aksSetRow(rowId, { videoSaving: true, videoDraft: url, error: "" });
+  aksRender();
+  q.videoExplanationUrl = url;
+  try {
+    await saveQuestionDoc(q);
+    aksSetRow(rowId, { videoSaving: false, videoOpen: false });
+    aksRender();
+    renderBank();
+    toast(url ? `Video link saved on “${q.title || "question"}”` : "Video link taken off", "success");
+  } catch (e) {
+    // Put the question back the way it was: a failed write must not leave the
+    // bank in memory disagreeing with the database about a video it does not
+    // have — the same rule the attach follows.
+    q.videoExplanationUrl = had;
+    console.warn("saving the video link failed", e);
+    aksSetRow(rowId, { videoSaving: false, error: "could not save the video link: " + (e && e.message ? e.message : e) });
+    aksRender();
+  }
+}
+
 // ---- ⑦ the page -----------------------------------------------------------
 function aksRender() {
   const auto = $("aksAuto"); if (auto) auto.checked = aksAutoOn();
@@ -15426,13 +15619,54 @@ function aksRender() {
     list.innerHTML = `<div class="aks-empty">Nothing scanned yet. Photograph a page of your worked answers and it will look for the question it belongs to.</div>`;
     return;
   }
+  // THE CARD IS REBUILT WHOLE ON EVERY RENDER, and another photograph
+  // finishing in the background renders — so a video link half typed into a
+  // card would be wiped mid-sentence. What is typed lives on the ROW (written
+  // there on every keystroke), and the caret is put back where it was.
+  const act = document.activeElement;
+  const keep = act && act.id && act.closest && act.closest("#aksList") ? act.id : "";
+  const keepAt = keep ? act.selectionStart : 0;
   list.innerHTML = aksRows.map(aksRowHtml).join("");
+  if (keep) {
+    const back = $(keep);
+    if (back) { back.focus(); try { back.setSelectionRange(keepAt, keepAt); } catch (e) { /* not a text box */ } }
+  }
   list.querySelectorAll("[data-aks-attach]").forEach(b => b.addEventListener("click", () => aksAttach(b.dataset.aksAttach)));
   list.querySelectorAll("[data-aks-replace]").forEach(b => b.addEventListener("click", () => aksAttach(b.dataset.aksReplace, { replace: true })));
   list.querySelectorAll("[data-aks-pick]").forEach(b => b.addEventListener("click", () => aksOpenPicker(b.dataset.aksPick)));
   list.querySelectorAll("[data-aks-undo]").forEach(b => b.addEventListener("click", () => aksUndo(b.dataset.aksUndo)));
   list.querySelectorAll("[data-aks-retry]").forEach(b => b.addEventListener("click", () => aksRetry(b.dataset.aksRetry)));
   list.querySelectorAll("[data-aks-dismiss]").forEach(b => b.addEventListener("click", () => aksDismiss(b.dataset.aksDismiss)));
+  list.querySelectorAll("[data-aks-edit]").forEach(b => b.addEventListener("click", () => aksEditQuestion(b.dataset.aksEdit)));
+  list.querySelectorAll("[data-aks-video]").forEach(b => b.addEventListener("click", () => aksToggleVideo(b.dataset.aksVideo)));
+  list.querySelectorAll("[data-aks-video-save]").forEach(b => b.addEventListener("click", () => aksSaveVideo(b.dataset.aksVideoSave)));
+  // Every keystroke goes onto the row, which is what makes the rebuild above
+  // survivable at all.
+  list.querySelectorAll("[data-aks-video-draft]").forEach(i => i.addEventListener("input", () => aksSetRow(i.dataset.aksVideoDraft, { videoDraft: i.value })));
+}
+
+// The two things a matched question is opened for once the photograph has
+// found it. BOTH states of the card carry them — a key that has just been
+// filed is exactly when the teacher thinks of the video that goes with it.
+function aksQuestionActionsHtml(row) {
+  const id = escapeHtml(row.id);
+  return `<button class="btn btn-ghost btn-sm" data-aks-video="${id}" title="Put a video worked answer on this question without leaving this page">🎬 Video</button>
+      <button class="btn btn-ghost btn-sm" data-aks-edit="${id}" title="Open this question in the editor — this photograph comes with it">✎ Edit this question</button>`;
+}
+
+function aksVideoBoxHtml(row, q) {
+  if (!row.videoOpen || !q) return "";
+  const id = escapeHtml(row.id);
+  const draft = row.videoDraft == null ? String(q.videoExplanationUrl || "") : row.videoDraft;
+  return `<div class="aks-video">
+    <label for="aksVideo_${id}">🎬 Video explanation link</label>
+    <div class="aks-video-row">
+      <input type="text" id="aksVideo_${id}" data-aks-video-draft="${id}" value="${escapeHtml(draft)}"
+             placeholder="YouTube, Vimeo, Dropbox or Google Drive link">
+      <button class="btn btn-primary btn-sm" data-aks-video-save="${id}"${row.videoSaving ? " disabled" : ""}>${row.videoSaving ? "Saving…" : "Save on the question"}</button>
+    </div>
+    <div class="aks-note">Saved straight onto “${escapeHtml(q.title || "the question")}”. Students see it only after AI marking. Clear the box and save to take a video off.</div>
+  </div>`;
 }
 
 function aksRowHtml(row) {
@@ -15463,15 +15697,19 @@ function aksRowHtml(row) {
   ].join("");
 
   if (row.status === "attached") {
+    const done = questionBank.find(x => x.id === row.match.id);
     return `<div class="aks-card is-done">
       <div class="aks-body">${thumb}
         <div class="aks-main">
           <h4>✓ Filed as the answer key for “${escapeHtml(row.match.title || "question")}”</h4>
-          <div class="aks-meta">${readBits}</div>
+          <div class="aks-meta">${readBits}${done && done.videoExplanationUrl ? `<span class="vet-badge">🎬 Has a video</span>` : ""}</div>
           ${row.prevUrl ? `<div class="aks-note">It replaced an answer key image that was already there — ↩ Undo puts that one back.</div>` : ""}
+          ${row.error ? `<div class="aks-note aks-warn">${escapeHtml(row.error)}</div>` : ""}
+          ${aksVideoBoxHtml(row, done)}
         </div>
       </div>
       <div class="aks-actions">
+        ${done ? aksQuestionActionsHtml(row) : ""}
         <button class="btn btn-ghost btn-sm" data-aks-undo="${escapeHtml(row.id)}">↩ Undo</button>
         <button class="btn btn-ghost btn-sm" data-aks-dismiss="${escapeHtml(row.id)}">Dismiss</button>
       </div>
@@ -15487,6 +15725,7 @@ function aksRowHtml(row) {
          ${q.level ? `<span class="vet-badge">${escapeHtml(q.level)}</span>` : ""}
          <span class="vet-badge">${escapeHtml(adminTopicsLabel(q))}</span>
          ${has ? `<span class="vet-badge warn">Already has an answer key image</span>` : ""}
+         ${q.videoExplanationUrl ? `<span class="vet-badge">🎬 Has a video</span>` : ""}
        </div>
        <div class="aks-qtext">${escapeHtml(questionText(q).replace(/\s+/g, " ").slice(0, 220))}</div>
        ${row.why ? `<div class="aks-note">Why: ${escapeHtml(row.why)}</div>` : ""}`
@@ -15501,10 +15740,12 @@ function aksRowHtml(row) {
         <div class="aks-meta">${readBits}</div>
         ${row.needsReplace ? `<div class="aks-note aks-warn">That question already has an answer key image. Attaching this one replaces it — ↩ Undo puts the old one back.</div>` : ""}
         ${row.error ? `<div class="aks-note aks-warn">${escapeHtml(row.error)}</div>` : ""}
+        ${aksVideoBoxHtml(row, q)}
       </div>
     </div>
     <div class="aks-actions">
       ${q ? `<button class="btn btn-primary btn-sm" ${attachAttr}>${attachLabel}</button>` : ""}
+      ${q ? aksQuestionActionsHtml(row) : ""}
       <button class="btn btn-ghost btn-sm" data-aks-pick="${escapeHtml(row.id)}">🔍 ${q ? "Change the question" : "Choose the question"}</button>
       <button class="btn btn-ghost btn-sm" data-aks-retry="${escapeHtml(row.id)}">↻ Match again</button>
       <button class="btn btn-ghost btn-sm" data-aks-dismiss="${escapeHtml(row.id)}">Skip</button>
@@ -15532,6 +15773,11 @@ $("aksAuto").addEventListener("change", e => {
     : "Nothing is filed automatically — every match waits for you to press Attach.");
 });
 $("aksPickSearch").addEventListener("input", aksRenderPicker);
+// The banner lives in the question editor rather than on this page, so it is
+// bound defensively: a markup change that loses it must not take the whole
+// scanner's wiring down with it.
+if ($("qScanCarryUse")) $("qScanCarryUse").addEventListener("click", qScanUseImage);
+if ($("qScanCarryBack")) $("qScanCarryBack").addEventListener("click", () => qEditLeave());
 
 // Regenerate a fresh variant of whatever question is currently in the editor:
 // same concept/structure/difficulty, but different names, objects and numbers
@@ -19466,6 +19712,10 @@ function qEditLeave() {
     wseOpen(back.wsId);
     return;
   }
+  // A plain page to go back to — the 🔑 answer key scanner, whose pile of
+  // photographs is still on screen and still has rows waiting to be acted on.
+  // Landing on the bank instead reads as the scan having been thrown away.
+  if (back && back.page) { navigateTo(back.page); return; }
   navigateTo("bank");
 }
 function wseRender() {
@@ -25298,7 +25548,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.59.1 · 2026-08-31";
+const APP_VERSION = "v1.60.0 · 2026-08-31";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)

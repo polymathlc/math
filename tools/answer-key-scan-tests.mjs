@@ -72,6 +72,20 @@ function closeOverlay() {}
 function renderBank() {}
 function $(){ return null; }
 let localStorage = { _v: {}, getItem(k) { return k in this._v ? this._v[k] : null; }, setItem(k, v) { this._v[k] = String(v); } };
+
+// The editor and the bank write, stubbed. The real loadQuestionIntoEditor
+// CLEARS qEditReturn (every route in lands there), which is exactly why
+// aksEditQuestion has to set it afterwards — so the stub clears it too.
+let qEditReturn = null;
+let _opened = [];
+let _saved = [];
+let _saveFails = false;
+let _uploads = [];
+let _keyBox = "";
+function loadQuestionIntoEditor(q) { _opened.push(q.id); qEditReturn = null; aksCarrySet(null); }
+async function saveQuestionDoc(q) { if (_saveFails) throw new Error("network"); _saved.push(JSON.parse(JSON.stringify(q))); }
+async function uploadDataUrlToStorage(url, folder) { _uploads.push({ url, folder }); return "https://storage/" + folder + "/x.png"; }
+function setAnswerKeyImage(url) { _keyBox = String(url || ""); }
 `;
 
 // akcStatedAnswer / akcAnswersAgree are the answer comparator the cross-check
@@ -90,8 +104,21 @@ return {
   readPrompt: aksReadPrompt,
   pickPrompt: aksPickPrompt,
   startJob: aksStartJob,
+  edit: aksEditQuestion,
+  saveVideo: aksSaveVideo,
+  toggleVideo: aksToggleVideo,
+  videoBox: aksVideoBoxHtml,
+  actions: aksQuestionActionsHtml,
+  carrySet: aksCarrySet,
+  carry() { return _aksCarry; },
+  editReturn() { return qEditReturn; },
+  opened() { return _opened; },
+  saved() { return _saved; },
+  uploads() { return _uploads; },
+  failSaves(on) { _saveFails = !!on; },
   rows() { return aksRows; },
-  reset() { aksRows = []; },
+  addRow(r) { aksRows.push(r); return r; },
+  reset() { aksRows = []; _opened = []; _saved = []; _uploads = []; _saveFails = false; qEditReturn = null; _aksCarry = null; },
   seed(bank) { questionBank = bank || []; },
   setRole(r) { currentUser = { role: r }; },
   MIN: AKS_MIN_SCORE, SURE: AKS_SURE_SCORE, GAP: AKS_SURE_GAP, SHORT: AKS_SHORTLIST,
@@ -325,6 +352,163 @@ test('every element the block binds to exists in the markup', () => {
 test('the gallery picker takes SEVERAL photographs', () => {
   ok(/id="aksFile"[^>]*multiple|multiple[^>]*id="aksFile"/.test(src),
     'the gallery input is not `multiple`, so a pile of keys has to be added one at a time');
+});
+
+// ── ⑨ the question itself, from the card (v1.60.0) ─────────────────────────
+// ✎ Edit this question and 🎬 Video both WRITE to the question bank from a page
+// whose whole point is that a student must never reach it, and both fail
+// silently: an edit that opens nothing looks like a slow app, and a video link
+// that did not save looks exactly like one that did.
+
+const withKey = (extra) => Object.assign({ id: 'r1', status: 'ready', dataUrl: 'data:image/png;base64,AAA',
+  match: { id: 'm1', title: 'Ribbon left over' }, read: {} }, extra || {});
+
+test('✎ Edit opens the matched question and comes BACK to the scanner', () => {
+  M.reset(); M.seed(BANK); M.setRole('admin');
+  M.addRow(withKey());
+  M.edit('r1');
+  eq(M.opened(), ['m1'], 'the question the editor was opened on');
+  eq(M.editReturn(), { page: 'answerkeys' },
+    'Save and Cancel land on the bank instead — the pile of photographs, with rows still waiting, reads as thrown away');
+});
+
+test('the PHOTOGRAPH travels into the editor, unused and un-uploaded', () => {
+  M.reset(); M.seed(BANK); M.setRole('admin');
+  M.addRow(withKey());
+  M.edit('r1');
+  const c = M.carry();
+  ok(c && c.dataUrl === 'data:image/png;base64,AAA', 'the editor was opened without the picture it was opened FOR');
+  eq(c.used, false, 'a carried photograph must arrive un-used — the Save is what commits it');
+  eq(M.uploads().length, 0, 'a photograph was uploaded merely by opening the editor — an orphan in Storage if the edit is abandoned');
+});
+
+test('the carry is CLEARED by every other route into the editor', () => {
+  // Set it, then open a question the way the bank does. The real
+  // loadQuestionIntoEditor calls aksCarrySet(null); the stub mirrors it.
+  M.reset(); M.seed(BANK); M.setRole('admin');
+  M.addRow(withKey());
+  M.edit('r1');
+  ok(M.carry(), 'nothing was carried at all');
+  loadFromBank();
+  ok(!M.carry(),
+    'the last photograph is still on the banner over a question it has nothing to do with — and one press files somebody else\'s working as its answer key');
+});
+function loadFromBank() { M.carrySet(null); }
+
+test('the source really does clear the carry on both routes', () => {
+  // The two calls the test above can only mimic. Lose either and the banner
+  // outlives the question it belongs to.
+  const load = src.slice(src.indexOf('function loadQuestionIntoEditor(q) {'), src.indexOf('function collectQuestion()'));
+  ok(/aksCarrySet\(null\)/.test(load), 'loadQuestionIntoEditor does not clear the carried photograph');
+  const reset = src.slice(src.indexOf('function resetEditor() {'), src.indexOf('$("clearQBtn")'));
+  ok(/aksCarrySet\(null\)/.test(reset), 'resetEditor does not clear the carried photograph');
+});
+
+test('✎ Edit is refused for a student, in the HANDLER', () => {
+  M.reset(); M.seed(BANK); M.addRow(withKey());
+  M.setRole('student');
+  M.edit('r1');
+  eq(M.opened().length, 0, 'a student account opened the admin editor from a scanner card');
+  M.setRole('admin');
+});
+
+test('✎ Edit on a question that has left the bank opens nothing', () => {
+  M.reset(); M.seed(BANK); M.setRole('admin');
+  M.addRow(withKey({ match: { id: 'gone', title: 'Deleted' } }));
+  M.edit('r1');
+  eq(M.opened().length, 0, 'the editor was opened on a question that is no longer there');
+});
+
+test('🎬 the video link is written to the matched question', async () => {
+  M.reset(); M.seed(BANK.map(q => Object.assign({}, q))); M.setRole('admin');
+  M.addRow(withKey({ videoDraft: 'https://youtu.be/abc' }));
+  await M.saveVideo('r1');
+  eq(M.saved().length, 1, 'nothing was written');
+  eq(M.saved()[0].id, 'm1', 'the question that was written to');
+  eq(M.saved()[0].videoExplanationUrl, 'https://youtu.be/abc');
+});
+
+test('a FAILED write puts the question back the way it was', async () => {
+  const bank = BANK.map(q => Object.assign({}, q, { videoExplanationUrl: 'https://old/video' }));
+  M.reset(); M.seed(bank); M.setRole('admin');
+  M.addRow(withKey({ videoDraft: 'https://youtu.be/new' }));
+  M.failSaves(true);
+  await M.saveVideo('r1');
+  eq(bank[0].videoExplanationUrl, 'https://old/video',
+    'the bank in memory now claims a video the database has never heard of — every screen shows it until the page is reloaded');
+  M.failSaves(false);
+});
+
+test('🎬 is refused for a student, and refused on a question that has gone', async () => {
+  M.reset(); M.seed(BANK.map(q => Object.assign({}, q))); M.setRole('student');
+  M.addRow(withKey({ videoDraft: 'https://youtu.be/abc' }));
+  await M.saveVideo('r1');
+  eq(M.saved().length, 0, 'a student account wrote a video link into the question bank');
+  M.setRole('admin');
+  M.reset(); M.seed(BANK.map(q => Object.assign({}, q)));
+  M.addRow(withKey({ match: { id: 'gone', title: 'Deleted' }, videoDraft: 'https://youtu.be/abc' }));
+  await M.saveVideo('r1');
+  eq(M.saved().length, 0, 'a video link was written to a question that is no longer in the bank');
+});
+
+test('the box opens holding the link the question ALREADY has', () => {
+  M.reset(); M.setRole('admin');
+  const q = Object.assign({}, RIBBON, { videoExplanationUrl: 'https://old/video' });
+  M.seed([q, PENS, SPEED]);
+  const row = M.addRow(withKey());
+  M.toggleVideo('r1');
+  ok(row.videoOpen, 'the box did not open');
+  eq(row.videoDraft, 'https://old/video',
+    'the box opens EMPTY over a question that has a video — one press of save then wipes it');
+  ok(M.videoBox(row, q).includes('https://old/video'), 'the open box does not show the link it is editing');
+});
+
+test('what is being TYPED survives the card being rebuilt', () => {
+  // Another photograph finishing in the background re-renders every card. The
+  // draft lives on the row, so a half-typed link is still there afterwards.
+  M.reset(); M.setRole('admin'); M.seed(BANK);
+  const row = M.addRow(withKey({ videoOpen: true, videoDraft: 'https://youtu.be/half' }));
+  ok(M.videoBox(row, RIBBON).includes('https://youtu.be/half'),
+    'the box is rendered from the question rather than from the draft — every background render wipes what is being typed');
+  ok(/const keep = act && act\.id/.test(src) && /setSelectionRange\(keepAt, keepAt\)/.test(src),
+    'aksRender does not put the caret back, so a rebuild mid-sentence drops the cursor out of the box');
+  ok(/data-aks-video-draft/.test(src) && /videoDraft: i\.value/.test(src),
+    'nothing writes the keystrokes onto the row, so there is no draft to survive anything');
+});
+
+test('a card that has been FILED still offers the question', () => {
+  // The moment a key lands is exactly when the teacher thinks of the video that
+  // goes with it, and the done card used to offer only Undo and Dismiss.
+  const done = src.slice(src.indexOf('if (row.status === "attached") {'), src.indexOf('const q = row.match ? questionBank.find'));
+  ok(/aksQuestionActionsHtml\(row\)/.test(done), 'a filed card no longer offers ✎ Edit or 🎬 Video');
+  ok(/aksVideoBoxHtml\(row, done\)/.test(done), 'the video box cannot be opened on a filed card');
+});
+
+test('a card with NO match offers neither — there is nothing to edit', () => {
+  const html = M.videoBox({ id: 'r1', videoOpen: true }, null);
+  eq(html, '', 'a video box was drawn for a photograph that has not found a question');
+});
+
+test('qEditLeave comes back to a plain page', () => {
+  const leave = src.slice(src.indexOf('function qEditLeave() {'), src.indexOf('function wseRender()'));
+  ok(/back && back\.page/.test(leave) && /navigateTo\(back\.page\)/.test(leave),
+    'Save on a question opened from the scanner lands on the bank — the pile it came from is gone from view');
+});
+
+test('the banner and its buttons are really in the markup', () => {
+  for (const id of ['qScanCarry', 'qScanCarryImg', 'qScanCarryNote', 'qScanCarryUse', 'qScanCarryBack']) {
+    ok(src.includes('id="' + id + '"'), 'the markup has no #' + id + ' — the banner is dead on arrival');
+  }
+  ok(/id="qScanCarry"[^>]*hidden/.test(src),
+    'the banner is not hidden by default, so every question opened from the bank wears an empty answer-key banner');
+});
+
+test('the banner sits where the two fields it is FOR are', () => {
+  const carry = src.indexOf('id="qScanCarry"');
+  const video = src.indexOf('id="qVideoInput"');
+  const key = src.indexOf('id="answerKeyZone"');
+  ok(carry > 0 && carry < video && video < key,
+    'the banner is not above the video link and the answer key image — the teacher lands on it and has to go looking');
 });
 
 // ── runner ───────────────────────────────────────────────────────────────────

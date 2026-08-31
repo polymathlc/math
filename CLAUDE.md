@@ -2048,6 +2048,67 @@ paste or drop — and the app does the finding.
   wording", and two tokenisers would drift into two different answers.
 - Run **`node tools/answer-key-scan-tests.mjs`** after touching any of it.
 
+### ✎ …and the question itself, from the card (v1.60.0)
+
+`aksEditQuestion` / `aksToggleVideo` / `aksSaveVideo` / `aksQuestionActionsHtml`
+/ `aksVideoBoxHtml` / `_aksCarry` / `aksCarrySet` / `qScanCarrySync` /
+`qScanUseImage` (search `⑥½ the question itself, from the card`), plus
+`#qScanCarry` in the question editor, the `.aks-carry` / `.aks-video` CSS and
+`qEditLeave`'s `back.page` branch.
+
+A matched card names a question and could do exactly two things with it: attach
+the photograph, or nothing. But a photographed worked answer is precisely the
+moment the teacher thinks of the OTHER two things that question wants — a
+**video** worked answer, and a better picture than the one in hand.
+
+- **✎ EDIT THIS QUESTION OPENS THE REAL EDITOR**, never a second one grown on
+  the card. Half an editor here is a second place a question can be changed,
+  and the two drift the day a field is added to `collectQuestion`.
+- **THE PHOTOGRAPH TRAVELS WITH IT** (`aksCarrySet`), because doing something
+  with THAT picture is the reason to open the editor from here. It is the data
+  URL already in hand — **still nothing uploaded** — shown in a banner placed
+  deliberately ABOVE the video link and the answer key image, which are the two
+  fields it was opened for. A banner under them is one the teacher lands on and
+  has to go looking for.
+- **THE CARRY IS CLEARED ON EVERY ROUTE INTO THE EDITOR**, in
+  `loadQuestionIntoEditor` and in `resetEditor`, and `aksEditQuestion` sets it
+  straight afterwards — the same shape `qEditReturn` already has, for the same
+  reason. Lose either call and the next question opened from the bank wears the
+  last one's photograph, and one press files somebody else's working as its
+  answer key.
+- **`qScanUseImage` UPLOADS ON THE SPOT**, which is the one place this feature
+  departs from *nothing is uploaded until it is attached* — and deliberately:
+  the editor's own paste, drop and file routes have always uploaded straight
+  away and left **Save** to commit the URL, so a second rule for this one button
+  would be a box whose picture behaves differently depending on how it got
+  there.
+- **SAVE AND CANCEL COME BACK TO THE SCANNER** (`qEditReturn = { page:
+  "answerkeys" }`, honoured by `qEditLeave`). The pile is still on screen with
+  rows waiting to be acted on; landing on the bank instead reads as the scan
+  having been thrown away.
+- **🎬 THE VIDEO LINK NEVER NEEDS THE EDITOR AT ALL.** It is one field on one
+  question, typed on the card and written straight to the bank — the trip to the
+  editor and back for a pasted URL is exactly the friction this whole feature
+  exists to remove. The box opens holding **what the question already has**, so
+  it is an edit of the link rather than a blank that silently replaces one.
+- **THE CARD IS REBUILT WHOLE ON EVERY RENDER**, and a photograph finishing in
+  the background renders — so a half-typed link would be wiped mid-sentence.
+  What is typed lives on the **ROW** (`videoDraft`, written on every keystroke)
+  and `aksRender` puts the caret back where it was. Render the box from the
+  question instead of the draft and every background render eats the URL being
+  pasted.
+- **A FAILED VIDEO WRITE PUTS THE QUESTION BACK**, the same rule the attach
+  follows: the bank in memory must never sit there claiming a video the database
+  has never heard of.
+- **BOTH ARE ADMIN-ONLY IN THE HANDLERS, not merely on the buttons.** Both WRITE
+  to the question bank from a page whose whole point is that a student must
+  never reach it, and a button that is never drawn is not a lock — the same
+  reasoning `aksStartJob` carries.
+- **The filed card carries them too.** The moment a key lands is exactly when
+  the video is thought of, and a done card offering only ↩ Undo and Dismiss
+  sends the teacher round through the bank to find the question again.
+- Run **`node tools/answer-key-scan-tests.mjs`** after touching any of it.
+
 ## House rules
 - After touching **📄 whole-PDF rapid add** (`_loadPdfJs`, `_pdfRenderPage`,
   `RAPID_PDF_MAX_PAGES`, `RAPID_PDF_PAR`, `rapidAddFiles`, `_rapidQueuePdf`,
@@ -2084,6 +2145,23 @@ paste or drop — and the app does the finding.
   is gone. The three admin gates are the other half — the page holds the one
   thing in this app a student must never see, and a hidden nav item is not a
   lock.
+- After touching **✎ the question from a scanner card** (`aksEditQuestion`,
+  `aksToggleVideo`, `aksSaveVideo`, `aksQuestionActionsHtml`,
+  `aksVideoBoxHtml`, `_aksCarry`, `aksCarrySet`, `qScanCarrySync`,
+  `qScanUseImage`, `aksRender`'s caret keep, `qEditLeave`'s `back.page`
+  branch, or the `aksCarrySet(null)` calls in `loadQuestionIntoEditor` /
+  `resetEditor`), run `node tools/answer-key-scan-tests.mjs`. Both of these
+  WRITE to the question bank and every way they go wrong is quiet. Lose either
+  `aksCarrySet(null)` and the next question opened from the bank wears the
+  LAST one's photograph, one press from filing somebody else's working as its
+  answer key. Drop the return page and Save lands on the bank, with the pile
+  of photographs — rows still waiting — gone from view. Render the video box
+  from the question rather than from `videoDraft`, or take the caret keep out
+  of `aksRender`, and a link being pasted is eaten by the next photograph
+  finishing in the background. Skip the rollback on a failed write and the
+  bank in memory claims a video the database has never heard of. And check the
+  role on the button rather than in the handler and the page's third gate is
+  gone, on the one page that must not have two.
 - After touching **🔍 the figure found, cut out and cleaned** (`autoDiagramIntoBlock`,
   `autoDiagramNote`, `_aiRefineCrop`, `_cleanToBlackAndWhite`, `_BW_ENHANCE_PROMPT`,
   `finishAiBuild`, `aiFinishBar`, `sylAutoFileEditor`, `populateEditorFromAi`'s
