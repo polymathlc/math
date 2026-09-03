@@ -142,13 +142,14 @@ backend, so the model calls are byte-for-byte the same requests. Search
   the shape PER MODEL** (v1.32.0). How much a model may think is configured
   differently on either side of the 3.x line and the fallback list deliberately
   **spans** it: `gemini-2.5-flash` takes a numeric `thinkingBudget` and 400s on
-  a named level; 3.x takes the named level and 400s on the budget. `gemini-3.7-flash`
-  then narrowed the named scale again, **dropping the `"minimal"` that 3.5/3.6
-  accepted** — it is `low` / `medium` / `high`, so the floor is `AI_THINK_MIN`
-  (`"low"`). A level a model does not know is **not a worse answer, it is a
-  failed call**, so building one config for the whole request would break
-  whichever model it was not written for. The `-1` "think as much as you need"
-  budget the regen/checker paths pass maps to `"high"`.
+  a named level; 3.x takes the named level and 400s on the budget.
+  `gemini-3.7-flash` then narrowed the named scale again, **dropping the
+  `"minimal"` that 3.5/3.6 accepted**, and `gemini-3.8-flash` keeps that
+  narrower scale — both are `low` / `medium` / `high`, so the floor is
+  `AI_THINK_MIN` (`"low"`). A level a model does not know is **not a worse
+  answer, it is a failed call**, so building one config for the whole request
+  would break whichever model it was not written for. The `-1` "think as much
+  as you need" budget the regen/checker paths pass maps to `"high"`.
   **`functions/index.js` carries its own copy** of all of this and the two must
   agree — a change there **needs a functions deploy**, not just a page upload —
   and so do `game.html` and the three sibling repos (`cer`, `english`, `anskey`).

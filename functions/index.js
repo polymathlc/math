@@ -44,11 +44,11 @@ const MOONSHOT_API_KEY = defineSecret("MOONSHOT_API_KEY");
 // this list is the one that actually grants power.
 const ADMIN_EMAILS = ["chungzhikai@gmail.com", "abigail.yew@stanfordmanpower.com"];
 
-const AI_TEXT_MODELS = ["gemini-3.7-flash", "gemini-2.5-flash"];
+const AI_TEXT_MODELS = ["gemini-3.8-flash", "gemini-2.5-flash"];
 // How much the model may think is configured differently on either side of the
 // 3.x line, and the list above deliberately spans it: 2.5 Flash takes a numeric
 // thinkingBudget (0 = off) and 400s on a named level, while 3.x takes the named
-// level and 400s on the budget. Gemini 3.7 Flash also dropped the "minimal"
+// level and 400s on the budget. Gemini 3.8 Flash also dropped the "minimal"
 // level 3.5/3.6 accepted — its scale is low / medium / high — so the floor is
 // "low". A level a model does not know is not a worse mark, it is a failed
 // call, so the shape is picked PER MODEL rather than once per request:

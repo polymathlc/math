@@ -60,7 +60,7 @@ let openAiKey = "sk-test", openAiModel = "gpt-5.6-sol";
 function getOpenAiKey() { return openAiKey; }
 function getOpenAiModel() { return openAiModel; }
 let geminiRegenModels = [{}];
-const AI_REGEN_MODEL = "gemini-3.7-flash";
+const AI_REGEN_MODEL = "gemini-3.8-flash";
 const AI_REGEN_MODEL_NAMES = [AI_REGEN_MODEL];
 let bankShown = [];
 function _bankFilteredQuestions() { return bankShown; }
