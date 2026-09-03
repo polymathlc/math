@@ -25549,7 +25549,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.61.0 · 2026-09-03";
+const APP_VERSION = "v1.62.0 · 2026-09-04";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -27753,6 +27753,11 @@ function tcgBundledPackUrl(setKey, tier) {
   return TCG_SETS[setKey] && ['bronze', 'silver', 'gold'].includes(tier)
     ? TCG_BUNDLED_ART_ROOT + '/packs/' + setKey + '-' + tier + '.webp' : null;
 }
+const TCG_BUNDLED_LORE_VERSION = '2026-09-04-watercolor-1';
+function tcgBundledLoreUrl(sagaKey, chapterId) {
+  return /^[a-z0-9_]+$/.test(String(sagaKey || '')) && /^[a-z0-9_]+$/.test(String(chapterId || ''))
+    ? TCG_BUNDLED_ART_ROOT + '/lore/' + sagaKey + '-' + chapterId + '.webp?v=' + TCG_BUNDLED_LORE_VERSION : null;
+}
 // Keep the two surfaces independent. A portrait-shaped card scene is not a
 // safe battle sprite, and a transparent avatar is not a complete card image.
 function tcgArtUrl(id) { return (_tcgArt && _tcgArt[id]) || tcgBundledCardUrl(id); }
@@ -29873,11 +29878,12 @@ function tcgSetArtAdminHtml() {
 // source (and the ids are positional — see the note above TCG_CARDS). An
 // unknown name is dropped with a warning rather than breaking the page.
 //
-// Each chapter's illustration lives in the ordinary art slot
-// `lore:<sagaKey>:<chapterId>` — paste / drop / upload / ✨ AI on the Card Art
-// tab's own Chronicle panel, exactly like every other picture in the Nexus —
-// and it is drawn FROM the starring cards' own card art, so the hero of a page
-// is unmistakably the same character the student holds in their collection.
+// Each chapter ships with a bundled watercolour at
+// `assets/aetherfall/lore/<sagaKey>-<chapterId>.webp`. Its ordinary art slot,
+// `lore:<sagaKey>:<chapterId>`, remains an optional admin override — paste,
+// drop, upload or ✨ AI on the Game Objects tab. Both the bundled edition and
+// redraws use the starring cards as references, so the hero of a page is the
+// same character the student holds in their collection.
 
 const TCG_LORE_SAGAS_LEGACY = [
   {
@@ -30545,7 +30551,9 @@ function tcgLoreCards(ch) {
   }).filter(Boolean);
 }
 function tcgLoreSlotId(sagaKey, chapterId) { return 'lore:' + sagaKey + ':' + chapterId; }
-function tcgLoreArtUrl(sagaKey, chapterId) { return (_tcgArt && _tcgArt[tcgLoreSlotId(sagaKey, chapterId)]) || ''; }
+function tcgLoreArtUrl(sagaKey, chapterId) {
+  return (_tcgArt && _tcgArt[tcgLoreSlotId(sagaKey, chapterId)]) || tcgBundledLoreUrl(sagaKey, chapterId) || '';
+}
 function tcgLoreSagaFor(setKey) { return TCG_LORE_SAGAS.filter(s => s.set === setKey)[0] || null; }
 // Every chapter of every book, in reading order — the reader turns pages
 // straight through the whole Chronicle, so the last page of Book One turns
@@ -30579,7 +30587,7 @@ async function _tcgLoreRefSheet(ch) {
 function tcgLoreArtPrompt(saga, ch, withRef) {
   const cards = tcgLoreCards(ch);
   const names = cards.map(c => '"' + c.name + '"').join(', ');
-  return 'A full-page ILLUSTRATION from a beautiful hardback CHILDREN\'S PICTURE BOOK of science-fantasy legends — the big painted picture that fills the page above the story text.\n'
+  return 'A full-page WATERCOLOUR ILLUSTRATION from a beautiful hardback CHILDREN\'S PICTURE BOOK of science-fantasy legends — the big painted picture that fills the page above the story text.\n'
     + TCG_ART_WORLD
     + 'THE BOOK: "' + saga.book + ' — ' + saga.title + '", from the Aetherfall Chronicles.\n'
     + 'THE PAGE: "' + ch.title + '".\n'
@@ -30591,8 +30599,8 @@ function tcgLoreArtPrompt(saga, ch, withRef) {
               : '')
         : '')
     + 'COMPOSITION: ONE WIDE LANDSCAPE picture, about 16:9, composed as a storybook spread — a clear main subject, a real sense of scale and distance, and plenty of atmosphere (mist, sparks, falling snow, shafts of light) so it reads instantly from across a room.\n'
-    + 'STYLE: warm painterly storybook illustration with visible brushwork, deep jewel colours, glowing golden light and soft edges — the finish of a treasured illustrated book of myths, not a screenshot and not a cartoon. Rich, exotic and awe-inspiring.\n'
-    + 'HARD RULES: absolutely NO text, letters, numbers, words, titles, logos, signatures, watermarks or speech bubbles anywhere in the picture — the story is printed beside it afterwards, so the artwork must be left clean; no card frames, no borders, no interface; suitable for primary-school children — no blood, no gore, nothing frightening and nothing suggestive.';
+    + 'STYLE: genuine transparent-layer WATERCOLOUR and restrained gouache on cold-pressed cotton paper — visible paper grain, pigment blooms, granulation, dry-brush edges, subtle pencil underdrawing, simple hand-painted shapes and generous breathing room. Polished classic science-fantasy picture-book art, never a screenshot, cartoon, glossy digital concept painting or 3D render.\n'
+    + 'HARD RULES: keep the background composition clear rather than complicated; absolutely NO text, letters, numbers, words, titles, logos, signatures, watermarks or speech bubbles anywhere in the picture — the story is printed beside it afterwards, so the artwork must be left clean; no card frames, no borders, no interface; suitable for primary-school children — no blood, no gore, nothing frightening and nothing suggestive.';
 }
 async function _tcgGenLoreArt(saga, ch) {
   const ref = await _tcgLoreRefSheet(ch);
@@ -30747,7 +30755,7 @@ function tcgLoreGenPanelHtml() {
   const miss = _tcgLoreMissing(), total = tcgLorePages().length;
   return '<div class="tcg-gen-panel tcg-lore-gen">'
     + '<h4>✨ Illustrate the Codex</h4>'
-    + '<p>Every page is painted as a <b>children\'s picture-book illustration</b>, and each one is drawn <b>from the card art of the characters starring in it</b> — so the hero of a page is the same character the student pulls out of a packet. Draw those cards first and the story will match them. Engine: <b>' + escapeHtml(_tcgArtEngineLabel()) + '</b>.</p>'
+    + '<p>Every page ships as a <b>traditional watercolour picture-book illustration</b>, and each optional redraw is made <b>from the card art of the characters starring in it</b> — so the hero of a page is the same character the student pulls out of a packet. Engine: <b>' + escapeHtml(_tcgArtEngineLabel()) + '</b>.</p>'
     + '<div class="tcg-gen-actions">'
     +   '<button type="button" class="btn btn-primary" id="tcgLoreGenBtn" onclick="tcgLoreDrawAll()"' + (miss ? '' : ' disabled') + '>✨ Draw all missing pages'
     +     (miss ? ' · ' + miss + ' of ' + total : ' · all ' + total + ' done 🎉') + '</button>'
