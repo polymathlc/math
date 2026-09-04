@@ -2110,7 +2110,105 @@ moment the teacher thinks of the OTHER two things that question wants — a
   sends the teacher round through the bank to find the question again.
 - Run **`node tools/answer-key-scan-tests.mjs`** after touching any of it.
 
+## ⏳ A batch with a RELEASE DATE on it (v1.63.0)
+
+`RELEASE_TZ` / `RELEASE_DAY_RE` / `releaseDayKey` / `releaseToday` /
+`releaseDayFromNow` / `qReleaseOn` / `qScheduled` / **`qReleased`** /
+`qReleaseLabel` / `qReleaseWhen` / `qReleaseChipHtml` (search
+`⏳ Scheduled release`, just above `QUESTION_KEY_FIELDS`), the pad's own half —
+`RAPID_RELEASE_KEY` / `rapidRelease` / `setRapidRelease` / `rapidReleaseSetup` /
+`rapidReleasePaint` / **`rapidApplyRelease`** — the ⏳ bar on the Question Bank
+(`bankScheduledRows` / `renderBankScheduled` / `bankSetRelease` /
+`bankReleaseNow` / `bankReleaseBatchNow` / `bankMoveRelease`,
+`#bankScheduledContainer`), and `#rapidReleaseWrap` on the pad.
+**All four portals carry this feature — ship a change to all of them together.**
+
+⚡ Rapid add gained a **📅 Release date for this batch** picker beside its
+📚 level picker. Everything queued after it lands in Vetting exactly as it
+always did, is approved into the bank exactly as it always was — and **keeps
+the date**: a student's app does not load it at all until that morning, so it
+reaches nobody in practice, in a game, on a worksheet or through Snap & Mark.
+
+- **THE GATE IS THE LOAD, and that is the one thing here that differs from the
+  three language portals.** There, every student pool funnels through
+  `qInSyllabus` / `qWithinStudentLevel` and the check goes beside them. Here
+  `questionBank` **IS** the practice list — walked by INDEX from half a dozen
+  places, `qIndex` and `nextVisibleIndex` included — so a per-pool check would
+  be a dozen edits with no chokepoint to census, and the one that got missed
+  would be the leak. `loadBank` already splits admin from student (a student is
+  not sent the answer keys at all), so one line there — `if
+  (!canManageQuestions() && !qReleased(q)) return;` — is leak-proof by
+  construction: practice, worksheets, the games, Snap & Mark, the diagnostic
+  report and every attempt path are covered without being told.
+- **`releaseOn` MUST STAY IN THE STUDENT-READABLE HALF** — it is deliberately
+  not in `QUESTION_KEY_FIELDS`. The student's own client is what acts on it, so
+  moving it into the key doc would silently release every scheduled question.
+- **THE PRICE IS WORTH SAYING OUT LOUD**: a teacher who puts a scheduled
+  question on a worksheet and hands the sheet out has handed out a sheet with a
+  hole in it — that student's app has never loaded the question. The ⏳ chip is
+  on the bank card they picked it from and the chip says so in as many words.
+- **SO THERE IS NOTHING TO RUN, AND NOTHING TO DEPLOY.** A release is not an
+  event: no cron, no Cloud Function, no second write, **no `firestore.rules`
+  change** — which matters more here than anywhere, because that file is shared
+  with the Science app and every deploy of it is a manual assembly job.
+- **A VALUE THAT IS NOT A DAY KEY IS NOT A SCHEDULE, and it FAILS OPEN.**
+  `qReleaseOn` returns `""` for anything that is not exactly `YYYY-MM-DD` — a
+  `Date`, an ISO timestamp, a number, a word — so the question is loaded,
+  served and unbadged, exactly as an unscheduled one. A question served a few
+  days early is an embarrassment a person can SEE; one withheld from a whole
+  school for ever by a value nobody can read is the silent disappearance the
+  rest of the guards in this file exist to prevent. `rapidApplyRelease` is the
+  only writer and it writes that shape and nothing else.
+- **A DATE THAT HAS PASSED IS NOT A SCHEDULE EITHER**, which is what makes the
+  field self-clearing: an old date costs nothing and needs no sweep.
+- **THE DAY IS SINGAPORE'S** (`releaseDayKey`). Read off the device instead and
+  a paper is out a day early on half the class's phones.
+- **THE BATCH IS CAPTURED WHEN THE FILE IS QUEUED**, synchronously, in
+  `rapidAddFiles` — never read inside the job — and it rides `opts.release`
+  through `startRapidJob` → `_rapidQueuePdf` → `_rapidExpandPdf` → every page →
+  `processRapidJob`, on the same footing as the batch level and for the same
+  reason. 📄 **Choose a paper** captures it once too (`batchRelease`), because
+  it shares the pad.
+- **IT LIVES IN `sessionStorage`** under **`mathRapidRelease`** — a batch is one
+  sitting. The four portals share one GitHub Pages origin and therefore one
+  storage, so the `math` prefix is what stops one portal setting another's
+  batch. The picker's floor is **tomorrow**: a question released today is a
+  question with no schedule.
+- **IT SURVIVES AN EDIT FOR FREE.** `collectQuestion` rebuilds the question from
+  the editor and `saveQuestionDoc` writes what it is given, so a field the
+  editor does not own is carried on the object it started from. Adding an editor
+  control for it later means checking that path in the same commit.
+- **A SCHEDULE NOBODY CAN FIND IS A SCHEDULE NOBODY CAN UNDO.** The ⏳ chip is
+  on the vetting card and both bank views, and the ⏳ bar at the top of the
+  Question Bank lists every held-back question **grouped by date**, across the
+  bank AND the vetting list — a batch is very often still in vetting when the
+  teacher comes looking. 🚀 Release all now and *Move to* act on a whole date.
+  `bankSetRelease` is the ONE writer there: **admin-checked in the handler** (it
+  writes to the bank, and a bar that is never drawn for a student is not a lock)
+  and **rolled back when the write did not land**.
+- Run **`node tools/scheduled-release-tests.mjs`** after touching any of it.
+
 ## House rules
+- After touching **⏳ the batch release date** (`qReleaseOn`, `qScheduled`,
+  `qReleased`, `qReleaseChipHtml`, `releaseDayKey`, `rapidRelease` /
+  `setRapidRelease`, `rapidApplyRelease`, the `release` carried through
+  `rapidAddFiles` / `startRapidJob` / `_rapidQueuePdf` / `_rapidExpandPdf` /
+  `processRapidJob` / `handleBulkPaper`, `bankSetRelease`, **or the one gate
+  line in `loadBank`**), run `node tools/scheduled-release-tests.mjs` **and**
+  `node tools/rapid-pdf-tests.mjs`. There is ONE gate in this app and it is that
+  line: lose it and next term's paper is in front of a child this week, on a
+  screen that looks perfectly right, with nothing anywhere to say it happened.
+  Move `releaseOn` into `QUESTION_KEY_FIELDS` and every scheduled question is
+  released at once, just as quietly. In the other direction the failures are
+  worse: withhold it from an ADMIN too and the question they just scheduled has
+  vanished from their own bank, which reads as a save that failed; and read a
+  `Date`, an ISO timestamp or a date that has already come round as a schedule
+  and the question disappears from the whole school for ever — which is why
+  `qReleaseOn` fails OPEN and only ever accepts `YYYY-MM-DD`. Read the day off
+  the device instead of off Singapore and a paper is out early on half the
+  class's phones; read the picker inside the job rather than at the door and the
+  back half of a forty-page paper is filed on whatever date the author moved to
+  next.
 - After touching **📄 whole-PDF rapid add** (`_loadPdfJs`, `_pdfRenderPage`,
   `RAPID_PDF_MAX_PAGES`, `RAPID_PDF_PAR`, `rapidAddFiles`, `_rapidQueuePdf`,
   `_rapidPdfPump`, `_rapidExpandPdf`, `_rapidPageFile`, `failRapidJob`,
