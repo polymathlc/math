@@ -747,6 +747,11 @@ a { color: var(--primary); }
   background: var(--surface);
 }
 .wse-row.missing { border-color: var(--accent-red); background: var(--accent-red-light); }
+/* 🔒 A question on the sheet whose release date has not come. It is NOT an
+   error and must not look like one — the red "deleted" row above says something
+   is broken, this one says come back on the day. */
+.wse-row.locked { border-color: #a5b4fc; background: #eef2ff; }
+.wse-row.locked .wse-row-title { color: #4338ca; }
 .wse-row-main { flex: 1; min-width: 0; }
 .wse-row-title { font-size: 0.87rem; font-weight: 600; line-height: 1.45; }
 .wse-row-meta { font-size: 0.76rem; color: var(--text-muted); margin-top: 3px; }
@@ -8279,6 +8284,11 @@ function questionSource(q) {
 let currentUser = null;          // { uid, email, name, role }
 let adminUid = null;             // for students: whose bank to load
 let questionBank = [];           // the active practice questions
+// 🔒 id → the day a question this account may not have YET opens on. See
+// "A SCHEDULED QUESTION ON A WORKSHEET" below: `loadBank` refuses to load a
+// scheduled question for a student at all, and this is the ONLY thing it keeps
+// instead — an id and a date, never one word of the question.
+let lockedQuestions = {};
 let bankSearchTerm = "";         // Question Bank search filter
 // ---- Vetting + Rapid add (admin) ----------------------------------------
 // Nothing in `vettingList` is ever served to a student: it is the holding pen
@@ -9001,6 +9011,52 @@ function qReleaseChipHtml(q, cls) {
     escapeHtml(qReleaseLabel(on)) + '</span>';
 }
 
+// =====================================================================
+// 🔒 A SCHEDULED QUESTION ON A WORKSHEET — THE LOCKED ROW
+//
+// An admin BUILDS next term's sheet today: the builder, the picker, the
+// preview and the print all keep a scheduled question and badge it, which is
+// the whole point of being able to schedule one. A STUDENT handed that same
+// sheet must not be able to read the question before its date — and here they
+// cannot, because `loadBank` never loads it. That is the strongest gate of the
+// four portals and it left the sheet with a HOLE in it: `wsQuestionById`
+// returns nothing, so the card, the overview page and the ✎ editor all said
+// "no longer in the bank" — a sentence that is flatly untrue and that sends
+// somebody off to rebuild a sheet which is perfectly fine and simply early.
+//
+// So the load keeps the ID and the DATE and nothing else. Not the wording, not
+// the options, not a marking guide — there is no question here to leak, only
+// enough to draw a row that says when it opens.
+// =====================================================================
+function qLockedOn(id) {
+  const on = lockedQuestions[String(id)];
+  return (typeof on === "string" && RELEASE_DAY_RE.test(on)) ? on : "";
+}
+// The ids on a worksheet this account cannot open yet — never the ones whose
+// question has really been deleted, which are a different thing and keep their
+// own row. THE ONE reader; the card, the overview, the print, the practice
+// queue and the ✎ editor all ask it, so they cannot disagree.
+function wsLockedIds(ws) {
+  return (ws && Array.isArray(ws.questionIds) ? ws.questionIds : []).filter(id => qLockedOn(id));
+}
+// The SOONEST of them. That is the first day the student can usefully come
+// back; naming the LAST would send them away for a month when half the sheet
+// opens on Monday.
+function wsLockSoonest(ids) {
+  return (ids || []).map(qLockedOn).filter(Boolean).sort()[0] || "";
+}
+// One sentence, and every surface that has to explain a lock uses it. A student
+// told a question is missing and not told when it returns has the useless half
+// of the truth.
+function wsLockNote(ids) {
+  const n = (ids || []).length;
+  if (!n) return "";
+  const on = wsLockSoonest(ids);
+  const what = n === 1 ? "1 question on this worksheet is" : n + " questions on this worksheet are";
+  return "🔒 " + what + " not open yet" +
+    (on ? " — the first unlocks " + qReleaseWhen(on) + " (" + qReleaseLabel(on) + ")" : "");
+}
+
 const QUESTION_KEY_FIELDS = ["expected", "markingGuide", "answerKeyImageUrl", "videoExplanationUrl", "videoOverlays"];
 // Per-block answers (annotation questions) live on the BLOCKS, and `blocks`
 // stays in the student-readable half — so they have to be lifted out block by
@@ -9049,6 +9105,7 @@ function splitQuestionDoc(q) {
 }
 async function loadBank(uid) {
   questionBank = [];
+  lockedQuestions = {};
   const needsSplit = [];
   try {
     const snap = await getDocs(collection(db, "users", uid, "mathQuestions"));
@@ -9065,7 +9122,14 @@ async function loadBank(uid) {
       // all, so nothing downstream — practice, worksheets, the games, Snap &
       // Mark, the reports — has to remember to ask. An author keeps it, badged,
       // because this is the surface next term's worksheet is built on.
-      if (!canManageQuestions() && !qReleased(q)) return;
+      if (!canManageQuestions() && !qReleased(q)) {
+        // 🔒 The question itself is NOT loaded — not its wording, not its
+        // options, not one field a student could read early. What is kept is
+        // the id and the day it opens, so a worksheet holding it can draw a
+        // locked row instead of reading as a question somebody deleted.
+        lockedQuestions[String(q.id)] = qReleaseOn(q);
+        return;
+      }
       questionBank.push(q);
     });
     if (canManageQuestions()) {
@@ -19483,14 +19547,19 @@ function renderSavedWorksheets() {
   grid.innerHTML = savedWorksheets.map(ws => {
     const total = (ws.questionIds || []).length;
     const found = wsSavedQuestions(ws).length;
-    const missing = total - found;
+    // 🔒 A question this account may not open YET is not a question that has
+    // gone: it is on the sheet and it comes back by itself on the day. Counting
+    // it as "no longer in the bank" is the untrue sentence this splits apart.
+    const shutIds = wsLockedIds(ws);
+    const missing = total - found - shutIds.length;
     const when = ws.createdAt ? new Date(ws.createdAt).toLocaleDateString() : "";
     return `<div class="ws-saved-card">
       <h4>${ws.kind === "diagnostic" ? "🩺 " : ""}${escapeHtml(ws.title || "Untitled worksheet")}</h4>
       <div class="ws-saved-meta">
         ${ws.kind === "diagnostic" ? `<span title="Built objective by objective on the Diagnostic page — every question belongs to a segment there">Diagnostic test</span>` : ""}
         <span>${total} question${total === 1 ? "" : "s"}</span>
-        ${missing ? `<span style="color:var(--accent-red);">${missing} no longer in the bank</span>` : ""}
+        ${shutIds.length ? `<span style="color:#4338ca;" title="${escapeHtml(wsLockNote(shutIds))}. They stay on this worksheet and appear by themselves on the day.">🔒 ${shutIds.length} not open yet</span>` : ""}
+        ${missing > 0 ? `<span style="color:var(--accent-red);">${missing} no longer in the bank</span>` : ""}
         ${when ? `<span>Saved ${escapeHtml(when)}</span>` : ""}
         ${ws.ownerName && canManageQuestions() ? `<span>by ${escapeHtml(ws.ownerName)}</span>` : ""}
       </div>
@@ -19759,7 +19828,8 @@ function renderWorksheetOverview() {
     return;
   }
   const questions = wsSavedQuestions(ws);
-  const missing = (ws.questionIds || []).length - questions.length;
+  const shutIds = wsLockedIds(ws);
+  const missing = (ws.questionIds || []).length - questions.length - shutIds.length;
   const when = ws.createdAt ? new Date(ws.createdAt).toLocaleDateString() : "";
   const owned = wsMine(ws) || canManageQuestions();
   const share = owned ? `<div class="wv-share">
@@ -19773,6 +19843,7 @@ function renderWorksheetOverview() {
       <h3>📖 ${escapeHtml(ws.title || "Untitled worksheet")}</h3>
       <div class="wv-head-meta">
         <span>${questions.length} question${questions.length === 1 ? "" : "s"}</span>
+        ${shutIds.length ? `<span style="color:#4338ca;">🔒 ${shutIds.length} not open yet</span>` : ""}
         ${missing > 0 ? `<span style="color:var(--accent-red);">${missing} no longer in the bank</span>` : ""}
         ${when ? `<span>Saved ${escapeHtml(when)}</span>` : ""}
         ${ws.ownerName && !wsMine(ws) ? `<span>by ${escapeHtml(ws.ownerName)}</span>` : ""}
@@ -19877,9 +19948,19 @@ async function openSavedWorksheet(id, autoPrint) {
   const ws = wsFind(id);
   if (!ws) return;
   const questions = wsSavedQuestions(ws);
-  if (!questions.length) { toast("None of this worksheet's questions are in the bank any more", "error"); return; }
-  const missing = (ws.questionIds || []).length - questions.length;
-  if (missing) toast(`${missing} question(s) are no longer in the bank — printing the rest`, "");
+  // 🔒 Say WHICH of the two it is. A sheet whose questions have not opened yet
+  // needs no fixing, and "no longer in the bank" is the sentence that sends
+  // somebody off to rebuild it.
+  const shutIds = wsLockedIds(ws);
+  if (!questions.length) {
+    toast(shutIds.length
+      ? wsLockNote(shutIds) + ". Come back then — nothing here needs fixing."
+      : "None of this worksheet's questions are in the bank any more", "error");
+    return;
+  }
+  if (shutIds.length) toast(wsLockNote(shutIds) + ` — printing the other ${questions.length}.`, "");
+  const missing = (ws.questionIds || []).length - questions.length - shutIds.length;
+  if (missing > 0) toast(`${missing} question(s) are no longer in the bank — printing the rest`, "");
   // The sheet QR only exists for a SAVED worksheet — it is a link to that
   // worksheet's overview page, and an unsaved selection has no page to link to.
   //
@@ -19946,7 +20027,14 @@ function practiseWorksheet(id) {
   const ws = wsFind(id);
   if (!ws) return;
   const questions = wsSavedQuestions(ws);
-  if (!questions.length) { toast("None of this worksheet's questions are in the bank any more", "error"); return; }
+  const shutIds = wsLockedIds(ws);
+  if (!questions.length) {
+    toast(shutIds.length
+      ? wsLockNote(shutIds) + ". Come back then — nothing here needs fixing."
+      : "None of this worksheet's questions are in the bank any more", "error");
+    return;
+  }
+  if (shutIds.length) toast(wsLockNote(shutIds) + ` — practising the other ${questions.length}.`, "");
   const rest = questionBank.filter(q => !ws.questionIds.includes(q.id));
   questionBank = questions.concat(rest);
   qIndex = 0;
@@ -20143,6 +20231,17 @@ function wseRender() {
   const on = $("wseOnList");
   on.innerHTML = ids.length ? ids.map((id, i) => {
     const q = wsQuestionById(id);
+    // 🔒 On the sheet, and not open yet. The ROW STAYS — the question really is
+    // on this worksheet — and the student is shown the date instead of the
+    // wording, which is the whole point of having scheduled it. An author never
+    // reaches this branch: `loadBank` hands them the question itself.
+    const shutOn = q ? "" : qLockedOn(id);
+    if (shutOn) {
+      return `<div class="wse-row locked">
+        <div class="wse-row-main"><div class="wse-row-title">🔒 Not open yet</div><div class="wse-row-meta">This question unlocks ${escapeHtml(qReleaseWhen(shutOn))} (${escapeHtml(qReleaseLabel(shutOn))}). It stays on the worksheet and appears by itself on the day — there is nothing to fix.</div></div>
+        <div class="wse-row-tools"><button class="btn btn-ghost btn-sm" data-wse-rm="${escapeHtml(id)}" title="Take it off this sheet anyway">✕</button></div>
+      </div>`;
+    }
     if (!q) {
       // Deliberately shown rather than silently dropped: this is the only place
       // a stale reference is visible at all.
@@ -25964,7 +26063,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.63.0 · 2026-09-04";
+const APP_VERSION = "v1.64.0 · 2026-09-04";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)

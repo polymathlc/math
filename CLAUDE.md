@@ -2143,10 +2143,12 @@ reaches nobody in practice, in a game, on a worksheet or through Snap & Mark.
 - **`releaseOn` MUST STAY IN THE STUDENT-READABLE HALF** — it is deliberately
   not in `QUESTION_KEY_FIELDS`. The student's own client is what acts on it, so
   moving it into the key doc would silently release every scheduled question.
-- **THE PRICE IS WORTH SAYING OUT LOUD**: a teacher who puts a scheduled
-  question on a worksheet and hands the sheet out has handed out a sheet with a
-  hole in it — that student's app has never loaded the question. The ⏳ chip is
-  on the bank card they picked it from and the chip says so in as many words.
+- **THE PRICE USED TO BE A HOLE IN THE SHEET**: a student's app never loads the
+  question, so a worksheet holding one printed and practised with a gap where it
+  should be, and every surface called it "no longer in the bank". It now draws a
+  **locked row** saying the day it opens — see 🔒 …and the sheet no longer has a
+  HOLE in it below. The ⏳ chip is still on the bank card the teacher picked it
+  from.
 - **SO THERE IS NOTHING TO RUN, AND NOTHING TO DEPLOY.** A release is not an
   event: no cron, no Cloud Function, no second write, **no `firestore.rules`
   change** — which matters more here than anywhere, because that file is shared
@@ -2188,6 +2190,42 @@ reaches nobody in practice, in a game, on a worksheet or through Snap & Mark.
   and **rolled back when the write did not land**.
 - Run **`node tools/scheduled-release-tests.mjs`** after touching any of it.
 
+### 🔒 …and the sheet no longer has a HOLE in it (v1.64.0)
+
+`lockedQuestions` (declared beside `questionBank`) / `qLockedOn` /
+`wsLockedIds` / `wsLockSoonest` / `wsLockNote` (search `THE LOCKED ROW`), the
+stub written in `loadBank`, the split counts on the My Worksheets card and the
+overview page, the toasts in `openSavedWorksheet` / `practiseWorksheet`, the
+🔒 row in the ✎ Questions editor and `.wse-row.locked`.
+
+The load gate above is the strongest of the four portals — a student's browser
+never loads the question at all — and that is exactly why the sheet came out
+**with a hole in it**: `wsQuestionById` returned nothing, so the card, the
+overview page, the print, the practice queue and the ✎ editor all said *"no
+longer in the bank"*. That sentence is untrue, and it is the one that sends
+somebody off to rebuild a sheet which is perfectly fine and simply early.
+
+- **THE LOAD KEEPS THE ID AND THE DATE AND NOTHING ELSE.** Not the wording, not
+  the options, not a marking guide — there is no question in the stub to leak,
+  only enough to draw a row saying when it opens. Putting the question itself in
+  there would undo the one gate this app has, on the very path that exists to
+  enforce it, so the harness pins the SHAPE of the stub as well as the gate.
+- **`lockedQuestions` is emptied at the top of every `loadBank`**, beside
+  `questionBank`. A stale lock carried over from the last account is a row
+  nobody can explain.
+- **A LOCK IS NOT A DELETION, and every count now splits the two**: the card
+  and the overview subtract the locked ids before reporting "no longer in the
+  bank", the print and practice toasts say which of the two they mean, and the
+  ✎ editor's row is indigo (come back on the day) rather than red (something is
+  broken).
+- **`const shutOn = q ? "" : qLockedOn(id)`** — the locked branch is only ever
+  taken when the question is NOT loaded. An author has the question itself and
+  must never see that row.
+- **`qLockedOn` FAILS OPEN like everything else here**: a value that is not a
+  `YYYY-MM-DD` day key is not a lock, so a row nobody can read never becomes a
+  permanent one.
+- Run **`node tools/scheduled-release-tests.mjs`** after touching any of it.
+
 ## House rules
 - After touching **⏳ the batch release date** (`qReleaseOn`, `qScheduled`,
   `qReleased`, `qReleaseChipHtml`, `releaseDayKey`, `rapidRelease` /
@@ -2208,7 +2246,13 @@ reaches nobody in practice, in a game, on a worksheet or through Snap & Mark.
   the device instead of off Singapore and a paper is out early on half the
   class's phones; read the picker inside the job rather than at the door and the
   back half of a forty-page paper is filed on whatever date the author moved to
-  next.
+  next. And drop the LOCKED
+  STUB (`lockedQuestions`, `qLockedOn`, `wsLockedIds`, `wsLockNote`, or the
+  split counts on the card, the overview, the print and the ✎ editor) and every
+  scheduled question on a student's worksheet goes back to reading as one
+  somebody deleted — the sentence that sends them off to rebuild a sheet that is
+  perfectly fine. Put the question itself into that stub and the one gate this
+  app has is undone on the very path that enforces it.
 - After touching **📄 whole-PDF rapid add** (`_loadPdfJs`, `_pdfRenderPage`,
   `RAPID_PDF_MAX_PAGES`, `RAPID_PDF_PAR`, `rapidAddFiles`, `_rapidQueuePdf`,
   `_rapidPdfPump`, `_rapidExpandPdf`, `_rapidPageFile`, `failRapidJob`,

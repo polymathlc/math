@@ -66,12 +66,17 @@ const shim = `
     setItem: (k, v) => { __store[k] = String(v); },
   };
   const $ = () => null;
+  // The locked map is declared beside questionBank, far above the block this
+  // harness cuts, so the harness owns it and drives it directly.
+  let lockedQuestions = {};
 `;
 const api = new Function('__store', shim + core + pad + `
   return { RELEASE_TZ, RELEASE_DAY_RE, releaseDayKey, releaseToday, releaseDayFromNow,
            qReleaseOn, qScheduled, qReleased, qReleaseLabel, qReleaseDaysAway, qReleaseWhen,
            qReleaseChipHtml, RAPID_RELEASE_KEY, rapidRelease, setRapidRelease,
-           rapidApplyRelease, toasts };
+           rapidApplyRelease, toasts,
+           qLockedOn, wsLockedIds, wsLockSoonest, wsLockNote,
+           setLocked: m => { lockedQuestions = m || {}; } };
 `)(store);
 
 const TODAY = '2026-06-15';
@@ -162,8 +167,19 @@ ok('it never throws on a missing question', api.rapidApplyRelease(null, '2030-01
 {
   const load = cut('async function loadBank(uid) {', '\nfunction isPermissionError', 'loadBank');
   ok('a student does not load a question that is not out yet',
-     /if \(!canManageQuestions\(\) && !qReleased\(q\)\) return;/.test(load),
+     /if \(!canManageQuestions\(\) && !qReleased\(q\)\) \{/.test(load) &&
+     /lockedQuestions\[String\(q\.id\)\] = qReleaseOn\(q\);\s*\n\s*return;/.test(load),
      'this is the ONLY gate — lose it and next term’s paper is in front of a child this week');
+  // 🔒 …and it keeps the ID and the DATE and NOTHING else. A stub carrying the
+  // wording, the options or a marking guide would put the question in the
+  // student's browser on the very path that exists to keep it out.
+  ok('the locked stub is an id and a date, never the question',
+     !/lockedQuestions\[String\(q\.id\)\] = q\b(?!\.id)/.test(load) &&
+     !/lockedQuestions\[[^\]]*\] = \{/.test(load),
+     'the whole point of gating at the LOAD is that no field of it reaches the page');
+  ok('the map is emptied at the top of every load',
+     /questionBank = \[\];\s*\n\s*lockedQuestions = \{\};/.test(load),
+     'a stale lock from the last account leaves a row nobody can explain');
   ok('…and it sits BEFORE the question is pushed',
      load.indexOf('!qReleased(q)') < load.indexOf('questionBank.push(q);'));
   ok('an AUTHOR keeps it', /!canManageQuestions\(\)/.test(load),
@@ -233,6 +249,82 @@ ok('…and stamps every question the paper held', /rapidApplyRelease\(q, batchRe
 /* ---------------- Nothing new to run, nothing new to deploy ---------------- */
 ok('this writes no collection of its own', !/scheduledReleases|releaseQueue/.test(src),
    'a release here is not an event — the comparison simply starts coming out the other way');
+
+/* ------------------------------------------------------------------ *
+ * 🔒 THE LOCKED ROW — a scheduled question on a worksheet.            *
+ *                                                                     *
+ * This app's gate is the strongest of the four portals: a student's    *
+ * browser never loads the question at all. That is exactly why the     *
+ * sheet was left with a HOLE in it — `wsQuestionById` returned nothing *
+ * and every surface said "no longer in the bank", which is untrue and  *
+ * sends somebody off to rebuild a sheet that is perfectly fine and     *
+ * simply early. The load keeps the id and the DATE and nothing else.   *
+ * ------------------------------------------------------------------ */
+{
+  const soon = api.releaseDayFromNow(3);
+  const later = api.releaseDayFromNow(30);
+  api.setLocked({ a: soon, b: later, bad: 'next term', when: new Date() });
+
+  ok('a locked id gives back its date', api.qLockedOn('a') === soon);
+  ok('an id nobody locked gives back nothing', api.qLockedOn('c') === '');
+  ok('nothing at all gives back nothing', api.qLockedOn(undefined) === '');
+  ok('a value that is not a day key is NOT a lock',
+     api.qLockedOn('bad') === '' && api.qLockedOn('when') === '',
+     'the fail-OPEN rule holds here too — a row nobody can read must not become a permanent lock');
+
+  const ws = { questionIds: ['c', 'a', 'gone', 'b'] };
+  ok('the locked ids are picked out of the sheet, in the sheet order',
+     api.wsLockedIds(ws).join(',') === 'a,b');
+  ok('a DELETED question is never counted as locked',
+     api.wsLockedIds(ws).indexOf('gone') < 0,
+     'the two are different things and get different rows — that is the whole split');
+  ok('a sheet with nothing locked returns nothing',
+     api.wsLockedIds({ questionIds: ['c'] }).length === 0);
+  ok('no worksheet at all does not throw', api.wsLockedIds(null).length === 0);
+
+  ok('the SOONEST date is the one named', api.wsLockSoonest(['b', 'a']) === soon,
+     'naming the last of them sends a student away for a month when half opens on Monday');
+  ok('nothing locked names no date', api.wsLockSoonest([]) === '');
+
+  const note = api.wsLockNote(['a', 'b']);
+  ok('the note counts them', /2 questions/.test(note));
+  ok('the note names WHEN, not just that something is missing',
+     note.indexOf(api.qReleaseLabel(soon)) > 0,
+     'a student told a question is missing and not told when it comes back has half the truth');
+  ok('one locked question is not called "1 questions"',
+     /1 question on this worksheet is/.test(api.wsLockNote(['a'])));
+  ok('nothing locked says nothing at all',
+     api.wsLockNote([]) === '' && api.wsLockNote(null) === '');
+  api.setLocked({});
+}
+
+/* ---- …and the surfaces that have to ask it ---- */
+{
+  const card = cut('function renderSavedWorksheets() {', 'function renderWorksheetOverview', 'ws card');
+  ok('the card counts the locked ones apart from the deleted ones',
+     /wsLockedIds\(ws\)/.test(card) && /not open yet/.test(card));
+  ok('…and the "no longer in the bank" count no longer swallows them',
+     /const missing = total - found - shutIds\.length;/.test(card),
+     'that number is what made a scheduled question read as one somebody deleted');
+  ok('…and it is only shown when it is really positive', /missing > 0 \?/.test(card));
+
+  const print = cut('async function openSavedWorksheet(id, autoPrint) {', '\n// ============ EDITING THE SHEET HEADER', 'print');
+  ok('printing says WHICH of the two it is', /wsLockNote\(shutIds\)/.test(print));
+  ok('…and an all-locked sheet is not reported as deleted questions',
+     print.indexOf('nothing here needs fixing') > 0);
+
+  const prac = cut('function practiseWorksheet(id) {', 'function practiseCurrentWorksheet', 'practise');
+  ok('practising says it too', /wsLockNote\(shutIds\)/.test(prac));
+
+  ok('the ✎ Questions editor keeps a locked row rather than a deleted one',
+     /wse-row locked/.test(src) && /🔒 Not open yet/.test(src));
+  ok('…and it only ever takes that branch when the question is NOT loaded',
+     /const shutOn = q \? "" : qLockedOn\(id\);/.test(src),
+     'an author has the question itself, so they must never see this row');
+  ok('the locked row has its own look, not the red "deleted" one',
+     /\.wse-row\.locked \{/.test(src));
+  ok('the overview page counts them too', /🔒 \$\{shutIds\.length\} not open yet/.test(src));
+}
 
 console.log((fails ? '✗ ' : '✓ ') + (ran - fails) + '/' + ran + ' scheduled-release checks passed');
 process.exit(fails ? 1 : 0);
