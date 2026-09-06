@@ -1450,7 +1450,12 @@ async function isTeacherUid(uid) {
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 // The model is the SERVER's choice. A client that could name one could name
 // an expensive one, and the bill is the centre's.
-const OPENAI_MODEL = "gpt-5.6-sol";
+const OPENAI_MODEL = "gpt-6-astra";
+// A REASONING MODEL IS A FAMILY, NOT ONE ID. gpt-5.x and gpt-6-astra want the
+// same request SHAPE — `reasoning_effort` yes, `temperature` never — so a gate
+// written as /^gpt-5/ would send the newer model a temperature it answers with
+// a 400: not a worse answer, no answer at all, on every call.
+const OPENAI_REASONING_RE = /^(gpt-[5-9]|o[1-9])/;
 // An over-large budget is a 400 rather than a long answer, so it is clamped.
 const OPENAI_MAX_OUTPUT = 32000;
 // A scan sends its pages up in batches, back to back, so the gap between
@@ -1542,9 +1547,9 @@ export const askOpenAi = onCall(OPENAI_OPTS, async (request) => {
     // a prompt that never says it would 400 rather than answer.
     if (!/json/i.test(prompt + " " + system)) content.push({ type: "text", text: "Reply with JSON only." });
   }
-  // A gpt-5 model runs only at its own default temperature; sending one is a
-  // 400 — not a worse answer, no answer at all.
-  if (d.temperature !== undefined && !/^gpt-5/.test(OPENAI_MODEL)) body.temperature = Number(d.temperature);
+  // A reasoning model runs only at its own default temperature; sending one is
+  // a 400 — not a worse answer, no answer at all.
+  if (d.temperature !== undefined && !OPENAI_REASONING_RE.test(OPENAI_MODEL)) body.temperature = Number(d.temperature);
 
   let res;
   try {

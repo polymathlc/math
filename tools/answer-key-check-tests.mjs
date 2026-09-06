@@ -56,7 +56,7 @@ function closeOverlay() {}
 function editQuestion() {}
 function $() { return null; }             // no bank bar in the fixture
 const localStorage = { getItem: () => null, setItem: () => {} };
-let openAiKey = "sk-test", openAiModel = "gpt-5.6-sol";
+let openAiKey = "sk-test", openAiModel = "gpt-6-astra";
 function getOpenAiKey() { return openAiKey; }
 function getOpenAiModel() { return openAiModel; }
 let geminiRegenModels = [{}];

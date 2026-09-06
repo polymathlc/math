@@ -195,6 +195,25 @@ backend, so the model calls are byte-for-byte the same requests. Search
   with every release, so an id hard-coded in this file is a 404 on every call a
   few months from now with nothing on screen to say the id is merely out of
   date. 🔄 **Load models** asks the account itself.
+- **A REASONING MODEL IS A FAMILY, NOT ONE ID** (`OPENAI_REASONING_RE`,
+  v1.65.0). ChatGPT runs on **`gpt-6-astra`** now, and gpt-5.x and gpt-6-astra
+  want the same request SHAPE — `reasoning_effort` yes, `temperature` never.
+  A gate written as `/^gpt-5/` therefore does not merely miss the newer model,
+  it sends it a temperature it answers with a **400**: not a worse answer, no
+  answer at all, on every call. `functions/index.js` carries its own copy for
+  the server route and **that half needs a functions deploy**, not just a page
+  upload — the two must move together or the browser and the server are
+  answering on different models.
+- **A DEFAULT NOBODY CHOSE IS NOT A CHOICE** (`OPENAI_SUPERSEDED_MODELS` /
+  `OPENAI_MODEL_GEN` / the one-shot lift). The stored model is written every
+  time the AI Engine dialog is saved, so almost everyone is carrying
+  yesterday's default pinned in their own settings — and a NEW default then
+  reaches nobody who has ever opened that dialog, on a screen still naming the
+  old model. That is the whole upgrade silently not happening. A model that was
+  only ever a default is lifted ONCE, per device; the flag is what makes a
+  DELIBERATE pick of the old model stick, because it is still in the dropdown
+  and choosing it there has to mean something. Bump `OPENAI_MODEL_GEN` and add
+  the outgoing id to `OPENAI_SUPERSEDED_MODELS` on the next flagship.
 
 ## 🌌 Nova Protocol — the trading card game
 Ported whole from the Science app's Realm of Embers and re-themed as science
@@ -823,7 +842,7 @@ diagram over, stranding its *Answer (a):* / *Answer (b):* fields alone on page 2
 on the Question Bank and 🔍 Check answer keys on a 📄 My Worksheets card.
 
 ✅ **Check with AI** in the editor asks ONE model whether a question hangs
-together. This asks **two** — ChatGPT (`gpt-5.6-sol` by default) and Gemini
+together. This asks **two** — ChatGPT (`gpt-6-astra` by default) and Gemini
 (`AI_REGEN_MODEL`) — to solve every question from scratch **simultaneously**,
 and reports their two answers beside the teacher's own key, with a
 recommendation. Admin-only; the answer key is admin-only to begin with.
