@@ -332,7 +332,8 @@ test('a student cannot start a scan, however they reached the page', () => {
 });
 
 test('the page itself is admin-gated in navigateTo, not only hidden', () => {
-  ok(/"diagnostic", "answerkeys"\]\.includes\(page\) && !canManageQuestions\(\)/.test(src),
+  ok(/"diagnostic", "answerkeys",[^\]]*\]\.includes\(page\) && !canManageQuestions\(\)/.test(src)
+     || /"diagnostic", "answerkeys"\]\.includes\(page\) && !canManageQuestions\(\)/.test(src),
     'navigateTo does not rewrite the answer key page for a student — a bookmark walks straight in');
   ok(/nav-item admin-only" data-page="answerkeys"/.test(src),
     'the nav item is not marked admin-only');

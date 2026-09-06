@@ -168,7 +168,7 @@ ok('it never throws on a missing question', api.rapidApplyRelease(null, '2030-01
   const load = cut('async function loadBank(uid) {', '\nfunction isPermissionError', 'loadBank');
   ok('a student does not load a question that is not out yet',
      /if \(!canManageQuestions\(\) && !qReleased\(q\)\) \{/.test(load) &&
-     /lockedQuestions\[String\(q\.id\)\] = qReleaseOn\(q\);\s*\n\s*return;/.test(load),
+     /lockedQuestions\[String\(q\.id\)\] = qReleaseOn\(q\) \|\| HOLD_LOCK_KEY;\s*\n\s*return;/.test(load),
      'this is the ONLY gate — lose it and next term’s paper is in front of a child this week');
   // 🔒 …and it keeps the ID and the DATE and NOTHING else. A stub carrying the
   // wording, the options or a marking guide would put the question in the
