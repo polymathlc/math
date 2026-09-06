@@ -2427,7 +2427,99 @@ somebody off to rebuild a sheet which is perfectly fine and simply early.
   permanent one.
 - Run **`node tools/scheduled-release-tests.mjs`** after touching any of it.
 
+## 🎯 A blank box the PUPIL writes their objectives in (v1.69.0)
+
+`OBJBOX_*` / `objBoxLines` / `objBoxLabel` / `objBoxHeightMm` / **`objBoxHtml`**
+/ **`objBoxAutoHtml`** / `objBoxBlockHtml` / `objBoxSyncPreview` (search
+`🎯 LEARNING OBJECTIVES BOX`), the `objectivesBox` block type, the `.obx-*` CSS
+in both the app's stylesheet and `wsPrintCss`, and the 🎯
+**Learning-objectives box** switch on the worksheet builder and 📄 My
+Worksheets.
+
+An element block: a blank rounded rectangle, **two ruled lines by default and
+any number from one upwards**, that an author drops into a question — or that
+the printing options put at the foot of EVERY question at once. It is where a
+pupil writes, in their own words, what they were learning.
+
+- **IT IS NOT THE 📐 SYLLABUS MAP, and confusing the two is the whole reason it
+  is not called `lo*`.** That system (`SYL_LOS`, `q.los`, `sylSuggestLos`,
+  `sylAutoFileLos`) is the ADMIN's filing — which MOE learning objective a
+  question is tagged under, chosen by a teacher, never a box on a sheet. This is
+  the opposite end: an empty rectangle with nothing stored in it and nothing to
+  mark. Sharing a prefix between them is how a filing helper ends up called from
+  a print path, so this one is `objBox*` / `OBJBOX_*` throughout.
+- **NOTHING ABOUT IT REACHES THE ANSWER KEY.** `wsAnswerKeyHtml` reads
+  `q.expected` exactly as it always has and this block is simply not part of it
+  — there is no right answer to "what did you learn", and a key row against a
+  reflection box is one a teacher cannot mark.
+- **`objBoxLines` is the ONE place a stored number becomes ruled lines, and it
+  FAILS TO THE DEFAULT.** Junk, an absent field, zero or a negative all give two
+  lines — a box with no lines in it is a box a pupil cannot write in, and it
+  renders perfectly. `OBJBOX_LINES_MAX` (20) caps it: a taller box is a page.
+- **`objBoxLabel` must NOT fall back on an EMPTY label.** `|| OBJBOX_LABEL`
+  would put the heading back on a box the author had just cleared — and "blank"
+  is what was asked for. Only an ABSENT field takes the default.
+- **`objBoxHtml` IS THE ONE RENDERER**, and `renderQuestionBlockHtml` — the one
+  place a block becomes markup in this app — calls it. So practice, every
+  preview, the block card and the printed sheet all draw the same box, and a
+  surface added later gets it without being told. The class names are the same
+  on both, with the app's stylesheet carrying the screen sizes and `wsPrintCss`
+  the paper ones: a preview whose box is a different shape from the printed box
+  is not a preview.
+- **`collectQuestion` NEEDS ITS OWN BRANCH.** It maps anything that is not an
+  image to a TEXT block and then filters out the ones with no content — so
+  without it the box is saved perfectly and gone on the next load, with nothing
+  anywhere to say so. And the filter has to keep it: a box is BLANK by design,
+  so it is kept for being there at all rather than for its content.
+
+### 🎯 …and one box in EVERY question, from the printing options
+
+- **`objBoxAutoHtml(q, on)` is the ONE injector**, appended at the FOOT of the
+  question inside `wsQuestionChunkHtml` — after the working area, where a pupil
+  reflects once they have done it.
+- **It is `on` AND the question has no box already.** The switch promises ONE
+  box per question; a question the author already gave a box would otherwise
+  print two, the second at a size they never chose.
+- **NOTHING IS WRITTEN TO ANY QUESTION.** It is a rendering option, so ticking
+  it changes no document anywhere.
+- **THE SHEET IS MEASURED IN MILLIMETRES, so the automatic box has to be
+  RESERVED BY NAME.** It is not in `q.blocks`, so `wsBodyEstimateMm` adds
+  `objBoxHeightMm` for it explicitly — and skips that when the question already
+  carries one, or it is reserved for twice. Reserve nothing and the question
+  spills its "Answer: ____" row onto the next page, which is the exact fault
+  that whole sizing block exists to prevent. An AUTHORED box is measured from
+  its own line count rather than the flat 12mm every unknown block gets.
+- **`wsEffectiveImgMm` and `wsWorkingSpaceMm` take the flag too.** Both subtract
+  `wsBodyEstimateMm`, so a flag that stopped at the estimate would leave the
+  working area sized as though the box were not there — and the order things
+  give way in (working space first, then the diagram, never the wording or the
+  answer rows) would be computed against the wrong total.
+- **A question carrying a box is not Booklet A** (`cpbIsMcqOnly`): Booklet A is
+  answered on a separate answer sheet, where a reflection box is one nobody can
+  fill in.
+- **`polymathlc/cer` carries the same block** — same block type, same helper
+  names, same two switches. Ship a change to both together.
+- Run **`node tools/objectives-box-tests.mjs`** after touching any of it.
+
 ## House rules
+- After touching **🎯 the learning-objectives box** (`OBJBOX_*`, `objBoxLines`,
+  `objBoxLabel`, `objBoxHeightMm`, `objBoxHtml`, `objBoxAutoHtml`,
+  `objBoxBlockHtml`, `objBoxSyncPreview`, `collectQuestion`'s branch,
+  `wsBodyEstimateMm` / `wsEffectiveImgMm` / `wsWorkingSpaceMm`'s flag,
+  `wsQuestionChunkHtml`'s append, the two `objBox:` options or the `.obx-*`
+  CSS), run `node tools/objectives-box-tests.mjs`. Every failure here is silent
+  and the sheet still prints. **Losing `collectQuestion`'s branch is the worst
+  of them**: the box is written out as an empty text block, dropped by the
+  filter for having no content, and gone on the next load — saved perfectly and
+  never there. Reserve nothing for the AUTOMATIC box in `wsBodyEstimateMm` and
+  the question spills its answer row onto the next page; reserve it twice on a
+  question that already has one and every such question wastes a box of sheet.
+  Drop the already-has-a-box test and the switch that promises ONE box prints
+  two. Let `objBoxLabel` fall back on an EMPTY label and the heading comes back
+  on the box an author had just cleared. Let `objBoxLines` return zero and the
+  box renders perfectly with nothing to write on. And draw the inserter button
+  without wiring it in `wireBlockInserters` and it is a menu entry that does
+  nothing at all.
 - After touching **🗂️ Custom Paper** (`cpb*` / `CPB_*`, `cpbMode`,
   `cpbLayout`, `cpbIsMcqOnly`, `cpbMarks`, `cpbOutputOpts`, `cpbReadRun`,
   `cpbCommit`, `cpbEditSave`, the shelf, or the four shared hooks —
