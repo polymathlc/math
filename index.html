@@ -387,6 +387,107 @@ a { color: var(--primary); }
    picture and the match have to be readable TOGETHER: a card that only
    named the question would be one nobody could check.
    =================================================================== */
+/* ===================================================================
+   🗂️ CUSTOM PAPER — the page that builds a mock paper or a worksheet.
+   =================================================================== */
+.cpb-wrap { max-width: 980px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+.cpb-card { padding: 26px 28px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-sm); }
+.cpb-intro { background: var(--surface-alt, #f8fafc); }
+.cpb-recover { border-color: #fcd34d; background: #fffbeb; }
+.cpb-h3 { margin: 0; font-size: 1.02rem; font-weight: 700; display: flex; align-items: center; gap: 9px; }
+.cpb-lead { margin: 12px 0 0; font-size: 0.86rem; line-height: 1.65; color: var(--text-muted); }
+.cpb-lead.cpb-lock { margin-top: 14px; padding: 12px 14px; border-radius: 10px; background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+.cpb-dim { color: var(--text-muted); font-weight: 400; }
+.cpb-empty { margin: 14px 0 0; font-size: 0.86rem; color: var(--text-muted); line-height: 1.6; }
+.cpb-status { margin: 8px 0 0; font-size: 0.8rem; color: var(--text-muted); }
+.cpb-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.cpb-head-tools { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.cpb-pill { display: inline-block; min-width: 22px; padding: 1px 8px; border-radius: 999px; background: var(--surface-alt, #f1f5f9); border: 1px solid var(--border); font-size: 0.74rem; font-weight: 600; color: var(--text-muted); }
+.cpb-pill.new { background: #eff6ff; border-color: #bfdbfe; color: var(--primary); }
+.cpb-warn-line { margin: 14px 0 0; padding: 11px 14px; border-radius: 10px; background: #fffbeb; border: 1px solid #fcd34d; font-size: 0.82rem; line-height: 1.6; color: #92400e; }
+.cpb-new-line { margin: 14px 0 0; padding: 11px 14px; border-radius: 10px; background: #eff6ff; border: 1px solid #bfdbfe; font-size: 0.82rem; line-height: 1.6; color: #1e40af; }
+.cpb-linkbtn { background: none; border: none; padding: 0; color: var(--primary); font: inherit; text-decoration: underline; cursor: pointer; }
+/* 🅰 The two modes. A segmented pair of real buttons rather than a dropdown:
+   what the page is about to build is the first decision on it, and a chooser
+   that has to be opened to be read is one nobody reads. */
+.cpb-modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-top: 18px; }
+.cpb-mode { display: flex; align-items: flex-start; gap: 12px; text-align: left; padding: 14px 16px; border: 1.5px solid var(--border); border-radius: 12px; background: var(--surface); cursor: pointer; font: inherit; color: inherit; transition: border-color .15s, background .15s, box-shadow .15s; }
+.cpb-mode:hover:not(:disabled) { border-color: var(--primary); }
+.cpb-mode:disabled { opacity: .5; cursor: default; }
+.cpb-mode.on { border-color: var(--primary); background: var(--primary-light, #eff6ff); box-shadow: 0 0 0 1px var(--primary) inset; }
+.cpb-mode-ico { font-size: 1.35rem; line-height: 1.2; flex: 0 0 auto; }
+.cpb-mode-txt { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.cpb-mode-txt b { font-size: .9rem; }
+.cpb-mode-txt span { font-size: .78rem; line-height: 1.55; color: var(--text-muted); }
+.cpb-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; margin-top: 18px; }
+.cpb-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.cpb-field-label { font-size: .78rem; font-weight: 600; }
+.cpb-field input, .cpb-field select { width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm, 8px); font: inherit; background: var(--surface); color: inherit; box-sizing: border-box; }
+.cpb-switches { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
+.cpb-switch { display: flex; align-items: flex-start; gap: 10px; font-size: .84rem; line-height: 1.55; cursor: pointer; }
+.cpb-switch input[type="checkbox"] { -webkit-appearance: auto; appearance: auto; margin-top: 2px; flex: 0 0 auto; }
+.cpb-switch.off { opacity: .55; }
+.cpb-zone { margin-top: 16px; padding: 26px 20px; border: 2px dashed var(--border); border-radius: 14px; background: var(--surface-alt, #f8fafc); cursor: pointer; display: flex; align-items: center; gap: 16px; justify-content: center; text-align: left; flex-wrap: wrap; transition: border-color .15s, background .15s; }
+.cpb-zone.on { border-color: var(--primary); background: var(--primary-light, #eff6ff); }
+.cpb-zone-ico { font-size: 1.7rem; }
+.cpb-zone b { display: block; font-size: .9rem; }
+.cpb-zone .cpb-dim { font-size: .8rem; }
+.cpb-shots { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; margin-top: 16px; }
+.cpb-shot { position: relative; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--surface-alt, #f8fafc); }
+.cpb-shot img { display: block; width: 100%; height: 116px; object-fit: cover; }
+.cpb-shot-body { padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 3px; }
+.cpb-shot-status { font-size: .74rem; font-weight: 600; }
+.cpb-shot-detail, .cpb-shot-err { font-size: .7rem; color: var(--text-muted); line-height: 1.4; }
+.cpb-shot-err { color: var(--accent-red); }
+.cpb-shot.s-ok .cpb-shot-status { color: #15803d; }
+.cpb-shot.s-busy .cpb-shot-status { color: var(--primary); }
+.cpb-shot.s-warn .cpb-shot-status { color: #b45309; }
+.cpb-shot.s-bad .cpb-shot-status { color: var(--accent-red); }
+.cpb-shot-x { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); font-size: .7rem; line-height: 1; cursor: pointer; }
+.cpb-totals { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; margin-top: 18px; padding: 12px 16px; border-radius: 10px; background: var(--surface-alt, #f8fafc); border: 1px solid var(--border); font-size: .82rem; }
+.cpb-totals b { font-size: .95rem; }
+.cpb-totals > span { display: inline-flex; align-items: baseline; gap: 5px; flex-wrap: wrap; }
+.cpb-total-big b { font-size: 1.15rem; }
+.cpb-warn-inline { color: #92400e; }
+/* The gap chip carries the STATE in its own colour and in its own words — a
+   teacher scanning the bar should not have to compare two numbers to see it. */
+.cpb-gap { font-size: .72rem; font-weight: 700; padding: 1px 7px; border-radius: 999px; white-space: nowrap; }
+.under .cpb-gap { background: #fef3c7; color: #92400e; }
+.over .cpb-gap { background: #fee2e2; color: #b91c1c; }
+.on-target .cpb-gap { background: #dcfce7; color: #166534; }
+.cpb-target-note { margin: 12px 0 0; font-size: .78rem; line-height: 1.6; color: var(--text-muted); }
+.cpb-booklet { margin-top: 22px; }
+.cpb-booklet-head { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding-bottom: 8px; border-bottom: 2px solid var(--border); }
+.cpb-booklet-head h4 { margin: 0; font-size: .92rem; font-weight: 700; }
+.cpb-booklet-sum { font-size: .78rem; color: var(--text-muted); }
+.cpb-rows, .cpb-lib { display: flex; flex-direction: column; }
+.cpb-row, .cpb-lib-row { display: flex; align-items: flex-start; gap: 14px; padding: 13px 4px; border-bottom: 1px solid var(--border); }
+.cpb-row:last-child, .cpb-lib-row:last-child { border-bottom: none; }
+.cpb-row.moved { background: #fffbeb; }
+.cpb-row-n { flex: 0 0 30px; text-align: right; font-weight: 700; font-size: .9rem; color: var(--text-muted); padding-top: 1px; }
+.cpb-row-main, .cpb-lib-main { flex: 1 1 auto; min-width: 0; }
+.cpb-row-title, .cpb-lib-name { font-size: .88rem; font-weight: 600; line-height: 1.45; }
+.cpb-row-meta, .cpb-lib-meta { font-size: .74rem; color: var(--text-muted); margin-top: 3px; line-height: 1.5; }
+.cpb-nomarks { color: #b45309; }
+.cpb-moved { color: #92400e; font-weight: 600; }
+.cpb-row-tools, .cpb-lib-tools { flex: 0 0 auto; display: flex; gap: 5px; align-items: center; }
+.cpb-tool { border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 4px 8px; font-size: .74rem; line-height: 1.2; cursor: pointer; color: var(--text-muted); }
+.cpb-tool:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+.cpb-tool:disabled { opacity: .35; cursor: default; }
+.cpb-tool.danger:hover:not(:disabled) { border-color: var(--accent-red); color: var(--accent-red); }
+.cpb-lib-row.on { background: var(--surface-alt, #f8fafc); border-radius: 10px; padding-left: 12px; padding-right: 12px; }
+.cpb-lib-badge { font-size: .68rem; font-weight: 700; color: var(--primary); background: #eff6ff; border-radius: 999px; padding: 2px 8px; margin-left: 6px; vertical-align: middle; }
+/* The row the teacher went off to edit, put back under them and flashed —
+   without it a paper is worked through by scrolling from the top every time. */
+.cpb-row-flash { animation: cpbRowFlash 2.2s ease-out; border-radius: 10px; }
+@keyframes cpbRowFlash { 0%, 60% { background: #fef9c3; } 100% { background: transparent; } }
+@media (max-width: 720px) {
+  .cpb-card { padding: 20px 16px; }
+  .cpb-shots { grid-template-columns: 1fr; }
+  .cpb-row, .cpb-lib-row { flex-wrap: wrap; }
+  .cpb-row-tools, .cpb-lib-tools { width: 100%; justify-content: flex-end; }
+}
+
 .aks-card {
   background: var(--surface);
   border: 1.5px solid var(--border);
@@ -4614,6 +4715,7 @@ body.lore-reading { overflow: hidden; }
       <div class="nav-item admin-only" data-page="graph" title="Map prerequisite links between questions — the AI reads this when guiding practice"><span class="ico">🕸️</span> Dependency Board</div>
       <div class="nav-item admin-only" data-page="students"><span class="ico">🎓</span> Student Results</div>
       <div class="nav-item admin-only" data-page="diagnostic" title="Build a test one learning objective at a time, print it, then read the class's score objective by objective"><span class="ico">🩺</span> Diagnostic</div>
+      <div class="nav-item admin-only" data-page="custompaper" title="Custom Paper — build a mock exam paper OR an ordinary worksheet from scratch. Paste the question screenshots in and they are read as one run. In paper mode they are sorted into Booklet A (multiple choice) and Booklet B (open-ended), numbered straight through and printed with a cover for each booklet; in worksheet mode they print as one numbered list on an ordinary worksheet. Everything sent to the bank is held back from students until you release it."><span class="ico">🗂️</span> Custom Paper</div>
       <div class="nav-item admin-only" data-page="worksheet" title="Pick questions, add a cover, then print or save the worksheet"><span class="ico">📝</span> Create Worksheet</div>
       <div class="nav-item" data-page="myworksheets" title="Your saved worksheets — reprint, practise or delete"><span class="ico">📄</span> My Worksheets</div>
       <div class="nav-item admin-only" id="navAiEngine" title="Choose which AI powers the app — Gemini (default) or ChatGPT with your own OpenAI key. The choice is saved on this device."><span class="ico">🧠</span> AI Engine</div>
@@ -5030,6 +5132,22 @@ body.lore-reading { overflow: hidden; }
          `admin-only`, navigateTo rewrites the page for anybody else, and
          aksStartJob refuses outright. An answer key is the one thing in this
          app a student must never reach, and a hidden nav item is not a lock. -->
+    <!-- ==================== 🗂️ CUSTOM PAPER ======================
+         A mock exam paper OR an ordinary worksheet, built from scratch:
+         screenshots in, questions read as ONE run, and printed in whichever
+         of the two formats the 🅰 mode chooser is set to — a paper with
+         Booklet A, Booklet B and a cover for each, or one numbered list on a
+         worksheet. Everything inside #cpbBody is built by cpbRender(); both
+         modes hold every question back from students until it is released. -->
+    <div class="page" id="page-custompaper">
+      <div class="page-head">
+        <h3>🗂️ Custom Paper</h3>
+        <p>Paste the questions in and get a whole mock paper — Booklet A, Booklet B, a cover for each and an answer key — or an ordinary worksheet. <b>Everything sent to the bank is held back from students</b> until you release it.</p>
+        <p class="cpb-status" id="cpbStatus"></p>
+      </div>
+      <div class="cpb-wrap" id="cpbBody"></div>
+    </div>
+
     <div class="page" id="page-answerkeys">
       <div class="page-head">
         <h3>🔑 Answer key scanner</h3>
@@ -8773,7 +8891,7 @@ function navigateTo(page) {
   vetPrintPeekHide();
   // My Worksheets is deliberately NOT on this list: a student's own saved
   // worksheets are their own documents, and reprinting one is the whole point.
-  if (["create", "bank", "bin", "worksheet", "vetting", "students", "graph", "diagnostic", "answerkeys"].includes(page) && !canManageQuestions()) {
+  if (["create", "bank", "bin", "worksheet", "vetting", "students", "graph", "diagnostic", "answerkeys", "custompaper"].includes(page) && !canManageQuestions()) {
     page = "practice";
     toast("Student accounts can practise questions only", "error");
   }
@@ -8788,7 +8906,7 @@ function navigateTo(page) {
   // everything else is CSS, which is what makes the swap instant and
   // impossible to leave half-applied.
   document.body.classList.toggle("nova-protocol", page === "tcg");
-  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", bin: "Bin", vetting: "Vetting", graph: "Dependency Board", worksheet: "Create Worksheet", myworksheets: "My Worksheets", worksheetview: "Worksheet Overview", students: "Student Results", diagnostic: "Diagnostic Test", answerkeys: "Answer Key Scanner", character: "Character", leaderboard: "Leaderboard", adventure: "Dungeon", tcg: "Aetherfall", syllabus: "Syllabus" };
+  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", bin: "Bin", vetting: "Vetting", graph: "Dependency Board", worksheet: "Create Worksheet", myworksheets: "My Worksheets", worksheetview: "Worksheet Overview", students: "Student Results", diagnostic: "Diagnostic Test", answerkeys: "Answer Key Scanner", custompaper: "Custom Paper", character: "Character", leaderboard: "Leaderboard", adventure: "Dungeon", tcg: "Aetherfall", syllabus: "Syllabus" };
   $("topbarTitle").textContent = titles[page] || "";
   $("sidebar").classList.remove("open");
   if (page === "character") rpgRenderCharacterPage();
@@ -8802,6 +8920,7 @@ function navigateTo(page) {
   if (page === "vetting") renderVettingList();
   if (page === "bin") renderBinList();
   if (page === "answerkeys") aksRender();
+  if (page === "custompaper") cpbInit();
   if (page === "worksheet") { wsPopulateFilters(); renderWsQuestions(); }
   if (page === "myworksheets") renderSavedWorksheets();
   if (page === "worksheetview") renderWorksheetOverview();
@@ -9026,7 +9145,25 @@ function qScheduled(q, today) {
   const on = qReleaseOn(q);
   return !!on && on > (today || releaseToday());
 }
-function qReleased(q, today) { return !qScheduled(q, today); }
+// 🔒 HELD BACK — in the bank, and not for students yet.
+//
+// A release DATE answers "not until Monday". It cannot answer "not until I say
+// so", which is what a teacher building next term's mock paper actually wants:
+// the questions have to be in the bank NOW so the paper can be printed,
+// edited, checked and put on a worksheet, and no child may meet one until it
+// has been sat. 🗂️ Custom Paper stamps every question it sends with this, and
+// the ⏳ bar on the Question Bank page is where it comes off again.
+//
+// STRICT `=== true`, and deliberately NOT the fail-open rule `qReleaseOn`
+// follows: the field has exactly two writers — Custom Paper's send and the
+// release button — and neither can produce a truthy-but-not-true value, so
+// there is no third state to be lenient about.
+function qHeldBack(q) { return !!q && q.holdBack === true; }
+// FOLDED IN rather than bolted beside, and that is the whole safety story:
+// `loadBank` already asks this ONE predicate, so the hold-back reached every
+// student-facing surface in the app without one of them being told about it.
+// A gate of its own is one the next reader somebody writes forgets to ask.
+function qReleased(q, today) { return !qHeldBack(q) && !qScheduled(q, today); }
 function qReleaseLabel(on) {
   const iso = String(on || "");
   if (!RELEASE_DAY_RE.test(iso)) return "";
@@ -9055,6 +9192,15 @@ function qReleaseWhen(on, today) {
 // that looked ordinary on any one of those screens is a question somebody puts
 // on Monday's worksheet and cannot understand why no student can see.
 function qReleaseChipHtml(q, cls) {
+  // Held back BEATS a date, because it is the one that is true: saying
+  // "releases 3 Nov" about a question that will not is worse than saying
+  // nothing at all.
+  if (qHeldBack(q)) {
+    return '<span class="' + (cls || "chip") + ' sched" title="Sent from 🗂️ Custom Paper and held back from students.' +
+      ' It is in your bank and you can edit, print and preview it, but no student\u2019s app loads it at all' +
+      ' — so it reaches nobody in practice, in a game or on a worksheet until you release it from the ⏳ bar' +
+      ' on the Question Bank page.">🔒 Not released</span>';
+  }
   const on = qReleaseOn(q);
   if (!on || !qScheduled(q)) return "";
   return '<span class="' + (cls || "chip") + ' sched" title="Scheduled by ⚡ Rapid add.' +
@@ -9081,8 +9227,13 @@ function qReleaseChipHtml(q, cls) {
 // the options, not a marking guide — there is no question here to leak, only
 // enough to draw a row that says when it opens.
 // =====================================================================
+// A question held back with no date at all. It is a lock like any other — the
+// row is drawn, the count is right — it simply names no day, because there is
+// no day to name until the teacher releases the paper.
+const HOLD_LOCK_KEY = "held";
 function qLockedOn(id) {
   const on = lockedQuestions[String(id)];
+  if (on === HOLD_LOCK_KEY) return HOLD_LOCK_KEY;
   return (typeof on === "string" && RELEASE_DAY_RE.test(on)) ? on : "";
 }
 // The ids on a worksheet this account cannot open yet — never the ones whose
@@ -9096,7 +9247,10 @@ function wsLockedIds(ws) {
 // back; naming the LAST would send them away for a month when half the sheet
 // opens on Monday.
 function wsLockSoonest(ids) {
-  return (ids || []).map(qLockedOn).filter(Boolean).sort()[0] || "";
+  // Only a real DAY KEY can be named. A held-back question has none, so it is
+  // filtered out here rather than becoming an empty date in the sentence
+  // below — "the first unlocks  ()" is worse than saying no day at all.
+  return (ids || []).map(qLockedOn).filter(on => RELEASE_DAY_RE.test(on)).sort()[0] || "";
 }
 // One sentence, and every surface that has to explain a lock uses it. A student
 // told a question is missing and not told when it returns has the useless half
@@ -9180,7 +9334,10 @@ async function loadBank(uid) {
         // options, not one field a student could read early. What is kept is
         // the id and the day it opens, so a worksheet holding it can draw a
         // locked row instead of reading as a question somebody deleted.
-        lockedQuestions[String(q.id)] = qReleaseOn(q);
+        // A HELD-BACK question has no date at all, so it is stubbed with the
+        // sentinel instead: the sheet still draws a locked row saying it is not
+        // open yet, and simply names no day — which is the truth.
+        lockedQuestions[String(q.id)] = qReleaseOn(q) || HOLD_LOCK_KEY;
         return;
       }
       questionBank.push(q);
@@ -12851,6 +13008,7 @@ function resetEditor() {
   currentEditingId = null;
   qEditReturn = null;   // an abandoned edit must not redirect the NEXT save
   aksCarrySet(null);    // …and must not leave the last photograph on the next question
+  cpbEdit = null;       // …nor the 🗂️ Custom Paper question, or the next save is written into a paper
   pendingVariantOf = null;
   _vetPendingPromote = null;   // abandoning the edit leaves the vetting entry alone
   graphPendingSpawn = null;
@@ -12894,6 +13052,9 @@ function loadQuestionIntoEditor(q) {
   // cannot inherit the last one's picture and be offered somebody else's
   // working as its answer key. `aksEditQuestion` sets it straight afterwards.
   aksCarrySet(null);
+  // …and the 🗂️ Custom Paper question, for the same reason: a bank edit that
+  // inherited it would be SAVED into a paper instead of into the bank.
+  cpbEdit = null;
   pendingVariantOf = null;
   imgChoices.clear();
   editorBlocks = JSON.parse(JSON.stringify(q.blocks || []));
@@ -12964,6 +13125,11 @@ function collectQuestion() {
 }
 $("saveQBtn").addEventListener("click", async () => {
   if (!canManageQuestions()) { toast("Only admin accounts can save questions", "error"); navigateTo("practice"); return; }
+  // 🗂️ A CUSTOM PAPER question is in NEITHER the bank nor the vetting list —
+  // nothing on that page is until Send — so the ONE meaning a save can have
+  // here is "back onto the sheet". A bank write would leave the sheet and the
+  // bank each holding half of it with nothing on any screen reporting it.
+  if (cpbEditActive()) { cpbEditSave(); return; }
   const isNewQuestion = !currentEditingId;
   const q = collectQuestion();
   if (!q.blocks.some(b => b.type === "text") && !q.blocks.some(b => b.type === "image")) { toast("Add some question content first", "error"); return; }
@@ -13059,13 +13225,25 @@ function aiBuildFailureText(e) {
 // screenshot usually holds. ⚡ Rapid add turns it on because a rendered PDF page
 // is a whole SHEET of a paper; ✨ Build with AI leaves it off, because the
 // editor holds one question and the prompt is then byte-for-byte what it was.
-function aiQuestionReadPrompt(isPdf, withBox = false, many = false) {
+// `run` is 🗂️ Custom Paper's mode and nothing else touches it: several
+// screenshots go up in ONE call and are read as a CONTINUOUS RUN, because one
+// question is very often spread over two or three of them. It is an argument
+// here rather than a prompt of its own — a second copy of this wording is a
+// second copy to fix, and the drift shows up as "the pad reads my options and
+// that page does not". With it absent every existing caller's prompt is
+// byte-for-byte what it was.
+function aiQuestionReadPrompt(isPdf, withBox = false, many = false, run = null) {
+  const nImg = (run && Number(run.images)) || 0;
   const one =
     `{"title":"<short title>","level":"<e.g. P5 or Sec 1>","topics":["<e.g. Fractions>","<optional second topic>"],"concept":"<teacher-only concept or strategy label, or empty string>",` +
     `"questionText":"<the full question text, cleaned up>","expected":"<the correct final answer, with units>",` +
     `"markingGuide":"<concise worked solution / what to look for in the working>","hasDiagram":<true if the question relies on a figure/diagram, else false>,` +
     (withBox ? `"diagramBox":[<ymin>,<xmin>,<ymax>,<xmax>] or null,` : ``) +
     (many ? `"number":"<the paper's own question number, e.g. 12 or 8(a), or empty>",` : ``) +
+    (run
+      ? `"questionType":"mcq" or "open","marks":<the marks the page prints for this question, or null>,` +
+        (nImg > 1 ? `"page":<which attached image this question's figure is on, 1-based>,"continuation":false,` : `"continuation":false,`)
+      : ``) +
     `"options":["<option 1>","<option 2>", ...] (empty array if not multiple-choice),"correctOption":<0-based index of the correct option, or -1 if not multiple-choice>}`;
   return `You are helping a Singapore primary-school math teacher turn an exam question (in the attached ${isPdf ? "PDF" : "image"}) into a practice question. ` +
     genPreamble() +
@@ -13088,7 +13266,18 @@ function aiQuestionReadPrompt(isPdf, withBox = false, many = false) {
         `  • If a question genuinely relies on no figure, set hasDiagram false and diagramBox null. Do not set hasDiagram true and leave the rectangle out.\n` +
         `Read every question carefully and return ONLY valid JSON in this exact shape — one entry per question, in the order they appear on the page. Escape any line breaks inside string values as \\n and do not include markdown fences:\n` +
         `{"questions":[` + one + `]}`
-      : `Read the question carefully and return ONLY valid JSON in this exact shape. Escape any line breaks inside string values as \\n and do not include markdown fences:\n` + one);
+      : `Read the question carefully and return ONLY valid JSON in this exact shape. Escape any line breaks inside string values as \\n and do not include markdown fences:\n` + one) +
+    (run
+      ? (nImg > 1
+          ? `\nIMPORTANT — read all ${nImg} images AS ONE CONTINUOUS RUN, not as ${nImg} separate questions. ONE question is very often spread across two or three of these images (its wording on one, its diagram on the next, its parts after that), and ONE image may hold several questions. Decide where each question starts and ends from the wording and the numbering, NEVER from where one image ends and the next begins. Do not drop content from any image, and do not split one question into two entries just because it crosses an image boundary.\n`
+          : ``) +
+        (nImg > 1 ? `- "page": the 1-based index of the attached image this question's figure is on (1 = the first attached image). "diagramBox" is measured on THAT image: 0,0 is its top-left corner, 1000,1000 its bottom-right corner.\n` : ``) +
+        `- "questionType" is the MOST IMPORTANT field on this job, because it decides which booklet the question is printed in. "mcq" means the question offers a fixed set of numbered or lettered answer options to choose from and nothing is written out. "open" means the child writes the answer — a number, a sentence, working, a table to fill in, a diagram to draw or label. A question that offers options AND asks for written working is "open".\n` +
+        `- "marks": the marks the page prints for this question, from the [2] or (2 marks) printed beside it. Use null when the page does not say — never invent one.\n` +
+        `- CONTINUATION: if the FIRST attached image opens in the middle of a question that started BEFORE it — it carries on mid-question, before any new question — return that leftover part as the FIRST entry with "continuation": true and just the leftover content in it. Every other entry has "continuation": false.` +
+        (run.seeded ? ` The images before these ended part-way through a question, so this is a real possibility here.` : ``) + `\n` +
+        `- A page holding only the TAIL of a question is not an empty page: return that one continuation entry for it.\n`
+      : ``);
 }
 
 // A page can hold SEVERAL questions. This is the ONE place a reading becomes
@@ -13280,10 +13469,22 @@ async function loadVettingList(uid) {
   binList = [];
   try {
     const snap = await getDocs(_vetCol(uid));
+    // Three shapes share this admin-only collection, and each is sorted out by
+    // its own flag: a binned question (the 🗑️ Bin), a 🗂️ Custom Paper saved
+    // sheet, and an ordinary vetting draft. They live together because
+    // `firestore.rules` is shared with the Science app — a new subcollection
+    // would fall through to the default deny and cost a whole-project rules
+    // deploy for one feature — and this collection is already admin-only on
+    // BOTH read and write, which both of the other two need.
+    const papers = [];
     snap.forEach(d => {
       const data = d.data();
-      if (data && data.binned) binList.push(data); else vettingList.push(data);
+      if (!data) return;
+      if (data.binned) binList.push(data);
+      else if (data.cpbPaper) papers.push(data);
+      else vettingList.push(data);
     });
+    try { cpbLibFromVetting(papers); } catch (e) { console.warn("custom paper shelf", e); }
     vettingList.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
     binList.sort((a, b) => String(b.deletedAt || "").localeCompare(String(a.deletedAt || "")));
   } catch (e) { console.warn("vetting load", e); }
@@ -14448,11 +14649,115 @@ function bankScheduledRows() {
     || String(a.q.title || "").localeCompare(String(b.q.title || "")));
   return rows;
 }
+// 🔒 HELD BACK — the questions 🗂️ Custom Paper sent, grouped by the PAPER
+// they belong to. A schedule nobody can find is a schedule nobody can undo,
+// and forty separate Release buttons is a list nobody works through — so a
+// whole paper comes off in one press.
+function bankHeldRows() {
+  const rows = [];
+  const take = (list, where) => (Array.isArray(list) ? list : []).forEach(q => {
+    if (q && qHeldBack(q)) rows.push({ q, where });
+  });
+  take(questionBank, "bank");
+  take(vettingList, "vetting");
+  rows.sort((a, b) => String(a.q.source || "").localeCompare(String(b.q.source || ""))
+    || String(a.q.title || "").localeCompare(String(b.q.title || "")));
+  return rows;
+}
+function bankHeldGroupKey(q) { return String((q && q.source) || ""); }
+function bankHeldSectionHtml() {
+  const rows = canManageQuestions() ? bankHeldRows() : [];
+  if (!rows.length) return "";
+  const byPaper = new Map();
+  rows.forEach(r => {
+    const k = bankHeldGroupKey(r.q);
+    if (!byPaper.has(k)) byPaper.set(k, []);
+    byPaper.get(k).push(r);
+  });
+  const groups = Array.from(byPaper.entries()).map(([paper, list]) => {
+    const inVet = list.filter(r => r.where === "vetting").length;
+    const items = list.slice(0, BANK_SCHED_LIST_MAX).map(r => `
+      <div class="bsq-row">
+        <div class="bsq-title">${escapeHtml(r.q.title || "Untitled")}</div>
+        <div class="bsq-meta">
+          <span class="chip">${escapeHtml(r.q.level || "—")}</span>
+          ${r.where === "vetting"
+            ? '<span class="chip" title="Still waiting in the vetting list. It stays held back when you approve it.">📋 In vetting</span>'
+            : '<span class="chip" title="In the question bank, and not loaded by a student until you release it.">📚 In the bank</span>'}
+        </div>
+        <button class="btn btn-ghost btn-sm" data-bsq-unhold="${escapeHtml(String(r.q.id))}" title="Release this question — it becomes available to students immediately">Release now</button>
+      </div>`).join("");
+    const more = list.length > BANK_SCHED_LIST_MAX
+      ? `<div class="bsq-more">…and ${list.length - BANK_SCHED_LIST_MAX} more from this paper</div>` : "";
+    return `
+      <div class="bsq-group">
+        <div class="bsq-head">
+          <div>
+            <div class="bsq-date">🔒 ${escapeHtml(paper || "Unnamed paper")}</div>
+            <div class="bsq-count">${list.length} question${list.length === 1 ? "" : "s"}${inVet ? " · " + inVet + " still in vetting" : ""} — no student's app loads ${list.length === 1 ? "it" : "them"} until you release ${list.length === 1 ? "it" : "them"}</div>
+          </div>
+          <div class="bsq-head-actions">
+            <button class="btn btn-ghost btn-sm" data-bsq-paper="${escapeHtml(paper)}">🚀 Release this paper now</button>
+          </div>
+        </div>
+        <div class="bsq-list">${items}</div>${more}
+      </div>`;
+  }).join("");
+  return `
+    <div class="bsq-intro">
+      <b>🔒 Held back from students</b>
+      <span>Sent from 🗂️ Custom Paper. They are yours to edit, print and preview — but a student's app does not load them at all, so they reach nobody in practice, in a game or on a worksheet until you release them. Release a whole paper the day after the class has sat it.</span>
+    </div>
+    ${groups}`;
+}
+// ONE writer, for one question, wherever it lives — the same shape and the
+// same order `bankSetRelease` uses: the in-memory copy is only changed once
+// the document really went, because a page that has released a question the
+// database still holds back looks perfectly right until the next sign-in.
+async function bankSetHold(id, held) {
+  if (!canManageQuestions()) return false;
+  const inBank = questionBank.find(q => String(q.id) === String(id));
+  const q = inBank || vettingList.find(v => String(v.id) === String(id));
+  if (!q) return false;
+  const prev = q.holdBack;
+  if (held) q.holdBack = true; else delete q.holdBack;
+  try {
+    if (inBank) await saveQuestionDoc(q); else await saveVettingDoc(q);
+  } catch (e) {
+    console.warn("hold-back write failed", e);
+    if (prev === undefined) delete q.holdBack; else q.holdBack = prev;
+    return false;
+  }
+  return true;
+}
+async function bankUnholdNow(id) {
+  const ok = await bankSetHold(id, false);
+  bankAfterRelease();
+  toast(ok ? "Released ✓ — students can be served this question now" : "Could not save — check your connection and try again", ok ? "success" : "error");
+}
+async function bankUnholdPaper(paper) {
+  const rows = bankHeldRows().filter(r => bankHeldGroupKey(r.q) === String(paper));
+  if (!rows.length) return;
+  if (!confirm("Release " + rows.length + " question" + (rows.length === 1 ? "" : "s") + " from “"
+    + (paper || "Unnamed paper") + "” now?\n\nThey are held back from students. Releasing them makes every one available straight away — including any still waiting in vetting, which stay in vetting but lose the hold.")) return;
+  let done = 0, failed = 0;
+  for (const r of rows) { if (await bankSetHold(r.q.id, false)) done++; else failed++; }
+  bankAfterRelease();
+  toast(done ? done + " released ✓" + (failed ? " · " + failed + " could not be saved" : "")
+             : "Nothing could be released — check your connection and try again", failed ? "error" : "success");
+}
+
 function renderBankScheduled() {
   const host = $("bankScheduledContainer");
   if (!host) return;
   const rows = canManageQuestions() ? bankScheduledRows() : [];
-  if (!rows.length) { host.innerHTML = ""; return; }
+  const held = bankHeldSectionHtml();
+  if (!rows.length) {
+    host.innerHTML = held ? `<div class="bsq-wrap">${held}</div>` : "";
+    host.querySelectorAll("[data-bsq-unhold]").forEach(b => b.addEventListener("click", () => bankUnholdNow(b.dataset.bsqUnhold)));
+    host.querySelectorAll("[data-bsq-paper]").forEach(b => b.addEventListener("click", () => bankUnholdPaper(b.dataset.bsqPaper)));
+    return;
+  }
   const byDate = new Map();
   rows.forEach(r => {
     const on = qReleaseOn(r.q);
@@ -14494,12 +14799,15 @@ function renderBankScheduled() {
   }).join("");
   host.innerHTML = `
     <div class="bsq-wrap">
+      ${held}
       <div class="bsq-intro">
         <b>⏳ Held back by a ⚡ Rapid add batch date</b>
         <span>These questions are yours to edit, print and preview — but a student's app does not load them at all until the date on them, so they reach nobody in practice, in a game or on a worksheet. Clearing a date releases it immediately.</span>
       </div>
       ${groups}
     </div>`;
+  host.querySelectorAll("[data-bsq-unhold]").forEach(b => b.addEventListener("click", () => bankUnholdNow(b.dataset.bsqUnhold)));
+  host.querySelectorAll("[data-bsq-paper]").forEach(b => b.addEventListener("click", () => bankUnholdPaper(b.dataset.bsqPaper)));
   host.querySelectorAll("[data-bsq-now]").forEach(b => b.addEventListener("click", () => bankReleaseNow(b.dataset.bsqNow)));
   host.querySelectorAll("[data-bsq-all]").forEach(b => b.addEventListener("click", () => bankReleaseBatchNow(b.dataset.bsqAll)));
   host.querySelectorAll("[data-bsq-move]").forEach(b => b.addEventListener("change", () => bankMoveRelease(b.dataset.bsqMove, b.value)));
@@ -15675,8 +15983,15 @@ async function autoDiagramIntoBlock(imgBlock, box, media, onStatus, opts) {
     }
     return out;
   }
-  say(crop ? 'Cleaning the picture up (black & white)…' : 'No rectangle — cleaning the whole screenshot…');
-  const cleaned = await _cleanToBlackAndWhite(crop || full);
+  // `opts.clean === false` skips the re-render. It is one image-model call per
+  // picture, so a caller holding a budget across a whole run — 🗂️ Custom Paper
+  // — has to be able to stop asking for it. Absent, it cleans exactly as it
+  // always did.
+  let cleaned = crop || full;
+  if (o.clean !== false) {
+    say(crop ? 'Cleaning the picture up (black & white)…' : 'No rectangle — cleaning the whole screenshot…');
+    cleaned = await _cleanToBlackAndWhite(crop || full);
+  }
   out.cleaned = cleaned !== (crop || full);
 
   say('Saving the picture…');
@@ -19522,7 +19837,11 @@ function wsAnswerBlankHtml(q) {
 // question starts on a page of its own share, because .ws-chunk refuses to
 // break and the browser moves a question that will not fit onto the next page
 // whole.
-function wsQuestionChunkHtml(q, n, qrSvg, reserveMm) {
+// `noBracket` is 🗂️ Custom Paper's Booklet A: the answer goes on the separate
+// answer sheet, so a box on the paper is a mark a child looks for and cannot
+// find. Absent — every other print in this app — the box is there exactly as
+// it always was.
+function wsQuestionChunkHtml(q, n, qrSvg, reserveMm, noBracket) {
   const qr = qrSvg ? `<div class="ws-qr">${qrSvg}<div class="ws-qr-cap">📱 Scan to AI-mark<br>&amp; watch the solution</div></div>` : "";
   // Only written when the picture has actually had to give way, so an ordinary
   // question carries no inline style and prints at the CSS cap exactly as it
@@ -19533,7 +19852,7 @@ function wsQuestionChunkHtml(q, n, qrSvg, reserveMm) {
     // A / B / C / D, the same lettering the on-screen practice pad and every
     // other preview in this app uses — a printed sheet numbered differently
     // from the screen is a sheet the class answers in the wrong notation.
-    ? `<div class="ws-mcq">${q.options.map((o, i) => `<div class="ws-mcq-opt"><span class="l">${mcqLabel(i)}</span><span>${escapeHtml(o)}</span></div>`).join("")}<div class="ws-mcq-answer">Answer: <span class="ws-mcq-box"></span></div></div>`
+    ? `<div class="ws-mcq">${q.options.map((o, i) => `<div class="ws-mcq-opt"><span class="l">${mcqLabel(i)}</span><span>${escapeHtml(o)}</span></div>`).join("")}${noBracket ? "" : `<div class="ws-mcq-answer">Answer: <span class="ws-mcq-box"></span></div>`}</div>`
     // An annotation question is answered ON the diagram, so a working area is
     // both wrong and a waste of the sheet — the picture printed above IS the
     // answer space. It gets a bigger cap for the same reason.
@@ -19551,13 +19870,18 @@ function wsQuestionChunkHtml(q, n, qrSvg, reserveMm) {
     ${opts}
   </section>`;
 }
-function wsAnswerKeyHtml(questions) {
+// `numbers` is 🗂️ Custom Paper's map of question id → the number PRINTED on
+// the paper, which is NOT the question's position in this list: the two
+// booklets are numbered as one run and the teacher can reorder either of them.
+// Absent, the key numbers by position exactly as it always did.
+function wsAnswerKeyHtml(questions, numbers) {
   const rows = questions.map((q, i) => {
+    const no = (numbers && numbers[q.id]) || String(i + 1);
     const ans = String(q.expected || "").trim();
     const guide = String(q.markingGuide || "").trim();
     const mcq = wsHasMcq(q) && Number.isInteger(q.correctOption)
       ? `<div class="ws-ak-ans"><b>Answer:</b> ${mcqLabel(q.correctOption)} ${escapeHtml(q.options[q.correctOption] || "")}</div>` : "";
-    const img = q.answerKeyImageUrl ? `<img class="ws-ak-img" src="${escapeHtml(q.answerKeyImageUrl)}" alt="Answer key for question ${i + 1}">` : "";
+    const img = q.answerKeyImageUrl ? `<img class="ws-ak-img" src="${escapeHtml(q.answerKeyImageUrl)}" alt="Answer key for question ${escapeHtml(no)}">` : "";
     // The answer to "draw and label this" is a picture, so print the picture.
     // Each annotating diagram carries its own answer, so a question with two of
     // them gets both — one per row, in the order they appear in the question.
@@ -19570,7 +19894,7 @@ function wsAnswerKeyHtml(questions) {
     }).join("");
     const body = mcq + (ans && !mcq ? `<div class="ws-ak-ans"><b>Answer:</b> ${escapeHtml(ans)}</div>` : "") +
       (guide ? `<div class="ws-ak-guide">${escapeHtml(guide)}</div>` : "") + annot + img;
-    return `<div class="ws-ak-item"><div class="ws-ak-q">${i + 1}. ${escapeHtml(q.title || "Question")}</div>${body || `<div class="ws-ak-none">No answer key on this question.</div>`}</div>`;
+    return `<div class="ws-ak-item"><div class="ws-ak-q">${escapeHtml(no)}. ${escapeHtml(q.title || "Question")}</div>${body || `<div class="ws-ak-none">No answer key on this question.</div>`}</div>`;
   }).join("");
   return `<section class="ws-page ws-ak"><h2>🔑 Answer key</h2><p class="ws-ak-warn">Teacher's copy — do not hand this page to the class.</p>${rows}</section>`;
 }
@@ -19676,6 +20000,52 @@ function wsPrintCss() {
     .ws-ak-guide { font-size: 10pt; color: #4a453f; white-space: pre-wrap; line-height: 1.5; }
     .ws-ak-img { display: block; max-width: 100%; max-height: 80mm; margin-top: 2mm; }
     .ws-ak-none { font-size: 10pt; color: #a09a91; }
+    /* ==============================================================
+       🗂️ CUSTOM PAPER — the two booklet covers and the answer sheet.
+       The LAYOUT is the part copied exactly: the index-number grid at the
+       top right, the identity in a ruled box, the instructions in a second
+       one and the centre's seal at the foot. It is what makes a mock paper
+       feel like the real thing to sit rather than like a worksheet.
+       ============================================================== */
+    .cpb-cover { display: flex; flex-direction: column; gap: 8mm; min-height: 250mm; font-size: 11pt; }
+    .cpb-cv-index { align-self: flex-end; display: flex; align-items: center; }
+    .cpb-cv-index-label { font-size: 9pt; line-height: 1.15; margin-right: 2mm; text-align: right; }
+    .cpb-cv-box { display: inline-block; width: 7mm; height: 8.5mm; border: 0.7pt solid #514d47; }
+    .cpb-cv-dash { padding: 0 1mm; }
+    .cpb-cv-head { border: 0.7pt solid #514d47; padding: 5mm 5mm 6mm; text-align: center; }
+    .cpb-cv-org { font-weight: 700; font-size: 12pt; letter-spacing: .3pt; }
+    .cpb-cv-exam { font-weight: 700; font-size: 11pt; letter-spacing: .2pt; margin-top: 1mm; }
+    .cpb-cv-row { display: flex; align-items: flex-start; justify-content: space-between; margin-top: 5mm; }
+    .cpb-cv-code { font-weight: 700; font-size: 12pt; }
+    .cpb-cv-level { font-weight: 700; font-size: 12pt; text-align: right; line-height: 1.25; }
+    .cpb-cv-year { font-size: 9.5pt; font-weight: 700; }
+    .cpb-cv-subject { font-weight: 700; font-size: 14pt; letter-spacing: 1pt; margin-top: 5mm; }
+    .cpb-cv-booklet { font-size: 11pt; margin-top: 1mm; }
+    .cpb-cv-time { display: flex; align-items: baseline; justify-content: space-between; gap: 6mm; font-size: 10.5pt; flex-wrap: wrap; }
+    .cpb-cv-ins { border: 0.7pt solid #514d47; padding: 5mm 5mm 6mm; flex: 1 1 auto; }
+    .cpb-cv-ins-h { font-weight: 700; text-decoration: underline; font-size: 10.5pt; }
+    .cpb-cv-ins-list { margin: 4mm 0 0; padding-left: 7mm; }
+    .cpb-cv-ins-list li { margin-bottom: 2.5mm; line-height: 1.5; }
+    .cpb-cv-ins-note { margin-top: 5mm; padding-top: 4mm; border-top: 0.5pt solid #514d47; font-weight: 700; font-size: 10pt; }
+    .cpb-cv-total { display: flex; align-items: center; gap: 4mm; justify-content: flex-end; font-size: 10.5pt; font-weight: 700; }
+    .cpb-cv-total-box { display: inline-block; width: 20mm; height: 13mm; border: 0.7pt solid #514d47; }
+    .cpb-cv-foot { border: 0.7pt solid #514d47; padding: 3mm 5mm; text-align: center; font-size: 9.5pt; }
+    .cpb-cv-seal { font-weight: 700; }
+    /* The line a booklet — or a worksheet — opens with, above question 1. */
+    .cpb-lead { border-bottom: 1pt solid #514d47; padding-bottom: 3mm; margin-bottom: 4mm; }
+    .cpb-lead p { margin: 0; font-size: 10.5pt; line-height: 1.55; }
+    .cpb-lead-marks { text-align: right; font-weight: 700; font-size: 10.5pt; margin-top: 2mm; }
+    /* Booklet A's answer sheet — the last page, detached and collected. */
+    .cpb-answersheet { text-align: left; }
+    .cpb-as-head { text-align: center; margin-bottom: 5mm; }
+    .cpb-as-title { font-weight: 700; font-size: 13pt; letter-spacing: .6pt; }
+    .cpb-as-sub { font-size: 9.5pt; margin-top: 1mm; }
+    .cpb-as-ins { font-size: 9.5pt; margin: 0 0 5mm; padding-bottom: 3mm; border-bottom: 0.7pt solid #514d47; }
+    .cpb-as-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2mm 10mm; }
+    .cpb-as-blank { visibility: hidden; }
+    .cpb-as-row { display: flex; align-items: center; gap: 3mm; }
+    .cpb-as-n { width: 8mm; text-align: right; font-weight: 700; font-size: 11pt; }
+    .cpb-as-o { display: inline-block; width: 9mm; height: 6.5mm; line-height: 6.5mm; text-align: center; border: 0.7pt solid #514d47; border-radius: 3mm; font-size: 9.5pt; }
     /* 📊 Marks record — the diagnostic's marking grid (see wsScoreTableHtml) */
     .ws-sc h2 { font-size: 16pt; margin: 0 0 2mm; }
     .ws-sc-note { font-size: 9pt; color: #6b665e; line-height: 1.6; margin: 0 0 5mm; }
@@ -19784,22 +20154,65 @@ async function wsBuildDocumentHtml(questions, title, opts) {
   // The marks record sits between the questions and the answer key: the teacher
   // marks from it, and the answer-key page is often left unprinted.
   const scoreTable = opts.scoreTable ? wsScoreTableHtml(opts.scoreTable, opts) : "";
+  // 🗂️ CUSTOM PAPER's exam-paper rendering. Absent — every other print in this
+  // app — not one character below behaves differently.
+  //   groups       [{ cover, lead, questions }]  each cover opens its own
+  //                printed page, and that group's questions follow it. This is
+  //                what makes a paper in two booklets a paper rather than a
+  //                worksheet with a picture on the front.
+  //   numbers      { qid: "29" }  the number PRINTED on the paper, which is
+  //                NOT the question's position in `questions`: the booklets
+  //                are numbered as ONE run and either can be reordered.
+  //   noBracketIds Set of qids whose MCQ prints no "Answer: ___" box
+  //   tail         a whole sheet after the last question (the answer sheet)
+  //
+  // The CHUNKS are still built by `wsQuestionChunkHtml` — the one renderer —
+  // so the sheet a class sits cannot drift from the sheet the app prints
+  // everywhere else. Only the front matter and the numbers are this option's.
+  const paper = opts.paper || null;
+  const numbers = (paper && paper.numbers) || null;
+  const noBracketIds = (paper && paper.noBracketIds) || null;
+  const noBracket = q => !!(noBracketIds && noBracketIds.has && noBracketIds.has(q.id));
+  // 📝 An optional instruction line above question 1, on an ORDINARY
+  // worksheet. It rides in the same page section as the header, so it shares a
+  // sheet with question 1 rather than being forced onto one of its own.
+  const intro = String(opts.intro || "");
   // The header is editable only when the caller handed over the id of a saved
   // worksheet the signed-in user owns — see wsPreviewHeaderSave, which checks
   // that again on the way in rather than trusting this flag.
   const editId = String(opts.headerEditId || "");
   const org = typeof opts.headerOrg === "string" ? opts.headerOrg : WS_HEADER_ORG;
+  const chunk = (q, i, reserve) =>
+    wsQuestionChunkHtml(q, (numbers && numbers[q.id]) || String(i + 1), qrMap[q.id] || "", reserve, noBracket(q));
+  // 📄 A PAPER: each booklet's cover is its own page section (so it starts a
+  // sheet of its own), then its lead line and its questions. 📝 EVERYTHING
+  // ELSE: the one section this app has always built.
+  const body = paper
+    ? (paper.groups || []).reduce((out, g) => {
+        // Only the questions that really reached this document: `wsOpenDocument`
+        // drops any with no blocks at all, and a group printing one it dropped
+        // would put a question on the paper the answer key has no row for.
+        const list = (g.questions || []).filter(q => questions.indexOf(q) >= 0);
+        if (!list.length) return out;
+        return out.concat([
+          g.cover,
+          `<section class="ws-page">${g.lead || ""}${list.map(q => chunk(q, questions.indexOf(q), 0)).join("")}</section>`,
+        ]);
+      }, []).concat(paper.tail ? [paper.tail] : [])
+    : [
+      // The header prints above question 1, so ONLY question 1 has less than a
+      // full page to work with — measured from what this header actually holds,
+      // never assumed. Every later question starts fresh, because .ws-chunk
+      // refuses to break and is moved whole to the next page when it must be.
+      `<section class="ws-page">${wsHeaderHtml(title, !opts.fields, opts.cover ? "" : sheetQr, org, !!editId)}${intro}${questions.map((q, i) => chunk(q, i, i === 0 ? wsHeadEstimateMm({ fields: !!opts.fields, qr: !opts.cover && !!sheetQr }) : 0)).join("")}</section>`,
+    ];
   const sections = [
     ...(opts.cover ? [wsCoverHtml(title, `${questions.length} question${questions.length > 1 ? "s" : ""}`, !opts.fields, sheetQr, org, !!editId)] : []),
-    // The header prints above question 1, so ONLY question 1 has less than a
-    // full page to work with — measured from what this header actually holds,
-    // never assumed. Every later question starts fresh, because .ws-chunk
-    // refuses to break and is moved whole to the next page when it must be.
-    `<section class="ws-page">${wsHeaderHtml(title, !opts.fields, opts.cover ? "" : sheetQr, org, !!editId)}${questions.map((q, i) => wsQuestionChunkHtml(q, i + 1, qrMap[q.id] || "", i === 0 ? wsHeadEstimateMm({ fields: !!opts.fields, qr: !opts.cover && !!sheetQr }) : 0)).join("")}</section>`,
+    ...body,
     ...(scoreTable ? [scoreTable] : []),
-    ...(opts.withAnswers ? [wsAnswerKeyHtml(questions)] : []),
+    ...(opts.withAnswers ? [wsAnswerKeyHtml(questions, numbers)] : []),
   ];
-  const body = `<table class="ws-doc">
+  const doc = `<table class="ws-doc">
     <tfoot><tr><td>${wsFooterHtml()}</td></tr></tfoot>
     <tbody>${sections.map((s, i) => `<tr${i ? ` class="ws-newpage"` : ""}><td>${s}</td></tr>`).join("")}</tbody>
   </table>`;
@@ -19807,7 +20220,7 @@ async function wsBuildDocumentHtml(questions, title, opts) {
   const bar = `<div class="ws-printbar ws-noprint">${editId ? `<span class="ws-editnote" id="wsEditNote">${WS_EDIT_HINT}</span>` : ""}<button class="ghost" onclick="window.close()">Close</button><button onclick="window.print()">🖨️ Print / Save PDF</button></div>`;
   return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
     <style>${wsPrintCss()}</style></head>
-    <body>${opts.readOnly ? "" : bar}<div class="ws-sheet">${body}</div>${editId ? wsHeaderEditScript(editId) : ""}${opts.autoPrint ? `<script>window.addEventListener("load",()=>setTimeout(()=>{window.focus();window.print();},350));<\/script>` : ""}</body></html>`;
+    <body>${opts.readOnly ? "" : bar}<div class="ws-sheet">${doc}</div>${editId ? wsHeaderEditScript(editId) : ""}${opts.autoPrint ? `<script>window.addEventListener("load",()=>setTimeout(()=>{window.focus();window.print();},350));<\/script>` : ""}</body></html>`;
 }
 // ---- Editing the header ON the preview -----------------------------------
 // The teacher is looking at the sheet exactly as it will print, which is where
@@ -19887,6 +20300,1853 @@ async function printCurrentWorksheet(autoPrint) {
   const questions = wsSelectedQuestions();
   if (!questions.length) { toast("Select some questions first", "error"); return; }
   await wsOpenDocument(questions, wsCurrentTitle(), Object.assign(wsCurrentOptions(), { autoPrint }));
+}
+
+// =====================================================================
+// 🗂️ CUSTOM PAPER — a whole mock paper, or an ordinary worksheet
+//
+// A teacher assembling a mock paper has the questions in front of them as
+// SCREENSHOTS — a page of last year's prelim, a figure out of a textbook, one
+// they wrote themselves — and needs three things out of them that no other
+// page in this app does at once:
+//
+//   ① the questions read and filed, MCQ told apart from open-ended;
+//   ② a sheet laid out in the format the children sit;
+//   ③ none of it reaching a student until the paper has been sat.
+//
+// IT IS NOT ⚡ RAPID ADD, and the two must not be merged. That pad fires each
+// screenshot off as its own job, so it structurally cannot join the three
+// screenshots that are ONE question — and what comes out of it is bank
+// questions, with no sheet at the end. Here the screenshots are read as a RUN
+// and the SHEET is the output.
+//
+// NOTHING IS WRITTEN UNTIL SEND, and what IS written is HELD BACK: every
+// question goes into the bank with `holdBack`, so the teacher can print it,
+// edit it, check it and put it on a worksheet while no child can be served it
+// in practice, in a game or on a worksheet. Releasing it afterwards is one
+// button on the ⏳ bar at the top of the Question Bank.
+// =====================================================================
+
+// =====================================================================
+// 🅰 TWO MODES — an exam paper, or an ordinary worksheet
+//
+// The same pile of screenshots is two different things depending on what the
+// teacher is making, and the difference is the FORMAT and nothing else:
+//
+//   📄 PAPER      the format the children sit — Booklet A of multiple choice
+//                 and Booklet B of open-ended, a cover for each, numbered
+//                 straight through, with an answer sheet to shade.
+//   📝 WORKSHEET  one numbered list on an ordinary worksheet: this app's own
+//                 worksheet header, the Name / Class / Date strip, and every
+//                 answer written on the sheet itself. No booklets, no covers,
+//                 no answer sheet — a worksheet is not an exam paper and must
+//                 not be dressed as one.
+//
+// EVERYTHING ELSE IS IDENTICAL, deliberately: the same screenshot pad, the
+// same reader, the same ✏️ editor, the same 📁 shelf — and, the rule that
+// matters, the same 🔒 HOLD BACK. A worksheet built here goes into the bank
+// held back from students exactly as a paper does, for exactly the same
+// reason.
+//
+// `cpbMode()` IS THE ONE PLACE THE MODE IS DECIDED, and it FAILS TO 'paper'.
+// Every paper saved before this mode existed carries no `mode` field at all
+// and is a paper; a stray value is a paper too, because that is the mode with
+// the covers on — the worst it can do is print two sheets nobody wanted, where
+// failing the other way would silently strip the covers off a mock exam
+// somebody is about to sit.
+const CPB_MODES = {
+  paper: {
+    key: "paper", icon: "📄", label: "Exam paper",
+    blurb: "The format the children sit — Booklet A of multiple choice and Booklet B of open-ended, a cover for each, numbered straight through, with an answer sheet.",
+  },
+  worksheet: {
+    key: "worksheet", icon: "📝", label: "Worksheet",
+    blurb: "One numbered list on an ordinary worksheet — the usual header, a Name / Class / Date strip, and every answer written on the sheet.",
+  },
+};
+function cpbMode() { return cpbMetaGet("mode") === "worksheet" ? "worksheet" : "paper"; }
+function cpbIsWorksheet() { return cpbMode() === "worksheet"; }
+// The word for what is being built, so no caller writes it out twice and the
+// two halves of a sentence cannot disagree about which mode they are in.
+function cpbThing() { return cpbIsWorksheet() ? "worksheet" : "paper"; }
+
+const CPB_MAX_SHOTS = 160;                  // screenshots held in memory at once
+const CPB_MAX_BYTES = 14 * 1024 * 1024;
+const CPB_BATCH = 4;                        // images per AI call — read as ONE run
+// A multiple-choice question is worth 2 marks, and an open-ended question
+// carries whatever the paper printed. A question the reader found no marks on
+// is counted as the default FOR ITS KIND rather than as nothing, so the
+// cover's total is never silently short — and the page says how many were.
+const CPB_MCQ_MARKS = 2;
+const CPB_OPEN_DEFAULT_MARKS = 2;
+
+// 🎯 THE SHAPE A PAPER IS BUILT TO.
+//
+// The current syllabus is 15 multiple choice at 2 marks each — 30 marks of
+// Booklet A — and 70 marks of open-ended in Booklet B, 100 in all. They are
+// stated here ONCE and are editable per paper, because a paper's shape changes
+// and a number read off last year's is a number nobody can find again.
+//
+// IT IS A TARGET, NEVER A TOTAL. Nothing printed on a cover comes from here —
+// the covers state what the paper ACTUALLY adds up to, always, because a cover
+// claiming 100 marks over 60 is a lie a class discovers in the exam hall. What
+// the target does is tell the teacher how far off they are while they are
+// still building, which is the whole reason assembling a paper is slow.
+const CPB_TARGET_MCQ = 15;          // questions in Booklet A
+const CPB_TARGET_OPEN_MARKS = 70;   // marks in Booklet B
+// A WORKSHEET HAS NO STANDARD LENGTH, so its target starts at 0 — which in
+// this file means "do not measure me". A teacher who does want twenty
+// questions this week types 20 and gets the same gap chip the paper's own two
+// targets give; one who does not is never nagged for building a short sheet.
+const CPB_TARGET_QUESTIONS = 0;
+// A target of 0 means "no target"; junk falls back to the shape above.
+function cpbTargetNum(v, fallback) {
+  const n = parseInt(v, 10);
+  if (!isFinite(n) || n < 0) return fallback;
+  return Math.min(n, 999);
+}
+// 🖼 HOW MANY FIGURES ARE RE-RENDERED IN BLACK AND WHITE. A figure cropped off
+// a screenshot is a photograph of print: grey, and often a photograph of a
+// photocopy. On this page the figures ARE the sheet, so they are re-rendered
+// clean — which is one image-model call apiece. This is a RUNAWAY GUARD, not a
+// budget to spend: a real paper has thirty-odd figures.
+const CPB_ENHANCE_MAX = 80;
+
+let cpbShots = [];        // [{ id, mimeType, data, name, status, err, group, n }]
+let cpbQuestions = [];    // built questions, in the order they will be printed
+let cpbBusy = false;
+let cpbCancel = false;
+let cpbDirty = false;     // a screenshot that HAD been read was removed
+// The id of the question the last read finished on. It is what an APPENDED run
+// carries on from, so a question whose stem is on the last screenshot already
+// read and whose parts are on the one just added comes out as ONE question.
+// An ID and never the object: the list is reordered, edited and rebuilt, so a
+// held reference goes stale in a way nothing on screen would report.
+let cpbLastRead = "";
+let cpbPasteBound = false;
+let cpbPasteOn = false;
+
+// The sheet's own front matter. Every one of these is EDITABLE, and none is
+// prefilled with the name of a real examination board: this app prints a
+// tuition centre's own mock paper, and a cover that passes for an official one
+// is not something to hand a class. The LAYOUT is the part worth copying
+// exactly — it is what makes a mock paper feel like the real thing to sit.
+const CPB_META_DEFAULTS = {
+  mode: "paper",       // 'paper' | 'worksheet' — see 🅰 TWO MODES above
+  org: "POLYMATH LEARNING CENTRE",
+  exam: "PRELIMINARY EXAMINATION",
+  subject: "MATHEMATICS",
+  code: "",
+  year: String(new Date().getFullYear()),
+  level: "PRIMARY 6",
+  duration: "1 h 50 min",
+  name: "",            // the sheet's name in the bank, stamped on every question as its source
+  qLevel: "",          // the syllabus level its objectives are filed at
+  mcqOnPaper: false,   // print an answer box in Booklet A (no separate answer sheet)
+  answerSheet: true,   // print an answer grid for Booklet A at the end
+  answerKey: true,     // print the teacher's answer-key page at the back
+  // Re-render every cropped figure as clean black-and-white line work. ON by
+  // default — the figures are the sheet — and turnable off, because it is a
+  // slow image-model call per picture.
+  enhance: true,
+  targetMcq: CPB_TARGET_MCQ,
+  targetOpen: CPB_TARGET_OPEN_MARKS,
+  // 📝 WORKSHEET MODE ONLY. They sit on the SAME object as the paper's own
+  // fields rather than in a nested one of their own, so switching mode and
+  // switching back keeps every setting on both sides — nothing a teacher has
+  // typed is thrown away by pressing the other button.
+  targetQuestions: CPB_TARGET_QUESTIONS,
+  wsIntro: "",         // one instruction line printed above question 1
+  wsFields: true,      // print the Name / Class / Date strip
+};
+let cpbMeta = Object.assign({}, CPB_META_DEFAULTS);
+function cpbMetaGet(k) {
+  const v = cpbMeta[k];
+  return v === undefined || v === null ? CPB_META_DEFAULTS[k] : v;
+}
+
+// ---- Which booklet a question belongs in ---------------------------------
+// Structural by default, and OVERRIDABLE by hand.
+//
+// The override is not a nicety. The reader is very good and not perfect, and
+// the booklet is what decides whether a child is given working space to write
+// in: a question that lands in the wrong one is answerable in the wrong place,
+// which is found in the exam hall.
+//
+// 🅐 A question is Booklet A when it is MULTIPLE CHOICE AND NOTHING ELSE. An
+// annotation question is answered ON its diagram, so it needs the sheet
+// however its options read — the safe direction, whose worst case is a page of
+// working space nobody uses.
+function cpbIsMcqOnly(q) {
+  return !!q && wsHasMcq(q) && !questionIsAnnotation(q);
+}
+function cpbBookOf(q) {
+  if (!q) return "b";
+  if (q._cpbBook === "a" || q._cpbBook === "b") return q._cpbBook;
+  return cpbIsMcqOnly(q) ? "a" : "b";
+}
+function cpbSetBook(id, book) {
+  const q = cpbQuestions.find(x => x.id === id);
+  if (!q || (book !== "a" && book !== "b")) return;
+  q._cpbBook = book;
+  cpbRender();
+}
+
+// THE ONE PLACE the printed ORDER and the printed NUMBERS are decided, in both
+// modes — and it is one function rather than two because the number on the
+// sheet, the number on the answer key and the number in the ③ list all have to
+// be the SAME number. Two of them working it out separately is an answer key
+// marked against the wrong question, which is found in front of a class and
+// nowhere earlier.
+//
+//   📄 PAPER      two booklets numbered as ONE run: A is 1…n and B carries
+//                 straight on from it. So the numbers are worked out over BOTH
+//                 lists at once and never from a question's position in its own.
+//   📝 WORKSHEET  the single list the teacher arranged, numbered 1…n. There are
+//                 no booklets, so `a` is empty and `b` is everything — which is
+//                 what lets the totals read the same fields in either mode.
+function cpbLayout() {
+  if (cpbIsWorksheet()) {
+    const list = cpbQuestions.slice();
+    const numbers = {};
+    list.forEach((q, i) => { numbers[q.id] = String(i + 1); });
+    return { worksheet: true, list, a: [], b: list, numbers };
+  }
+  const a = [], b = [];
+  cpbQuestions.forEach(q => (cpbBookOf(q) === "a" ? a : b).push(q));
+  const numbers = {};
+  a.forEach((q, i) => { numbers[q.id] = String(i + 1); });
+  b.forEach((q, i) => { numbers[q.id] = String(a.length + i + 1); });
+  return { worksheet: false, list: a.concat(b), a, b, numbers };
+}
+
+// The marks a question is worth: whatever the reader found printed on it.
+// `q.marks` is the field, and it is written by the reader alone — this app has
+// no marks control in the editor, so a question the paper printed nothing for
+// simply has none.
+function cpbQuestionMarks(q) {
+  const n = parseInt(q && q.marks, 10);
+  return (isFinite(n) && n > 0 && n <= 99) ? n : 0;
+}
+// What a question is worth when the page it came off printed no allocation for
+// it. It is the KIND that decides — an MCQ is worth an MCQ's marks — and the
+// two numbers happening to be equal today is not a reason to have one caller
+// assume the other.
+function cpbDefaultMarks(q) {
+  return cpbIsMcqOnly(q) ? CPB_MCQ_MARKS : CPB_OPEN_DEFAULT_MARKS;
+}
+function cpbMarks() {
+  const lay = cpbLayout();
+  // 📝 WORKSHEET — one list, and every question is worth what it prints. A
+  // question with no printed allocation counts as the default for its kind
+  // rather than as nothing, exactly as Booklet B's do below: a total that
+  // silently understates the sheet is worse than one that says what it
+  // assumed. There are no booklet targets in this mode, so the two fields that
+  // drive those chips are `null` — which is what tells cpbGapLabel to say
+  // nothing at all.
+  if (lay.worksheet) {
+    let total = 0, guessed = 0;
+    lay.list.forEach(q => {
+      const m = cpbQuestionMarks(q);
+      if (m) total += m;
+      else { total += cpbDefaultMarks(q); guessed++; }
+    });
+    const wantQ = cpbTargetNum(cpbMetaGet("targetQuestions"), CPB_TARGET_QUESTIONS);
+    return {
+      worksheet: true,
+      a: 0, b: total, total, guessed,
+      nA: 0, nB: lay.list.length, n: lay.list.length,
+      wantMcq: 0, wantOpen: 0, wantA: 0, wantTotal: 0,
+      needMcq: null, needOpen: null,
+      wantQuestions: wantQ,
+      needQuestions: wantQ ? wantQ - lay.list.length : null,
+    };
+  }
+  const { a, b } = lay;
+  let bm = 0, guessed = 0;
+  b.forEach(q => {
+    const m = cpbQuestionMarks(q);
+    if (m) bm += m;
+    else { bm += CPB_OPEN_DEFAULT_MARKS; guessed++; }
+  });
+  const am = a.length * CPB_MCQ_MARKS;
+  const wantMcq = cpbTargetNum(cpbMetaGet("targetMcq"), CPB_TARGET_MCQ);
+  const wantOpen = cpbTargetNum(cpbMetaGet("targetOpen"), CPB_TARGET_OPEN_MARKS);
+  return {
+    worksheet: false,
+    a: am, b: bm, total: am + bm, guessed,
+    nA: a.length, nB: b.length, n: a.length + b.length,
+    wantQuestions: 0, needQuestions: null,
+    wantMcq, wantOpen,
+    wantA: wantMcq * CPB_MCQ_MARKS,
+    wantTotal: wantMcq * CPB_MCQ_MARKS + wantOpen,
+    // Positive = still to find, negative = over. Null when there is no target,
+    // which is how a short topical paper says "do not measure me".
+    needMcq: wantMcq ? wantMcq - a.length : null,
+    needOpen: wantOpen ? wantOpen - bm : null,
+  };
+}
+
+// "8 questions to go" / "3 marks over" / "✓" — written once, because it is
+// said about Booklet A's questions, about Booklet B's marks and about the
+// whole sheet, and three spellings of the same thing read as three states.
+//
+// THE UNIT IS NOT OPTIONAL. Booklet A is measured in QUESTIONS and Booklet B
+// in MARKS, and the two chips sit side by side: a bare "26 to go" on each is
+// two different quantities wearing the same words.
+function cpbGapLabel(need, unit) {
+  if (need == null) return "";
+  const n = Math.abs(need);
+  const u = unit ? " " + unit + (n === 1 ? "" : "s") : "";
+  if (need > 0) return n + u + " to go";
+  if (need < 0) return n + u + " over";
+  return "✓";
+}
+function cpbGapClass(need) {
+  if (need == null) return "";
+  return need === 0 ? " on-target" : (need < 0 ? " over" : " under");
+}
+
+// ---- The draft survives the window ---------------------------------------
+// Forty screenshots is an afternoon's work, and nothing is written until Send
+// — so a reload, a crashed tab or a closed laptop would take the lot. The
+// unsent sheet is mirrored into IndexedDB, keyed by TAB rather than by user:
+// two windows may each be building one, and a shared machine must not hand one
+// account's draft to the next person to sign in, which is why the uid is in
+// the key too.
+//
+// It is a CRASH NET, not a library. The 📁 shelf below is the library, and it
+// deliberately does NOT keep the screenshots.
+const CPB_DB = "mathCustomPaper", CPB_STORE = "drafts", CPB_SAVE_MS = 900;
+const CPB_DRAFT_TTL = 21 * 86400000;
+const CPB_DRAFT_MAX_B64 = 40 * 1024 * 1024;
+let cpbDbP = null, cpbDbFailed = false;
+let cpbDraftTimer = null, cpbDraftSig = "", cpbDraftReady = false, cpbDraftBig = false;
+let cpbDraftOffers = [];
+
+function cpbTabId() {
+  try {
+    let t = sessionStorage.getItem("mathTabId");
+    if (!t) { t = "t" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); sessionStorage.setItem("mathTabId", t); }
+    return t;
+  } catch (e) { return "t0"; }
+}
+function cpbUid() { return (currentUser && currentUser.uid) || "anon"; }
+function cpbDb() {
+  if (cpbDbFailed) return Promise.resolve(null);
+  if (cpbDbP) return cpbDbP;
+  cpbDbP = new Promise(resolve => {
+    let req;
+    try { req = indexedDB.open(CPB_DB, 1); }
+    catch (e) { cpbDbFailed = true; resolve(null); return; }
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(CPB_STORE)) db.createObjectStore(CPB_STORE, { keyPath: "key" });
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => { cpbDbFailed = true; resolve(null); };
+  });
+  return cpbDbP;
+}
+// One transaction, one callback, one promise. A failed store is not a failed
+// page: every caller swallows it and the sheet is still on screen.
+function cpbTx(mode, fn) {
+  return cpbDb().then(db => {
+    if (!db) return null;
+    return new Promise((resolve, reject) => {
+      let tx;
+      try { tx = db.transaction(CPB_STORE, mode); } catch (e) { reject(e); return; }
+      const req = fn(tx.objectStore(CPB_STORE));
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+      if (req && "onsuccess" in req) { req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error); }
+      else tx.oncomplete = () => resolve(null);
+    });
+  });
+}
+function cpbMetaKey(tab, uid) { return "cpbmeta:" + (uid || cpbUid()) + ":" + (tab || cpbTabId()); }
+function cpbWorkKey(tab, uid) { return "cpbwork:" + (uid || cpbUid()) + ":" + (tab || cpbTabId()); }
+function cpbShotKey(tab, uid) { return "cpbshot:" + (uid || cpbUid()) + ":" + (tab || cpbTabId()); }
+function cpbShotsSig() { return cpbShots.map(s => s.id).join(","); }
+function cpbB64Bytes() { let n = 0; cpbShots.forEach(s => { n += (s && s.data && s.data.length) || 0; }); return n; }
+function cpbEmpty() { return !cpbShots.length && !cpbQuestions.length; }
+
+// Every mutation on this page ends in a render, so hanging the mirror off
+// `cpbRender` is the one hook that cannot be forgotten.
+function cpbDraftSave() {
+  if (!cpbDraftReady) return;      // don't write over a draft we have not looked at yet
+  clearTimeout(cpbDraftTimer);
+  cpbDraftTimer = setTimeout(() => { cpbDraftFlush().catch(e => console.warn("custom paper draft", e)); }, CPB_SAVE_MS);
+}
+async function cpbDraftFlush() {
+  if (!currentUser || !canManageQuestions()) return;
+  if (cpbEmpty()) { await cpbDraftDrop(); return; }
+  // Past the cap the screenshots are not mirrored at all — the questions
+  // already read out of them are worth far more than the pictures, and a quota
+  // error would lose both.
+  const big = cpbB64Bytes() > CPB_DRAFT_MAX_B64;
+  cpbDraftBig = big;
+  const sig = big ? "" : cpbShotsSig();
+  const at = Date.now();
+  try {
+    await cpbTx("readwrite", st => {
+      st.put({ key: cpbMetaKey(), uid: cpbUid(), tab: cpbTabId(), at, paper: cpbMetaGet("name"),
+        mode: cpbMode(), nShots: cpbShots.length, nQuestions: cpbQuestions.length, trimmed: big });
+      return st.put({ key: cpbWorkKey(), uid: cpbUid(), tab: cpbTabId(), at,
+        meta: cpbMeta, dirty: cpbDirty, lastRead: cpbLastRead, questions: cpbQuestions });
+    });
+    if (sig !== cpbDraftSig) {
+      await cpbTx("readwrite", st => st.put({ key: cpbShotKey(), uid: cpbUid(), tab: cpbTabId(), at,
+        shots: big ? [] : cpbShots }));
+      cpbDraftSig = sig;
+    }
+  } catch (e) { console.warn("custom paper draft save", e); }
+}
+async function cpbDraftDrop(tab, uid) {
+  if ((!tab || tab === cpbTabId()) && !uid) cpbDraftSig = "";
+  await cpbTx("readwrite", st => {
+    st.delete(cpbMetaKey(tab, uid));
+    st.delete(cpbWorkKey(tab, uid));
+    return st.delete(cpbShotKey(tab, uid));
+  }).catch(e => console.warn("custom paper draft drop", e));
+}
+// This tab's own draft comes straight back — a reload. Another window's is
+// OFFERED rather than claimed: this app has no cross-tab channel to ask the
+// other window whether it is still open with, so the offer says when it was
+// left and the teacher decides.
+async function cpbDraftScan() {
+  if (!currentUser || !canManageQuestions()) { cpbDraftReady = true; return; }
+  let metas = null;
+  try { metas = await cpbTx("readonly", st => st.getAll(IDBKeyRange.bound("cpbmeta:", "cpbmeta:￿"))); }
+  catch (e) { console.warn("custom paper draft scan", e); }
+  cpbDraftReady = true;
+  if (!Array.isArray(metas)) { cpbRender(); return; }
+  const mine = cpbTabId(), now = Date.now();
+  const others = [];
+  let own = null;
+  metas.forEach(r => {
+    if (!r || !r.tab) return;
+    if (now - (r.at || 0) > CPB_DRAFT_TTL) { cpbDraftDrop(r.tab, r.uid); return; }
+    if (r.uid !== cpbUid()) return;
+    if (r.tab === mine) own = r; else others.push(r);
+  });
+  // Only into an EMPTY page: the scan is asynchronous, and a screenshot pasted
+  // while it ran must not be thrown away by the restore.
+  let restored = false;
+  if (own && cpbEmpty()) restored = await cpbDraftLoad(mine);
+  cpbDraftOffers = others.sort((a, b) => (b.at || 0) - (a.at || 0));
+  cpbRender();
+  if (restored) toast("🗂️ Your unsent " + cpbThing() + " was restored", "success");
+}
+async function cpbDraftLoad(tab) {
+  let work = null, shot = null;
+  try {
+    work = await cpbTx("readonly", st => st.get(cpbWorkKey(tab)));
+    shot = await cpbTx("readonly", st => st.get(cpbShotKey(tab)));
+  } catch (e) { console.warn("custom paper draft restore", e); return false; }
+  if (!work && !shot) return false;
+  cpbShots = (shot && Array.isArray(shot.shots)) ? shot.shots : [];
+  cpbQuestions = (work && Array.isArray(work.questions)) ? work.questions : [];
+  cpbMeta = Object.assign({}, CPB_META_DEFAULTS, (work && work.meta) || {});
+  cpbDirty = !!(work && work.dirty);
+  cpbLastRead = String((work && work.lastRead) || "");
+  cpbDraftSig = cpbShotsSig();
+  return !cpbEmpty();
+}
+async function cpbDraftTake(tab) {
+  if (!cpbEmpty()) { toast("Send or clear what is on this page first", "error"); return; }
+  if (!cpbDraftOffers.some(r => r.tab === tab)) return;
+  const ok = await cpbDraftLoad(tab);
+  cpbDraftOffers = cpbDraftOffers.filter(r => r.tab !== tab);
+  if (!ok) { toast("That draft was empty", ""); cpbRender(); return; }
+  await cpbDraftDrop(tab);      // it lives under this tab's key from now on
+  cpbDraftSig = "";             // …so the screenshots are written once, here
+  await cpbDraftFlush();
+  cpbRender();
+  toast("🗂️ Restored — " + cpbShots.length + " screenshot" + (cpbShots.length === 1 ? "" : "s")
+    + (cpbQuestions.length ? " · " + cpbQuestions.length + " question" + (cpbQuestions.length === 1 ? "" : "s") : ""), "success");
+}
+function cpbDraftDiscard(tab) {
+  const rec = cpbDraftOffers.find(r => r.tab === tab);
+  if (!rec) return;
+  if (!confirm("Throw away the " + (rec.nShots || 0) + " screenshot(s) saved from that window?\n\nThis cannot be undone.")) return;
+  cpbDraftOffers = cpbDraftOffers.filter(r => r.tab !== tab);
+  cpbDraftDrop(tab);
+  cpbRender();
+}
+
+// ---- The screenshot pad ---------------------------------------------------
+function cpbId() { return "cpb_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function cpbDataUrl(s) { return "data:" + s.mimeType + ";base64," + s.data; }
+function cpbNote(msg) { const el = $("cpbStatus"); if (el) el.textContent = msg || ""; }
+
+async function cpbAddFiles(files) {
+  const list = Array.from(files || []);
+  if (!list.length) return;
+  let added = 0, skipped = 0;
+  for (const f of list) {
+    if (!f || !f.type || !f.type.startsWith("image/")) { skipped++; continue; }
+    if (cpbShots.length >= CPB_MAX_SHOTS) { skipped++; continue; }
+    if (f.size > CPB_MAX_BYTES) { skipped++; continue; }
+    try {
+      cpbShots.push({
+        id: cpbId(), mimeType: f.type, data: await _fileToBase64(f),
+        name: f.name || "screenshot", status: "new", err: "", group: "", n: 0,
+      });
+      added++;
+    } catch (e) { console.warn("custom paper: could not read file", e); skipped++; }
+  }
+  // ADDING is the ordinary flow and sets nothing: the screenshot arrives
+  // unread, the button offers to read it, and the questions already built are
+  // untouched. Only a REMOVAL can invalidate them — see cpbRemove.
+  cpbRender();
+  if (added) toast(added + " screenshot" + (added === 1 ? "" : "s") + " added"
+    + (cpbQuestions.length ? " — press 🤖 Read to add its questions" : "")
+    + (skipped ? " · " + skipped + " skipped" : ""), skipped ? "" : "success");
+  else if (skipped) toast("Nothing added — images only, up to " + CPB_MAX_SHOTS + " of them", "error");
+}
+function cpbPick() { const el = $("cpbFile"); if (el) { el.value = ""; el.click(); } }
+function cpbFiles(input) { if (input && input.files && input.files.length) cpbAddFiles(input.files); }
+function cpbDragOver(e) { e.preventDefault(); cpbPasteOn = true; }
+function cpbDropFiles(e) {
+  e.preventDefault();
+  cpbPasteOn = true;
+  const dt = e.dataTransfer;
+  if (dt && dt.files && dt.files.length) cpbAddFiles(dt.files);
+}
+function cpbFocusZone() { cpbPasteOn = true; cpbRender(); }
+function cpbRemove(id) {
+  const gone = cpbShots.find(s => s && s.id === id);
+  if (!gone) return;
+  cpbShots = cpbShots.filter(s => s.id !== id);
+  // Removing an UNREAD screenshot changes nothing about the sheet — it was
+  // never read. Removing one that HAS been read leaves questions on the page
+  // that came off a screenshot nobody can look at any more, which is what the
+  // warning line and 🔁 Read everything again are for.
+  if (gone.status !== "new" && cpbQuestions.length) cpbDirty = true;
+  cpbRender();
+}
+function cpbClearShots() {
+  if (!cpbShots.length) return;
+  if (!confirm("Remove all " + cpbShots.length + " screenshot(s)?\n\nAny question already read from them stays.")) return;
+  const anyRead = cpbShots.some(s => s && s.status !== "new");
+  cpbShots = [];
+  if (anyRead && cpbQuestions.length) cpbDirty = true;
+  cpbRender();
+}
+// Bound ONCE on the document, like every other paste target in this app: the
+// page's DOM is rebuilt on every render, so anything bound per element covers
+// what existed when it ran and silently misses the rest.
+function cpbBindPaste() {
+  if (cpbPasteBound) return;
+  cpbPasteBound = true;
+  document.addEventListener("paste", e => {
+    const page = $("page-custompaper");
+    if (!page || !page.classList.contains("active") || !cpbPasteOn) return;
+    // A field being typed keeps its own paste — pasting words into a text box
+    // is the other honest meaning of Ctrl-V here.
+    const t = e.target;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+    const items = (e.clipboardData && e.clipboardData.items) || [];
+    const files = [];
+    for (let i = 0; i < items.length; i++) {
+      if (items[i] && items[i].kind === "file") { const f = items[i].getAsFile(); if (f) files.push(f); }
+    }
+    if (!files.length) return;
+    e.preventDefault();
+    cpbAddFiles(files);
+  });
+}
+
+// =====================================================================
+// 📸 READING THE SCREENSHOTS — as a RUN, never one question per screenshot
+//
+// ONE question is very often spread across two or three screenshots (its
+// wording on one, its diagram on the next, its parts after that), and ONE
+// screenshot may hold three questions. So `CPB_BATCH` images go up in ONE
+// vision call and the model decides where each question starts and ends; a
+// question straddling a batch boundary is stitched back by the `continuation`
+// entry the run below carries over.
+//
+// THE PROMPT IS `aiQuestionReadPrompt`, THE ONE ⚡ Rapid add and ✨ Build with
+// AI already share. It grew a `run` argument rather than being forked here: a
+// second copy of the wording is a second copy to fix, and the drift shows up
+// as "the pad reads my options and this page does not".
+//
+// READING ONLY WHAT HAS NOT BEEN READ. A sheet is assembled over an afternoon:
+// read what you have, find three more questions, paste them in. Re-reading the
+// whole pile for those three is an AI call per batch of everything already
+// done — and worse, it REPLACES the questions, so the order the teacher put
+// them in and every booklet they moved by hand is thrown away. So the ordinary
+// press reads the UNREAD screenshots and APPENDS.
+function cpbUnread() {
+  return cpbShots.filter(s => s && (s.status === "new" || s.status === "error"));
+}
+// The seed is only honest when the unread screenshots are the END of the pile.
+// Unread shots scattered through it (a failure in the middle, retried after
+// the ones after it) are NOT adjacent to the question the last run finished
+// on, so joining them to it would graft two unrelated questions together.
+function cpbUnreadIsTail() {
+  const n = cpbUnread().length;
+  if (!n || n === cpbShots.length) return false;
+  return cpbShots.slice(-n).every(s => s && (s.status === "new" || s.status === "error"));
+}
+function cpbSeedQuestion() {
+  if (!cpbLastRead || !cpbUnreadIsTail()) return null;
+  return cpbQuestions.find(q => q && q.id === cpbLastRead) || null;
+}
+
+function cpbRunPrompt(n, from, total) {
+  const level = cpbMetaGet("qLevel");
+  const paper = cpbMetaGet("name") ? `The sheet is being put together as "${cpbMetaGet("name")}". ` : "";
+  const lvl = level ? `Every question on it is ${level} level. ` : "";
+  return `You are reading questions off screenshots so a teacher can assemble a Singapore primary-school mathematics ${cpbIsWorksheet() ? "worksheet" : "mock exam paper"}. ${paper}${lvl}` +
+    `The attached ${n > 1 ? `${n} images are screenshots ${from}–${from + n - 1} of ${total}` : `image is screenshot ${from} of ${total}`}, in the order the teacher added them.\n` +
+    aiQuestionReadPrompt(false, true, true, { images: n, seeded: !!cpbRunSeed });
+}
+
+// ⑤ THE RUN. `opt.seed` is the question an APPENDED run may carry on from —
+// the first entry of the run attaches to it instead of becoming a second
+// question with no stem and no figure.
+let cpbRunSeed = null;
+async function cpbReadRun(shots, opt) {
+  const o = opt || {};
+  const total = shots.length;
+  const budget = { left: Math.max(0, Number(o.enhance) || 0) };
+  let last = o.seed || null, failed = 0, empty = 0;
+  for (let i = 0; i < shots.length; i += CPB_BATCH) {
+    if (o.stopped && o.stopped()) break;
+    const batch = shots.slice(i, i + CPB_BATCH);
+    const from = i + 1;
+    const span = batch.length > 1 ? `screenshots ${from}–${from + batch.length - 1}` : `screenshot ${from}`;
+    o.onBatch(batch, "reading", "", span, 0);
+    cpbNote("Reading " + span + " of " + total + "…");
+    let rows = [];
+    try {
+      const media = batch.map(s => ({ mimeType: s.mimeType, data: s.data }));
+      const raw = await askGeminiVision(cpbRunPrompt(batch.length, from, total), media,
+        { maxOutputTokens: 16000, json: true });
+      rows = rapidPayloads(parseAIJson(raw));
+    } catch (e) {
+      console.warn("custom paper read failed", e);
+      // A batch that fails does not sink the rest of the sheet.
+      o.onBatch(batch, "error", (e && e.message) || "could not be read", span, 0);
+      failed += batch.length;
+      continue;
+    }
+    if (!rows.length) { empty += batch.length; o.onBatch(batch, "empty", "", span, 0); continue; }
+    // The WHOLE PAGE, prepared once PER SCREENSHOT. A question whose rectangle
+    // comes back unusable falls back to the page it was printed on, which is
+    // one ✂️ crop away from being right; an EMPTY picture block is not an
+    // outcome, it is a question that reaches the sheet with a hole in it.
+    const pages = batch.map(() => null);
+    const sharePageFor = idx => () => (pages[idx] || (pages[idx] = (async () => {
+      const s = batch[idx];
+      const full = "data:" + s.mimeType + ";base64," + s.data;
+      try {
+        const cleaned = await _cleanToBlackAndWhite(full);
+        return { url: await uploadDataUrlToStorage(cleaned, "mathImages"), dataUrl: cleaned };
+      } catch (e) {
+        try { return { url: await uploadDataUrlToStorage(full, "mathImages"), dataUrl: full }; }
+        catch (e2) { console.warn("whole-page backup failed", e2); return null; }
+      }
+    })()));
+    let made = 0;
+    for (let r = 0; r < rows.length; r++) {
+      if (o.stopped && o.stopped()) break;
+      const row = rows[r];
+      // "page" is 1-based over the images in THIS batch. Out of range — or
+      // absent, which is what a single-image batch returns — falls back to the
+      // first, so a rectangle is always measured on a real screenshot.
+      let pi = parseInt(row.page, 10);
+      if (!isFinite(pi) || pi < 1 || pi > batch.length) pi = 1;
+      const media = { mimeType: batch[pi - 1].mimeType, data: batch[pi - 1].data };
+      // A CONTINUATION is the rest of the question the run finished on, and it
+      // is only ever the FIRST entry of a batch: any other entry claiming to
+      // continue something is a reply that ignored the question.
+      if (r === 0 && row.continuation === true && last) {
+        cpbNote("Joining " + span + " onto the question before it…");
+        await cpbExtend(last, row, media, sharePageFor(pi - 1), budget);
+        if (o.onExtend) o.onExtend(last);
+        continue;
+      }
+      const q = questionFromAiData(row);
+      q.marks = cpbReadMarks(row);
+      if (o.onBuilt) o.onBuilt(q, row);
+      cpbNote("Cropping the picture for “" + (q.title || "question") + "”…");
+      await cpbFillDiagram(q, row, media, sharePageFor(pi - 1), budget);
+      last = q;
+      made++;
+      if (o.onDone) o.onDone(q);
+    }
+    o.onBatch(batch, "done", "", span, made);
+  }
+  return { failed, empty };
+}
+// The marks the paper printed beside a question. The reader is asked for it;
+// anything that is not a plausible mark allocation is dropped rather than
+// printed, because "[1998]" beside a question is a figure reference, not what
+// it is worth.
+function cpbReadMarks(row) {
+  const n = parseInt(row && row.marks, 10);
+  return (isFinite(n) && n > 0 && n <= 20) ? n : 0;
+}
+// The figure, through the ONE door ⚡ Rapid add and ✨ Build with AI already
+// share — cut it out, check the cut, clean it up. It never throws: a question
+// is worth keeping without its figure.
+async function cpbFillDiagram(q, row, media, sharePage, budget) {
+  const imgBlock = (q.blocks || []).find(b => b.type === "image");
+  if (!imgBlock) return;
+  // The clean-up is one image-model call per picture, so the run holds ONE
+  // budget across every call rather than a cap per question — a per-call cap
+  // is no cap at all on a forty-question sheet.
+  const clean = budget.left > 0;
+  try {
+    const r = await autoDiagramIntoBlock(imgBlock, row.diagramBox || row.box_2d, media, m => cpbNote(m),
+      { sharePage, clean });
+    if (clean && r.cleaned) budget.left = Math.max(0, budget.left - 1);
+    if (r.whole || (r.url && !r.cropped)) q.diagramWhole = true;
+  } catch (e) { console.warn("custom paper diagram failed", e); }
+}
+// A question carrying on from the one before it. Its wording is APPENDED and
+// its figure, if it has one, becomes another picture block — never a second
+// question, which is what the page break produced before this existed.
+async function cpbExtend(q, row, media, sharePage, budget) {
+  const more = String(row.questionText || "").trim();
+  if (more) {
+    const text = (q.blocks || []).filter(b => b.type === "text").pop();
+    if (text) text.content = String(text.content || "").trim() + "\n" + more;
+    else q.blocks.push({ id: genBlockId(), type: "text", content: more });
+  }
+  const opts = Array.isArray(row.options) ? row.options.map(x => String(x == null ? "" : x).trim()).filter(Boolean) : [];
+  if (opts.length >= 2 && !(q.options || []).length) {
+    let ci = Number(row.correctOption);
+    if (!Number.isInteger(ci) || ci < 0 || ci >= opts.length) ci = 0;
+    q.options = opts; q.correctOption = ci;
+  }
+  if (!q.expected && row.expected) q.expected = String(row.expected).trim();
+  if (!q.markingGuide && row.markingGuide) q.markingGuide = String(row.markingGuide).trim();
+  if (!q.marks) q.marks = cpbReadMarks(row);
+  if (row.hasDiagram) {
+    const block = { id: genBlockId(), type: "image", url: "", scale: 1 };
+    q.blocks.push(block);
+    const clean = budget.left > 0;
+    try {
+      const r = await autoDiagramIntoBlock(block, row.diagramBox || row.box_2d, media, m => cpbNote(m),
+        { sharePage, clean });
+      if (clean && r.cleaned) budget.left = Math.max(0, budget.left - 1);
+      if (!block.url) q.blocks = q.blocks.filter(b => b !== block);   // an empty slot is worse than none
+    } catch (e) { q.blocks = q.blocks.filter(b => b !== block); }
+  }
+}
+
+function cpbCanRead() {
+  if (!canManageQuestions()) { toast("Only admin accounts can build a paper", "error"); return false; }
+  if (cpbBusy) return false;
+  if (!cpbShots.length) { toast("Add some screenshots first", ""); return false; }
+  return true;
+}
+// THE ORDINARY PRESS. Reads only what has not been read and APPENDS, so a
+// sheet is assembled over an afternoon rather than re-read from the start
+// every time three more questions turn up. It asks nothing and destroys
+// nothing.
+function cpbBuild() {
+  if (!cpbCanRead()) return;
+  if (!cpbUnread().length) {
+    toast("Every screenshot has been read — add more, or press 🔁 Read everything again", "");
+    return;
+  }
+  cpbRunBuild("append");
+}
+// THE WHOLE PILE, from the start. This is the one that throws work away, so it
+// is a separate button and it asks first.
+function cpbRebuild() {
+  if (!cpbCanRead()) return;
+  if (cpbQuestions.length && !confirm(
+    "All " + cpbShots.length + " screenshot(s) are read together from the start, so this REPLACES the "
+    + cpbQuestions.length + " question(s) built so far — including the order you put them in and any booklet you moved by hand.\n\n"
+    + "To add the questions from screenshots you have just pasted in, press 🤖 Read instead: it reads only those and leaves this "
+    + cpbThing() + " alone.")) return;
+  cpbRunBuild("all");
+}
+// mode 'append' reads the UNREAD screenshots and adds their questions;
+// 'all' resets every screenshot and rebuilds from nothing.
+async function cpbRunBuild(mode) {
+  const append = mode === "append" && cpbQuestions.length > 0;
+  const shots = append ? cpbUnread() : cpbShots;
+  if (!shots.length) return;
+  // The seed is read BEFORE the run resets any status, or `cpbUnreadIsTail`
+  // would be asked about a pile whose statuses have already been wiped.
+  const seed = append ? cpbSeedQuestion() : null;
+  const had = append ? cpbQuestions.length : 0;
+  // Set when the question the run carried on from is the SEED — the join
+  // across two reads. Counting it from the totals cannot work: an extended
+  // question was never added, so the arithmetic is silent.
+  let joined = false;
+  cpbBusy = true; cpbCancel = false;
+  cpbRunSeed = seed;
+  if (!append) {
+    cpbQuestions = [];
+    cpbLastRead = "";
+    cpbShots.forEach(s => { s.status = "new"; s.err = ""; s.group = ""; s.n = 0; });
+  } else {
+    // A retried failure starts clean, or its old red card outlives the retry.
+    shots.forEach(s => { s.status = "new"; s.err = ""; s.group = ""; s.n = 0; });
+  }
+  cpbRender();
+  // Read ONCE, before the run: the pad stays open the whole time and an author
+  // who moves the picker on must not have the back half filed differently.
+  const level = cpbMetaGet("qLevel");
+  const source = cpbMetaGet("name");
+  const res = await cpbReadRun(shots, {
+    seed,
+    enhance: cpbMetaGet("enhance") ? CPB_ENHANCE_MAX : 0,
+    stopped: () => cpbCancel,
+    onBatch: (batch, status, err, span, made) => {
+      batch.forEach(s => {
+        s.group = span;
+        if (status === "error") { s.status = "error"; s.err = err; }
+        else if (status === "reading") { s.status = "reading"; }
+        else { s.n = made || 0; s.status = status; }
+      });
+      cpbRender();
+    },
+    onBuilt: q => {
+      // The teacher's own reading of the question, kept beside the structural
+      // one: `cpbBookOf` prefers the blocks, and this is what the ⇄ button
+      // starts from when the two disagree.
+      q._cpbSaid = cpbIsMcqOnly(q) ? "a" : "b";
+      if (source) q.source = source;
+      if (level) rapidApplyLevel(q, level);
+    },
+    onDone: q => { _vetTagDuplicate(q); cpbQuestions.push(q); cpbLastRead = q.id; cpbRender(); },
+    onExtend: q => { _vetTagDuplicate(q); cpbLastRead = q.id; if (seed && q === seed) joined = true; cpbRender(); },
+  });
+  cpbBusy = false;
+  cpbRunSeed = null;
+  cpbNote("");
+  // A full re-read is what puts the sheet back in step with the pile, so only
+  // that clears the warning. An append adds questions and answers nothing
+  // about a screenshot that was removed after being read.
+  if (!append && !cpbCancel && !res.failed) cpbDirty = false;
+  cpbRender();
+  const total = cpbQuestions.length;
+  const added = total - had;
+  const lay = cpbLayout();
+  const tail = (cpbCancel ? " (stopped early)" : "")
+    + (res.failed ? ` · ${res.failed} screenshot${res.failed === 1 ? "" : "s"} could not be read` : "");
+  if (append) {
+    toast(added
+      ? `Added ${added} question${added === 1 ? "" : "s"} — now ${total}${cpbIsWorksheet() ? "" : `, ${lay.a.length} multiple choice and ${lay.b.length} open-ended`}`
+        + (joined ? " · 🔗 one carried on from the question before it" : "") + tail
+      : `No new questions were read${joined ? " — what was on them carried on from the question before 🔗" : ""}${tail}`,
+      added || joined ? "success" : "error");
+    return;
+  }
+  toast(total
+    ? `Built ${total} question${total === 1 ? "" : "s"}${cpbIsWorksheet() ? "" : ` — ${lay.a.length} multiple choice, ${lay.b.length} open-ended`}${tail}`
+    : "No questions could be read from those screenshots", total ? "success" : "error");
+}
+function cpbCancelRun() {
+  if (!cpbBusy) return;
+  cpbCancel = true;
+  cpbNote("Stopping — keeping everything read so far…");
+}
+
+// ---- The list: order, booklet, removal ------------------------------------
+function cpbMove(id, dir) {
+  const i = cpbQuestions.findIndex(q => q.id === id);
+  if (i < 0) return;
+  let j = i + (dir < 0 ? -1 : 1);
+  // 📄 PAPER: reorder WITHIN the booklet the question is in. The two booklets
+  // are numbered as one run, so moving a Booklet B question up past the whole
+  // of Booklet A would renumber the entire paper for one nudge.
+  // 📝 WORKSHEET: one list, so up means up.
+  if (!cpbIsWorksheet()) {
+    const book = cpbBookOf(cpbQuestions[i]);
+    while (j >= 0 && j < cpbQuestions.length && cpbBookOf(cpbQuestions[j]) !== book) j += (dir < 0 ? -1 : 1);
+  }
+  if (j < 0 || j >= cpbQuestions.length) return;
+  const t = cpbQuestions[i]; cpbQuestions[i] = cpbQuestions[j]; cpbQuestions[j] = t;
+  cpbRender();
+}
+function cpbDropQuestion(id) {
+  const q = cpbQuestions.find(x => x.id === id);
+  if (!q) return;
+  if (!confirm("Take “" + (q.title || "Untitled question") + "” off this " + cpbThing()
+    + "?\n\nNothing has been saved anywhere yet, so it is simply gone from the list.")) return;
+  cpbQuestions = cpbQuestions.filter(x => x.id !== id);
+  // It can no longer be carried on from — `cpbSeedQuestion` would find
+  // nothing, but leaving a dead id here is one more thing to reason about.
+  if (cpbLastRead === id) cpbLastRead = "";
+  cpbRender();
+}
+
+// =====================================================================
+// ✏️ EDIT ONE QUESTION — the SAME block editor, and back again
+//
+// A question on this page is an ORDINARY BANK QUESTION in every respect but
+// one: it has not been saved anywhere. `loadQuestionIntoEditor` already takes
+// the OBJECT, so it opens exactly as a bank question does.
+//
+// THE ONE THING THAT MUST NOT HAPPEN is a save reaching the bank. This page's
+// whole contract is that nothing does until Send, and a question that quietly
+// went early would leave the sheet and the bank each holding half of it with
+// nothing on any screen reporting it. So `#saveQBtn` routes here instead while
+// a paper question is open, and `qEditReturn` brings the trip back.
+// `var`, not `let` — and that is the trap this file already documents for
+// `editorLos`. `resetEditor()` runs at MODULE EVALUATION (see the boot block
+// at the foot of the file) and it clears this; declared with `let` and moved
+// even slightly, it would still be in its temporal dead zone there and the
+// whole app would fail to start.
+var cpbEdit = null;         // { id } while a paper question is in the editor
+var cpbEditFocus = "";      // the row to scroll back to and flash
+function cpbEditActive() { return !!(cpbEdit && cpbEdit.id); }
+
+// The fields the block editor OWNS — everything `collectQuestion` builds,
+// including the two it only emits when the question HAS an MCQ. Written out
+// rather than derived from one call's keys, because `options` and
+// `correctOption` are ABSENT from that object when the author has just removed
+// the MCQ, and carrying them back would put the choices they deleted straight
+// on again. Everything else on the paper's copy — the ⇄ booklet override, the
+// marks the reader found, `source`, `diagramWhole` — is carried across.
+const CPB_EDITOR_FIELDS = new Set([
+  "id", "title", "level", "topic", "topics", "concept", "los", "blocks",
+  "expected", "markingGuide", "videoExplanationUrl", "videoOverlays",
+  "answerKeyImageUrl", "createdAt", "createdBy", "options", "correctOption",
+  "variantOf",
+]);
+function cpbCarryOver(q, prev) {
+  if (!prev) return;
+  Object.keys(prev).forEach(k => {
+    if (CPB_EDITOR_FIELDS.has(k)) return;
+    if (q[k] === undefined) q[k] = prev[k];
+  });
+  if (prev.createdAt) q.createdAt = prev.createdAt;   // the editor stamps a fresh one
+}
+function cpbEditQuestion(id) {
+  if (!canManageQuestions()) { toast("Only admin accounts can edit a question", "error"); return; }
+  if (cpbBusy) { toast("Wait for the read to finish first", ""); return; }
+  const q = cpbQuestions.find(x => x.id === id);
+  if (!q) return;
+  loadQuestionIntoEditor(q);
+  // AFTER the load, which clears both — the rule every opener in this app
+  // follows, and the reason a later unrelated edit cannot bounce back here.
+  qEditReturn = { page: "custompaper" };
+  cpbEdit = { id: q.id };
+  cpbEditFocus = q.id;
+  navigateTo("create");
+  toast("Editing “" + (q.title || "Untitled question") + "” — saving puts it back on the "
+    + cpbThing() + ", not in the bank", "");
+}
+function cpbEditSave() {
+  if (!cpbEditActive()) return;
+  const id = cpbEdit.id;
+  const at = cpbQuestions.findIndex(x => x.id === id);
+  const q = collectQuestion();
+  if (!q.blocks.length) { toast("Add some question content first", "error"); return; }
+  if (at < 0) {
+    // The sheet was cleared, sent or re-read while the editor was open. Say so
+    // rather than silently dropping the edits, or appending a question to a
+    // sheet the teacher has moved on from.
+    toast("That question is no longer on the " + cpbThing() + " — your edits were not saved anywhere", "error");
+    cpbEdit = null;
+    qEditLeave();
+    return;
+  }
+  q.id = id;
+  cpbCarryOver(q, cpbQuestions[at]);
+  cpbQuestions[at] = q;
+  cpbEdit = null;
+  cpbEditFocus = id;
+  toast("Saved back into the " + cpbThing() + " 🗂️ — nothing has gone to the bank yet", "success");
+  qEditLeave();
+}
+// Put the row back under the teacher after a trip to the editor. Spent on use,
+// so it fires once and a later render does not drag the page about.
+function cpbFocusScroll() {
+  if (!cpbEditFocus) return;
+  const id = cpbEditFocus;
+  cpbEditFocus = "";
+  setTimeout(() => {
+    const el = document.querySelector('.cpb-row[data-qid="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]');
+    if (!el) return;
+    try { el.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (e) { el.scrollIntoView(); }
+    el.classList.add("cpb-row-flash");
+    setTimeout(() => el.classList.remove("cpb-row-flash"), 2200);
+  }, 60);
+}
+
+// =====================================================================
+// 📁 SAVED PAPERS — a sheet is a thing you come back to
+//
+// The per-tab draft above is a CRASH NET: keyed by tab, it holds the
+// screenshots, and it exists so a reload does not lose an afternoon. It is not
+// a library — one window holds one sheet, and last term's prelim is gone the
+// moment this one starts.
+//
+// A saved sheet is the other thing entirely: NAMED, listed, and reopened
+// whenever. WHAT IS SAVED IS THE SHEET, NOT THE SCREENSHOTS, and the page says
+// so: once the questions are read out of them the screenshots are worth
+// nothing to a sheet being edited, and they are megabytes apiece against a
+// Firestore document that dies at 1 MB. The pictures inside the questions are
+// Storage URLs and travel for free.
+//
+// IT LIVES IN `mathVetting`, FLAGGED, and that is load-bearing rather than a
+// shortcut — exactly the trick the 🗑️ Bin uses. `firestore.rules` is shared
+// with the Science app, so a new subcollection would fall through to the
+// default deny and cost a WHOLE-PROJECT rules deploy for one feature.
+// `mathVetting` is already admin-only on BOTH read and write, which a saved
+// sheet needs: it carries every question's answer key.
+const CPB_LIB_MAX = 60;
+const CPB_LIB_MAX_BYTES = 900 * 1024;      // a Firestore document dies at 1 MB
+const CPB_LIB_PREFIX = "cpbpaper__";
+let cpbLib = [];           // [{ id, name, at, mode, nA, nB, marks, sentAt }] — newest first
+let cpbLibId = "";         // the saved sheet this page is editing, if any
+let cpbLibBusy = false;
+
+function cpbLibDocId(id) { return CPB_LIB_PREFIX + id; }
+function cpbLibRow(r) {
+  // `mode` is stored beside the counts so the shelf can badge a row without
+  // reading the whole document back. A row written before the second mode
+  // existed carries none, and is a paper.
+  return { id: r.id, name: r.name || "", at: Number(r.at) || 0, sentAt: Number(r.sentAt) || 0,
+    mode: r.mode === "worksheet" ? "worksheet" : "paper",
+    nA: Number(r.nA) || 0, nB: Number(r.nB) || 0, marks: Number(r.marks) || 0 };
+}
+// The shelf is read out of the SAME snapshot `loadVettingList` already takes,
+// so opening the page costs no extra round trip and a saved sheet can never be
+// mistaken for a vetting draft: `loadVettingList` sorts the three shapes apart
+// by their flags.
+function cpbLibFromVetting(rows) {
+  cpbLib = (rows || []).map(v => cpbLibRow({
+    id: v.paperId || String(v.id || "").replace(CPB_LIB_PREFIX, ""),
+    name: v.name, at: v.at, sentAt: v.sentAt, mode: v.mode, nA: v.nA, nB: v.nB, marks: v.marks,
+  }));
+  cpbLib.sort((a, b) => (b.at || 0) - (a.at || 0));
+}
+// 💾 Save this sheet onto the shelf. Overwrites the one it was opened from, or
+// makes a new one — which is what the name is for, so the button says which.
+async function cpbSavePaper() {
+  if (!canManageQuestions()) { toast("Only admin accounts can save a paper", "error"); return; }
+  if (cpbLibBusy) return;
+  if (!cpbQuestions.length) { toast("Read the screenshots first — there is nothing to save yet", ""); return; }
+  const name = String(cpbMetaGet("name") || "").trim();
+  if (!name) { toast("Give it a name in ① first — that is what it is listed under", "error"); return; }
+  const m = cpbMarks();
+  const id = cpbLibId || cpbId();
+  const payload = {
+    id: cpbLibDocId(id), cpbPaper: true, paperId: id,
+    name, at: Date.now(), mode: cpbMode(),
+    nA: m.nA, nB: m.nB, marks: m.total,
+    meta: Object.assign({}, cpbMeta),
+    questions: cpbQuestions,
+    savedBy: (currentUser && currentUser.uid) || "",
+  };
+  // A document that will not fit is refused BEFORE the write, naming the size,
+  // rather than failing inside Firestore with an error nobody can act on.
+  let bytes = 0;
+  try { bytes = JSON.stringify(payload).length; } catch (e) { bytes = 0; }
+  if (bytes > CPB_LIB_MAX_BYTES) {
+    toast("Too big to save in one piece (" + Math.round(bytes / 1024) + " KB). A picture pasted straight into a question rather than cropped from a screenshot is the usual cause.", "error");
+    return;
+  }
+  if (!cpbLibId && cpbLib.length >= CPB_LIB_MAX) {
+    toast("The shelf is full at " + CPB_LIB_MAX + " — delete one you have finished with first", "error");
+    return;
+  }
+  cpbLibBusy = true; cpbRender();
+  try {
+    await setDoc(doc(db, "users", currentUser.uid, "mathVetting", payload.id), payload);
+    cpbLibId = id;
+    const was = cpbLib.find(r => r.id === id);
+    const row = cpbLibRow({ id, name, at: payload.at, mode: payload.mode, nA: m.nA, nB: m.nB,
+      marks: m.total, sentAt: was ? was.sentAt : 0 });
+    cpbLib = cpbLib.filter(r => r.id !== id).concat([row]).sort((a, b) => (b.at || 0) - (a.at || 0));
+    toast("📁 Saved as “" + name + "” — reopen it any time from 📁 Saved papers", "success");
+  } catch (e) {
+    console.warn("custom paper save", e);
+    toast(isPermissionError(e)
+      ? "This account is not allowed to save papers"
+      : "Could not save — check your connection and try again", "error");
+  }
+  cpbLibBusy = false; cpbRender();
+}
+async function cpbLibOpenNow(id) {
+  cpbLibBusy = true; cpbRender();
+  try {
+    const snap = await getDoc(doc(db, "users", currentUser.uid, "mathVetting", cpbLibDocId(id)));
+    if (!snap.exists()) {
+      cpbLib = cpbLib.filter(r => r.id !== id);
+      toast("That paper is no longer there", "error");
+    } else {
+      const v = snap.data() || {};
+      // The screenshots were never saved, so the page opens with none — and
+      // `cpbDirty` stays FALSE, because the questions are not out of step with
+      // an empty pad. Set true it would nag to re-read a sheet it cannot.
+      cpbShots = [];
+      cpbQuestions = Array.isArray(v.questions) ? v.questions : [];
+      cpbMeta = Object.assign({}, CPB_META_DEFAULTS, v.meta || {});
+      cpbDirty = false;
+      // No screenshots came with it, so there is no pile for a later one to
+      // carry on from — a seed here would join a new screenshot to a question
+      // read on a screenshot that is not here.
+      cpbLastRead = "";
+      cpbLibId = id;
+      cpbDraftSig = "";
+      toast("📁 Opened “" + (v.name || "paper") + "” — " + cpbQuestions.length
+        + " question(s). The screenshots are not kept; the questions are.", "success");
+    }
+  } catch (e) {
+    console.warn("custom paper open", e);
+    toast("Could not open that paper — check your connection and try again", "error");
+  }
+  cpbLibBusy = false; cpbRender();
+}
+function cpbLibOpen(id) {
+  if (!canManageQuestions() || cpbLibBusy || cpbBusy) return;
+  const row = cpbLib.find(r => r.id === id);
+  if (!row) return;
+  // Opening REPLACES what is on the page. Nothing on the page has been saved
+  // anywhere unless the teacher put it there, so this asks rather than being
+  // the button that quietly threw an afternoon away.
+  if (!cpbEmpty() && !confirm("Open “" + (row.name || "this paper") + "”?\n\nIt replaces what is on this page — "
+    + (cpbQuestions.length ? cpbQuestions.length + " question(s)" : "no questions")
+    + (cpbShots.length ? " and " + cpbShots.length + " screenshot(s)" : "") + ".\n\n"
+    + (cpbLibId ? "The one you are on is saved; anything changed since is not."
+                : "The one you are on has NEVER been saved. Save it first if you want it back."))) return;
+  cpbLibOpenNow(id).catch(e => console.warn("custom paper open", e));
+}
+// A sent sheet says so on the shelf. Best effort: the questions really are in
+// the bank whatever this write does, so a failure is logged and nothing else —
+// a toast saying the send failed would be untrue.
+async function cpbLibMarkSent() {
+  if (!cpbLibId) return;
+  const at = Date.now();
+  try { await setDoc(doc(db, "users", currentUser.uid, "mathVetting", cpbLibDocId(cpbLibId)), { sentAt: at }, { merge: true }); }
+  catch (e) { console.warn("custom paper sent stamp", e); return; }
+  const i = cpbLib.findIndex(r => r.id === cpbLibId);
+  if (i >= 0) cpbLib[i].sentAt = at;
+  cpbRender();
+}
+function cpbLibDelete(id) {
+  if (!canManageQuestions() || cpbLibBusy) return;
+  const row = cpbLib.find(r => r.id === id);
+  if (!row) return;
+  if (!confirm("Delete “" + (row.name || "this paper") + "”?\n\nAny question already sent to the bank STAYS there — this is the paper, not the questions. This cannot be undone.")) return;
+  deleteDoc(doc(db, "users", currentUser.uid, "mathVetting", cpbLibDocId(id)))
+    .then(() => {
+      cpbLib = cpbLib.filter(r => r.id !== id);
+      if (cpbLibId === id) cpbLibId = "";
+      toast("Paper deleted", "success");
+      cpbRender();
+    })
+    .catch(e => { console.warn("custom paper delete", e); toast("Could not delete that paper", "error"); });
+}
+// Start fresh. It does NOT delete the saved one — it lets GO of it, so the
+// next 💾 Save makes a new entry rather than writing over last term's.
+function cpbNewPaper() {
+  if (!canManageQuestions() || cpbBusy) return;
+  if (!cpbEmpty() && !confirm("Clear this " + cpbThing() + " and start a new one?\n\n"
+    + (cpbLibId ? "It is saved on the shelf — anything changed since is not."
+                : "It has NEVER been saved, so it is gone."))) return;
+  cpbShots = [];
+  cpbQuestions = [];
+  cpbMeta = Object.assign({}, CPB_META_DEFAULTS);
+  cpbDirty = false;
+  cpbLastRead = "";
+  cpbLibId = "";
+  cpbDraftDrop();
+  cpbRender();
+  toast("Started a new " + cpbThing(), "success");
+}
+
+function cpbSetMeta(k, v) {
+  if (!(k in CPB_META_DEFAULTS)) return;
+  const def = CPB_META_DEFAULTS[k];
+  if (typeof def === "boolean") cpbMeta[k] = !!v;
+  else if (typeof def === "number") cpbMeta[k] = cpbTargetNum(v, 0);
+  else cpbMeta[k] = String(v == null ? "" : v).slice(0, 120);
+  // The TEXT fields must not re-render — the caret would jump to the top on
+  // every keystroke. The switches, the level and the mode do, because they
+  // change what the page says; so do the targets, and their inputs fire on
+  // `change` (blur/Enter) rather than on every keystroke for that reason.
+  if (typeof def === "boolean" || typeof def === "number" || k === "qLevel" || k === "mode") cpbRender();
+  else cpbDraftSave();
+}
+// 🅰 SWITCHING BETWEEN THE TWO MODES.
+//
+// It throws NOTHING away, and that is the whole reason it is a single tap with
+// no confirm behind it: the questions, their order, every ⇄ booklet moved by
+// hand and every field typed on either side all stay exactly where they are.
+// Only the FORMAT changes.
+function cpbSetMode(mode) {
+  if (!CPB_MODES[mode] || mode === cpbMode()) return;
+  cpbSetMeta("mode", mode);
+  toast(CPB_MODES[mode].icon + " " + CPB_MODES[mode].label
+    + " — nothing is lost, the questions and their order stay exactly as they are", "");
+}
+
+// =====================================================================
+// 🖨 THE SHEET ITSELF
+//
+// Everything below hands the ORDINARY worksheet builder its arguments and gets
+// out of the way. `wsBuildDocumentHtml` is the one place a question becomes
+// printed HTML — the chunk, the working space, the answer field, the answer
+// key — so a paper assembled any other way would be a second renderer to keep
+// in step with the first, and the sheet a class sits would drift from the
+// sheet the app prints everywhere else.
+//
+// THE COVER LAYOUT IS THE PART THAT MATTERS and the part that is copied
+// exactly — it is what makes a mock paper feel like the real thing rather than
+// like a worksheet. WHOSE PAPER IT IS is not copied: every line of the heading
+// is a field the teacher fills in, and nothing here is prefilled with the name
+// of a real examination board.
+// =====================================================================
+function cpbIndexGridHtml() {
+  return `<div class="cpb-cv-index">
+    <span class="cpb-cv-index-label">Index<br>No.</span>
+    <span class="cpb-cv-box"></span><span class="cpb-cv-box"></span><span class="cpb-cv-box"></span>
+    <span class="cpb-cv-box"></span><span class="cpb-cv-box"></span>
+    <span class="cpb-cv-dash">&ndash;</span><span class="cpb-cv-box"></span>
+  </div>`;
+}
+function cpbCoverHeadHtml(booklet) {
+  const code = cpbMetaGet("code");
+  return `<div class="cpb-cv-head">
+    <div class="cpb-cv-org">${escapeHtml(cpbMetaGet("org"))}</div>
+    <div class="cpb-cv-exam">${escapeHtml(cpbMetaGet("exam"))}</div>
+    <div class="cpb-cv-row">
+      <span class="cpb-cv-code">${escapeHtml(code ? code + " (" + booklet + ")" : "")}</span>
+      <span class="cpb-cv-level">${escapeHtml(cpbMetaGet("level"))}<br><span class="cpb-cv-year">${escapeHtml(cpbMetaGet("year"))}</span></span>
+    </div>
+    <div class="cpb-cv-subject">${escapeHtml(cpbMetaGet("subject"))}</div>
+    <div class="cpb-cv-booklet">(BOOKLET ${escapeHtml(booklet)})</div>
+  </div>`;
+}
+// The seal at the foot of a cover. It deliberately does NOT print "this
+// booklet consists of N printed pages": the count is only known after the
+// browser has paginated, and a cover that states the wrong one is worse than a
+// cover that states none.
+function cpbCoverFootHtml() {
+  return `<div class="cpb-cv-foot"><div class="cpb-cv-seal">${escapeHtml(cpbMetaGet("org"))}</div></div>`;
+}
+function cpbCoverA(marks, nA) {
+  const onPaper = !!cpbMetaGet("mcqOnPaper");
+  const ins = [
+    "Write your Index No. in the boxes at the top right hand corner.",
+    "Do not turn over this page until you are told to do so.",
+    "Follow all instructions carefully.",
+    "Answer all questions.",
+    onPaper
+      ? "Write your answer in the bracket provided at the end of each question."
+      : "Use a 2B pencil to shade your answers on the Answer Sheet.",
+  ];
+  return `<section class="ws-page cpb-cover">
+    ${cpbIndexGridHtml()}
+    ${cpbCoverHeadHtml("A")}
+    <div class="cpb-cv-time">
+      <span>${escapeHtml(onPaper ? "Additional Materials: Nil" : "Additional Materials: Answer Sheet")}</span>
+      <span><b>Total Time for Booklets A and B : ${escapeHtml(cpbMetaGet("duration"))}</b></span>
+    </div>
+    <div class="cpb-cv-ins">
+      <div class="cpb-cv-ins-h">INSTRUCTIONS TO CANDIDATES</div>
+      <ol class="cpb-cv-ins-list">${ins.map(t => `<li>${escapeHtml(t)}</li>`).join("")}</ol>
+      <div class="cpb-cv-ins-note">Questions 1 to ${nA} carry ${CPB_MCQ_MARKS} marks each. Booklet A is worth ${marks} marks.</div>
+    </div>
+    ${cpbCoverFootHtml()}
+  </section>`;
+}
+function cpbCoverB(marks, from, to) {
+  const ins = [
+    "Write your Index No. in the boxes at the top right hand corner.",
+    "Do not turn over this page until you are told to do so.",
+    "Follow all instructions carefully.",
+    "Answer all questions.",
+    "Show your working clearly in the space provided for each question.",
+    "The number of marks available is shown in brackets [ ] at the end of each question.",
+  ];
+  return `<section class="ws-page cpb-cover">
+    ${cpbIndexGridHtml()}
+    ${cpbCoverHeadHtml("B")}
+    <div class="cpb-cv-time">
+      <span>Additional Materials: Nil</span>
+      <span><b>Total Time for Booklets A and B : ${escapeHtml(cpbMetaGet("duration"))}</b></span>
+    </div>
+    <div class="cpb-cv-ins">
+      <div class="cpb-cv-ins-h">INSTRUCTIONS TO CANDIDATES</div>
+      <ol class="cpb-cv-ins-list">${ins.map(t => `<li>${escapeHtml(t)}</li>`).join("")}</ol>
+      <div class="cpb-cv-ins-note">Questions ${from} to ${to} are worth ${marks} marks in total.</div>
+    </div>
+    <div class="cpb-cv-total">
+      <span>For Examiner's Use</span><span class="cpb-cv-total-box"></span><span>/ ${marks}</span>
+    </div>
+    ${cpbCoverFootHtml()}
+  </section>`;
+}
+// The line a booklet — or a worksheet — opens with. Same shape and the same
+// print CSS either way, so an instruction reads as the same thing on both.
+function cpbLeadHtml(text, marks) {
+  return `<div class="cpb-lead"><p>${escapeHtml(text)}</p>`
+    + (marks ? `<div class="cpb-lead-marks">(${marks} marks)</div>` : "")
+    + `</div>`;
+}
+// An answer sheet for Booklet A — a numbered grid of (1)(2)(3)(4) to shade,
+// printed as the LAST sheet so it can be detached and collected. Only when
+// Booklet A is answered off the paper, because that is the only case in which
+// there is anywhere else to put the answer.
+function cpbAnswerSheetHtml(nA) {
+  if (!nA) return "";
+  // Two columns, numbered DOWN each one — 1…8 on the left and 9…15 on the
+  // right, the way an answer sheet is read. Laid out across instead, a child
+  // shading question 7 is hunting for it on alternate rows.
+  const half = Math.ceil(nA / 2);
+  const cell = i => (i > nA ? `<div class="cpb-as-row cpb-as-blank"></div>`
+    : `<div class="cpb-as-row"><span class="cpb-as-n">${i}</span>`
+      + [1, 2, 3, 4].map(o => `<span class="cpb-as-o">${o}</span>`).join("") + `</div>`);
+  let rows = "";
+  for (let i = 1; i <= half; i++) rows += cell(i) + cell(i + half);
+  return `<section class="ws-page cpb-answersheet">
+    ${cpbIndexGridHtml()}
+    <div class="cpb-as-head">
+      <div class="cpb-as-title">${escapeHtml(cpbMetaGet("subject"))} &mdash; BOOKLET A ANSWER SHEET</div>
+      <div class="cpb-as-sub">${escapeHtml(cpbMetaGet("org"))} &middot; ${escapeHtml(cpbMetaGet("exam"))} ${escapeHtml(cpbMetaGet("year"))}</div>
+    </div>
+    <p class="cpb-as-ins">Shade the box for the option you have chosen. Use a 2B pencil. Rub out completely any answer you wish to change.</p>
+    <div class="cpb-as-grid">${rows}</div>
+  </section>`;
+}
+
+// ---- Assembling the sheet -------------------------------------------------
+// 📄 THE PAPER. Two booklets, each opening on its own cover, with the
+// questions numbered as one run and — unless Booklet A is answered on the
+// paper — an answer sheet at the back.
+function cpbPaperOpts() {
+  const lay = cpbLayout();
+  const m = cpbMarks();
+  const onPaper = !!cpbMetaGet("mcqOnPaper");
+  const groups = [];
+  if (lay.a.length) {
+    groups.push({
+      cover: cpbCoverA(m.a, lay.a.length),
+      lead: cpbLeadHtml(`For each question from 1 to ${lay.a.length}, four options are given. One of them is the correct answer. Make your choice (1, 2, 3 or 4) and ${onPaper ? "write it in the bracket provided" : "shade your answer on the Answer Sheet"}.`, m.a),
+      questions: lay.a,
+    });
+  }
+  if (lay.b.length) {
+    const from = lay.a.length + 1, to = lay.a.length + lay.b.length;
+    groups.push({
+      cover: cpbCoverB(m.b, from, to),
+      lead: cpbLeadHtml(`For questions ${from} to ${to}, show your working clearly in the space provided. The number of marks available is shown in brackets [ ] at the end of each question.`, m.b),
+      questions: lay.b,
+    });
+  }
+  const wantSheet = lay.a.length && !onPaper && !!cpbMetaGet("answerSheet");
+  return {
+    list: lay.list, numbers: lay.numbers, marks: m,
+    opts: {
+      cover: false, fields: false, withQr: false,
+      withAnswers: !!cpbMetaGet("answerKey"),
+      paper: {
+        groups, numbers: lay.numbers,
+        // Booklet A carries no answer box when it is answered on the answer
+        // sheet — a box nobody writes in is a mark a child looks for and
+        // cannot find.
+        noBracketIds: onPaper ? null : new Set(lay.a.map(q => q.id)),
+        tail: wantSheet ? cpbAnswerSheetHtml(lay.a.length) : "",
+      },
+    },
+  };
+}
+// 📝 THE WORKSHEET. Deliberately the app's ORDINARY worksheet rendering and
+// nothing else: NO `paper` option is passed at all, so it goes down
+// byte-for-byte the path every other worksheet print takes — a numbered chunk
+// per question, the answer box under every MCQ, the worksheet header with its
+// Name / Class / Date strip, no cover and no answer sheet.
+//
+// That is what "not an exam paper" has to MEAN, and it is also what stops this
+// mode becoming a second renderer: there is no rendering here that is its own.
+function cpbWorksheetOpts() {
+  const lay = cpbLayout();
+  const m = cpbMarks();
+  const intro = String(cpbMetaGet("wsIntro") || "").trim();
+  return {
+    list: lay.list, numbers: lay.numbers, marks: m,
+    opts: {
+      cover: false,
+      fields: !!cpbMetaGet("wsFields"),
+      withQr: false,
+      withAnswers: !!cpbMetaGet("answerKey"),
+      intro: intro ? cpbLeadHtml(intro, m.total) : "",
+    },
+  };
+}
+// THE ONE DOOR the printer and the preview both go through. Which of the two
+// modes builds the arguments is decided here and nowhere else — asked
+// separately, the preview and the PDF would drift, and a preview of a
+// different sheet is the one thing a preview must never be.
+function cpbOutputOpts() { return cpbIsWorksheet() ? cpbWorksheetOpts() : cpbPaperOpts(); }
+function cpbPrintOrder() { return cpbLayout().list; }
+function cpbTitle() {
+  const name = cpbMetaGet("name");
+  if (name) return name;
+  // A worksheet has no cover to take a title off, so an unnamed one is named
+  // for what it is rather than for an examination that is not happening.
+  if (cpbIsWorksheet()) return [cpbMetaGet("subject"), "Worksheet"].filter(Boolean).join(" ").trim() || "Worksheet";
+  return [cpbMetaGet("org"), cpbMetaGet("exam"), cpbMetaGet("year"), cpbMetaGet("subject")].filter(Boolean).join(" · ");
+}
+async function cpbOpenSheet(autoPrint) {
+  if (!cpbQuestions.length) { toast("Read the screenshots first — there is no " + cpbThing() + " yet", ""); return; }
+  const o = cpbOutputOpts();
+  await wsOpenDocument(o.list, cpbTitle(), Object.assign({ autoPrint }, o.opts));
+}
+function cpbPreview() { cpbOpenSheet(false); }
+function cpbPrint() { cpbOpenSheet(true); }
+
+// ---- Sending to the bank -------------------------------------------------
+// HELD BACK, always — that is the whole contract of this page, and it is the
+// SAME in both modes. The questions have to be in the bank for the teacher to
+// edit, check, print and reuse them; no child may meet one until the sheet has
+// been sat. `holdBack` is the field, `qReleased` is what reads it, and the ⏳
+// bar at the top of the Question Bank is where it comes off again.
+function cpbSend() {
+  if (!canManageQuestions()) { toast("Only admin accounts can save questions", "error"); return; }
+  if (!cpbQuestions.length) { toast("Nothing to send yet", "error"); return; }
+  const lay = cpbLayout();
+  const thing = cpbThing();
+  const n = cpbQuestions.length;
+  const what = cpbIsWorksheet()
+    ? `${n} question${n === 1 ? "" : "s"} go`
+    : `${lay.a.length} multiple choice and ${lay.b.length} open-ended go`;
+  if (!confirm(`Send ${n} question${n === 1 ? "" : "s"} to the bank?\n\n`
+    + `${what} into the question bank HELD BACK FROM STUDENTS — you can edit, check, print and put them on a worksheet, and no practice mode, quest or game will serve one to a child until you release them.\n\n`
+    + `Release them later from the ⏳ bar at the top of the Question Bank, which lists them under this ${thing}'s name.\n\n`
+    + (cpbMetaGet("name") ? "" : `This ${thing} has no name yet — without one they are listed as "Unnamed paper".\n\n`)
+    + (cpbLibId ? `It is on your 📁 shelf, so it stays here to reprint and edit.`
+                : `It is NOT saved. The questions go to the bank, but the ${thing} itself is cleared from this page. Press 💾 Save first if you want to print it again.`))) return;
+  cpbCommit();
+}
+async function cpbCommit() {
+  if (cpbBusy) return;
+  const order = cpbPrintOrder();
+  let done = 0, failed = 0;
+  // Forty awaited writes is a real wait, so the page says where it is and the
+  // buttons are out of reach while it runs — pressed twice, this would file
+  // the whole sheet into the bank a second time.
+  cpbBusy = true; cpbRender();
+  for (const q of order) {
+    cpbNote("Saving " + (done + failed + 1) + " of " + order.length + "…");
+    const clean = Object.assign({}, q);
+    // Page-local bookkeeping never reaches the bank.
+    delete clean._cpbBook; delete clean._cpbSaid; delete clean._dupOf; delete clean._dupSim;
+    clean.holdBack = true;
+    let ok = false;
+    try { await saveQuestionDoc(clean); ok = true; }
+    catch (e) { console.warn("custom paper: save failed", e); ok = false; }
+    // REPLACE rather than push. A part-failed send leaves the whole sheet on
+    // the page so the rest can be tried again, and the questions that DID go
+    // are sent a second time — the document id is stable so Firestore just
+    // overwrites, but a blind push would put a second copy of the same
+    // question into the in-memory bank.
+    if (ok) {
+      const at = questionBank.findIndex(x => String(x.id) === String(clean.id));
+      if (at >= 0) questionBank[at] = clean; else questionBank.push(clean);
+      done++;
+    } else failed++;
+  }
+  cpbBusy = false;
+  cpbNote("");
+  // Only what really went is cleared. A part-failed send leaves the sheet on
+  // the page so the rest can be tried again, rather than losing the questions
+  // that could not be saved.
+  //
+  // A SAVED sheet is NOT cleared. It is on the shelf, so clearing the page
+  // would take away the very thing the shelf was for.
+  if (done && !failed) {
+    if (cpbLibId) cpbLibMarkSent();
+    else {
+      cpbQuestions = [];
+      cpbShots = [];
+      cpbDirty = false;
+      cpbLastRead = "";
+      cpbDraftDrop();
+    }
+  }
+  cpbRender();
+  try { renderBank(); } catch (e) {}
+  try { renderBankScheduled(); } catch (e) {}
+  toast(done
+    ? `${done} question${done === 1 ? "" : "s"} sent to the bank, held back from students 🔒`
+      + (failed ? ` · ${failed} could not be saved` : "")
+      + (done && !failed && cpbLibId ? ` · the ${cpbThing()} is still here` : "")
+    : "Nothing could be saved — check your connection and try again", failed ? "error" : "success");
+}
+
+// ---- Rendering ------------------------------------------------------------
+function cpbRender() {
+  const el = $("cpbBody");
+  if (!el) return;
+  if (!canManageQuestions()) {
+    el.innerHTML = `<div class="cpb-card"><p class="cpb-empty">Only admin accounts can build a paper.</p></div>`;
+    return;
+  }
+  el.innerHTML = cpbIntroHtml() + cpbDraftOfferHtml() + cpbLibHtml() + cpbSetupHtml()
+    + cpbZoneHtml() + cpbSheetCardHtml();
+  // Every mutation on this page ends in a render, so mirroring the draft from
+  // here is the one hook that cannot be forgotten…
+  cpbDraftSave();
+  // …and so is putting the teacher back on the row they went off to edit.
+  cpbFocusScroll();
+}
+function cpbIntroHtml() {
+  const ws = cpbIsWorksheet();
+  const modes = Object.keys(CPB_MODES).map(k => {
+    const d = CPB_MODES[k];
+    const on = k === cpbMode();
+    return `<button type="button" class="cpb-mode${on ? " on" : ""}" onclick="cpbSetMode('${k}')"
+      ${cpbBusy ? "disabled" : ""} aria-pressed="${on ? "true" : "false"}">
+      <span class="cpb-mode-ico">${d.icon}</span>
+      <span class="cpb-mode-txt"><b>${escapeHtml(d.label)}</b><span>${escapeHtml(d.blurb)}</span></span>
+    </button>`;
+  }).join("");
+  return `<div class="cpb-card cpb-intro">
+    <h3 class="cpb-h3">🗂️ Build a ${ws ? "worksheet" : "mock paper"} from screenshots</h3>
+    <p class="cpb-lead">Paste the questions in — a page of last year's prelim, a figure out of a textbook, one you wrote yourself. They are read <b>as one run</b>, ${CPB_BATCH} at a time, so a question spread over two or three screenshots comes out as one question and a screenshot holding three comes out as three.</p>
+    <div class="cpb-modes">${modes}</div>
+    <p class="cpb-lead">${ws
+      ? "Every question goes on <b>one numbered list</b>, in the order you put them in, on an ordinary worksheet — the usual header, a Name / Class / Date strip, and the answer written on the sheet itself."
+      : "Multiple-choice questions go into <b>Booklet A</b> and everything else into <b>Booklet B</b>, each with its own cover, numbered straight through."}
+      Switching between the two throws nothing away.</p>
+    <p class="cpb-lead cpb-lock">🔒 Everything sent from here goes into the bank <b>held back from students</b> — yours to print, edit and reuse, and served to nobody until you release it. That is the same in both modes.</p>
+  </div>`;
+}
+function cpbDraftOfferHtml() {
+  if (!cpbDraftOffers.length) return "";
+  return cpbDraftOffers.map(r => {
+    const bits = [];
+    if (r.nShots) bits.push(r.nShots + " screenshot" + (r.nShots === 1 ? "" : "s"));
+    if (r.nQuestions) bits.push(r.nQuestions + " question" + (r.nQuestions === 1 ? "" : "s"));
+    if (r.paper) bits.push("“" + r.paper + "”");
+    const tab = escapeHtml(String(r.tab || ""));
+    return `<div class="cpb-card cpb-recover">
+      <h3 class="cpb-h3">🗂️ An unsent ${(CPB_MODES[r.mode] || CPB_MODES.paper).label.toLowerCase()} is waiting</h3>
+      <p class="cpb-lead">Left in another window${bits.length ? " — " + escapeHtml(bits.join(" · ")) : ""}. Nothing was sent to the bank.${r.trimmed ? " <b>The screenshots were too large to keep</b> — the questions already read from them are here." : ""}</p>
+      <div class="cpb-head-tools">
+        <button class="btn btn-sm" onclick="cpbDraftTake('${tab}')">Restore it</button>
+        <button class="btn btn-ghost btn-sm" onclick="cpbDraftDiscard('${tab}')">Discard</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+// 📁 The shelf. Deliberately ABOVE the sheet's own fields: it is where a
+// session starts — carry on with last week's, or start a new one — and a list
+// of saved papers at the bottom of a long page is a list nobody finds.
+function cpbLibHtml() {
+  const open = cpbLibId ? cpbLib.find(r => r.id === cpbLibId) : null;
+  const rows = cpbLib.map(r => {
+    const on = r.id === cpbLibId;
+    const def = CPB_MODES[r.mode] || CPB_MODES.paper;
+    const bits = [];
+    // A worksheet has no booklets, so "0 + 12" would be arithmetic about a
+    // thing it does not have.
+    if (r.nA || r.nB) bits.push(r.mode === "worksheet"
+      ? (r.nA + r.nB) + " question" + (r.nA + r.nB === 1 ? "" : "s")
+      : r.nA + " + " + r.nB + " question" + (r.nA + r.nB === 1 ? "" : "s"));
+    if (r.marks) bits.push(r.marks + " marks");
+    if (r.sentAt) bits.push("sent to the bank 🔒");
+    return `<div class="cpb-lib-row${on ? " on" : ""}">
+      <div class="cpb-lib-main">
+        <div class="cpb-lib-name">${escapeHtml(def.icon + " " + (r.name || "Untitled " + def.label.toLowerCase()))}${on ? ` <span class="cpb-lib-badge">open now</span>` : ""}</div>
+        <div class="cpb-lib-meta">${escapeHtml(bits.join(" · "))}</div>
+      </div>
+      <div class="cpb-lib-tools">
+        <button class="btn btn-ghost btn-sm" onclick="cpbLibOpen('${escapeHtml(r.id)}')" ${(cpbLibBusy || cpbBusy || on) ? "disabled" : ""}>${on ? "Open" : "📂 Open"}</button>
+        <button class="cpb-tool danger" onclick="cpbLibDelete('${escapeHtml(r.id)}')" title="Delete this saved paper" ${cpbLibBusy ? "disabled" : ""}>✕</button>
+      </div>
+    </div>`;
+  }).join("");
+  return `<div class="cpb-card">
+    <div class="cpb-head">
+      <h3 class="cpb-h3">📁 Saved papers &amp; worksheets ${cpbLib.length ? `<span class="cpb-pill">${cpbLib.length}</span>` : ""}</h3>
+      <div class="cpb-head-tools">
+        <button class="btn btn-ghost btn-sm" onclick="cpbNewPaper()" ${cpbBusy ? "disabled" : ""}>✚ New ${cpbThing()}</button>
+        <button class="btn btn-sm" onclick="cpbSavePaper()" ${(cpbLibBusy || cpbBusy || !cpbQuestions.length) ? "disabled" : ""}>
+          ${cpbLibBusy ? "Saving…" : (open ? "💾 Save “" + escapeHtml(open.name || cpbThing()) + "”" : "💾 Save this " + cpbThing())}
+        </button>
+      </div>
+    </div>
+    <p class="cpb-lead">Papers and worksheets you can come back to and carry on with. <b>The questions are saved, the screenshots are not</b> — once they have been read, the pictures inside each question are what the sheet is made of and they travel with it. Opening one puts the page back into the mode it was built in.${open ? "" : (cpbQuestions.length ? " This " + cpbThing() + " has not been saved yet." : "")}</p>
+    ${rows ? `<div class="cpb-lib">${rows}</div>` : `<p class="cpb-empty">Nothing saved yet. Build one, give it a name in ① below, and press 💾 Save.</p>`}
+  </div>`;
+}
+function cpbField(k, label, ph, hint) {
+  return `<label class="cpb-field">
+    <span class="cpb-field-label">${escapeHtml(label)}${hint ? ` <span class="cpb-dim">${escapeHtml(hint)}</span>` : ""}</span>
+    <input type="text" value="${escapeHtml(String(cpbMetaGet(k)))}" placeholder="${escapeHtml(ph || "")}"
+           oninput="cpbSetMeta('${k}', this.value)" autocomplete="off">
+  </label>`;
+}
+// `change` rather than `input`, so the page redraws when the number is
+// FINISHED rather than on every keystroke — typing "30" over "3" would
+// otherwise re-render at "3" and take the caret with it.
+function cpbNumField(k, label, hint) {
+  return `<label class="cpb-field">
+    <span class="cpb-field-label">${escapeHtml(label)}${hint ? ` <span class="cpb-dim">${escapeHtml(hint)}</span>` : ""}</span>
+    <input type="number" min="0" max="999" step="1" value="${escapeHtml(String(cpbMetaGet(k)))}"
+           onchange="cpbSetMeta('${k}', this.value)" autocomplete="off">
+  </label>`;
+}
+// The level picker, the answer key and the 🖼 figure switch belong to BOTH
+// modes, so they are written once here rather than in both branches.
+function cpbLevelFieldHtml() {
+  const lv = cpbMetaGet("qLevel");
+  const levels = (typeof SYL_LEVELS !== "undefined" && Array.isArray(SYL_LEVELS)) ? SYL_LEVELS : [];
+  return `<label class="cpb-field">
+    <span class="cpb-field-label">File the questions at <span class="cpb-dim">— stamped on every question, and what the objectives are searched within</span></span>
+    <select onchange="cpbSetMeta('qLevel', this.value)">
+      <option value="">Any level — let the AI decide</option>
+      ${levels.map(l => `<option value="${escapeHtml(l)}"${l === lv ? " selected" : ""}>${escapeHtml(l)}</option>`).join("")}
+    </select>
+  </label>`;
+}
+function cpbSharedSwitchesHtml() {
+  const key = !!cpbMetaGet("answerKey");
+  const enhance = !!cpbMetaGet("enhance");
+  return `<label class="cpb-switch">
+      <input type="checkbox" ${key ? "checked" : ""} onchange="cpbSetMeta('answerKey', this.checked)">
+      <span>Print the <b>teacher's answer key</b> at the back <span class="cpb-dim">— it says so on the page; do not hand it to the class</span></span>
+    </label>
+    <label class="cpb-switch">
+      <input type="checkbox" ${enhance ? "checked" : ""} onchange="cpbSetMeta('enhance', this.checked)">
+      <span>Redraw every figure as <b>clean black and white</b> <span class="cpb-dim">— sharp line work off a grey photograph of print. Slower: one image call per picture. Cropping tight to the figure happens either way.</span></span>
+    </label>`;
+}
+// 📝 THE WORKSHEET'S OWN FIELDS. A worksheet has no cover, so it has no
+// examination, no paper code and no duration to print — offering those here
+// would be four fields that change nothing on the sheet, which is worse than
+// not offering them.
+function cpbWorksheetSetupHtml() {
+  const fields = !!cpbMetaGet("wsFields");
+  return `<div class="cpb-card">
+    <div class="cpb-head"><h3 class="cpb-h3">① The worksheet</h3></div>
+    <p class="cpb-lead">A worksheet prints with this app's own header — the title, the centre's name and a Name / Class / Date strip — and nothing else. No cover, no booklets and no answer sheet: every answer is written on the sheet itself.</p>
+    <div class="cpb-fields">
+      ${cpbField("name", "Worksheet name", "e.g. P5 Ratio — practice 3", "— printed as the title, stored on every question as its source, and what groups them for release")}
+      ${cpbField("subject", "Subject", "e.g. MATHEMATICS", "— used only when the worksheet has no name of its own")}
+      ${cpbField("wsIntro", "Instruction line", "e.g. Show your working clearly in the space provided.", "— optional; printed once above question 1")}
+      ${cpbNumField("targetQuestions", "Questions target", "— 0 turns the target off")}
+      ${cpbLevelFieldHtml()}
+    </div>
+    <div class="cpb-switches">
+      <label class="cpb-switch">
+        <input type="checkbox" ${fields ? "checked" : ""} onchange="cpbSetMeta('wsFields', this.checked)">
+        <span>Print the <b>Name / Class / Date</b> strip at the top</span>
+      </label>
+      ${cpbSharedSwitchesHtml()}
+    </div>
+  </div>`;
+}
+function cpbSetupHtml() {
+  if (cpbIsWorksheet()) return cpbWorksheetSetupHtml();
+  const onPaper = !!cpbMetaGet("mcqOnPaper");
+  const sheet = !!cpbMetaGet("answerSheet");
+  return `<div class="cpb-card">
+    <div class="cpb-head"><h3 class="cpb-h3">① The paper</h3></div>
+    <p class="cpb-lead">These print on the two covers. They are yours to fill in — nothing here is prefilled with an examination board's name, because this is your centre's paper and a cover that passes for an official one is not one to hand a class.</p>
+    <div class="cpb-fields">
+      ${cpbField("name", "Paper name", "e.g. 2026 P6 Maths Prelim Mock 1", "— stored on every question as its source, and what groups them for release")}
+      ${cpbField("org", "Centre / school")}
+      ${cpbField("exam", "Examination")}
+      ${cpbField("subject", "Subject")}
+      ${cpbField("level", "Level line", "e.g. PRIMARY 6")}
+      ${cpbField("year", "Year")}
+      ${cpbField("code", "Paper code", "e.g. 0009/1", "— optional")}
+      ${cpbField("duration", "Total time", "e.g. 1 h 50 min")}
+      ${cpbNumField("targetMcq", "Booklet A target", "— questions; 0 turns the target off")}
+      ${cpbNumField("targetOpen", "Booklet B target", "— marks; 0 turns the target off")}
+      ${cpbLevelFieldHtml()}
+    </div>
+    <div class="cpb-switches">
+      <label class="cpb-switch">
+        <input type="checkbox" ${onPaper ? "checked" : ""} onchange="cpbSetMeta('mcqOnPaper', this.checked)">
+        <span>Booklet A is answered <b>on the paper</b> — print an answer box after each question</span>
+      </label>
+      <label class="cpb-switch${onPaper ? " off" : ""}">
+        <input type="checkbox" ${sheet ? "checked" : ""} ${onPaper ? "disabled" : ""} onchange="cpbSetMeta('answerSheet', this.checked)">
+        <span>Print a <b>Booklet A answer sheet</b> as the last page${onPaper ? ` <span class="cpb-dim">— not needed, the answers are on the paper</span>` : ""}</span>
+      </label>
+      ${cpbSharedSwitchesHtml()}
+    </div>
+  </div>`;
+}
+const CPB_STATUS = {
+  new: { label: "Not read yet", cls: "s-new" },
+  reading: { label: "Reading…", cls: "s-busy" },
+  done: { label: "Read ✓", cls: "s-ok" },
+  empty: { label: "Nothing found", cls: "s-warn" },
+  error: { label: "Failed", cls: "s-bad" },
+};
+function cpbShotHtml(s) {
+  const st = CPB_STATUS[s.status] || CPB_STATUS.new;
+  // A question can span screenshots, so a question count belongs to the GROUP
+  // that was read together, never to one screenshot on its own.
+  const detail = (s.status === "done" && s.group) ? `${s.n} question${s.n === 1 ? "" : "s"} from ${s.group}` : "";
+  return `<div class="cpb-shot ${st.cls}">
+    <img src="${cpbDataUrl(s)}" alt="${escapeHtml(s.name)}" loading="lazy">
+    <div class="cpb-shot-body">
+      <span class="cpb-shot-status">${st.label}</span>
+      ${detail ? `<span class="cpb-shot-detail">${escapeHtml(detail)}</span>` : ""}
+      ${s.err ? `<span class="cpb-shot-err">${escapeHtml(s.err)}</span>` : ""}
+    </div>
+    <button type="button" class="cpb-shot-x" onclick="cpbRemove('${s.id}')" title="Remove this screenshot" ${cpbBusy ? "disabled" : ""}>✕</button>
+  </div>`;
+}
+function cpbZoneHtml() {
+  const n = cpbShots.length;
+  const built = cpbQuestions.length;
+  const unread = cpbUnread().length;
+  const readLabel = built ? (unread ? `🤖 Read the ${unread} new` : "🤖 Read") : "🤖 Read the questions";
+  return `<div class="cpb-card">
+    <div class="cpb-head">
+      <h3 class="cpb-h3">② Screenshots ${n ? `<span class="cpb-pill">${n}</span>` : ""}${unread && built ? ` <span class="cpb-pill new">${unread} unread</span>` : ""}</h3>
+      <div class="cpb-head-tools">
+        ${n ? `<button class="btn btn-ghost btn-sm" onclick="cpbClearShots()" ${cpbBusy ? "disabled" : ""}>Clear all</button>` : ""}
+        ${cpbBusy
+          ? `<button class="btn btn-ghost btn-sm" onclick="cpbCancelRun()">✋ Stop</button>`
+          : `${built ? `<button class="btn btn-ghost btn-sm" onclick="cpbRebuild()" title="Throw the sheet away and read all ${n} screenshot(s) from the start. You only need this if you have removed a screenshot the sheet was built from.">🔁 Read everything again</button>` : ""}
+             <button class="btn btn-sm" onclick="cpbBuild()" ${n && unread ? "" : "disabled"}>${readLabel}</button>`}
+      </div>
+    </div>
+    <p class="cpb-lead">Add them in the order you want them read — paste with <b>Ctrl/⌘ V</b>, drop them in, or pick files. You do not have to line them up one question per screenshot.${built ? " <b>Only the unread ones are read</b>, so paste more in whenever you find them and the " + cpbThing() + " grows." : ""}</p>
+    ${cpbDirty && built ? `<p class="cpb-warn-line">⚠ A screenshot the ${cpbThing()} was built from has been removed, so a question below may no longer match anything you can look at. Press <b>🔁 Read everything again</b> to rebuild — it replaces the questions, including the order${cpbIsWorksheet() ? "" : " and any booklet you changed by hand"}.</p>` : ""}
+    ${!cpbDirty && built && unread ? `<p class="cpb-new-line">📸 ${unread} screenshot${unread === 1 ? "" : "s"} not read yet — press <b>${escapeHtml(readLabel)}</b> and ${unread === 1 ? "its" : "their"} questions are added to the end.${cpbSeedQuestion() ? " A question that carries on from the last one read is joined to it 🔗." : ""}</p>` : ""}
+    <div class="cpb-zone${cpbPasteOn ? " on" : ""}" onclick="cpbFocusZone()" ondragover="cpbDragOver(event)" ondrop="cpbDropFiles(event)">
+      <span class="cpb-zone-ico">🖼️</span>
+      <div>
+        <b>${cpbPasteOn ? "Paste here now (Ctrl/⌘ V)" : "Click here, then paste (Ctrl/⌘ V)"}</b>
+        <span class="cpb-dim">…or drop images in, or <button type="button" class="cpb-linkbtn" onclick="event.stopPropagation();cpbPick()">choose files</button></span>
+      </div>
+    </div>
+    <input type="file" id="cpbFile" accept="image/*" multiple style="display:none;" onchange="cpbFiles(this)">
+    ${n ? `<div class="cpb-shots">${cpbShots.map(cpbShotHtml).join("")}</div>` : ""}
+  </div>`;
+}
+// One row of the sheet. `book` is 'a' / 'b' on a paper and '' on a worksheet,
+// where there are no booklets: the ⇄ button is then not drawn at all, because
+// a button that moves a question into a booklet nothing is printing is a
+// button that appears to do nothing.
+function cpbRowHtml(q, num, book, first, last) {
+  const ws = !book;
+  const auto = cpbIsMcqOnly(q) ? "a" : "b";
+  const overridden = !ws && (q._cpbBook === "a" || q._cpbBook === "b") && q._cpbBook !== auto;
+  const own = cpbQuestionMarks(q);
+  const marks = ws ? (own || cpbDefaultMarks(q)) : (book === "a" ? CPB_MCQ_MARKS : own);
+  const bits = [q.level, adminTopicsLabel(q)].filter(Boolean).join(" · ");
+  return `<div class="cpb-row${overridden ? " moved" : ""}" data-qid="${escapeHtml(String(q.id))}">
+    <span class="cpb-row-n">${escapeHtml(num || "")}</span>
+    <div class="cpb-row-main">
+      <div class="cpb-row-title">${escapeHtml(q.title || "Untitled question")}</div>
+      <div class="cpb-row-meta">
+        ${escapeHtml(bits)}
+        · ${ws
+            ? (own ? escapeHtml(own + " mark" + (own === 1 ? "" : "s")) : `<span class="cpb-nomarks">no marks printed — counted as ${marks}</span>`)
+            : (book === "a" ? escapeHtml(CPB_MCQ_MARKS + " marks") : (marks ? escapeHtml(marks + " mark" + (marks === 1 ? "" : "s")) : `<span class="cpb-nomarks">no marks printed</span>`))}
+        ${q.diagramWhole ? ` · <span class="cpb-nomarks">🖼 whole page — crop it</span>` : ""}
+        ${q._dupOf ? ` · <span class="cpb-nomarks">possible duplicate</span>` : ""}
+        ${overridden ? ` · <span class="cpb-moved">moved here by hand</span>` : ""}
+      </div>
+    </div>
+    <div class="cpb-row-tools">
+      <button type="button" class="cpb-tool" onclick="cpbMove('${q.id}',-1)" title="Move up${ws ? "" : " within this booklet"}" ${first ? "disabled" : ""}>▲</button>
+      <button type="button" class="cpb-tool" onclick="cpbMove('${q.id}',1)" title="Move down${ws ? "" : " within this booklet"}" ${last ? "disabled" : ""}>▼</button>
+      ${ws ? "" : `<button type="button" class="cpb-tool" onclick="cpbSetBook('${q.id}','${book === "a" ? "b" : "a"}')" title="${book === "a" ? "Move to Booklet B — the child writes the answer" : "Move to Booklet A — the child chooses an option"}">⇄ ${book === "a" ? "B" : "A"}</button>`}
+      <button type="button" class="cpb-tool" onclick="cpbEditQuestion('${q.id}')" title="Open this question in the block editor — the same one the question bank uses. Saving puts it back on this sheet, right here, and nothing goes to the bank." ${cpbBusy ? "disabled" : ""}>✏️ Edit</button>
+      <button type="button" class="cpb-tool danger" onclick="cpbDropQuestion('${q.id}')" title="Take this question off the sheet">✕</button>
+    </div>
+  </div>`;
+}
+function cpbBookletHtml(book, list, numbers, marks) {
+  const title = book === "a" ? "📗 Booklet A — multiple choice" : "📘 Booklet B — open-ended";
+  if (!list.length) {
+    return `<div class="cpb-booklet">
+      <div class="cpb-booklet-head"><h4>${title}</h4><span class="cpb-booklet-sum">empty</span></div>
+      <p class="cpb-empty">${book === "a"
+        ? "No multiple-choice questions yet. Any question whose answer is chosen from a fixed set of options lands here."
+        : "No open-ended questions yet. Any question the child writes an answer to lands here."} You can also move one across with ⇄.</p>
+    </div>`;
+  }
+  return `<div class="cpb-booklet">
+    <div class="cpb-booklet-head">
+      <h4>${title}</h4>
+      <span class="cpb-booklet-sum">${list.length} question${list.length === 1 ? "" : "s"} · ${marks} marks</span>
+    </div>
+    <div class="cpb-rows">${list.map((q, i) => cpbRowHtml(q, numbers[q.id], book, i === 0, i === list.length - 1)).join("")}</div>
+  </div>`;
+}
+// The one flat list a worksheet is. No booklet headings, because there are no
+// booklets — a "Booklet A (empty)" panel on a worksheet is a heading about a
+// thing the sheet does not have.
+function cpbWorksheetListHtml(list, numbers) {
+  return `<div class="cpb-booklet">
+    <div class="cpb-booklet-head">
+      <h4>📝 The questions</h4>
+      <span class="cpb-booklet-sum">${list.length} question${list.length === 1 ? "" : "s"}, numbered in this order</span>
+    </div>
+    <div class="cpb-rows">${list.map((q, i) => cpbRowHtml(q, numbers[q.id], "", i === 0, i === list.length - 1)).join("")}</div>
+  </div>`;
+}
+function cpbSheetCardHtml() {
+  const ws = cpbIsWorksheet();
+  const lay = cpbLayout();
+  if (!cpbQuestions.length) {
+    return `<div class="cpb-card">
+      <h3 class="cpb-h3">③ The ${ws ? "worksheet" : "paper"}</h3>
+      <p class="cpb-empty">Read the screenshots and every question shows up here, ${ws ? "in the order you put them in and numbered." : "sorted into its booklet and numbered."}</p>
+    </div>`;
+  }
+  const m = cpbMarks();
+  const totals = ws
+    ? `<span class="cpb-total-big${m.needQuestions == null ? "" : cpbGapClass(m.needQuestions)}">
+         <b>${m.n}</b>${m.wantQuestions ? " of " + m.wantQuestions : ""} question${m.n === 1 ? "" : "s"}${m.needQuestions ? ` <span class="cpb-gap">${escapeHtml(cpbGapLabel(m.needQuestions, "question"))}</span>` : ""}
+       </span>
+       <span><b>${m.total}</b> mark${m.total === 1 ? "" : "s"} in total</span>`
+    : `<span class="cpb-total-big${m.wantTotal ? cpbGapClass(m.wantTotal - m.total) : ""}">
+         <b>${m.total}</b>${m.wantTotal ? " of " + m.wantTotal : ""} marks in total${m.wantTotal ? ` <span class="cpb-gap">${escapeHtml(cpbGapLabel(m.wantTotal - m.total, "mark"))}</span>` : ""}
+       </span>
+       <span class="${(m.needMcq == null ? "" : cpbGapClass(m.needMcq)).trim()}" title="Booklet A is ${CPB_MCQ_MARKS} marks a question, so the questions and the marks move together.">
+         Booklet A <b>${m.nA}</b>${m.wantMcq ? " of " + m.wantMcq : ""} question${m.nA === 1 ? "" : "s"} ·
+         <b>${m.a}</b>${m.wantA ? " of " + m.wantA : ""} marks${m.needMcq ? ` <span class="cpb-gap">${escapeHtml(cpbGapLabel(m.needMcq, "question"))}</span>` : ""}
+       </span>
+       <span class="${(m.needOpen == null ? "" : cpbGapClass(m.needOpen)).trim()}">
+         Booklet B <b>${m.nB}</b> question${m.nB === 1 ? "" : "s"} ·
+         <b>${m.b}</b>${m.wantOpen ? " of " + m.wantOpen : ""} marks${m.needOpen ? ` <span class="cpb-gap">${escapeHtml(cpbGapLabel(m.needOpen, "mark"))}</span>` : ""}
+       </span>`;
+  return `<div class="cpb-card">
+    <div class="cpb-head">
+      <h3 class="cpb-h3">③ The ${ws ? "worksheet" : "paper"} <span class="cpb-pill">${cpbQuestions.length}</span></h3>
+      <div class="cpb-head-tools">
+        <button class="btn btn-ghost btn-sm" onclick="cpbPreview()" ${cpbBusy ? "disabled" : ""}>👁️ Preview</button>
+        <button class="btn btn-ghost btn-sm" onclick="cpbPrint()" ${cpbBusy ? "disabled" : ""}>🖨️ Print / Save PDF</button>
+        <button class="btn btn-sm" onclick="cpbSend()" ${cpbBusy ? "disabled" : ""}>📤 Send to bank 🔒</button>
+      </div>
+    </div>
+    <div class="cpb-totals">
+      ${totals}
+      ${m.guessed ? `<span class="cpb-warn-inline" title="These questions had no printed mark allocation for the reader to find, so each is counted as the default for its kind.">⚠ ${m.guessed} with no printed marks</span>` : ""}
+    </div>
+    ${ws
+      ? (m.needQuestions ? `<p class="cpb-target-note">🎯 Building to <b>${m.wantQuestions}</b> question${m.wantQuestions === 1 ? "" : "s"}. Change the target in ① The worksheet, or set it to 0 to stop measuring — a worksheet has no standard length.</p>` : "")
+      : ((m.needMcq || m.needOpen) ? `<p class="cpb-target-note">🎯 Building to <b>${m.wantMcq || "—"}</b> multiple choice${m.wantMcq ? ` (${m.wantA} marks)` : ""} and <b>${m.wantOpen || "—"}</b> marks of open-ended — <b>${m.wantTotal}</b> in all. Change the two targets in ① The paper, or set either to 0 for a shorter paper. Nothing printed on a cover comes from here: the covers always state what the paper really adds up to.</p>` : "")}
+    ${ws
+      ? cpbWorksheetListHtml(lay.list, lay.numbers)
+      : cpbBookletHtml("a", lay.a, lay.numbers, m.a) + cpbBookletHtml("b", lay.b, lay.numbers, m.b)}
+  </div>`;
+}
+// Opening the page: bind the paste target, and look for a draft left behind.
+function cpbInit() {
+  cpbBindPaste();
+  if (!cpbDraftReady) cpbDraftScan().catch(e => console.warn("custom paper draft", e));
+  cpbRender();
 }
 
 // ---- Saved worksheets ----------------------------------------------------
@@ -26493,7 +28753,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.67.2 · 2026-09-06";
+const APP_VERSION = "v1.68.0 · 2026-09-06";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -45788,6 +48048,34 @@ function dgPrintReport(id) {
   });
 })();
 window.renderDiagnosticPage = renderDiagnosticPage;
+// 🗂️ Custom Paper — the page is inline on* handlers, and the module has its
+// own scope, so every function one of them names has to be here or it is a
+// dead button.
+window.cpbSetMode = cpbSetMode;
+window.cpbSetMeta = cpbSetMeta;
+window.cpbPick = cpbPick;
+window.cpbFiles = cpbFiles;
+window.cpbDragOver = cpbDragOver;
+window.cpbDropFiles = cpbDropFiles;
+window.cpbFocusZone = cpbFocusZone;
+window.cpbRemove = cpbRemove;
+window.cpbClearShots = cpbClearShots;
+window.cpbBuild = cpbBuild;
+window.cpbRebuild = cpbRebuild;
+window.cpbCancelRun = cpbCancelRun;
+window.cpbMove = cpbMove;
+window.cpbSetBook = cpbSetBook;
+window.cpbDropQuestion = cpbDropQuestion;
+window.cpbEditQuestion = cpbEditQuestion;
+window.cpbPreview = cpbPreview;
+window.cpbPrint = cpbPrint;
+window.cpbSend = cpbSend;
+window.cpbSavePaper = cpbSavePaper;
+window.cpbLibOpen = cpbLibOpen;
+window.cpbLibDelete = cpbLibDelete;
+window.cpbNewPaper = cpbNewPaper;
+window.cpbDraftTake = cpbDraftTake;
+window.cpbDraftDiscard = cpbDraftDiscard;
 
 </script>
 <div id="tcgExpAnnounce" style="display:none;position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:1201;width:min(680px,calc(100vw - 28px));background:radial-gradient(120% 100% at 50% -30%,rgba(77,227,255,0.18),transparent 60%),linear-gradient(150deg,#16264f,#0b1230 60%,#080c1e);border:1px solid rgba(77,227,255,0.55);border-radius:18px;padding:26px 28px;box-shadow:0 22px 60px rgba(0,0,0,0.55);color:#e6f4ff;font-family:'DM Sans',system-ui,sans-serif;">

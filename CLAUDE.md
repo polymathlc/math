@@ -2020,6 +2020,140 @@ in the EDITOR. `sylAutoFileEditor` is the same call applied to the editor — th
 - Run **`node tools/screenshot-diagram-tests.mjs`** after touching any of it.
 
 
+## 🗂️ Custom Paper — a mock exam paper, or an ordinary worksheet (v1.68.0)
+
+`cpb*` / `CPB_*` (search `🗂️ CUSTOM PAPER`), `#page-custompaper` and the
+`.cpb-*` CSS, plus the four things it SHARES rather than forks:
+`aiQuestionReadPrompt`'s new `run` argument, `wsBuildDocumentHtml`'s new
+`opts.paper`, `autoDiagramIntoBlock`'s `opts.clean`, and `qHeldBack` folded
+into `qReleased`. **Ported from `polymathlc/cer`, which carries the same page —
+ship a change to both together**; what genuinely differs here is called out
+below.
+
+Paste the questions in — a page of last year's prelim, a figure out of a
+textbook, one you wrote yourself — and get back a whole sheet. Admin only.
+
+- **IT IS NOT ⚡ RAPID ADD, and the two must not be merged.** That pad fires
+  each screenshot off as its OWN job, so it structurally cannot join the three
+  screenshots that are one question — and what comes out of it is bank
+  questions with no sheet at the end. Here the screenshots are read as a RUN
+  and the SHEET is the output.
+- **`cpbReadRun` uses `aiQuestionReadPrompt`, the ONE prompt ⚡ Rapid add and
+  ✨ Build with AI already share**, through a new `run` argument rather than a
+  copy of the wording. A second copy is a second copy to fix, and the drift
+  shows up as "the pad reads my options and that page does not". With `run`
+  absent every existing caller's prompt is byte-for-byte what it was.
+- **`wsBuildDocumentHtml` is the ONE renderer** and the chunks still come out
+  of `wsQuestionChunkHtml`, so the sheet a class sits cannot drift from the
+  sheet the app prints everywhere else. `opts.paper` adds only the FRONT MATTER
+  and the NUMBERS: `groups` ({cover, lead, questions}) — each cover is its own
+  page section, which is what makes the browser start a sheet for it —
+  `numbers`, `noBracketIds` and `tail`. **With no `paper` option nothing below
+  behaves differently by so much as a character**, and the harness pins that.
+- **NOTHING IS WRITTEN UNTIL SEND, and what IS written is HELD BACK.**
+
+### 🅰 TWO MODES — an exam paper, or an ordinary worksheet
+
+The same pile of screenshots is two different things, and the difference is the
+FORMAT and nothing else: 📄 **paper** is Booklet A, Booklet B, a cover for each
+and an answer sheet; 📝 **worksheet** is one numbered list on an ordinary
+worksheet — this app's own header, the Name / Class / Date strip, and every
+answer written on the sheet.
+
+- **EVERYTHING ELSE IS IDENTICAL, deliberately.** The same pad, the same
+  reader, the same ✏️ editor round-trip, the same 📁 shelf — and **the same 🔒
+  HOLD BACK**. `cpbCommit` has **no mode branch at all**, and the harness pins
+  that: one branch there is a mode whose questions quietly reach students.
+- **`cpbMode()` IS THE ONE PLACE THE MODE IS DECIDED, and it FAILS TO
+  `'paper'`.** Every sheet saved before this existed carries no `mode` field
+  and is a paper; a stray value is a paper too, because that is the mode with
+  the covers ON — the worst it can do is print two sheets nobody wanted, where
+  failing the other way silently strips the covers, the booklet split and the
+  answer sheet off a mock exam somebody is about to sit.
+- **`cpbLayout()` IS THE ONE PLACE THE PRINTED ORDER AND THE PRINTED NUMBERS
+  ARE DECIDED**, because the number on the sheet, the number on the answer key
+  and the number in the ③ list all have to be the SAME number. A paper is two
+  booklets numbered as one run; **a worksheet is the single list the teacher
+  arranged, numbered 1…n and never re-ordered** — hoisting its MCQs to the
+  front would throw away the order that was the whole point of arranging it.
+- **A WORKSHEET PASSES NO `paper` OPTION AT ALL.** That is what "not an exam
+  paper" has to MEAN, and it is also what stops the mode becoming a second
+  renderer: there is no rendering here that is its own.
+- **`cpbOutputOpts()` is the ONE door** the printer and the preview go through.
+- **SWITCHING COSTS NOTHING**, which is why it is one tap with no confirm: the
+  questions, their order, every ⇄ booklet moved by hand and every field typed
+  on either side all stay. The worksheet's fields sit on the SAME meta object
+  as the paper's rather than in a nested one.
+- **`cpbIsMcqOnly` decides the booklet**, and an ANNOTATION question is Booklet
+  B however its options read — it is answered ON its diagram, so it needs the
+  sheet. The safe direction, whose worst case is working space nobody uses.
+- **`CPB_TARGET_QUESTIONS` is 0** — a worksheet has no standard length, so
+  nothing is measured unless the teacher asks for it.
+
+### 🔒 Held back — in the bank, and not for students yet
+
+`qHeldBack` folded into **`qReleased`**, `HOLD_LOCK_KEY` in the `loadBank`
+stub, the 🔒 chip in `qReleaseChipHtml`, and `bankHeldRows` /
+`bankHeldSectionHtml` / `bankSetHold` / `bankUnholdNow` / `bankUnholdPaper` on
+the ⏳ bar at the top of the Question Bank.
+
+A release DATE answers *"not until Monday"*. It cannot answer *"not until I say
+so"*, which is what a teacher building next term's mock paper wants: the
+questions have to be in the bank NOW so the sheet can be printed, edited,
+checked and put on a worksheet, and no child may meet one until it has been sat.
+
+- **IT IS FOLDED INTO `qReleased` RATHER THAN BOLTED BESIDE IT**, and that is
+  the whole safety story: `loadBank` already asks that ONE predicate, so the
+  hold-back reached every student-facing surface without one of them being told
+  about it. A gate of its own is one the next reader forgets to ask.
+- **IT IS STRICT `=== true`**, unlike `qReleaseOn`'s fail-open rule: the field
+  has exactly two writers and neither can produce a truthy-but-not-true value.
+- **`HOLD_LOCK_KEY` is the sentinel a HELD-BACK question is stubbed with**,
+  because it has no date. Without it the stub is empty and a student's
+  worksheet goes back to saying the question was deleted — but the sentinel is
+  never NAMED as a date: `wsLockSoonest` filters to real day keys, or the note
+  reads *"the first unlocks  ()"*.
+- **The 🔒 badge BEATS the date**, because it is the one that is true.
+- `bankSetHold` is the ONE writer: admin-checked in the handler, and rolled
+  back when the write did not land.
+
+### 📁 The shelf lives in `mathVetting`, flagged
+
+A saved sheet is `{ cpbPaper: true, paperId, name, mode, meta, questions }`
+under `users/{uid}/mathVetting/cpbpaper__<id>`, and `loadVettingList` sorts the
+three shapes apart by their flags — exactly the trick the 🗑️ Bin uses.
+**`firestore.rules` is shared with the Science app**, so a new subcollection
+would fall through to the default deny and cost a whole-project rules deploy
+for one feature; `mathVetting` is already admin-only on BOTH read and write,
+which a saved sheet needs because it carries every question's answer key.
+
+- **THE SCREENSHOTS ARE NOT SAVED** and the page says so: they are megabytes
+  apiece against a document that dies at 1 MB, and once the questions are read
+  out of them the pictures inside the questions are what the sheet is made of.
+  A payload over `CPB_LIB_MAX_BYTES` is refused BEFORE the write, naming the
+  size.
+- The per-tab **IndexedDB draft** is the crash net, keyed by tab with the uid
+  in the key. **It differs from cer's in one way**: this app has no cross-tab
+  channel, so another window's draft is OFFERED with the date it was left
+  rather than pinged first.
+
+### ✏️ Edit one question, and back again
+
+`loadQuestionIntoEditor` already takes the OBJECT, so a paper question opens in
+the real editor. The ONE thing that must not happen is a save reaching the
+bank — the page's whole contract is that nothing does until Send — so
+**`#saveQBtn` routes to `cpbEditSave` while `cpbEditActive()`**, and every route
+INTO the editor clears `cpbEdit` (in `loadQuestionIntoEditor` and in
+`resetEditor`) or a bank edit would be written into a paper.
+
+- **`var cpbEdit`, not `let`** — the same trap `editorLos` documents:
+  `resetEditor()` runs at module evaluation and clears it.
+- **`CPB_EDITOR_FIELDS` is written out rather than derived from one
+  `collectQuestion()` call's keys**, because `options` and `correctOption` are
+  ABSENT from that object when the author has just removed the MCQ — carried
+  back, the choices they deleted are put straight on again.
+- Run **`node tools/custom-paper-tests.mjs`** after touching any of it.
+
 ## 🔑 The answer key scanner — photograph the working, and it files itself (v1.59.0)
 
 `aks*` / `AKS_*` (search `THE ANSWER KEY SCANNER`), plus `#page-answerkeys`,
@@ -2294,6 +2428,32 @@ somebody off to rebuild a sheet which is perfectly fine and simply early.
 - Run **`node tools/scheduled-release-tests.mjs`** after touching any of it.
 
 ## House rules
+- After touching **🗂️ Custom Paper** (`cpb*` / `CPB_*`, `cpbMode`,
+  `cpbLayout`, `cpbIsMcqOnly`, `cpbMarks`, `cpbOutputOpts`, `cpbReadRun`,
+  `cpbCommit`, `cpbEditSave`, the shelf, or the four shared hooks —
+  `aiQuestionReadPrompt`'s `run`, `wsBuildDocumentHtml`'s `opts.paper`,
+  `autoDiagramIntoBlock`'s `opts.clean` and `qHeldBack` inside `qReleased`),
+  run `node tools/custom-paper-tests.mjs` **and**
+  `node tools/scheduled-release-tests.mjs`. This page prints the sheet a class
+  actually sits, so every failure is met in an exam hall rather than at a
+  keyboard, and none of them throws. **Lift `qHeldBack` out of `qReleased`
+  into a gate of its own and the next reader somebody writes serves next
+  week's paper to the class sitting it** — that is the one that reaches a
+  child. Read a missing or stray `mode` as a WORKSHEET and a mock exam comes
+  off the printer with its covers, its booklet split and its answer sheet
+  gone. Number each booklet from 1 instead of running them together, or
+  re-order a worksheet through the booklet model, and every row on the answer
+  key is against the wrong question. Pass a `paper` option in worksheet mode
+  and it quietly grows an exam paper's numbering and loses the answer box its
+  MCQs are answered in. Branch `cpbCommit` on the mode and you have a mode
+  whose questions reach students. Let `#saveQBtn` write a paper question to
+  the bank and the sheet and the bank each hold half of it. Fork the reading
+  prompt and this page stops joining the three screenshots that are one
+  question while ⚡ Rapid add carries on doing it. Drop `HOLD_LOCK_KEY` from
+  the `loadBank` stub and every held-back question on a student's worksheet
+  reads as one somebody deleted; NAME it as a date and the note says "the
+  first unlocks  ()". And declare `cpbEdit` with `let` and `resetEditor()`
+  reaches it during module evaluation and takes the whole app down on load.
 - After touching **⏳ the batch release date** (`qReleaseOn`, `qScheduled`,
   `qReleased`, `qReleaseChipHtml`, `releaseDayKey`, `rapidRelease` /
   `setRapidRelease`, `rapidApplyRelease`, the `release` carried through
