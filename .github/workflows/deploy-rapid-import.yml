@@ -1,0 +1,51 @@
+name: Math PDF import checks and deployment
+
+on:
+  pull_request:
+    paths: ["index.html", "rapid-import/**", "tools/rapid-*.mjs", "tools/vetting-export-hover-tests.mjs", ".github/workflows/deploy-rapid-import.yml"]
+  push:
+    branches: [main]
+    paths: ["rapid-import/**", ".github/workflows/deploy-rapid-import.yml"]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: math-rapid-import-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci --prefix rapid-import/functions --no-audit --no-fund
+      - run: npm test --prefix rapid-import/functions
+      - run: node tools/rapid-pdf-tests.mjs
+      - run: node tools/rapid-cloud-tests.mjs
+      - run: node tools/vetting-export-hover-tests.mjs
+      - run: node tools/scheduled-release-tests.mjs
+      - run: node tools/worksheet-answer-fields-tests.mjs
+      - run: node tools/worksheet-header-tests.mjs
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: mathgen--app
+      # Deploys only the isolated Math PDF codebase, never shared rules or
+      # the CER worker/existing Math marking functions. Reuses existing secrets.
+      - run: bash rapid-import/deploy-cloud-shell.sh

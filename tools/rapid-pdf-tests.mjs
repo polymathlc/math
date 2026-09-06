@@ -23,6 +23,7 @@
 //  • TWO PDFs RENDERED AT ONCE is a canvas per page of both of them, held in
 //    memory, on a school Chromebook.
 import fs from 'fs';
+import {assemblePage} from '../rapid-import/functions/core.js';
 
 const APP = new URL('../index.html', import.meta.url).pathname;
 const src = fs.readFileSync(APP, 'utf8');
@@ -40,6 +41,10 @@ const cut = (from, to, what) => {
 // but `startRapidJob` and the expander are the app's own.
 const FIXTURE = `
 let rapidJobs = [];
+let vettingList=[];const _rapidJustAdded=new Set();let _rapidAddedCount=0;
+const SAVED=[];
+async function saveVettingDoc(q){SAVED.push(q);}
+function _rapidCloudEnabled(){return false;}
 let _rapidSeq = 0;
 const PDF_PAGE_MAX_SIDE = 2000;
 const LOG = { toasts: [], status: [], read: [] };
@@ -84,7 +89,7 @@ async function processRapidJob(jobId, file, batchLevel, opts) {
     return { blank: true };
   }
   removeRapidJob(jobId);
-  return { added: answer };
+  return { added: answer, questions: Array.from({length:answer},(_,i)=>({id:'q'+p+'_'+i,blocks:[{type:'text',content:'Question'}],sourcePages:[],sourceQuestionNumber:String(p*10+i)})) };
 }
 // pdf.js, faked. NUMPAGES is what the "document" claims; RENDERED records the
 // order pages were rasterised in.
@@ -109,7 +114,7 @@ function pdfFile(name, bytes) {
 }
 function imgFile(name) { return new File([new Uint8Array(4)], name, { type: 'image/png' }); }
 function reset() {
-  rapidJobs = []; _rapidSeq = 0; LOG.toasts = []; LOG.status = []; LOG.read = [];
+  vettingList=[];SAVED.length=0;rapidJobs = []; _rapidSeq = 0; LOG.toasts = []; LOG.status = []; LOG.read = [];
   PAGES = {}; NUMPAGES = 3; RENDERED.length = 0; DESTROYED = 0; LEVEL = ''; RELEASE = ''; LIVE = 0; PEAK = 0;
   _rapidPdfQueue = []; _rapidPdfBusy = false;
 }
@@ -120,11 +125,11 @@ const section = [
   FIXTURE
 ].join('\n');
 
-const M = new Function(section + `
+const M = new Function('assembleMathPdfPage',section + `
 return {
   rapidAddFiles, startRapidJob, _rapidExpandPdf, _rapidPageFile,
   RAPID_PDF_MAX_PAGES, RAPID_PDF_PAR,
-  LOG, RENDERED, reset, failRapidJob,
+  LOG, RENDERED, SAVED, reset, failRapidJob,
   setLevel: v => { LEVEL = v; },
   setRelease: v => { RELEASE = v; },
   setPages: v => { PAGES = v; },
@@ -135,7 +140,7 @@ return {
   peak: () => PEAK,
   pdfFile, imgFile,
   idle: () => new Promise(r => setTimeout(r, 0))
-};`)();
+};`)(assemblePage);
 
 const cases = [];
 const test = (name, fn) => cases.push({ name, fn });
@@ -179,7 +184,7 @@ test('a blank page is an outcome, not a failure', () => {
   const body = cut('async function processRapidJob(jobId, file, batchLevel, opts)', '\n// Turn one AI reading into a question object', 'processRapidJob');
   ok(/o\.blankOk/.test(body), 'processRapidJob does not honour blankOk — every cover page becomes a red card');
   ok(/blank: true/.test(body), 'processRapidJob does not report a blank page back to the PDF feeder');
-  ok(/return \{ added: added\.length \}/.test(body), 'processRapidJob does not report how many questions it added');
+  ok(/return \{ added: added\.length, questions: added \}/.test(body), 'processRapidJob does not report how many questions it added');
   ok(/rapidPayloads\(/.test(body), 'processRapidJob reads one question out of a whole page again');
   // Every question on a multi-question page must end up with SOMETHING in its
   // picture slot. An empty one reaches Vetting wearing "Diagram missing", and
@@ -293,8 +298,8 @@ test('the page cap holds, and the author is told', async () => {
   M.setNumPages(M.RAPID_PDF_MAX_PAGES + 25);
   await M._rapidExpandPdf(M.pdfFile('book.pdf'), '');
   await settle();
-  eq(M.LOG.read.length, M.RAPID_PDF_MAX_PAGES, 'the page cap did not hold');
-  ok(M.LOG.toasts.some(t => /pages/.test(t.m) && /first/.test(t.m)), 'the pages that were skipped were never mentioned');
+  eq(M.LOG.read.length, 0, 'oversized paper partially imported');
+  ok(M.jobs().some(j=>/Split it/.test(j.error)), 'missing explicit split instruction');
 });
 
 test('no more than RAPID_PDF_PAR pages are ever in flight', async () => {
@@ -310,17 +315,12 @@ test('no more than RAPID_PDF_PAR pages are ever in flight', async () => {
   ok(M.RAPID_PDF_PAR >= 1 && M.RAPID_PDF_PAR <= 4, 'RAPID_PDF_PAR is outside anything a school connection would survive');
 });
 
-test('a blank page, a failed page and a good page are told apart', async () => {
-  M.reset();
-  M.setNumPages(4);
-  M.setPages({ 1: 0, 2: 3, 3: 'throw', 4: 1 });     // cover, 3 questions, unreadable, 1 question
-  await M._rapidExpandPdf(M.pdfFile('paper.pdf'), '');
-  await settle();
-  const summary = M.LOG.status[M.LOG.status.length - 1] || '';
-  ok(/4 questions/.test(summary), 'the question count is wrong: ' + summary);
-  ok(/1 page had no questions/.test(summary), 'the blank page was not reported: ' + summary);
-  ok(/1 page could not be read/.test(summary), 'the failed page was not reported: ' + summary);
-  eq(M.jobs().filter(j => j.status === 'error').length, 1, 'a blank page left a red card behind');
+test('a failed page stops the paper without publishing its incomplete tail', async () => {
+  M.reset();M.setNumPages(4);M.setPages({1:0,2:3,3:'throw',4:1});
+  await M._rapidExpandPdf(M.pdfFile('paper.pdf'),'');
+  eq(M.LOG.read.map(r=>r.page),[1,2,3],'read past a broken boundary');
+  eq(M.SAVED.length,2,'incomplete final question on page 2 was published');
+  ok(M.jobs().some(j=>/Stopped at page 3/.test(j.error)), 'missing actionable failure');
 });
 
 test('the PDF job card is taken down when the paper is done', async () => {

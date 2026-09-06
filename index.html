@@ -4516,6 +4516,21 @@ body.lore-reading { overflow: hidden; }
 .akc-spin { display: inline-block; width: 13px; height: 13px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: akcspin 0.8s linear infinite; vertical-align: -2px; }
 @keyframes akcspin { to { transform: rotate(360deg); } }
 
+/* Vetting's eye uses an A4 iframe scaled as a whole, keeping export geometry. */
+.vet-print-eye { flex-shrink:0; }
+.vet-print-eye:focus-visible { outline:2px solid var(--primary); outline-offset:2px; }
+.vet-print-peek { position:fixed; z-index:4100; width:min(680px, calc(100vw - 24px)); max-height:calc(100vh - 24px); display:flex; flex-direction:column; overflow:hidden; background:var(--surface,#fff); color:var(--text); border:1px solid var(--border); border-radius:12px; box-shadow:0 16px 48px rgba(0,0,0,.24); }
+.vet-print-peek-head { display:flex; align-items:center; gap:12px; padding:12px 14px; border-bottom:1px solid var(--border); }
+.vet-print-peek-head strong { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:0.9rem; }
+.vet-print-peek-status { padding:8px 14px; font-size:0.85rem; color:var(--text-muted); }
+.vet-print-peek-stage { position:relative; height:min(65vh, 700px); min-height:120px; flex-shrink:1; overflow:hidden; background:#525659; }
+.vet-print-peek-stage iframe { display:block; border:0; transform-origin:top left; background:#525659; }
+.vet-print-peek-foot { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; padding:10px 14px; border-top:1px solid var(--border); }
+.vet-print-peek-foot span { margin-right:auto; color:var(--text-muted); font-size:0.8rem; }
+.vet-print-peek-foot .btn { padding:7px 12px; font-size:0.85rem; }
+
+
+.vet-print-eye svg {width:18px;height:18px;}
 </style>
 </head>
 <body>
@@ -5032,13 +5047,19 @@ body.lore-reading { overflow: hidden; }
         <!-- The phone route, which is how these photographs are actually taken.
              Hidden on a mouse (`.rapid-touch`), and both buttons hand their
              files to the same door a paste does. -->
-        <div class="rapid-touch rapid-upload-row">
+        <div class="rapid-upload-row">
           <button class="btn btn-primary" id="aksCamBtn">📷 Take photo</button>
           <button class="btn btn-ghost" id="aksPickBtn">🖼️ Choose photos</button>
         </div>
         <input type="file" accept="image/*" capture="environment" id="aksCam" class="hidden">
         <input type="file" accept="image/*" multiple id="aksFile" class="hidden">
-        <div class="rapid-counts">
+        <div class="rapid-cloud" style="margin:16px 0;padding:16px;border:1px solid var(--border);border-radius:12px;">
+        <label for="rapidCloudMode"><input type="checkbox" id="rapidCloudMode" disabled> Process PDFs online after upload</label>
+        <p id="rapidCloudNote" role="status" style="margin:10px 0;line-height:1.6;">Checking online processing availability…</p>
+        <label><input type="checkbox" id="rapidOnlineCheck" checked> Check answers for online PDF imports</label>
+        <details style="margin-top:12px;"><summary>Online PDF jobs</summary><div id="rapidCloudJobs" style="max-height:240px;overflow:auto;" aria-live="polite"></div></details>
+      </div>
+      <div class="rapid-counts">
           <div class="rapid-count"><b id="aksBusyCount">0</b><span>Reading now</span></div>
           <div class="rapid-count"><b id="aksWaitCount">0</b><span>Waiting for you</span></div>
           <div class="rapid-count"><b id="aksDoneCount">0</b><span>Filed</span></div>
@@ -5515,8 +5536,8 @@ body.lore-reading { overflow: hidden; }
         <div class="rapid-pad-icon rapid-touch">📷</div>
         <div class="rapid-pad-title rapid-desk">Paste a screenshot or a PDF (Ctrl/⌘+V)</div>
         <div class="rapid-pad-title rapid-touch">Tap here to add photos or PDFs</div>
-        <div class="rapid-pad-sub rapid-desk">…or drop images and PDFs here. A PDF is read page by page. Keep going — everything queues its own job, and you can close this window while they finish.</div>
-        <div class="rapid-pad-sub rapid-touch">…or use the buttons below. A PDF is read page by page. Keep going — everything queues its own job, and you can close this window while they finish.</div>
+        <div class="rapid-pad-sub rapid-desk">…or drop several PDFs and images here. Keep this browser tab open until every PDF says “Stored online”.</div>
+        <div class="rapid-pad-sub rapid-touch">…or choose several files below. Keep this browser tab open until every PDF says “Stored online”.</div>
       </div>
       <!-- The phone route. A touch screen has no Ctrl/⌘+V and nothing on its
            clipboard to paste, so the camera and the gallery are the way in —
@@ -5524,8 +5545,8 @@ body.lore-reading { overflow: hidden; }
            hidden on a mouse (`.rapid-touch` in the CSS), so the desktop pad is
            exactly the box it always was. -->
       <div class="rapid-touch rapid-upload-row">
-        <button class="btn btn-primary" id="rapidCamBtn">📷 Take photo</button>
-        <button class="btn btn-ghost" id="rapidPickBtn">🖼️ Choose photos / PDFs</button>
+        <button class="btn btn-primary rapid-touch" id="rapidCamBtn">📷 Take photo</button>
+        <button class="btn btn-ghost" id="rapidPickBtn">📄 Choose PDFs / photos</button>
       </div>
       <input type="file" accept="image/*" capture="environment" id="rapidCam" class="hidden">
       <input type="file" accept="image/*,application/pdf" multiple id="rapidFile" class="hidden">
@@ -6027,12 +6048,14 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/fireba
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
   updateProfile, GoogleAuthProvider, signInWithPopup, signOut, signInAnonymously, browserPopupRedirectResolver }
   from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, collection, getDocs, deleteDoc, deleteField, addDoc, increment, query, where, orderBy, limit }
+import { getFirestore, doc, getDoc, setDoc, collection, getDocs, deleteDoc, deleteField, addDoc, increment, query, where, orderBy, limit, onSnapshot }
   from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app-check.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-functions.js";
 import { getAI, getGenerativeModel, GoogleAIBackend, ResponseModality } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-ai.js";
 import { getStorage, ref as storageRef, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-storage.js";
+
+import { assemblePage as assembleMathPdfPage, signature as mathImportSignature } from "./rapid-import/functions/core.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAUSI3Uh28IeqASEp0JhH4QPaVt-O3meBo",
@@ -8456,6 +8479,8 @@ onAuthStateChanged(auth, async (user) => {
   if (user) { await enterApp(user); }
   else {
     currentUser = null;
+    rapidCloudReset();
+    vetPrintPeekHide();
     adminUid = null;
     studentLevel = '';
     flagNotifications = [];
@@ -8745,6 +8770,7 @@ async function notifyQuestionSubscribers(q) {
 // NAVIGATION
 // =====================================================================
 function navigateTo(page) {
+  vetPrintPeekHide();
   // My Worksheets is deliberately NOT on this list: a student's own saved
   // worksheets are their own documents, and reprinting one is the whole point.
   if (["create", "bank", "bin", "worksheet", "vetting", "students", "graph", "diagnostic", "answerkeys"].includes(page) && !canManageQuestions()) {
@@ -13577,6 +13603,150 @@ function dupWatchBind() {
 const SCANNED_SOURCE = "scan";
 function vetIsScanned(q) { return !!q && q.source === SCANNED_SOURCE; }
 
+// 👁 VETTING EXPORTED HOVER — one lazy iframe, using the PDF's own renderer.
+// Resolve against Vetting each time: these questions are not in the bank, and
+// holding an old object would show yesterday's version after an edit.
+var _vetPrintPeek = null;
+var _vetPrintPeekOpenTimer = null;
+var _vetPrintPeekCloseTimer = null;
+var _vetPrintPeekSerial = 0;
+var _vetPrintPeekBound = false;
+
+function vetPrintPeekButton(q) {
+  return `<button type="button" class="btn btn-ghost btn-sm vet-print-eye" data-qid="${escapeHtml(String(q.id))}"
+    aria-label="Preview exported question: ${escapeHtml(q.title || 'Untitled')}" aria-haspopup="dialog" aria-expanded="false"
+    onpointerenter="vetPrintPeekShow(this,event)" onpointerleave="vetPrintPeekLeave()"
+    onfocus="vetPrintPeekShow(this)" onblur="vetPrintPeekLeave()"
+    onclick="event.stopPropagation();vetPrintPeekFull(this.dataset.qid)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+  </button>`;
+}
+
+function vetPrintPeekKeep() { clearTimeout(_vetPrintPeekCloseTimer); }
+
+function vetPrintPeekLeave() {
+  clearTimeout(_vetPrintPeekOpenTimer);
+  vetPrintPeekKeep();
+  _vetPrintPeekCloseTimer = setTimeout(() => {
+    if (_vetPrintPeek && (_vetPrintPeek.host.contains(document.activeElement) || document.activeElement === _vetPrintPeek.anchor)) return;
+    vetPrintPeekHide();
+  }, 240); // time to move from the eye into the scrollable preview
+}
+
+function vetPrintPeekHide() {
+  clearTimeout(_vetPrintPeekOpenTimer);
+  clearTimeout(_vetPrintPeekCloseTimer);
+  _vetPrintPeekSerial++;
+  if (!_vetPrintPeek) return;
+  _vetPrintPeek.anchor.setAttribute('aria-expanded', 'false');
+  _vetPrintPeek.host.remove(); // discard old document and image loads
+  _vetPrintPeek = null;
+}
+
+function vetPrintPeekFull(id) {
+  if (!canManageQuestions()) return;
+  vetPrintPeekHide();
+  const q=vettingList.find(q=>String(q.id)===String(id));
+  if(q) wsOpenDocument([structuredClone(q)],q.title||'Question',{...vetPrintOptions(),readOnly:false});
+}
+
+function vetPrintPeekDismiss() {
+  const anchor = _vetPrintPeek && _vetPrintPeek.anchor;
+  vetPrintPeekHide();
+  if (anchor && anchor.isConnected) anchor.focus();
+  clearTimeout(_vetPrintPeekOpenTimer); // focus must not reopen a dismissed peek
+}
+
+function vetPrintPeekEdit(id) {
+  if (!canManageQuestions()) return;
+  vetPrintPeekHide();
+  vetEdit(id);
+}
+
+function vetPrintPeekShow(anchor, event) {
+  if (!canManageQuestions() || (event && event.pointerType === 'touch')) return;
+  vetPrintPeekBind();
+  vetPrintPeekKeep();
+  if (_vetPrintPeek && _vetPrintPeek.anchor === anchor) return;
+  vetPrintPeekHide();
+  const serial = _vetPrintPeekSerial;
+  _vetPrintPeekOpenTimer = setTimeout(async () => {
+    if (serial !== _vetPrintPeekSerial || !anchor.isConnected || !canManageQuestions()) return;
+    const q = vettingList.find(item => String(item.id) === anchor.dataset.qid);
+    if (!q) return;
+    const host = document.createElement('section');
+    host.className = 'vet-print-peek';
+    host.setAttribute('role', 'dialog');
+    host.setAttribute('aria-label', 'Exported preview: ' + (q.title || 'Untitled'));
+    host.innerHTML = `<div class="vet-print-peek-head"><strong></strong><button type="button" class="btn btn-ghost btn-sm" aria-label="Close exported preview">×</button></div>
+      <div class="vet-print-peek-status" role="status">Preparing exported preview…</div>
+      <div class="vet-print-peek-stage"><iframe title="Exported question and answer pages"></iframe></div>
+      <div class="vet-print-peek-foot"><span>Scroll to see all pages</span><button type="button" class="btn btn-outline">Open full preview</button><button type="button" class="btn btn-primary">Edit question</button></div>`;
+    host.querySelector('strong').textContent = q.title || 'Untitled question';
+    const buttons = host.querySelectorAll('button');
+    buttons[0].onclick = vetPrintPeekDismiss;
+    buttons[1].onclick = () => vetPrintPeekFull(q.id);
+    buttons[2].onclick = () => vetPrintPeekEdit(q.id);
+    host.addEventListener('pointerenter', vetPrintPeekKeep);
+    host.addEventListener('pointerleave', vetPrintPeekLeave);
+    host.addEventListener('focusin', vetPrintPeekKeep);
+    host.addEventListener('focusout', vetPrintPeekLeave);
+    document.body.appendChild(host);
+    anchor.setAttribute('aria-expanded', 'true');
+    _vetPrintPeek = { host, anchor };
+    const rect = anchor.getBoundingClientRect();
+    const width = host.offsetWidth, height = host.offsetHeight;
+    const left = rect.left >= width + 20 ? rect.left - width - 10 : Math.max(12, Math.min(rect.right - width, window.innerWidth - width - 12));
+    const top = Math.max(12, Math.min(rect.top, window.innerHeight - height - 12));
+    host.style.left = left + 'px'; host.style.top = top + 'px';
+    const stage = host.querySelector('.vet-print-peek-stage');
+    const frame = host.querySelector('iframe');
+    // Scale the FRAME, not the measured document: A4 geometry and pagination
+    // stay identical to the full export, including on a narrow viewport.
+    const scale = Math.min(1, stage.clientWidth / 850);
+    frame.style.width = '850px';
+    frame.style.height = Math.ceil(stage.clientHeight / scale) + 'px';
+    frame.style.transform = 'scale(' + scale + ')';
+    try {
+      const copy = JSON.parse(JSON.stringify(q));
+      const html = await wsBuildDocumentHtml([copy], q.title || 'Question', vetPrintOptions());
+      if(serial !== _vetPrintPeekSerial || !host.isConnected) return;
+      frame.setAttribute('sandbox','allow-same-origin');
+      frame.onload = () => {
+        if(serial !== _vetPrintPeekSerial || !host.isConnected) return;
+        host.querySelector('.vet-print-peek-status').hidden=true;
+        frame.contentDocument?.addEventListener('keydown',vetPrintPeekKeydown);
+      };
+      frame.srcdoc=html;
+    } catch (e) {
+      console.warn('exported hover preview:', e);
+      host.querySelector('.vet-print-peek-status').textContent = 'Preview could not load. Try Open full preview.';
+    }
+  }, event ? 180 : 0);
+}
+
+function vetPrintPeekKeydown(event) {
+  if (event.key !== 'Escape' || !_vetPrintPeek) return;
+  event.preventDefault(); event.stopPropagation();
+  vetPrintPeekDismiss();
+}
+
+function vetPrintPeekBind() {
+  if (_vetPrintPeekBound) return;
+  _vetPrintPeekBound = true;
+  document.addEventListener('keydown', vetPrintPeekKeydown);
+  document.addEventListener('pointerdown', event => {
+    if (_vetPrintPeek && !_vetPrintPeek.host.contains(event.target) && !_vetPrintPeek.anchor.contains(event.target)) vetPrintPeekHide();
+  }, true);
+  window.addEventListener('resize', vetPrintPeekHide);
+  window.addEventListener('scroll', event => {
+    if (_vetPrintPeek && !_vetPrintPeek.host.contains(event.target)) vetPrintPeekHide();
+  }, true);
+}
+
+function vetPrintOptions() { return {cover:false,fields:false,withAnswers:true,withQr:false,autoPrint:false,readOnly:true}; }
+Object.assign(window,{vetPrintPeekShow,vetPrintPeekLeave,vetPrintPeekFull});
+
 function vetPreviewHtml(q) {
   const blocks = (q.blocks || []).map(b => b.type === "image"
     ? (b.url ? `<img src="${escapeHtml(b.url)}" alt="Question diagram">` : `<div style="color:var(--accent-orange);">🖼 Diagram slot — nothing attached yet</div>`)
@@ -13589,6 +13759,7 @@ function vetPreviewHtml(q) {
 function renderVettingList() {
   const list = $("vettingList");
   if (!list) return;
+  vetPrintPeekHide();
   updateVettingBadge();
   vetPruneSelection();
   const jobs = rapidJobs.map(rapidJobCardHtml).join("");
@@ -13627,12 +13798,13 @@ function renderVettingList() {
       ? `<span class="vet-badge scan" title="Read off a photograph in the Scan &amp; Answer app and sent here for vetting. Check the wording, attach the diagram and set the topic before you approve it.">📷 From the Scan app</span>` : "";
     const picked = _vetSelected.has(q.id);
     return `<div class="vet-card${_rapidJustAdded.has(q.id) ? " is-new" : ""}${scanned ? " is-scan" : ""}${picked ? " is-picked" : ""}">
-      <div class="vet-card-head"><h4>${escapeHtml(q.title || "Untitled question")}</h4></div>
+      <div class="vet-card-head"><h4>${escapeHtml(q.title || "Untitled question")}</h4><div style="display:flex;gap:8px;align-items:center;">${vetPrintPeekButton(q)}${mathImportCheckBadge(q)}</div></div>
       <div class="vet-meta">
         <span class="vet-badge">${escapeHtml(q.level || "no level")}</span>
         <span class="vet-badge">${escapeHtml(adminTopicsLabel(q))}</span>
         ${scanBadge}${qReleaseChipHtml(q, "vet-badge")}${los}${loGap}${noAns}${gap}${wholePic}${dup}
       </div>
+      ${mathImportSources(q)}
       <div class="vet-preview">${vetPreviewHtml(q)}</div>
       <div class="vet-actions">
         <label class="vet-pick-wrap" title="Tick this question, then use 🗑 Delete selected">
@@ -14098,7 +14270,6 @@ async function _pdfRenderPage(page, maxSide) {
 // =====================================================================
 function openRapidAdd() {
   if (!canManageQuestions()) { toast("Only admin accounts can add questions", "error"); return; }
-  if (!aiReady()) { toast("AI isn't ready yet — please wait a moment", "error"); return; }
   closeOverlay("aiBuildOverlay");
   // Read here rather than at load: the preference helpers live in the syllabus
   // block at the END of the module, so touching them during module evaluation
@@ -14114,6 +14285,7 @@ function openRapidAdd() {
   rapidReleaseSetup();
   rapidReleasePaint();
   $("rapidAddOverlay").classList.add("show");
+  _rapidCloudRefresh();
   updateRapidCounts();
   // On a phone, focusing the pad pops the on-screen keyboard over the very
   // buttons the author needs — and there is nothing to paste anyway.
@@ -14479,6 +14651,154 @@ function rapidApplyLevel(q, level) {
 //    pages and blank backs are most of what the front of a paper holds, and a
 //    red card for each of them is a wall of red that makes the one real red
 //    card get clicked past (`blankOk`).
+// Durable PDF imports. Uploads need this tab; acknowledged jobs do not.
+let _rapidCloudReady = false;
+let _rapidCloudOwner = null;
+let _rapidCloudTimer = null;
+let _rapidCloudUploading = 0;
+let _rapidCloudJobs = [];
+let _rapidCloudUnsub = null;
+let _rapidCloudWatchUid = null;
+let _rapidCloudUploadTail = Promise.resolve();
+function _rapidCloudEnabled() {
+  return _rapidCloudReady && _rapidCloudOwner === currentUser?.uid && !!document.getElementById('rapidCloudMode')?.checked;
+}
+async function _rapidCloudCall(name, data = {}) {
+  const result = await httpsCallable(getFunctions(app), name, {timeout:120000})(data);
+  return result.data;
+}
+function _rapidCloudPaint() {
+  const el = document.getElementById('rapidCloudJobs');
+  if (!el) return;
+  el.innerHTML = _rapidCloudJobs.map(j => '<div style="padding:10px 0;border-top:1px solid var(--border);line-height:1.6;">'
+    + '<b>' + escapeHtml(j.name) + '</b><br>'
+    + escapeHtml(j.status === 'completed' ? 'Complete · ' + j.added + ' questions added to vetting'
+      : j.status === 'uploading' ? 'Upload incomplete — select this PDF again; keep the tab open until upload finishes.'
+      : j.status === 'failed' ? 'Stopped on page ' + (j.page + 1)
+      : 'Stored online · processed ' + j.page + (j.total ? ' / ' + j.total : '') + ' pages · ' + j.added + ' questions saved')
+    + (j.error ? '<br><span style="color:var(--accent-orange);">' + escapeHtml(j.error) + '</span>' : '')
+    + (j.status === 'failed' ? '<br><button type="button" class="btn btn-outline" data-rapid-retry="' + escapeHtml(j.id) + '">Retry remaining pages</button>' : '')
+    + '</div>').join('');
+  el.querySelectorAll('[data-rapid-retry]').forEach(button => button.addEventListener('click', async () => {
+    button.disabled = true;
+    try { await _rapidCloudCall('mathRapidImportRetry', {id:button.dataset.rapidRetry}); await _rapidCloudRefresh(); }
+    catch(e) { toast('Could not retry: ' + e.message, 'error'); button.disabled = false; }
+  }));
+}
+async function _rapidCloudRefresh() {
+  clearTimeout(_rapidCloudTimer);
+  const uid = currentUser?.uid;
+  const note = document.getElementById('rapidCloudNote'), box = document.getElementById('rapidCloudMode');
+  if (!uid || !canManageQuestions()) {
+    _rapidCloudReady=false;
+    if(box){box.checked=false;box.disabled=true;}
+    if(note) note.textContent='Online PDF processing requires an administrator account. Browser mode needs this tab to stay open.';
+    return;
+  }
+  try {
+    const r = await _rapidCloudCall('mathRapidImportStatus');
+    if(currentUser?.uid!==uid) return;
+    const first=!_rapidCloudReady || _rapidCloudOwner!==uid;
+    _rapidCloudReady=r.available===true; _rapidCloudOwner=uid; _rapidCloudJobs=r.jobs||[];
+    if(box){box.disabled=!_rapidCloudReady;if(first) box.checked=_rapidCloudReady;}
+    if(note) note.textContent='PDFs: keep the tab open during upload. After “Stored online — safe to close”, processing continues even with your browser closed. Screenshots still need an open tab.';
+    _rapidCloudPaint();
+    if (_rapidCloudWatchUid !== uid) {
+      if (_rapidCloudUnsub) _rapidCloudUnsub();
+      _rapidCloudWatchUid=uid;
+      _rapidCloudUnsub=onSnapshot(_vetCol(uid), snapshot => {
+        if(currentUser?.uid!==uid) return;
+        let changed=false;
+        snapshot.docChanges().forEach(change=>{
+          const q=change.doc.data();
+          if(!q.rapidImportId) return;
+          const i=vettingList.findIndex(x=>x.id===q.id);
+          if(change.type==='removed'||q.binned){if(i>=0){vettingList.splice(i,1);changed=true;}}
+          else if(i<0){vettingList.unshift(q);_rapidJustAdded.add(q.id);changed=true;}
+          else if(change.type==='modified'){vettingList[i]=q;changed=true;}
+        });
+        if(changed){updateVettingBadge();renderVettingList();}
+      },()=>{_rapidCloudWatchUid=null;});
+    }
+  } catch(e) {
+    _rapidCloudReady=false;
+    if(box){box.disabled=true;box.checked=false;}
+    if(note) note.textContent='Online PDF worker unavailable. Browser mode still works, but you must keep this tab open. Server deployment or connection needs attention.';
+  }
+  if(document.getElementById('rapidAddOverlay')?.classList.contains('show')) _rapidCloudTimer=setTimeout(_rapidCloudRefresh,10000);
+}
+function _rapidUploadPdf(file, level, release) {
+  // Capture all authoring settings before waiting behind another upload.
+  const uid=currentUser?.uid;
+  const resumeKey='math_rapid_upload_'+uid+'_'+file.name+'_'+file.size+'_'+file.lastModified;
+  let id=crypto.randomUUID();
+  try {id=localStorage.getItem(resumeKey)||id;localStorage.setItem(resumeKey,id);} catch(e) {}
+  const syllabus = sylAutoFileOn() ? SYL_LOS.filter(lo=>!level || lo.level===level).map(lo=>({id:lo.id,level:lo.level,text:lo.text})) : [];
+  const settings={id,name:file.name||'PDF',size:file.size,level,release,syllabus,
+    engineOrder:getAiEngine()==='gemini'?['gemini','openai']:['openai','gemini'],
+    prompt:aiQuestionReadPrompt(false,true,true),grounding:genPreamble(),
+    autoFile:sylAutoFileOn(),autoCheck:!!document.getElementById('rapidOnlineCheck')?.checked};
+  const jobId='rapid_upload_'+id;
+  const previous=rapidJobs.find(j=>j.id===jobId);
+  if(previous?.status==='processing') return _rapidCloudUploadTail;
+  if(previous) removeRapidJob(jobId);
+  rapidJobs.unshift({id:jobId,status:'processing',title:'📤 '+settings.name,sub:'Waiting to upload — keep this tab open.'});
+  _rapidCloudUploading++;
+  updateRapidCounts();renderVettingList();
+  const upload = async () => {
+    try {
+      if(currentUser?.uid!==uid) throw new Error('Account changed before upload. Select the PDF again after signing in.');
+      if(file.size>40*1024*1024) throw new Error('PDF limit: 40 MB per file.');
+      await _rapidCloudCall('mathRapidImportBegin',settings);
+      const chunkSize=3*1024*1024;
+      for(let offset=0,index=0;offset<file.size;offset+=chunkSize,index++) {
+        if(currentUser?.uid!==uid) throw new Error('Account changed during upload.');
+        const data=await _fileToBase64(file.slice(offset,offset+chunkSize));
+        let error;
+        for(let attempt=0;attempt<3;attempt++) {
+          try {await _rapidCloudCall('mathRapidImportChunk',{id,index,data});error=null;break;}
+          catch(e){error=e;if(attempt<2) await new Promise(r=>setTimeout(r,1000*(attempt+1)));}
+        }
+        if(error) throw error;
+        const percent=Math.round(Math.min(offset+chunkSize,file.size)/file.size*100);
+        setRapidJobState(jobId,{sub:'Uploading '+percent+'% — keep this tab open.'});
+        setRapidStatus('Uploading “'+settings.name+'” — '+percent+'%. Keep this tab open.');
+        renderVettingList();
+      }
+      setRapidJobState(jobId,{sub:'Confirming online storage — keep this tab open.'});
+      if(currentUser?.uid!==uid) throw new Error('Account changed before upload confirmation.');
+      await _rapidCloudCall('mathRapidImportFinish',{id});
+      try {localStorage.removeItem(resumeKey);} catch(e) {}
+      removeRapidJob(jobId);
+      setRapidStatus('✓ “'+settings.name+'” stored online.' + (_rapidCloudUploading>1?' Other PDFs are still uploading — keep this tab open.':' Safe to close the tab for this PDF; questions will continue arriving in vetting.'));
+      await _rapidCloudRefresh();
+    } catch(e) { failRapidJob(jobId,e); }
+    finally {_rapidCloudUploading--;updateRapidCounts();renderVettingList();}
+  };
+  _rapidCloudUploadTail=_rapidCloudUploadTail.then(upload,upload);
+  return _rapidCloudUploadTail;
+}
+
+function rapidCloudReset() {
+  clearTimeout(_rapidCloudTimer);
+  if(_rapidCloudUnsub) _rapidCloudUnsub();
+  _rapidCloudUnsub=null;_rapidCloudWatchUid=null;_rapidCloudReady=false;_rapidCloudOwner=null;_rapidCloudJobs=[];
+  _rapidCloudPaint();
+}
+function mathImportCheckBadge(q) {
+  if(!q.autoCheck) return '';
+  const state=q.autoCheck.sig===mathImportSignature(q)?q.autoCheck.state:'stale';
+  const colour={green:'🟢',amber:'🟠',red:'🔴',error:'⚪',stale:'⚪'}[state]||'⚪';
+  const label={green:'AI check: no issues found',amber:'AI check: review suggested',red:'AI check: issues found',error:'AI check could not finish',stale:'Question changed since AI check'}[state]||'Not checked';
+  const detail=(q.autoCheck.findings||[]).map(f=>f.title+': '+f.detail).join('\n');
+  return '<span class="vet-badge" title="'+escapeHtml(label+(q.autoCheck.error?' — '+q.autoCheck.error:'')+(detail?'\n'+detail:''))+'" aria-label="'+escapeHtml(label)+'">'+colour+' AI</span>';
+}
+function mathImportSources(q) {
+  if(!q.sourcePages?.length) return '';
+  return '<div class="vet-meta">Source: '+q.sourcePages.filter(p=>/^https:\/\//.test(p.url)).map(p=>'<a target="_blank" rel="noopener" href="'+escapeHtml(p.url)+'">Page '+escapeHtml(String(p.page))+'</a>').join(' · ')
+    +(q.importWarning?'<span class="vet-badge warn">'+escapeHtml(q.importWarning)+'</span>':'')+'</div>';
+}
+
 const RAPID_PDF_MAX_PAGES = 60;   // a whole exam paper, and a guard against a 400-page book
 const RAPID_PDF_PAR = 2;          // page reads in flight at once
 let _rapidPdfQueue = [];
@@ -14499,7 +14819,7 @@ function rapidAddFiles(files, how) {
   let imgs = 0, pdfs = 0, other = 0;
   for (const file of list) {
     const type = (file && file.type) || "";
-    if (type === "application/pdf") { startRapidJob(file, level, { release }); pdfs++; }
+    if (type === "application/pdf" || /\.pdf$/i.test(file.name || "")) { startRapidJob(file, level, { release }); pdfs++; }
     else if (type.startsWith("image/")) { startRapidJob(file, level, { release }); imgs++; }
     else other++;
   }
@@ -14522,6 +14842,7 @@ function rapidAddFiles(files, how) {
 }
 
 function _rapidQueuePdf(file, level, release) {
+  if (_rapidCloudEnabled()) return _rapidUploadPdf(file, level, release);
   _rapidPdfQueue.push({ file, level, release });
   _rapidPdfPump();
 }
@@ -14567,64 +14888,49 @@ function failRapidJob(jobId, err) {
 }
 
 // Render a PDF page by page and feed each page into the ordinary queue.
-async function _rapidExpandPdf(file, level, release) {
-  const name = file.name || "PDF";
-  const jobId = "rapid_" + (++_rapidSeq);
-  rapidJobs.unshift({ id: jobId, status: "processing", title: "📄 " + name, sub: "Opening the PDF…", level, release, source: name });
-  updateRapidCounts();
-  renderVettingList();
-  let added = 0, blank = 0, failed = 0, pages = 0;
-  try {
-    const pdfjs = await _loadPdfJs();
-    const doc = await pdfjs.getDocument({ data: await file.arrayBuffer(), isEvalSupported: false }).promise;
-    try {
-      const total = doc.numPages || 0;
-      if (!total) throw new Error("that PDF has no pages in it");
-      const take = Math.min(total, RAPID_PDF_MAX_PAGES);
-      const inflight = [];
-      // A page job never rejects — it files its own card — so an undefined
-      // result is the only thing a failed page looks like from out here.
-      const settle = async () => {
-        const r = await inflight.shift();
-        if (!r) failed++;
-        else if (r.blank) blank++;
-        else added += (r.added || 0);
-      };
-      for (let p = 1; p <= take; p++) {
-        setRapidJobState(jobId, { sub: "Rendering page " + p + " of " + take + "…" + (added ? " (" + added + " question" + (added === 1 ? "" : "s") + " so far)" : "") });
-        renderVettingList();
-        const page = await doc.getPage(p);
-        let img;
-        try { img = await _pdfRenderPage(page, PDF_PAGE_MAX_SIDE); }
-        finally { try { page.cleanup(); } catch (_) {} }
-        pages++;
-        inflight.push(startRapidJob(_rapidPageFile(img, name, p), level, {
-          // Carried from the moment the PDF was DROPPED, never re-read: a
-          // forty-page paper takes minutes to render and the picker is live
-          // the whole time.
-          release,
-          source: name + " — page " + p + " of " + take,
-          blankOk: true,
-        }));
-        if (inflight.length >= RAPID_PDF_PAR) await settle();
-      }
-      while (inflight.length) await settle();
-      if (total > take) {
-        toast("“" + name + "” has " + total + " pages — the first " + take + " were read. Split it and drop the rest.", "info");
-      }
-    } finally { try { doc.destroy(); } catch (_) {} }
-    removeRapidJob(jobId);
-    updateRapidCounts();
-    renderVettingList();
-    const at = (level ? " at " + level : "") + (release ? " · ⏳ released " + qReleaseLabel(release) : "");
-    const bits = [added + " question" + (added === 1 ? "" : "s") + at + " from " + pages + " page" + (pages === 1 ? "" : "s") + " of “" + name + "”"];
-    if (blank) bits.push(blank + " page" + (blank === 1 ? "" : "s") + " had no questions on " + (blank === 1 ? "it" : "them"));
-    if (failed) bits.push(failed + " page" + (failed === 1 ? "" : "s") + " could not be read — see the red card" + (failed === 1 ? "" : "s") + " in vetting");
-    setRapidStatus((added ? "✓ " : "⚠ ") + bits.join(" · ") + ".");
-    toast((added ? "Added " : "No questions found — ") + bits.join(" · "), added ? "success" : "error");
-  } catch (err) {
-    failRapidJob(jobId, err);
+async function _rapidPublishMathQuestions(questions) {
+  for(const q of questions) {
+    await saveVettingDoc(q);
+    const i=vettingList.findIndex(x=>x.id===q.id);
+    if(i<0){vettingList.unshift(q);_rapidJustAdded.add(q.id);_rapidAddedCount++;}
+    else vettingList[i]=q;
   }
+  updateRapidCounts();renderVettingList();
+}
+// Browser mode uses the same boundary assembler as the online worker. The
+// final question remains private until the following page resolves its end.
+async function _rapidExpandPdf(file, level, release) {
+  const name=file.name||'PDF',jobId='rapid_'+(++_rapidSeq);
+  rapidJobs.unshift({id:jobId,status:'processing',title:'📄 '+name,sub:'Opening the PDF…',level,release,source:name});
+  updateRapidCounts();renderVettingList();
+  let added=0,pending=null,previous=null,doc;
+  try {
+    if(file.size>40*1024*1024) throw new Error('PDF limit: 40 MB per file.');
+    const pdfjs=await _loadPdfJs();
+    doc=await pdfjs.getDocument({data:await file.arrayBuffer(),isEvalSupported:false}).promise;
+    const total=doc.numPages||0;
+    if(!total) throw new Error('That PDF has no pages.');
+    if(total>RAPID_PDF_MAX_PAGES) throw new Error('This PDF has '+total+' pages. Split it into files of at most '+RAPID_PDF_MAX_PAGES+' pages. No pages were skipped.');
+    for(let pageNo=1;pageNo<=total;pageNo++) {
+      setRapidJobState(jobId,{sub:'Reading page '+pageNo+' of '+total+' — keep this browser tab open.'});renderVettingList();
+      const page=await doc.getPage(pageNo);
+      let img;try{img=await _pdfRenderPage(page,PDF_PAGE_MAX_SIDE);}finally{page.cleanup();}
+      const result=await startRapidJob(_rapidPageFile(img,name,pageNo),level,{
+        release,
+        source:name+' — page '+pageNo+' of '+total,sourcePdf:name,pageNo,blankOk:true,deferSave:true,
+        previous,pending:pending?{number:pending.sourceQuestionNumber,blocks:pending.blocks}:null
+      });
+      if(!result) throw new Error('Stopped at page '+pageNo+'. The incomplete question has not been published. Earlier complete questions remain in vetting.');
+      const entries=(result.questions||[]).map(q=>({q,continuation:q._pdfContinuation===true}));
+      entries.forEach(({q})=>delete q._pdfContinuation);
+      const assembled=assembleMathPdfPage(pending,entries,pageNo===total);
+      await _rapidPublishMathQuestions(assembled.ready);
+      added+=assembled.ready.length;pending=assembled.pending;previous=img;
+    }
+    removeRapidJob(jobId);updateRapidCounts();renderVettingList();
+    setRapidStatus('✓ '+added+' complete questions from “'+name+'” added to vetting.');
+  } catch(err){failRapidJob(jobId,err);}
+  finally{if(doc) await doc.destroy();}
 }
 
 function startRapidJob(file, level, opts) {
@@ -14632,7 +14938,7 @@ function startRapidJob(file, level, opts) {
   // A PDF is never sent to the model whole. Turned away HERE rather than only
   // in the door above, so a caller added later cannot bring the whole-file read
   // back by accident — see the block above for why that read is not survivable.
-  if (file && file.type === "application/pdf") {
+  if (file && (file.type === "application/pdf" || /\.pdf$/i.test(file.name || ""))) {
     _rapidQueuePdf(file,
       (level === undefined || level === null) ? rapidLevel() : level,
       (o.release === undefined || o.release === null) ? rapidRelease() : o.release);
@@ -14679,8 +14985,13 @@ async function processRapidJob(jobId, file, batchLevel, opts) {
     // own. The budget scales with that: running out does not fail, it
     // TRUNCATES, and parseAIJson repairs it into a valid-looking reply with the
     // last questions simply not in it.
-    const parsed = parseAIJson(await askGeminiVision(
-      aiQuestionReadPrompt(false, true, true), [media], { maxOutputTokens: 8192, json: true }));
+    const boundary=o.deferSave ? `\nPDF BOUNDARY RULES: Image 1 is CURRENT page ${o.pageNo}. ${o.previous?'Image 2 is the previous page for context only; NEVER extract it again.':''} Extract ONLY wording on image 1. Set sourceQuestionNumber to the original main number (no part suffix). Set continuation:true on the first entry when it continues the last question: later lettered parts, a split stem, a repeated number marked continued, or a later diagram. A continuation-only page is not blank. Keep original part labels. All diagram rectangles refer to image 1. Last held question: ${JSON.stringify(o.pending)}. Do not invent a preceding question. All other entries have continuation:false.` : '';
+    const raw=await askGeminiVision(aiQuestionReadPrompt(false,true,true)+boundary,
+      o.previous?[media,o.previous]:[media],{maxOutputTokens:16000,json:true});
+    // Do not use JSON repair for PDF pages: truncated output must not discard
+    // the tail of a paper while looking like a successful read.
+    const parsed=o.deferSave?JSON.parse(String(raw).replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'')):parseAIJson(raw);
+    if(o.deferSave && (!Array.isArray(parsed.questions)||parsed.questions.some(q=>!q||!String(q.questionText||'').trim()))) throw new Error('Incomplete PDF reading. No partial page was saved.');
     const rows = rapidPayloads(parsed);
     if (!rows.length) {
       // A cover sheet, an instruction page or a blank back is a page with
@@ -14723,6 +15034,13 @@ async function processRapidJob(jobId, file, batchLevel, opts) {
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const q = questionFromAiData(row);
+      if(o.deferSave) {
+        q.sourceQuestionNumber=String(row.sourceQuestionNumber||row.number||'').replace(/^q\s*/i,'').replace(/\s*\([a-z]\).*$/i,'').trim();
+        q._pdfContinuation=row.continuation===true;
+        q.sourcePdf=o.sourcePdf;
+        const source=await sharePage();
+        q.sourcePages=source?[{page:o.pageNo,url:source.url}]:[];
+      }
       // The paper's own number is worth keeping as a title PREFIX — it is how
       // the teacher finds the question against the printed paper — but it is
       // never part of the question text a student reads. Same rule, same
@@ -14781,13 +15099,14 @@ async function processRapidJob(jobId, file, batchLevel, opts) {
       _vetTagDuplicate(q);
       // Promoted per question rather than in a batch at the end, so a failure
       // on question 4 cannot lose the three that already read perfectly.
-      vettingList.unshift(q);
-      _rapidJustAdded.add(q.id);
-      _rapidAddedCount++;
       added.push(q);
-      updateRapidCounts();
-      renderVettingList();
-      saveVettingDoc(q).catch(e => { console.warn("vetting save", e); toast("Read it, but couldn't save it to vetting: " + e.message, "error"); });
+      if(!o.deferSave) {
+        await saveVettingDoc(q);
+        vettingList.unshift(q);
+        _rapidJustAdded.add(q.id);
+        _rapidAddedCount++;
+        updateRapidCounts();renderVettingList();
+      }
     }
 
     removeRapidJob(jobId);
@@ -14803,7 +15122,7 @@ async function processRapidJob(jobId, file, batchLevel, opts) {
       // never confirming it is how a whole pile ends up at the wrong one.
       setRapidStatus(`✓ Added ${what}${batchLevel ? ` at ${batchLevel}` : ""} to vetting${filedTotal ? ` — filed under ${filedTotal} objective${filedTotal === 1 ? "" : "s"}` : ""}${uncropped || picNote}.`);
     }
-    return { added: added.length };
+    return { added: added.length, questions: added };
   } catch (err) {
     failRapidJob(jobId, err);
   }
@@ -15568,7 +15887,7 @@ document.addEventListener("keydown", e => {
 // The one way a pasted question really is lost is the tab closing while its
 // job is still in flight — the document never leaves the browser.
 window.addEventListener("beforeunload", e => {
-  if (!rapidJobs.some(j => j.status === "processing")) return;
+  if (!_rapidCloudUploading && !_rapidPdfBusy && !_rapidPdfQueue.length && !rapidJobs.some(j => j.status === "processing")) return;
   e.preventDefault();
   e.returnValue = "";
   return "";
@@ -19488,7 +19807,7 @@ async function wsBuildDocumentHtml(questions, title, opts) {
   const bar = `<div class="ws-printbar ws-noprint">${editId ? `<span class="ws-editnote" id="wsEditNote">${WS_EDIT_HINT}</span>` : ""}<button class="ghost" onclick="window.close()">Close</button><button onclick="window.print()">🖨️ Print / Save PDF</button></div>`;
   return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
     <style>${wsPrintCss()}</style></head>
-    <body>${bar}<div class="ws-sheet">${body}</div>${editId ? wsHeaderEditScript(editId) : ""}${opts.autoPrint ? `<script>window.addEventListener("load",()=>setTimeout(()=>{window.focus();window.print();},350));<\/script>` : ""}</body></html>`;
+    <body>${opts.readOnly ? "" : bar}<div class="ws-sheet">${body}</div>${editId ? wsHeaderEditScript(editId) : ""}${opts.autoPrint ? `<script>window.addEventListener("load",()=>setTimeout(()=>{window.focus();window.print();},350));<\/script>` : ""}</body></html>`;
 }
 // ---- Editing the header ON the preview -----------------------------------
 // The teacher is looking at the sheet exactly as it will print, which is where
@@ -26174,7 +26493,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.66.0 · 2026-09-06";
+const APP_VERSION = "v1.67.0 · 2026-09-06";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
