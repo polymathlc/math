@@ -310,7 +310,7 @@ ok("one option is not a multiple choice", api.cpbBookOf({ id: "q", options: ["on
  * ------------------------------------------------------------------ */
 const build = cut("async function wsBuildDocumentHtml(questions, title, opts) {",
                   "\n// ---- Editing the header ON the preview", "wsBuildDocumentHtml");
-const chunkFn = cut("function wsQuestionChunkHtml(q, n, qrSvg, reserveMm, noBracket) {",
+const chunkFn = cut("function wsQuestionChunkHtml(q, n, qrSvg, reserveMm, noBracket, objBoxAll) {",
                     "\nfunction wsAnswerKeyHtml(", "wsQuestionChunkHtml");
 const keyFn = cut("function wsAnswerKeyHtml(questions, numbers) {", "\nfunction wsPrintCss(", "wsAnswerKeyHtml");
 const doc = new Function(`
@@ -336,6 +336,9 @@ const doc = new Function(`
   const makeQrSvg = async () => '<qr>';
   const WS_EDIT_HINT = '';
   const WS_HEADER_ORG = 'Polymath Learning Centre';
+  // 🎯 The learning-objectives box. Off unless the print asked for it, which no
+  // Custom Paper print does — a mock exam paper is not where a pupil reflects.
+  const objBoxAutoHtml = (q, on) => on ? '<div class="obx-box"></div>' : '';
   ${chunkFn}
   ${keyFn}
   ${build}

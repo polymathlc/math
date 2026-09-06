@@ -1344,6 +1344,26 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .mini-btn { width: 28px; height: 28px; border: 1px solid var(--border); background: #fff; border-radius: var(--radius-sm); cursor: pointer; font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; justify-content: center; }
 .mini-btn:hover { color: var(--text); border-color: var(--text-light); }
 .block-body { padding: 12px; }
+
+/* 🎯 THE LEARNING-OBJECTIVES BOX, on screen. The box itself uses the SAME class
+   names the printed sheet does (objBoxHtml is the one renderer, so it emits one
+   set of markup) — these are the screen sizes for it, and wsPrintCss carries
+   the paper ones. A preview whose box is a different shape from the printed
+   box is not a preview. */
+.obx-box { margin: 10px 0; border: 1.5px dashed #9aa4ae; border-radius: 10px; padding: 10px 12px 11px; background: var(--surface-alt, #fafbfa); }
+.obx-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted, #7b756c); margin-bottom: 7px; }
+.obx-lines { width: 100%; }
+.obx-line { height: 26px; border-bottom: 1.5px dotted #c7cdd4; }
+/* …and the block card that edits it. */
+.obx-edit { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-end; }
+.obx-field { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
+.obx-field input { padding: 6px 9px; border: 1px solid var(--border); border-radius: var(--radius-sm, 6px); font: inherit; font-weight: 400; color: var(--text); background: var(--surface); }
+.obx-field input[type="number"] { width: 84px; }
+.obx-field-wide { flex: 1 1 220px; }
+.obx-field-wide input { width: 100%; box-sizing: border-box; }
+.obx-hint { flex: 1 1 100%; margin: 2px 0 0; line-height: 1.6; }
+.obx-preview { flex: 1 1 100%; }
+.obx-preview .obx-box { margin: 0; }
 .block-edit { min-height: 50px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: #fff; font-size: 0.98rem; line-height: 1.5; outline: none; }
 .block-edit:focus { border-color: var(--border-focus); }
 .block-edit:empty::before { content: attr(data-ph); color: var(--text-light); }
@@ -5394,6 +5414,9 @@ body.lore-reading { overflow: hidden; }
           <label title="Print a QR code beside each question so a student can scan it, AI-mark their paper working and watch the solution">
             <input type="checkbox" id="wsIncludeQr" checked> 📱 QR per question
           </label>
+          <label title="Print a blank rounded box at the foot of every question for the student to write their own learning objectives in. A question that already has a 🎯 Learning objectives block keeps its own box instead.">
+            <input type="checkbox" id="wsIncludeObjBox"> 🎯 Learning-objectives box
+          </label>
           <label title="Saved with the worksheet: whether students opening its overview page may see the worked solutions and videos, or only the questions">
             <input type="checkbox" id="wsShareSolutions" checked> 🎬 Students see solutions on the overview page
           </label>
@@ -5418,6 +5441,7 @@ body.lore-reading { overflow: hidden; }
         <label class="admin-only" title="Print the answer key on its own page at the back"><input type="checkbox" id="mwIncludeAnswers"> 🔑 Answer key page</label>
         <label title="Print a QR code beside each question for AI marking"><input type="checkbox" id="mwIncludeQr" checked> 📱 QR per question</label>
         <label title="Print one QR for the WHOLE sheet — it opens the overview page carrying every question, video and answer key"><input type="checkbox" id="mwIncludeSheetQr" checked> 📄 One QR for the whole sheet</label>
+        <label title="Print a blank rounded box at the foot of every question for the student to write their own learning objectives in. A question that already has a 🎯 Learning objectives block keeps its own box instead."><input type="checkbox" id="mwIncludeObjBox"> 🎯 Learning-objectives box on every question</label>
       </div>
       <div class="ws-saved-grid" id="savedWsGrid"></div>
     </div>
@@ -7137,6 +7161,11 @@ function renderMathBlock(text) {
 }
 function renderQuestionBlockHtml(b) {
   if (!b) return "";
+  // 🎯 The learning-objectives box. This function is the ONE place a block
+  // becomes markup — practice, every preview and the printed sheet all come
+  // through it — so the box looks the same everywhere without any surface
+  // being told about it.
+  if (b.type === "objectivesBox") return objBoxHtml(b);
   if (b.type === "image") {
     const url = String(b.url || "").trim();
     return url ? `<img class="question-image" src="${escapeHtml(url)}" alt="diagram" ${imageStyleAttr(b.scale)}>` : "";
@@ -9763,10 +9792,82 @@ async function removeQuestion(id) {
 const genBlockId = () => "blk_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
 const imgChoices = new Map();
 
+// 🎯 LEARNING OBJECTIVES BOX — a blank rounded rectangle the STUDENT writes
+// their own learning objectives in.
+//
+// It is NOT the 📐 Syllabus map, and the two must never be confused. That one
+// (`SYL_LOS`, `q.los`, `sylSuggestLos`) is the ADMIN's filing: which MOE
+// learning objective a question is tagged under, chosen by a teacher and never
+// seen as a box. This is the opposite end — an empty box on the paper, with
+// nothing stored in it and nothing to mark, where a pupil writes what they
+// think they were learning. Sharing the `lo*` prefix between them is how a
+// filing helper ends up called from a print path, so this one is `objBox*` /
+// `OBJBOX_*` throughout and the block type is `objectivesBox`.
+//
+// The box is BLANK BY DESIGN and nothing about it reaches the answer key:
+// there is no right answer to "what did you learn", so `wsAnswerKeyHtml` reads
+// `q.expected` as it always has and this block is simply not part of it.
+const OBJBOX_DEFAULT_LINES = 2;   // "default two lines", the whole point of it
+const OBJBOX_LINES_MIN = 1;       // "…but can be changed to one or more lines"
+// A box taller than this is a page, not a box. 20 ruled lines at
+// OBJBOX_LINE_MM is already more than half the working room on an A4 sheet.
+const OBJBOX_LINES_MAX = 20;
+const OBJBOX_LINE_MM = 7;         // one handwritten line, in the mm this sheet is measured in
+const OBJBOX_CHROME_MM = 9;       // the border, the padding and the heading above the lines
+const OBJBOX_LABEL = "Learning objectives";
+
+// The ONE place a stored line count becomes a number of ruled lines. Junk, an
+// absent field or a number below one falls back to the DEFAULT rather than to
+// zero — a box with no lines in it is a box a pupil cannot write in, and it
+// renders perfectly.
+function objBoxLines(b) {
+  const n = Math.round(Number(b && b.lines));
+  if (!isFinite(n) || n < OBJBOX_LINES_MIN) return OBJBOX_DEFAULT_LINES;
+  return Math.min(OBJBOX_LINES_MAX, n);
+}
+// The heading printed on the box. An author who CLEARS it gets a truly blank
+// rectangle, so this must not fall back to the default — `|| OBJBOX_LABEL`
+// would put a heading back on the box they had just emptied. Only an ABSENT
+// field (a block made before this existed) takes the default.
+function objBoxLabel(b) {
+  const raw = b && b.label;
+  if (raw == null) return OBJBOX_LABEL;
+  return String(raw).trim();
+}
+// How much of the sheet the box asks for. wsBodyEstimateMm deliberately
+// over-estimates — reserving too much costs a little blank space, reserving too
+// little puts the answer field on the next page.
+function objBoxHeightMm(b) {
+  return objBoxLines(b) * OBJBOX_LINE_MM + OBJBOX_CHROME_MM;
+}
+// The box itself. ONE renderer: the printed sheet, the on-screen practice pad,
+// every preview and the editor card all draw the same box, or the preview
+// stops being a preview.
+function objBoxHtml(b) {
+  const lab = objBoxLabel(b);
+  let lines = "";
+  for (let i = 0; i < objBoxLines(b); i++) lines += `<div class="obx-line"></div>`;
+  return `<div class="obx-box">`
+    + (lab ? `<div class="obx-label">${escapeHtml(lab)}</div>` : "")
+    + `<div class="obx-lines">${lines}</div></div>`;
+}
+// 🎯 ONE BOX IN EVERY QUESTION, from the printing options. Returns the HTML to
+// append to a question, or "".
+//
+// It is `on` AND the question does not already carry one: the switch promises
+// ONE box per question, and a question the author already gave a box would
+// otherwise print two — the second at a size they never chose. Nothing is
+// written to the question, so ticking the switch changes no document anywhere.
+function objBoxAutoHtml(q, on) {
+  if (!on) return "";
+  if (((q && q.blocks) || []).some(b => b && b.type === "objectivesBox")) return "";
+  return objBoxHtml({ lines: OBJBOX_DEFAULT_LINES, label: OBJBOX_LABEL });
+}
+
 function newBlock(type) {
-  return type === "image"
-    ? { id: genBlockId(), type: "image", url: "", scale: 1 }
-    : { id: genBlockId(), type: "text", content: "" };
+  if (type === "image") return { id: genBlockId(), type: "image", url: "", scale: 1 };
+  if (type === "objectivesBox") return { id: genBlockId(), type: "objectivesBox", lines: OBJBOX_DEFAULT_LINES, label: OBJBOX_LABEL };
+  return { id: genBlockId(), type: "text", content: "" };
 }
 // `at` is the index to insert BEFORE; omit it to append. A question is read top
 // to bottom, so being able to put a block anywhere in it — not just on the end
@@ -9883,6 +9984,7 @@ function wireBlockInserters(root) {
   }));
   root.querySelectorAll("[data-insert-text]").forEach(btn => btn.addEventListener("click", () => addBlock("text", Number(btn.dataset.insertText))));
   root.querySelectorAll("[data-insert-image]").forEach(btn => btn.addEventListener("click", () => addBlock("image", Number(btn.dataset.insertImage))));
+  root.querySelectorAll("[data-insert-objbox]").forEach(btn => btn.addEventListener("click", () => addBlock("objectivesBox", Number(btn.dataset.insertObjbox))));
 }
 function blockInserterHtml(at, first) {
   return `<div class="block-insert${first ? " is-first" : ""}" data-insert-at="${at}">
@@ -9890,6 +9992,7 @@ function blockInserterHtml(at, first) {
     <div class="block-insert-menu">
       <button type="button" class="btn btn-ghost btn-sm" data-insert-text="${at}">＋ Text</button>
       <button type="button" class="btn btn-ghost btn-sm" data-insert-image="${at}">＋ Image / diagram</button>
+      <button type="button" class="btn btn-ghost btn-sm" data-insert-objbox="${at}" title="A blank rounded box for the student to write their own learning objectives in">＋ 🎯 Learning objectives</button>
     </div>
   </div>`;
 }
@@ -9909,22 +10012,36 @@ function renderEditorBlocks() {
     card.className = "block-card";
     card.setAttribute("data-block-card", b.id);
     const isImg = b.type === "image";
+    const isObx = b.type === "objectivesBox";
     card.innerHTML = `
       <div class="block-head">
-        <span class="block-badge ${isImg ? "image" : ""}">${isImg ? "Image" : "Text"}</span>
+        <span class="block-badge ${isImg ? "image" : ""}">${isObx ? "🎯 Learning objectives" : isImg ? "Image" : "Text"}</span>
         <div class="block-head-actions">
           <button class="mini-btn" data-up="${b.id}" title="Move up">↑</button>
           <button class="mini-btn" data-down="${b.id}" title="Move down">↓</button>
           <button class="mini-btn" data-rm="${b.id}" title="Remove">✕</button>
         </div>
       </div>
-      <div class="block-body">${isImg ? imgBlockHtml(b) : textBlockHtml(b)}</div>`;
+      <div class="block-body">${isObx ? objBoxBlockHtml(b) : isImg ? imgBlockHtml(b) : textBlockHtml(b)}</div>`;
     wrap.appendChild(card);
   });
   wrap.insertAdjacentHTML("beforeend", blockInserterHtml(editorBlocks.length, false));
   wireBlockInserters(wrap);
   // wire text editing
   wrap.querySelectorAll(".block-edit").forEach(ed => ed.addEventListener("input", () => setBlockField(ed.dataset.block, "content", ed.innerText)));
+  // 🎯 the learning-objectives box: line count and heading. Both repaint just
+  // the preview rather than re-rendering the list, which would take the caret
+  // out of the field being typed in.
+  wrap.querySelectorAll("[data-obxlines]").forEach(inp => inp.addEventListener("input", () => {
+    const n = Math.round(Number(inp.value));
+    setBlockField(inp.dataset.obxlines, "lines",
+      isFinite(n) ? Math.max(OBJBOX_LINES_MIN, Math.min(OBJBOX_LINES_MAX, n)) : OBJBOX_DEFAULT_LINES);
+    objBoxSyncPreview(inp.dataset.obxlines);
+  }));
+  wrap.querySelectorAll("[data-obxlabel]").forEach(inp => inp.addEventListener("input", () => {
+    setBlockField(inp.dataset.obxlabel, "label", inp.value);
+    objBoxSyncPreview(inp.dataset.obxlabel);
+  }));
   // 🎤 Dictate / ✨ Improve on each text block
   wrap.querySelectorAll("[data-block-dictate]").forEach(btn => btn.addEventListener("click", () => {
     const ed = wrap.querySelector(`.block-edit[data-block="${btn.dataset.blockDictate}"]`);
@@ -9997,6 +10114,27 @@ function textBlockHtml(b) {
       <button type="button" class="ai-tool-btn ai-improve-btn" data-block-shorten="${b.id}" title="Shorten with AI — trims the words but keeps every number, unit and the exact meaning">✂️ Shorten</button>
       <button type="button" class="ai-tool-btn ai-complete-btn" data-block-complete="${b.id}" title="Carry on writing with AI from where you stopped — it only adds to the end and never changes a word you have already typed">✍️ AI complete</button>
     </div>`;
+}
+// 🎯 The learning-objectives block's card. The preview IS the box — an author
+// sizing a box has to be looking at the box, not at a description of it.
+function objBoxBlockHtml(b) {
+  return `<div class="obx-edit">
+    <label class="obx-field">Lines
+      <input type="number" min="${OBJBOX_LINES_MIN}" max="${OBJBOX_LINES_MAX}" value="${objBoxLines(b)}" data-obxlines="${b.id}">
+    </label>
+    <label class="obx-field obx-field-wide">Heading
+      <input type="text" value="${escapeHtml(objBoxLabel(b))}" data-obxlabel="${b.id}" placeholder="Leave empty for a completely blank box">
+    </label>
+    <p class="hint obx-hint">A blank box for the student to write <b>their own</b> learning objectives in — what they were learning from this question. It is never marked and never appears on the answer key. You can also tick <b>🎯 Learning-objectives box</b> when you print, instead of adding one here.</p>
+    <div class="obx-preview" data-obxprev="${b.id}">${objBoxHtml(b)}</div>
+  </div>`;
+}
+// Repaint one card's preview in place. renderEditorBlocks() replaces the whole
+// list and would take the caret with it, and the box is nudged a line at a time.
+function objBoxSyncPreview(id) {
+  const b = editorBlocks.find(x => x.id === id);
+  const el = $("blocksList") && $("blocksList").querySelector(`[data-obxprev="${id}"]`);
+  if (b && el) el.innerHTML = objBoxHtml(b);
 }
 function imgBlockHtml(b) {
   const has = b.url ? "block" : "none";
@@ -13079,6 +13217,10 @@ function collectQuestion() {
   const topics = parseTopics($("qTopicInput").value);
   const blocks = editorBlocks
     .map(b => {
+      // 🎯 Persisted with its own two fields. Without this branch it would be
+      // written out as an empty TEXT block and then dropped by the filter
+      // below — the box saved perfectly and gone on the next load.
+      if (b.type === "objectivesBox") return { id: b.id, type: "objectivesBox", lines: objBoxLines(b), label: objBoxLabel(b) };
       if (b.type !== "image") return { id: b.id, type: "text", content: (b.content || "").trim() };
       const img = { id: b.id, type: "image", url: (b.url || "").trim(), scale: normalizeImageScale(b.scale) };
       // Annotation question: this diagram is the answer surface, and it carries
@@ -13093,7 +13235,9 @@ function collectQuestion() {
       }
       return img;
     })
-    .filter(b => (b.type === "image" ? b.url : b.content));
+    // A box is BLANK by design, so it has no content to be kept for — it is
+    // kept for being there at all.
+    .filter(b => (b.type === "objectivesBox" ? true : b.type === "image" ? b.url : b.content));
   const existing = currentEditingId ? (questionBank.find(q => q.id === currentEditingId) || {}) : {};
   // Keep the variant link: from a fresh Regenerate (pendingVariantOf), or carry
   // an existing one when editing a question that is already a variant.
@@ -19595,6 +19739,7 @@ function wsCurrentOptions() {
     fields: !!($("wsIncludeFields") || {}).checked,
     withAnswers: !!($("wsIncludeAnswers") || {}).checked,
     withQr: !!($("wsIncludeQr") || {}).checked,
+    objBox: !!($("wsIncludeObjBox") || {}).checked,
     shareSolutions: !!($("wsShareSolutions") || { checked: true }).checked
   };
 }
@@ -19733,12 +19878,23 @@ function wsAnswerLines(q) {
 // normally WS_IMG_MM, less when the diagram has had to give way (see
 // wsEffectiveImgMm). Pass 0 to measure everything EXCEPT the pictures, which
 // is how that function works out what is left for them.
-function wsBodyEstimateMm(q, imgMm) {
+function wsBodyEstimateMm(q, imgMm, objBoxAll) {
   const cap = imgMm == null ? WS_IMG_MM : imgMm;
   let mm = 10;   // the "4." number line, the chunk's bottom margin and rounding
+  // 🎯 The box the printing option adds at the foot of the question. It is not
+  // in `q.blocks` — nothing is written to the question — so it has to be
+  // reserved here by name, or the sheet is measured a box short and the
+  // question spills onto the next page.
+  if (objBoxAll && !((q.blocks || []).some(b => b && b.type === "objectivesBox"))) {
+    mm += objBoxHeightMm({ lines: OBJBOX_DEFAULT_LINES });
+  }
   (q.blocks || []).forEach(b => {
     if (!b) return;
     if (b.type === "image") mm += cap + 6;
+    // 🎯 Measured from its own line count. Left to the `else mm += 12` below,
+    // a twenty-line box is reserved twelve millimetres and the question spills
+    // its answer field onto the next page.
+    else if (b.type === "objectivesBox") mm += objBoxHeightMm(b);
     else if (b.type === "text") {
       const chars = stripHtml(b.content || "").length;
       mm += Math.max(1, Math.ceil(chars / WS_BODY_CHARS)) * WS_BODY_LINE_MM + 2;
@@ -19767,12 +19923,12 @@ function wsPageRoomMm(reserveMm) {
 // longer); only when there is no working space left to eat does the DIAGRAM
 // itself shrink; and the question's wording and its answer rows never give way
 // at all, because those are the question.
-function wsEffectiveImgMm(q, reserveMm) {
+function wsEffectiveImgMm(q, reserveMm, objBoxAll) {
   const imgs = (q.blocks || []).filter(b => b && b.type === "image").length;
   // An annotation question is answered ON the diagram and has no working area
   // to trade, so its own taller cap stands.
   if (!imgs || questionIsAnnotation(q)) return WS_IMG_MM;
-  const forImages = wsPageRoomMm(reserveMm) - wsAnswerRowsMm(q) - WS_WORK_MIN_MM - wsBodyEstimateMm(q, 0);
+  const forImages = wsPageRoomMm(reserveMm) - wsAnswerRowsMm(q) - WS_WORK_MIN_MM - wsBodyEstimateMm(q, 0, objBoxAll);
   return Math.max(WS_IMG_MIN_MM, Math.min(WS_IMG_MM, Math.floor(forImages / imgs)));
 }
 // Height of the blank working area. The answer row is carved OUT of the
@@ -19780,10 +19936,10 @@ function wsEffectiveImgMm(q, reserveMm) {
 // ruled lines to blank space did not make every sheet a page longer — and the
 // whole lot is then capped at WHAT IS LEFT OF A PAGE once the header above it,
 // the question and its answer rows have taken theirs.
-function wsWorkingSpaceMm(q, reserveMm) {
+function wsWorkingSpaceMm(q, reserveMm, objBoxAll) {
   const rows = wsAnswerRowsMm(q);
   const want = Math.max(WS_WORK_MIN_MM, wsAnswerLines(q) * WS_LINE_MM - rows);
-  const room = wsPageRoomMm(reserveMm) - wsBodyEstimateMm(q, wsEffectiveImgMm(q, reserveMm)) - rows;
+  const room = wsPageRoomMm(reserveMm) - wsBodyEstimateMm(q, wsEffectiveImgMm(q, reserveMm, objBoxAll), objBoxAll) - rows;
   return Math.max(WS_WORK_MIN_MM, Math.min(want, room));
 }
 // ---- A question with parts gets an answer field per part -----------------
@@ -19841,12 +19997,12 @@ function wsAnswerBlankHtml(q) {
 // answer sheet, so a box on the paper is a mark a child looks for and cannot
 // find. Absent — every other print in this app — the box is there exactly as
 // it always was.
-function wsQuestionChunkHtml(q, n, qrSvg, reserveMm, noBracket) {
+function wsQuestionChunkHtml(q, n, qrSvg, reserveMm, noBracket, objBoxAll) {
   const qr = qrSvg ? `<div class="ws-qr">${qrSvg}<div class="ws-qr-cap">📱 Scan to AI-mark<br>&amp; watch the solution</div></div>` : "";
   // Only written when the picture has actually had to give way, so an ordinary
   // question carries no inline style and prints at the CSS cap exactly as it
   // always did.
-  const imgMm = wsEffectiveImgMm(q, reserveMm);
+  const imgMm = wsEffectiveImgMm(q, reserveMm, objBoxAll);
   const imgVar = imgMm < WS_IMG_MM ? ` style="--ws-img-mm:${imgMm}mm"` : "";
   const opts = wsHasMcq(q)
     // A / B / C / D, the same lettering the on-screen practice pad and every
@@ -19859,7 +20015,7 @@ function wsQuestionChunkHtml(q, n, qrSvg, reserveMm, noBracket) {
     : questionIsAnnotation(q)
     ? `<div class="ws-annot-note">✍️ Write and draw your answer directly on the diagram above.</div>`
     // Blank working space, then the answer blank at the bottom right.
-    : `<div class="ws-answer-box"><div class="ws-work" style="height:${wsWorkingSpaceMm(q, reserveMm)}mm"></div>${wsAnswerBlankHtml(q)}</div>`;
+    : `<div class="ws-answer-box"><div class="ws-work" style="height:${wsWorkingSpaceMm(q, reserveMm, objBoxAll)}mm"></div>${wsAnswerBlankHtml(q)}</div>`;
   return `<section class="ws-chunk${questionIsAnnotation(q) ? " ws-chunk-annot" : ""}"${imgVar}>
     ${qr}
     <!-- Just the number. The level and topic are the teacher's filing labels,
@@ -19868,6 +20024,10 @@ function wsQuestionChunkHtml(q, n, qrSvg, reserveMm, noBracket) {
     <div class="ws-q-no">${n}.</div>
     <div class="ws-q-body">${renderQuestionBlocksHtml(q.blocks || [])}</div>
     ${opts}
+    <!-- 🎯 One box at the FOOT of the question — where a pupil reflects, after
+         they have done it. Skipped when the question already carries a box of
+         its own, so the switch really does mean ONE per question. -->
+    ${objBoxAutoHtml(q, objBoxAll)}
   </section>`;
 }
 // `numbers` is 🗂️ Custom Paper's map of question id → the number PRINTED on
@@ -19976,6 +20136,17 @@ function wsPrintCss() {
     /* One answer row per part on a question that has parts (a), (b), (c). */
     .ws-answer-parts { display: grid; gap: 4mm; }
     .ws-work { width: 100%; }
+    /* 🎯 THE LEARNING-OBJECTIVES BOX. Deliberately NOT styled like the working
+       area or the answer blank: a solid bordered box on this sheet already
+       means "your working goes here", and a class that mistook this for it
+       would put the working in the wrong place. So it is a lighter, rounder,
+       dashed rectangle with its purpose spelled out along the top.
+       break-inside keeps it with the question it belongs to — a box stranded
+       at the top of the next sheet belongs to nothing. */
+    .obx-box { margin-top: 3.5mm; border: 0.7pt dashed #9aa4ae; border-radius: 2.5mm; padding: 2mm 3mm 2.5mm; break-inside: avoid; page-break-inside: avoid; }
+    .obx-label { font-size: 8pt; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #7b756c; margin-bottom: 1.5mm; }
+    .obx-lines { width: 100%; }
+    .obx-line { height: 7mm; border-bottom: 0.5pt dotted #b9c0c7; }
     /* clear:right keeps the blank clear of the question's QR float, so it is
        always the full width on the right edge instead of being narrowed. */
     .ws-answer-final { clear: right; display: flex; justify-content: flex-end; align-items: baseline; gap: 3mm; font-size: 11pt; color: #514d47; }
@@ -20182,8 +20353,12 @@ async function wsBuildDocumentHtml(questions, title, opts) {
   // that again on the way in rather than trusting this flag.
   const editId = String(opts.headerEditId || "");
   const org = typeof opts.headerOrg === "string" ? opts.headerOrg : WS_HEADER_ORG;
+  // 🎯 objBox: put a blank learning-objectives box at the foot of EVERY
+  // question that has not got one already. It is a RENDERING option and writes
+  // nothing to any question, so ticking it changes no document.
+  const objBoxAll = !!opts.objBox;
   const chunk = (q, i, reserve) =>
-    wsQuestionChunkHtml(q, (numbers && numbers[q.id]) || String(i + 1), qrMap[q.id] || "", reserve, noBracket(q));
+    wsQuestionChunkHtml(q, (numbers && numbers[q.id]) || String(i + 1), qrMap[q.id] || "", reserve, noBracket(q), objBoxAll);
   // 📄 A PAPER: each booklet's cover is its own page section (so it starts a
   // sheet of its own), then its lead line and its questions. 📝 EVERYTHING
   // ELSE: the one section this app has always built.
@@ -20478,7 +20653,11 @@ function cpbMetaGet(k) {
 // however its options read — the safe direction, whose worst case is a page of
 // working space nobody uses.
 function cpbIsMcqOnly(q) {
-  return !!q && wsHasMcq(q) && !questionIsAnnotation(q);
+  // 🎯 A learning-objectives box is somewhere the pupil WRITES, so a question
+  // carrying one needs the sheet — Booklet A is answered on a separate answer
+  // sheet, where there is nowhere to write it.
+  const hasObjBox = ((q && q.blocks) || []).some(b => b && b.type === "objectivesBox");
+  return !!q && wsHasMcq(q) && !questionIsAnnotation(q) && !hasObjBox;
 }
 function cpbBookOf(q) {
   if (!q) return "b";
@@ -22631,7 +22810,8 @@ function mwPrintOptions() {
     fields: !!($("mwIncludeFields") || {}).checked,
     withAnswers: !!($("mwIncludeAnswers") || {}).checked && canManageQuestions(),
     withQr: !!($("mwIncludeQr") || {}).checked,
-    withSheetQr: !!($("mwIncludeSheetQr") || { checked: true }).checked
+    withSheetQr: !!($("mwIncludeSheetQr") || { checked: true }).checked,
+    objBox: !!($("mwIncludeObjBox") || {}).checked
   };
 }
 async function openSavedWorksheet(id, autoPrint) {
@@ -28753,7 +28933,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.68.0 · 2026-09-06";
+const APP_VERSION = "v1.69.0 · 2026-09-06";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
