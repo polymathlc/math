@@ -9110,7 +9110,7 @@ function wsLockNote(ids) {
     (on ? " — the first unlocks " + qReleaseWhen(on) + " (" + qReleaseLabel(on) + ")" : "");
 }
 
-const QUESTION_KEY_FIELDS = ["expected", "markingGuide", "answerKeyImageUrl", "videoExplanationUrl", "videoOverlays"];
+const QUESTION_KEY_FIELDS = ["expected", "markingGuide", "answerKeyImageUrl", "videoExplanationUrl", "videoOverlays", "sourcePages", "sourcePdf", "autoCheck", "importWarning"];
 // Per-block answers (annotation questions) live on the BLOCKS, and `blocks`
 // stays in the student-readable half — so they have to be lifted out block by
 // block, or every student who reads the bank can read the answer. They come
@@ -26493,7 +26493,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.67.1 · 2026-09-06";
+const APP_VERSION = "v1.67.2 · 2026-09-06";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
