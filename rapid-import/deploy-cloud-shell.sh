@@ -57,7 +57,12 @@ npm ci --prefix functions
 npm test --prefix functions
 
 echo 'Deploying the isolated math-rapid-import codebase...'
-gcloud services enable cloudtasks.googleapis.com --project="$RAPID_PROJECT"
+# Read first: the shared project's CER importer may already have enabled it.
+# A deploy-only account need not have permission to re-enable an active API.
+rapid_tasks_enabled=$(gcloud services list --enabled --project="$RAPID_PROJECT" --filter='config.name=cloudtasks.googleapis.com' --format='value(config.name)')
+if [[ "$rapid_tasks_enabled" != 'cloudtasks.googleapis.com' ]]; then
+  gcloud services enable cloudtasks.googleapis.com --project="$RAPID_PROJECT"
+fi
 rapid_firebase deploy --project "$RAPID_PROJECT" --config "$PWD/firebase.json" --only functions:math-rapid-import --non-interactive
 
 rapid_functions=(mathRapidImportStatus mathRapidImportBegin mathRapidImportChunk mathRapidImportFinish mathRapidImportRetry mathRapidImportDispatch mathRapidImportPage)
