@@ -67,3 +67,14 @@ test('worker namespace, publication and frontend calls stay in Math',()=>{
  for(const n of ['Status','Begin','Chunk','Finish','Retry'])assert.ok(src.includes("'mathRapidImport"+n+"'"));
  assert.match(src,/_rapidCloudUploading && !_rapidPdfBusy && !_rapidPdfQueue.length/);
 });
+
+test('approval keeps original scans and checker findings in the teacher-only key',()=>{
+ const block=cut('const QUESTION_KEY_FIELDS =', '\nasync function loadBank(');
+ const split=new Function(block+';return splitQuestionDoc;')();
+ const original={id:'q',blocks:[{id:'text',type:'text',content:'Question'}],expected:'42',releaseOn:'2030-01-02',sourcePages:[{page:1,url:'https://example.test/source'}],sourcePdf:'paper.pdf',autoCheck:{findings:[{detail:'The answer is 42'}]},importWarning:'Review the answer'};
+ const {pub,key}=split(original);
+ for(const field of ['sourcePages','sourcePdf','autoCheck','importWarning','expected']){
+  assert.equal(Object.hasOwn(pub,field),false);assert.deepEqual(key[field],original[field]);
+ }
+ assert.equal(pub.releaseOn,'2030-01-02');assert.equal(pub.blocks[0].content,'Question');
+});
