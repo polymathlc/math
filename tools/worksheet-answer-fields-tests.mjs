@@ -275,7 +275,7 @@ test('the working area and the answer rows are ONE unbreakable box', () => {
 });
 
 test('the chunk asks for the answer fields of ITS OWN question', () => {
-  ok(/\$\{wsAnswerBlankHtml\(q\)\}/.test(src),
+  ok(/\$\{wsAnswerBlankHtml\(q, exam\)\}/.test(src),
      'wsAnswerBlankHtml is called without the question, so no question can have parts');
 });
 

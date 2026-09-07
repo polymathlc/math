@@ -2022,6 +2022,12 @@ in the EDITOR. `sylAutoFileEditor` is the same call applied to the editor — th
 
 ## 🗂️ Custom Paper — a mock exam paper, or an ordinary worksheet (v1.68.0)
 
+**Math update v1.70.0:** Exam mode now follows the supplied 2023 PSLE Maths
+paper: Paper 1 Booklets A/B and Paper 2, with Paper 2 numbering restarted.
+See `docs/psle-exam-format.md` for the current layout, marks and validation
+contract. This Maths-specific format supersedes the two-booklet details below
+and must not be ported to the Science app.
+
 `cpb*` / `CPB_*` (search `🗂️ CUSTOM PAPER`), `#page-custompaper` and the
 `.cpb-*` CSS, plus the four things it SHARES rather than forks:
 `aiQuestionReadPrompt`'s new `run` argument, `wsBuildDocumentHtml`'s new
