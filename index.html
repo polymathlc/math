@@ -20010,7 +20010,7 @@ function wsQuestionChunkHtml(q, n, qrSvg, reserveMm, noBracket, objBoxAll, exam)
     // A / B / C / D, the same lettering the on-screen practice pad and every
     // other preview in this app uses — a printed sheet numbered differently
     // from the screen is a sheet the class answers in the wrong notation.
-    ? `<div class="ws-mcq">${q.options.map((o, i) => `<div class="ws-mcq-opt"><span class="l">${exam ? "(" + mcqNumber(i) + ")" : mcqLabel(i)}</span><span>${escapeHtml(o)}</span></div>`).join("")}${noBracket ? "" : `<div class="ws-mcq-answer">Answer: <span class="ws-mcq-box"></span></div>`}</div>`
+    ? `<div class="ws-mcq">${q.options.map((o, i) => `<div class="ws-mcq-opt"><span class="l">${exam ? "(" + mcqNumber(i) + ")" : mcqLabel(i)}</span><span>${exam ? renderMathInline(o) : escapeHtml(o)}</span></div>`).join("")}${noBracket ? "" : `<div class="ws-mcq-answer">Answer: <span class="ws-mcq-box"></span></div>`}</div>`
     // An annotation question is answered ON the diagram, so a working area is
     // both wrong and a waste of the sheet — the picture printed above IS the
     // answer space. It gets a bigger cap for the same reason.
@@ -21866,7 +21866,29 @@ function cpbPaginateDocument() {
         // remain together; no clipping or global font shrinking is used.
         if (item.classList.contains("ws-chunk")) {
           const qbody = item.querySelector(".ws-q-body"), n = item.querySelector(".ws-q-no");
-          const parts = [...qbody.children, ...item.children].filter(el => el !== qbody && el !== n);
+          const answer = item.querySelector(".ws-answer-box"), marks = item.querySelector(".cpb-q-marks");
+          if (answer && marks) answer.appendChild(marks);
+          // Screenshot imports often put all wording into one paragraph with
+          // line breaks. Split that paragraph into small rich-text pieces,
+          // retaining fraction/diagram markup rather than flattening to text.
+          const wording = [];
+          for (const block of [...qbody.children]) {
+            if (block.tagName !== "P") { wording.push(block); continue; }
+            let piece = block.cloneNode(false), count = 0;
+            const flush = () => { if (piece.childNodes.length) wording.push(piece); piece = block.cloneNode(false); count = 0; };
+            for (const node of [...block.childNodes]) {
+              if (node.nodeName === "BR") { flush(); continue; }
+              if (node.nodeType === 3) {
+                for (const word of node.textContent.match(/\S+\s*|\s+/g) || []) {
+                  if (count + word.length > 400 && count) flush();
+                  piece.appendChild(document.createTextNode(word)); count += word.length;
+                }
+              } else { piece.appendChild(node); count += node.textContent.length; }
+            }
+            flush();
+          }
+          const parts = wording.map(el => { const wrapper = document.createElement("div"); wrapper.className = "ws-q-body"; wrapper.appendChild(el); return wrapper; })
+            .concat([...item.children].filter(el => el !== qbody && el !== n));
           const number = n.textContent;
           item.remove();
           if (body.children.length && !lead) next();
@@ -21878,10 +21900,7 @@ function cpbPaginateDocument() {
             body.appendChild(fragment);
           }
           start(false);
-          parts.forEach(part => {
-            // Blocks retain the question body's type and diagram sizing.
-            const block = part.parentElement === qbody ? document.createElement("div") : part;
-            if (block !== part) { block.className = "ws-q-body"; block.appendChild(part); }
+          parts.forEach(block => {
             fragment.appendChild(block);
             if (!fits(body)) {
               block.remove(); next(); start(true); fragment.appendChild(block);
@@ -21920,7 +21939,16 @@ async function cpbBuildPsleDocumentHtml(questions, title, opts) {
     const instructions = g.book === "a"
       ? `For each question, four options are given. One of them is the correct answer. Make your choice (1, 2, 3 or 4) and ${paper.noBracketIds ? "shade your answer on the Answer Sheet" : "write it in the box provided"}.`
       : "Show your working clearly and write your answers in the spaces provided. For questions which require units, give your answers in the units stated.";
-    const batches = g.book === "a" ? [{ list, text: runs.map(r => r.text).join(" ") }] : runs;
+    let batches = g.book === "a" ? [{ list, text: runs.map(r => r.text).join(" ") }] : runs;
+    if (g.book === "p2") {
+      // The reference has five short answers followed by the variable-mark
+      // questions. Do not insert a new section heading at each mark change.
+      const short = list.slice(0, 5);
+      const split = short.length === 5 && short.every(q => paper.allocations[q.id] === 2) ? 5 : 0;
+      const rest = list.slice(split);
+      batches = split ? cpbMarkRuns(short, numbers, paper.allocations) : [];
+      if (rest.length) batches.push({ list: rest, text: "The number of marks available is shown in brackets [ ] at the end of each question." });
+    }
     const items = batches.map(run => cpbLeadHtml(run.text + " " + instructions, run.list.reduce((n, q) => n + paper.allocations[q.id], 0))
       + run.list.map(q => wsQuestionChunkHtml(q, numbers[q.id], "", 0, !!paper.noBracketIds?.has(q.id), false,
         { book: g.book, marks: paper.allocations[q.id] })).join("")).join("");

@@ -70,7 +70,7 @@ if(process.argv[2]) {
   saved[36].blocks=[text('A tank holds 120 litres of water.\n(a) Find 1/4 of this volume.\n(b) How much water remains?')];
   api.set(saved,meta);out=api.cpbPaperOpts();html=await api.cpbBuildPsleDocumentHtml(out.list,'PSLE format sample',out.opts);
   fs.writeFileSync(path.join(dir,'psle-sample.html'),html);
-  const long=written('long','p2',5);long.blocks=Array.from({length:28},(_,i)=>text('Line '+(i+1)+': Mei buys ribbon in lengths of 70 cm. Each bow uses 12 cm. The leftover ribbon cannot be joined.'));
+  const long=written('long','p2',5);long.blocks=[text(Array.from({length:28},(_,i)=>'Line '+(i+1)+': Mei buys ribbon in lengths of 70 cm. Each bow uses 12 cm. The leftover ribbon cannot be joined.').join('\n'))];
   api.set([long,written('next','p2',2)],{...meta,answerKey:false});out=api.cpbPaperOpts();
   fs.writeFileSync(path.join(dir,'psle-long.html'),await api.cpbBuildPsleDocumentHtml(out.list,'Long question',out.opts));
   fs.writeFileSync(path.join(dir,'psle-mcq.html'),onPaper);fs.writeFileSync(path.join(dir,'psle-paper2.html'),onlyP2);
