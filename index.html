@@ -470,7 +470,9 @@ a { color: var(--primary); }
 .cpb-row-meta, .cpb-lib-meta { font-size: .74rem; color: var(--text-muted); margin-top: 3px; line-height: 1.5; }
 .cpb-nomarks { color: #b45309; }
 .cpb-moved { color: #92400e; font-weight: 600; }
-.cpb-row-tools, .cpb-lib-tools { flex: 0 0 auto; display: flex; gap: 5px; align-items: center; }
+.cpb-row-tools, .cpb-lib-tools { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cpb-row-marks { display: flex; align-items: center; gap: 5px; font-size: .74rem; }
+.cpb-row-marks input { width: 52px; padding: 4px; border: 1px solid var(--border); border-radius: 6px; }
 .cpb-tool { border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 4px 8px; font-size: .74rem; line-height: 1.2; cursor: pointer; color: var(--text-muted); }
 .cpb-tool:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
 .cpb-tool:disabled { opacity: .35; cursor: default; }
@@ -19982,11 +19984,11 @@ function wsQuestionParts(q) {
 }
 // Where a student writes their final answer: bottom right, under the working.
 // One row, or one row per part, each labelled with the part it answers.
-function wsAnswerBlankHtml(q) {
+function wsAnswerBlankHtml(q, exam) {
   const parts = wsQuestionParts(q);
-  if (!parts.length) return `<div class="ws-answer-final"><span>Answer:</span><i></i></div>`;
+  if (!parts.length) return `<div class="ws-answer-final"><span>${exam ? "Ans:" : "Answer:"}</span><i></i></div>`;
   return `<div class="ws-answer-parts">${parts.map(ch =>
-    `<div class="ws-answer-final"><span>Answer (${ch}):</span><i></i></div>`).join("")}</div>`;
+    `<div class="ws-answer-final"><span>${exam ? "Ans: (" + ch + ")" : "Answer (" + ch + "):"}</span><i></i></div>`).join("")}</div>`;
 }
 // `reserveMm` is what sits ABOVE this question on its page and therefore is
 // not available to it — the sheet header, for question 1 only. Every other
@@ -19997,7 +19999,7 @@ function wsAnswerBlankHtml(q) {
 // answer sheet, so a box on the paper is a mark a child looks for and cannot
 // find. Absent — every other print in this app — the box is there exactly as
 // it always was.
-function wsQuestionChunkHtml(q, n, qrSvg, reserveMm, noBracket, objBoxAll) {
+function wsQuestionChunkHtml(q, n, qrSvg, reserveMm, noBracket, objBoxAll, exam) {
   const qr = qrSvg ? `<div class="ws-qr">${qrSvg}<div class="ws-qr-cap">📱 Scan to AI-mark<br>&amp; watch the solution</div></div>` : "";
   // Only written when the picture has actually had to give way, so an ordinary
   // question carries no inline style and prints at the CSS cap exactly as it
@@ -20008,22 +20010,23 @@ function wsQuestionChunkHtml(q, n, qrSvg, reserveMm, noBracket, objBoxAll) {
     // A / B / C / D, the same lettering the on-screen practice pad and every
     // other preview in this app uses — a printed sheet numbered differently
     // from the screen is a sheet the class answers in the wrong notation.
-    ? `<div class="ws-mcq">${q.options.map((o, i) => `<div class="ws-mcq-opt"><span class="l">${mcqLabel(i)}</span><span>${escapeHtml(o)}</span></div>`).join("")}${noBracket ? "" : `<div class="ws-mcq-answer">Answer: <span class="ws-mcq-box"></span></div>`}</div>`
+    ? `<div class="ws-mcq">${q.options.map((o, i) => `<div class="ws-mcq-opt"><span class="l">${exam ? "(" + mcqNumber(i) + ")" : mcqLabel(i)}</span><span>${exam ? renderMathInline(o) : escapeHtml(o)}</span></div>`).join("")}${noBracket ? "" : `<div class="ws-mcq-answer">Answer: <span class="ws-mcq-box"></span></div>`}</div>`
     // An annotation question is answered ON the diagram, so a working area is
     // both wrong and a waste of the sheet — the picture printed above IS the
     // answer space. It gets a bigger cap for the same reason.
     : questionIsAnnotation(q)
     ? `<div class="ws-annot-note">✍️ Write and draw your answer directly on the diagram above.</div>`
     // Blank working space, then the answer blank at the bottom right.
-    : `<div class="ws-answer-box"><div class="ws-work" style="height:${wsWorkingSpaceMm(q, reserveMm, objBoxAll)}mm"></div>${wsAnswerBlankHtml(q)}</div>`;
+    : `<div class="ws-answer-box"><div class="ws-work" style="height:${exam ? (exam.book === "b" ? (exam.marks === 1 ? 14 : 32) : Math.min(110, 22 + exam.marks * 12)) : wsWorkingSpaceMm(q, reserveMm, objBoxAll)}mm"></div>${wsAnswerBlankHtml(q, exam)}</div>`;
   return `<section class="ws-chunk${questionIsAnnotation(q) ? " ws-chunk-annot" : ""}"${imgVar}>
     ${qr}
     <!-- Just the number. The level and topic are the teacher's filing labels,
          not part of the question, and printing "P5 · Decimals, Ratio" over a
          question tells the class what method to use before they have read it. -->
-    <div class="ws-q-no">${n}.</div>
+    <div class="ws-q-no">${n}${exam ? "" : "."}</div>
     <div class="ws-q-body">${renderQuestionBlocksHtml(q.blocks || [])}</div>
     ${opts}
+    ${exam && exam.book !== "a" ? `<div class="cpb-q-marks">[${exam.marks}]</div>` : ""}
     <!-- 🎯 One box at the FOOT of the question — where a pupil reflects, after
          they have done it. Skipped when the question already carries a box of
          its own, so the switch really does mean ONE per question. -->
@@ -20311,6 +20314,7 @@ function wsScoreTableHtml(segments, opts) {
   </section>`;
 }
 async function wsBuildDocumentHtml(questions, title, opts) {
+  if (opts.paper && opts.paper.psle) return cpbBuildPsleDocumentHtml(questions, title, opts);
   let qrMap = {};
   if (opts.withQr) { try { qrMap = await buildQrMap(questions); } catch (e) { console.warn("qr map failed", e); } }
   // The whole-sheet QR, printed ONCE: on the cover if there is one, otherwise
@@ -20532,7 +20536,7 @@ async function printCurrentWorksheet(autoPrint) {
 const CPB_MODES = {
   paper: {
     key: "paper", icon: "📄", label: "Exam paper",
-    blurb: "The format the children sit — Booklet A of multiple choice and Booklet B of open-ended, a cover for each, numbered straight through, with an answer sheet.",
+    blurb: "2023 PSLE format — Paper 1 Booklets A and B, then Paper 2, with separate covers, working space and an answer sheet.",
   },
   worksheet: {
     key: "worksheet", icon: "📝", label: "Worksheet",
@@ -20555,20 +20559,12 @@ const CPB_BATCH = 4;                        // images per AI call — read as ON
 const CPB_MCQ_MARKS = 2;
 const CPB_OPEN_DEFAULT_MARKS = 2;
 
-// 🎯 THE SHAPE A PAPER IS BUILT TO.
-//
-// The current syllabus is 15 multiple choice at 2 marks each — 30 marks of
-// Booklet A — and 70 marks of open-ended in Booklet B, 100 in all. They are
-// stated here ONCE and are editable per paper, because a paper's shape changes
-// and a number read off last year's is a number nobody can find again.
-//
-// IT IS A TARGET, NEVER A TOTAL. Nothing printed on a cover comes from here —
-// the covers state what the paper ACTUALLY adds up to, always, because a cover
-// claiming 100 marks over 60 is a lie a class discovers in the exam hall. What
-// the target does is tell the teacher how far off they are while they are
-// still building, which is the whole reason assembling a paper is slow.
-const CPB_TARGET_MCQ = 15;          // questions in Booklet A
-const CPB_TARGET_OPEN_MARKS = 70;   // marks in Booklet B
+// Targets follow the uploaded 2023 PSLE reference, not the current syllabus.
+// Covers and answer keys always use actual question allocations.
+const CPB_TARGET_MCQ = 15;
+const CPB_TARGET_OPEN_MARKS = 25;
+const CPB_TARGET_PAPER2_MARKS = 55;
+const CPB_BOOK_LABELS = { a: "Paper 1 · Booklet A", b: "Paper 1 · Booklet B", p2: "Paper 2" };
 // A WORKSHEET HAS NO STANDARD LENGTH, so its target starts at 0 — which in
 // this file means "do not measure me". A teacher who does want twenty
 // questions this week types 20 and gets the same gap chip the paper's own two
@@ -20614,7 +20610,9 @@ const CPB_META_DEFAULTS = {
   code: "",
   year: String(new Date().getFullYear()),
   level: "PRIMARY 6",
-  duration: "1 h 50 min",
+  duration: "1 hour",
+  duration2: "1 hour 30 minutes",
+  code2: "",
   name: "",            // the sheet's name in the bank, stamped on every question as its source
   qLevel: "",          // the syllabus level its objectives are filed at
   mcqOnPaper: false,   // print an answer box in Booklet A (no separate answer sheet)
@@ -20626,6 +20624,7 @@ const CPB_META_DEFAULTS = {
   enhance: true,
   targetMcq: CPB_TARGET_MCQ,
   targetOpen: CPB_TARGET_OPEN_MARKS,
+  targetPaper2: CPB_TARGET_PAPER2_MARKS,
   // 📝 WORKSHEET MODE ONLY. They sit on the SAME object as the paper's own
   // fields rather than in a nested one of their own, so switching mode and
   // switching back keeps every setting on both sides — nothing a teacher has
@@ -20661,12 +20660,12 @@ function cpbIsMcqOnly(q) {
 }
 function cpbBookOf(q) {
   if (!q) return "b";
-  if (q._cpbBook === "a" || q._cpbBook === "b") return q._cpbBook;
+  if (["a", "b", "p2"].includes(q._cpbBook)) return q._cpbBook;
   return cpbIsMcqOnly(q) ? "a" : "b";
 }
 function cpbSetBook(id, book) {
   const q = cpbQuestions.find(x => x.id === id);
-  if (!q || (book !== "a" && book !== "b")) return;
+  if (!q || !["a", "b", "p2"].includes(book)) return;
   q._cpbBook = book;
   cpbRender();
 }
@@ -20689,14 +20688,15 @@ function cpbLayout() {
     const list = cpbQuestions.slice();
     const numbers = {};
     list.forEach((q, i) => { numbers[q.id] = String(i + 1); });
-    return { worksheet: true, list, a: [], b: list, numbers };
+    return { worksheet: true, list, a: [], b: list, p2: [], numbers };
   }
-  const a = [], b = [];
-  cpbQuestions.forEach(q => (cpbBookOf(q) === "a" ? a : b).push(q));
+  const a = [], b = [], p2 = [];
+  cpbQuestions.forEach(q => ({ a, b, p2 })[cpbBookOf(q)].push(q));
   const numbers = {};
   a.forEach((q, i) => { numbers[q.id] = String(i + 1); });
   b.forEach((q, i) => { numbers[q.id] = String(a.length + i + 1); });
-  return { worksheet: false, list: a.concat(b), a, b, numbers };
+  p2.forEach((q, i) => { numbers[q.id] = String(i + 1); });
+  return { worksheet: false, list: a.concat(b, p2), a, b, p2, numbers };
 }
 
 // The marks a question is worth: whatever the reader found printed on it.
@@ -20741,29 +20741,40 @@ function cpbMarks() {
       needQuestions: wantQ ? wantQ - lay.list.length : null,
     };
   }
-  const { a, b } = lay;
-  let bm = 0, guessed = 0;
-  b.forEach(q => {
-    const m = cpbQuestionMarks(q);
-    if (m) bm += m;
-    else { bm += CPB_OPEN_DEFAULT_MARKS; guessed++; }
-  });
-  const am = a.length * CPB_MCQ_MARKS;
+  const sum = list => list.reduce((n, q) => n + cpbExamMarks(q, lay), 0);
+  const am = sum(lay.a), bm = sum(lay.b), p2m = sum(lay.p2);
   const wantMcq = cpbTargetNum(cpbMetaGet("targetMcq"), CPB_TARGET_MCQ);
   const wantOpen = cpbTargetNum(cpbMetaGet("targetOpen"), CPB_TARGET_OPEN_MARKS);
+  const wantPaper2 = cpbTargetNum(cpbMetaGet("targetPaper2"), CPB_TARGET_PAPER2_MARKS);
+  const wantA = Math.min(wantMcq, 10) + Math.max(0, wantMcq - 10) * 2;
   return {
-    worksheet: false,
-    a: am, b: bm, total: am + bm, guessed,
-    nA: a.length, nB: b.length, n: a.length + b.length,
+    worksheet: false, a: am, b: bm, p2: p2m, total: am + bm + p2m,
+    guessed: lay.list.filter(q => !cpbQuestionMarks(q)).length,
+    nA: lay.a.length, nB: lay.b.length, nP2: lay.p2.length, n: lay.list.length,
     wantQuestions: 0, needQuestions: null,
-    wantMcq, wantOpen,
-    wantA: wantMcq * CPB_MCQ_MARKS,
-    wantTotal: wantMcq * CPB_MCQ_MARKS + wantOpen,
-    // Positive = still to find, negative = over. Null when there is no target,
-    // which is how a short topical paper says "do not measure me".
-    needMcq: wantMcq ? wantMcq - a.length : null,
+    wantMcq, wantOpen, wantPaper2, wantA, wantTotal: wantA + wantOpen + wantPaper2,
+    needMcq: wantMcq ? wantMcq - lay.a.length : null,
     needOpen: wantOpen ? wantOpen - bm : null,
+    needPaper2: wantPaper2 ? wantPaper2 - p2m : null,
   };
+}
+
+// Preserve printed/teacher allocations. Only missing marks use the reference's
+// position-based Paper 1 allocation; Paper 2 needs the source's variable marks.
+function cpbExamMarks(q, lay) {
+  const own = cpbQuestionMarks(q);
+  if (own) return own;
+  if (lay.a.includes(q)) return lay.a.indexOf(q) < 10 ? 1 : 2;
+  if (lay.b.includes(q)) return lay.b.indexOf(q) < 5 ? 1 : 2;
+  return CPB_OPEN_DEFAULT_MARKS;
+}
+function cpbSetMarks(id, value) {
+  const q = cpbQuestions.find(x => x.id === id);
+  if (!q) return;
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 0 || n > 99) { cpbRender(); return; }
+  q.marks = n; // 0 restores the reference allocation.
+  cpbRender();
 }
 
 // "8 questions to go" / "3 marks over" / "✓" — written once, because it is
@@ -21081,7 +21092,8 @@ function cpbRunPrompt(n, from, total) {
   const lvl = level ? `Every question on it is ${level} level. ` : "";
   return `You are reading questions off screenshots so a teacher can assemble a Singapore primary-school mathematics ${cpbIsWorksheet() ? "worksheet" : "mock exam paper"}. ${paper}${lvl}` +
     `The attached ${n > 1 ? `${n} images are screenshots ${from}–${from + n - 1} of ${total}` : `image is screenshot ${from} of ${total}`}, in the order the teacher added them.\n` +
-    aiQuestionReadPrompt(false, true, true, { images: n, seeded: !!cpbRunSeed });
+    aiQuestionReadPrompt(false, true, true, { images: n, seeded: !!cpbRunSeed }) +
+    "\nFor each question, also return paperSection: a for Paper 1 Booklet A, b for Paper 1 Booklet B, or p2 for Paper 2, ONLY when identified by a visible paper/booklet heading or footer. Otherwise omit it. Read marks from section instructions as well as individual questions. Never infer the paper from the number of marks alone.";
 }
 
 // ⑤ THE RUN. `opt.seed` is the question an APPENDED run may carry on from —
@@ -21151,6 +21163,7 @@ async function cpbReadRun(shots, opt) {
       }
       const q = questionFromAiData(row);
       q.marks = cpbReadMarks(row);
+      if (["a", "b", "p2"].includes(row.paperSection)) q._cpbBook = row.paperSection;
       if (o.onBuilt) o.onBuilt(q, row);
       cpbNote("Cropping the picture for “" + (q.title || "question") + "”…");
       await cpbFillDiagram(q, row, media, sharePageFor(pi - 1), budget);
@@ -21316,14 +21329,14 @@ async function cpbRunBuild(mode) {
     + (res.failed ? ` · ${res.failed} screenshot${res.failed === 1 ? "" : "s"} could not be read` : "");
   if (append) {
     toast(added
-      ? `Added ${added} question${added === 1 ? "" : "s"} — now ${total}${cpbIsWorksheet() ? "" : `, ${lay.a.length} multiple choice and ${lay.b.length} open-ended`}`
+      ? `Added ${added} question${added === 1 ? "" : "s"} — now ${total}${cpbIsWorksheet() ? "" : `, ${lay.a.length} multiple choice and ${lay.b.length + lay.p2.length} open-ended`}`
         + (joined ? " · 🔗 one carried on from the question before it" : "") + tail
       : `No new questions were read${joined ? " — what was on them carried on from the question before 🔗" : ""}${tail}`,
       added || joined ? "success" : "error");
     return;
   }
   toast(total
-    ? `Built ${total} question${total === 1 ? "" : "s"}${cpbIsWorksheet() ? "" : ` — ${lay.a.length} multiple choice, ${lay.b.length} open-ended`}${tail}`
+    ? `Built ${total} question${total === 1 ? "" : "s"}${cpbIsWorksheet() ? "" : ` — ${lay.a.length} multiple choice, ${lay.b.length + lay.p2.length} open-ended`}${tail}`
     : "No questions could be read from those screenshots", total ? "success" : "error");
 }
 function cpbCancelRun() {
@@ -21491,7 +21504,7 @@ function cpbLibRow(r) {
   // existed carries none, and is a paper.
   return { id: r.id, name: r.name || "", at: Number(r.at) || 0, sentAt: Number(r.sentAt) || 0,
     mode: r.mode === "worksheet" ? "worksheet" : "paper",
-    nA: Number(r.nA) || 0, nB: Number(r.nB) || 0, marks: Number(r.marks) || 0 };
+    nA: Number(r.nA) || 0, nB: Number(r.nB) || 0, nP2: Number(r.nP2) || 0, marks: Number(r.marks) || 0 };
 }
 // The shelf is read out of the SAME snapshot `loadVettingList` already takes,
 // so opening the page costs no extra round trip and a saved sheet can never be
@@ -21500,7 +21513,7 @@ function cpbLibRow(r) {
 function cpbLibFromVetting(rows) {
   cpbLib = (rows || []).map(v => cpbLibRow({
     id: v.paperId || String(v.id || "").replace(CPB_LIB_PREFIX, ""),
-    name: v.name, at: v.at, sentAt: v.sentAt, mode: v.mode, nA: v.nA, nB: v.nB, marks: v.marks,
+    name: v.name, at: v.at, sentAt: v.sentAt, mode: v.mode, nA: v.nA, nB: v.nB, nP2: v.nP2, marks: v.marks,
   }));
   cpbLib.sort((a, b) => (b.at || 0) - (a.at || 0));
 }
@@ -21517,7 +21530,7 @@ async function cpbSavePaper() {
   const payload = {
     id: cpbLibDocId(id), cpbPaper: true, paperId: id,
     name, at: Date.now(), mode: cpbMode(),
-    nA: m.nA, nB: m.nB, marks: m.total,
+    nA: m.nA, nB: m.nB, nP2: m.nP2 || 0, marks: m.total,
     meta: Object.assign({}, cpbMeta),
     questions: cpbQuestions,
     savedBy: (currentUser && currentUser.uid) || "",
@@ -21539,7 +21552,7 @@ async function cpbSavePaper() {
     await setDoc(doc(db, "users", currentUser.uid, "mathVetting", payload.id), payload);
     cpbLibId = id;
     const was = cpbLib.find(r => r.id === id);
-    const row = cpbLibRow({ id, name, at: payload.at, mode: payload.mode, nA: m.nA, nB: m.nB,
+    const row = cpbLibRow({ id, name, at: payload.at, mode: payload.mode, nA: m.nA, nB: m.nB, nP2: m.nP2 || 0,
       marks: m.total, sentAt: was ? was.sentAt : 0 });
     cpbLib = cpbLib.filter(r => r.id !== id).concat([row]).sort((a, b) => (b.at || 0) - (a.at || 0));
     toast("📁 Saved as “" + name + "” — reopen it any time from 📁 Saved papers", "success");
@@ -21690,79 +21703,271 @@ function cpbIndexGridHtml() {
     <span class="cpb-cv-dash">&ndash;</span><span class="cpb-cv-box"></span>
   </div>`;
 }
-function cpbCoverHeadHtml(booklet) {
-  const code = cpbMetaGet("code");
-  return `<div class="cpb-cv-head">
-    <div class="cpb-cv-org">${escapeHtml(cpbMetaGet("org"))}</div>
-    <div class="cpb-cv-exam">${escapeHtml(cpbMetaGet("exam"))}</div>
-    <div class="cpb-cv-row">
-      <span class="cpb-cv-code">${escapeHtml(code ? code + " (" + booklet + ")" : "")}</span>
-      <span class="cpb-cv-level">${escapeHtml(cpbMetaGet("level"))}<br><span class="cpb-cv-year">${escapeHtml(cpbMetaGet("year"))}</span></span>
-    </div>
-    <div class="cpb-cv-subject">${escapeHtml(cpbMetaGet("subject"))}</div>
-    <div class="cpb-cv-booklet">(BOOKLET ${escapeHtml(booklet)})</div>
-  </div>`;
+// ---- PSLE 2023 exam presentation -----------------------------------------
+function cpbPaperCode(book) {
+  const code = String(cpbMetaGet(book === "p2" ? "code2" : "code") || "");
+  return code + (code && book !== "p2" ? " (" + book.toUpperCase() + ")" : "");
 }
-// The seal at the foot of a cover. It deliberately does NOT print "this
-// booklet consists of N printed pages": the count is only known after the
-// browser has paginated, and a cover that states the wrong one is worse than a
-// cover that states none.
-function cpbCoverFootHtml() {
-  return `<div class="cpb-cv-foot"><div class="cpb-cv-seal">${escapeHtml(cpbMetaGet("org"))}</div></div>`;
+function cpbMarkRuns(list, numbers, allocations) {
+  const runs = [];
+  list.forEach(q => {
+    const marks = allocations[q.id], last = runs[runs.length - 1];
+    if (last && last.marks === marks) last.list.push(q);
+    else runs.push({ marks, list: [q] });
+  });
+  return runs.map(run => {
+    const first = numbers[run.list[0].id], last = numbers[run.list[run.list.length - 1].id];
+    return Object.assign(run, { text: (first === last ? `Question ${first} carries ` : `Questions ${first} to ${last} carry `)
+      + run.marks + (run.marks === 1 ? " mark" : " marks") + (first === last ? "." : " each.") });
+  });
 }
-function cpbCoverA(marks, nA) {
-  const onPaper = !!cpbMetaGet("mcqOnPaper");
+function cpbPsleCover(book, marks, range) {
+  const isA = book === "a", isP2 = book === "p2", onPaper = !!cpbMetaGet("mcqOnPaper");
+  const time = isP2 ? "Time: " + cpbMetaGet("duration2") : "Total Time for Booklets A and B: " + cpbMetaGet("duration");
   const ins = [
-    "Write your Index No. in the boxes at the top right hand corner.",
+    isA ? "Write your index number in the boxes at the top right-hand corner."
+      : "Write your name, class and index number in the box above, or paste your barcode label there.",
     "Do not turn over this page until you are told to do so.",
-    "Follow all instructions carefully.",
-    "Answer all questions.",
-    onPaper
-      ? "Write your answer in the bracket provided at the end of each question."
-      : "Use a 2B pencil to shade your answers on the Answer Sheet.",
+    "Follow all instructions carefully.", "Answer all questions.",
+    isA ? (onPaper ? "Write your answer in the box provided for each question." : "Use a 2B pencil to shade your answers on the Answer Sheet.")
+      : "Use a dark blue or black ballpoint pen to write your answers in the spaces provided. Show your working clearly.",
+    isP2 ? "The use of an approved calculator is allowed." : "The use of calculators is NOT allowed.",
+    ...(!isA ? ["Do not use correction fluid/tape.", "Do not use highlighters on any part of your answers."] : []),
   ];
-  return `<section class="ws-page cpb-cover">
-    ${cpbIndexGridHtml()}
-    ${cpbCoverHeadHtml("A")}
-    <div class="cpb-cv-time">
-      <span>${escapeHtml(onPaper ? "Additional Materials: Nil" : "Additional Materials: Answer Sheet")}</span>
-      <span><b>Total Time for Booklets A and B : ${escapeHtml(cpbMetaGet("duration"))}</b></span>
+  const timeHtml = `<div class="cpb-cv-time">${isA ? `<span>Additional materials: ${onPaper ? "Nil" : "Answer Sheet"}</span>` : ""}<b>${escapeHtml(time)}</b></div>`;
+  return `<section class="cpb-cover cpb-cover-${book}">
+    ${isA ? cpbIndexGridHtml() : `<div class="cpb-barcode"><div>PASTE YOUR BARCODE LABEL HERE</div><small>Name: __________________________<br>Class: __________ Index No.: __________</small></div>`}
+    <div class="cpb-cv-head">
+      <div class="cpb-cv-org">${escapeHtml(cpbMetaGet("org"))}</div>
+      <div class="cpb-cv-exam">${escapeHtml(cpbMetaGet("exam"))}</div>
+      <div class="cpb-cv-row"><span class="cpb-cv-code">${escapeHtml(cpbPaperCode(book))}</span>
+        <span class="cpb-cv-level">${escapeHtml(cpbMetaGet("level"))}<br>${escapeHtml(cpbMetaGet("year"))}</span></div>
+      <div class="cpb-cv-subject">${escapeHtml(cpbMetaGet("subject"))}<br>PAPER ${isP2 ? "2" : "1"}</div>
+      ${isP2 ? "" : `<div class="cpb-cv-booklet">(BOOKLET ${book.toUpperCase()})</div>`}
+      ${isA ? timeHtml : ""}
     </div>
-    <div class="cpb-cv-ins">
-      <div class="cpb-cv-ins-h">INSTRUCTIONS TO CANDIDATES</div>
+    ${isA ? "" : timeHtml}
+    <div class="cpb-cv-ins"><div class="cpb-cv-ins-h">INSTRUCTIONS TO CANDIDATES</div>
       <ol class="cpb-cv-ins-list">${ins.map(t => `<li>${escapeHtml(t)}</li>`).join("")}</ol>
-      <div class="cpb-cv-ins-note">Questions 1 to ${nA} carry ${CPB_MCQ_MARKS} marks each. Booklet A is worth ${marks} marks.</div>
+      <div class="cpb-cv-ins-note">${escapeHtml(range)} · ${marks} marks</div>
     </div>
-    ${cpbCoverFootHtml()}
+    <div class="cpb-cv-foot"><div data-cpb-count></div><div class="cpb-cv-seal">${escapeHtml(cpbMetaGet("org"))}</div></div>
   </section>`;
 }
-function cpbCoverB(marks, from, to) {
-  const ins = [
-    "Write your Index No. in the boxes at the top right hand corner.",
-    "Do not turn over this page until you are told to do so.",
-    "Follow all instructions carefully.",
-    "Answer all questions.",
-    "Show your working clearly in the space provided for each question.",
-    "The number of marks available is shown in brackets [ ] at the end of each question.",
-  ];
-  return `<section class="ws-page cpb-cover">
-    ${cpbIndexGridHtml()}
-    ${cpbCoverHeadHtml("B")}
-    <div class="cpb-cv-time">
-      <span>Additional Materials: Nil</span>
-      <span><b>Total Time for Booklets A and B : ${escapeHtml(cpbMetaGet("duration"))}</b></span>
-    </div>
-    <div class="cpb-cv-ins">
-      <div class="cpb-cv-ins-h">INSTRUCTIONS TO CANDIDATES</div>
-      <ol class="cpb-cv-ins-list">${ins.map(t => `<li>${escapeHtml(t)}</li>`).join("")}</ol>
-      <div class="cpb-cv-ins-note">Questions ${from} to ${to} are worth ${marks} marks in total.</div>
-    </div>
-    <div class="cpb-cv-total">
-      <span>For Examiner's Use</span><span class="cpb-cv-total-box"></span><span>/ ${marks}</span>
-    </div>
-    ${cpbCoverFootHtml()}
-  </section>`;
+function cpbPsleCss() {
+  return `
+    body { color: #000; }
+    .cpb-exam-page { position: relative; width: 184mm; height: 268mm; padding: 10mm 3mm 13mm; box-sizing: border-box; background: white; break-after: page; page-break-after: always; }
+    .cpb-exam-page:last-child { break-after: auto; page-break-after: auto; }
+    .cpb-page-body { height: 100%; display: flow-root; }
+    .cpb-page-number { position: absolute; top: 0; left: 0; right: 0; text-align: center; font-size: 11pt; }
+    .cpb-page-footer { position: absolute; bottom: 1mm; left: 3mm; right: 3mm; font-size: 8pt; text-align: center; }
+    .cpb-page-turn { text-align: right; font-size: 10pt; margin-bottom: 4mm; }
+    .cpb-page-code { min-height: 4mm; }
+    .cpb-exam-page.cpb-is-cover { padding: 5mm 3mm 5mm; }
+    .cpb-is-cover > .cpb-page-number, .cpb-is-cover > .cpb-page-footer { display: none; }
+    .cpb-exam-page .ws-page { border: 0; padding: 0; margin: 0; }
+    .cpb-exam-page .cpb-cover { min-height: 0; height: 100%; gap: 5mm; font-size: 11pt; }
+    .cpb-exam-page .cpb-cv-head { color: #000; padding: 5mm 2mm; border-color: #000; }
+    .cpb-exam-page .cpb-cv-org, .cpb-exam-page .cpb-cv-exam { font-size: 11pt; letter-spacing: 0; overflow-wrap: anywhere; }
+    .cpb-exam-page .cpb-cv-subject { margin: 0; font-size: 14pt; line-height: 1.4; letter-spacing: 0; }
+    .cpb-exam-page .cpb-cv-row { margin: 5mm 4mm 0; min-height: 12mm; }
+    .cpb-exam-page .cpb-cv-code { max-width: 90mm; overflow-wrap: anywhere; }
+    .cpb-exam-page .cpb-cv-level { max-width: 60mm; font-size: 12pt; overflow-wrap: anywhere; }
+    .cpb-exam-page .cpb-cv-time { font-size: 9.5pt; gap: 2mm; justify-content: flex-end; }
+    .cpb-exam-page .cpb-cover-a .cpb-cv-time { margin-top: 16mm; justify-content: space-between; }
+    .cpb-exam-page .cpb-cv-ins { padding: 5mm 2mm; border-color: #000; }
+    .cpb-exam-page .cpb-cv-ins-list { margin-top: 4mm; padding-left: 7mm; }
+    .cpb-exam-page .cpb-cv-ins-list li { line-height: 1.4; margin-bottom: 2.2mm; }
+    .cpb-exam-page .cpb-cv-ins-note { font-weight: normal; font-size: 10pt; }
+    .cpb-exam-page .cpb-cv-foot { padding: 2mm; border-color: #000; font-size: 9pt; line-height: 1.5; }
+    .cpb-exam-page .cpb-cover-b, .cpb-exam-page .cpb-cover-p2 { gap: 3mm; }
+    .cpb-exam-page .cpb-cover-b .cpb-cv-head, .cpb-exam-page .cpb-cover-p2 .cpb-cv-head { border: 0; padding: 3mm 0; }
+    .cpb-exam-page .cpb-cover-b .cpb-cv-ins, .cpb-exam-page .cpb-cover-p2 .cpb-cv-ins { border-width: .7pt 0; padding: 3mm 0; }
+    .cpb-exam-page .cpb-cover-b .cpb-cv-foot, .cpb-exam-page .cpb-cover-p2 .cpb-cv-foot { border: 0; }
+    .cpb-barcode { border: .7pt solid #000; width: 115mm; max-width: 100%; height: 48mm; margin: 3mm 0 5mm 10mm; padding: 7mm; text-align: center; font-size: 17pt; line-height: 1.4; }
+    .cpb-barcode small { display: block; margin-top: 4mm; font-size: 10pt; line-height: 1.6; }
+    .cpb-exam-page .cpb-lead { padding: 0 0 3mm; margin: 0 0 5mm; color: #000; border-color: #000; }
+    .cpb-exam-page .cpb-lead p { font-size: 11pt; line-height: 1.3; }
+    .cpb-exam-page .cpb-lead-marks { margin: 0; font-weight: normal; font-size: 11pt; }
+    .cpb-exam-page .ws-chunk { position: relative; margin: 0 0 6mm; padding: 0 0 5mm 12mm; border-bottom: .7pt solid #000; }
+    .cpb-exam-page[data-book="a"] .ws-chunk { border: 0; padding-bottom: 2mm; }
+    .cpb-exam-page .ws-q-no { position: absolute; top: 0; left: 0; width: 10mm; font-size: 12pt; }
+    .cpb-exam-page .ws-q-body { line-height: 1.4; font-size: 12pt; }
+    .cpb-exam-page .ws-q-body img { max-height: var(--ws-img-mm, 85mm); }
+    .cpb-exam-page .ws-mcq-opt { font-size: 12pt; margin-bottom: 3mm; line-height: 1.4; }
+    .cpb-exam-page .ws-mcq-opt .l { font-weight: normal; }
+    .cpb-exam-page .ws-answer-final, .cpb-exam-page .ws-annot-note { color: #000; }
+    .cpb-exam-page .ws-answer-final i { border-color: #000; }
+    .cpb-q-marks { text-align: right; font-size: 10pt; margin-top: 2mm; }
+    .cpb-continued { font-size: 10pt; margin-bottom: 3mm; }
+    .cpb-blank { text-align: center; padding-top: 10mm; font-size: 11pt; }
+    #cpbSource { position: absolute; left: -10000px; top: 0; width: 178mm; visibility: hidden; }
+    @media screen {
+      body { padding: 22px 0; background: #e7e7e7; }
+      .cpb-exam-page { box-sizing: content-box; padding: 24mm 16mm 27mm; width: 178mm; height: 245mm; margin: 0 auto 22px; box-shadow: 0 2px 12px #0002; }
+      .cpb-exam-page.cpb-is-cover { padding: 19mm 16mm; height: 258mm; }
+      .cpb-page-number { top: 14mm; }
+      .cpb-page-footer { bottom: 15mm; left: 16mm; right: 16mm; }
+    }
+    @media print { #cpbSource { display: none; } }
+  `;
 }
+// Runs inside the exported document. Measure after images/fonts settle, then
+// use the same physical page boxes for screen preview and print.
+function cpbPaginateDocument() {
+  const root = document.getElementById("cpbPages"), source = document.getElementById("cpbSource");
+  const button = document.getElementById("cpbPrintButton");
+  window.cpbReady = false;
+  const readyImages = [...source.querySelectorAll("img")].map(img => img.decode ? img.decode().catch(() => {}) : Promise.resolve());
+  Promise.all([document.fonts ? document.fonts.ready : Promise.resolve(), ...readyImages]).then(() => {
+    const groups = [...source.children];
+    function makePage(book, code, n, cover) {
+      const page = document.createElement("section");
+      page.className = "cpb-exam-page" + (cover ? " cpb-is-cover" : "");
+      page.dataset.book = book;
+      page.innerHTML = '<div class="cpb-page-number"></div><div class="cpb-page-body"></div><footer class="cpb-page-footer"><div class="cpb-page-turn"></div><div class="cpb-page-code"></div></footer>';
+      page.querySelector(".cpb-page-number").textContent = n || "";
+      page.querySelector(".cpb-page-code").textContent = code;
+      root.appendChild(page);
+      return page;
+    }
+    function fits(body) {
+      // scrollHeight misses a child's bottom margin; include it in the budget.
+      const last = body.lastElementChild;
+      return body.scrollHeight <= body.clientHeight + 1 && (!last || last.getBoundingClientRect().bottom + parseFloat(getComputedStyle(last).marginBottom || 0) <= body.getBoundingClientRect().bottom + 1);
+    }
+    groups.forEach(group => {
+      const book = group.dataset.book || "", code = group.dataset.code || "", pages = [];
+      const cover = group.querySelector("[data-cpb-cover]");
+      if (cover) {
+        const page = makePage(book, code, 1, true);
+        page.querySelector(".cpb-page-body").append(...cover.childNodes); pages.push(page);
+      }
+      let page, body;
+      const next = () => { page = makePage(book, code, pages.length + 1, false); pages.push(page); body = page.querySelector(".cpb-page-body"); };
+      function put(item) {
+        if (!body) next();
+        body.appendChild(item);
+        if (fits(body)) return;
+        // A section introduction stays with its first question.
+        const lead = item.previousElementSibling && item.previousElementSibling.classList.contains("cpb-lead") ? item.previousElementSibling : null;
+        if (body.children.length > (lead ? 2 : 1)) {
+          item.remove(); if (lead) lead.remove(); next(); if (lead) body.appendChild(lead); body.appendChild(item);
+          if (fits(body)) return;
+        }
+        // Keep the whole question if its blank working area can yield space.
+        for (const work of item.querySelectorAll(".ws-work")) {
+          const excess = Math.max(0, item.getBoundingClientRect().bottom + parseFloat(getComputedStyle(item).marginBottom || 0) - body.getBoundingClientRect().bottom);
+          work.style.height = Math.max(12, work.getBoundingClientRect().height - excess - 2) + "px";
+        }
+        if (fits(body)) return;
+        // An unusually long question continues at block boundaries. Answers
+        // remain together; no clipping or global font shrinking is used.
+        if (item.classList.contains("ws-chunk")) {
+          const qbody = item.querySelector(".ws-q-body"), n = item.querySelector(".ws-q-no");
+          const answer = item.querySelector(".ws-answer-box"), marks = item.querySelector(".cpb-q-marks");
+          if (answer && marks) answer.appendChild(marks);
+          // Screenshot imports often put all wording into one paragraph with
+          // line breaks. Split that paragraph into small rich-text pieces,
+          // retaining fraction/diagram markup rather than flattening to text.
+          const wording = [];
+          for (const block of [...qbody.children]) {
+            if (block.tagName !== "P") { wording.push(block); continue; }
+            let piece = block.cloneNode(false), count = 0;
+            const flush = () => { if (piece.childNodes.length) wording.push(piece); piece = block.cloneNode(false); count = 0; };
+            for (const node of [...block.childNodes]) {
+              if (node.nodeName === "BR") { flush(); continue; }
+              if (node.nodeType === 3) {
+                for (const word of node.textContent.match(/\S+\s*|\s+/g) || []) {
+                  if (count + word.length > 400 && count) flush();
+                  piece.appendChild(document.createTextNode(word)); count += word.length;
+                }
+              } else { piece.appendChild(node); count += node.textContent.length; }
+            }
+            flush();
+          }
+          const parts = wording.map(el => { const wrapper = document.createElement("div"); wrapper.className = "ws-q-body"; wrapper.appendChild(el); return wrapper; })
+            .concat([...item.children].filter(el => el !== qbody && el !== n));
+          const number = n.textContent;
+          item.remove();
+          if (body.children.length && !lead) next();
+          let fragment;
+          function start(cont) {
+            fragment = document.createElement("section"); fragment.className = item.className;
+            const label = document.createElement("div"); label.className = "ws-q-no"; label.textContent = number; fragment.appendChild(label);
+            if (cont) { const note = document.createElement("div"); note.className = "cpb-continued"; note.textContent = "(continued)"; fragment.appendChild(note); }
+            body.appendChild(fragment);
+          }
+          start(false);
+          parts.forEach(block => {
+            fragment.appendChild(block);
+            if (!fits(body)) {
+              block.remove(); next(); start(true); fragment.appendChild(block);
+            }
+          });
+        }
+      }
+      const items = group.querySelector("[data-cpb-items]");
+      if (items) [...items.children].forEach(put);
+      if (cover) {
+        const last = pages[pages.length - 1];
+        pages.slice(1).forEach(p => { p.querySelector(".cpb-page-turn").textContent = p === last ? (group.dataset.next || "End of Paper") : "(Go on to the next page)"; });
+        const printed = pages.length, blank = printed % 2;
+        if (blank) { const p = makePage(book, code, pages.length + 1, false); p.querySelector(".cpb-page-body").innerHTML = '<div class="cpb-blank">BLANK PAGE</div>'; pages.push(p); }
+        const count = pages[0].querySelector("[data-cpb-count]");
+        if (count) count.textContent = `This booklet consists of ${printed} printed pages${blank ? " and 1 blank page" : ""}.`;
+      }
+    });
+    source.remove();
+    window.cpbReady = true;
+    if (button) { button.disabled = false; button.textContent = "Print / Save PDF"; }
+    if (document.body.dataset.autoPrint === "true") { window.focus(); window.print(); }
+  }).catch(error => {
+    console.error("Paper layout failed", error);
+    if (button) button.textContent = "Could not prepare paper — reopen preview";
+  });
+}
+async function cpbBuildPsleDocumentHtml(questions, title, opts) {
+  const paper = opts.paper, groups = paper.groups || [], numbers = paper.numbers;
+  const answerNumbers = {}, sources = [];
+  for (const g of groups) {
+    const list = g.questions.filter(q => questions.includes(q));
+    if (!list.length) continue;
+    list.forEach(q => { answerNumbers[q.id] = CPB_BOOK_LABELS[g.book] + " · Q" + numbers[q.id]; });
+    const runs = cpbMarkRuns(list, numbers, paper.allocations);
+    const instructions = g.book === "a"
+      ? `For each question, four options are given. One of them is the correct answer. Make your choice (1, 2, 3 or 4) and ${paper.noBracketIds ? "shade your answer on the Answer Sheet" : "write it in the box provided"}.`
+      : "Show your working clearly and write your answers in the spaces provided. For questions which require units, give your answers in the units stated.";
+    let batches = g.book === "a" ? [{ list, text: runs.map(r => r.text).join(" ") }] : runs;
+    if (g.book === "p2") {
+      // The reference has five short answers followed by the variable-mark
+      // questions. Do not insert a new section heading at each mark change.
+      const short = list.slice(0, 5);
+      const split = short.length === 5 && short.every(q => paper.allocations[q.id] === 2) ? 5 : 0;
+      const rest = list.slice(split);
+      batches = split ? cpbMarkRuns(short, numbers, paper.allocations) : [];
+      if (rest.length) batches.push({ list: rest, text: "The number of marks available is shown in brackets [ ] at the end of each question." });
+    }
+    const items = batches.map(run => cpbLeadHtml(run.text + " " + instructions, run.list.reduce((n, q) => n + paper.allocations[q.id], 0))
+      + run.list.map(q => wsQuestionChunkHtml(q, numbers[q.id], "", 0, !!paper.noBracketIds?.has(q.id), false,
+        { book: g.book, marks: paper.allocations[q.id] })).join("")).join("");
+    const range = list.length === 1 ? "Question " + numbers[list[0].id] : "Questions " + numbers[list[0].id] + " to " + numbers[list[list.length - 1].id];
+    const marks = list.reduce((n, q) => n + paper.allocations[q.id], 0);
+    sources.push(`<section data-book="${g.book}" data-code="${escapeHtml(cpbPaperCode(g.book))}" data-next="${g.book === "a" && groups.some(x => x.book === "b") ? "(Go on to Booklet B)" : "End of Paper"}"><div data-cpb-cover>${cpbPsleCover(g.book, marks, range)}</div><div data-cpb-items>${items}</div></section>`);
+  }
+  if (paper.tail) sources.push(`<section data-book="answers"><div data-cpb-items>${paper.tail}</div></section>`);
+  if (opts.withAnswers) {
+    // Individual key entries can paginate, but a whole key is not forced into
+    // one page. Paper labels disambiguate the restarted question numbers.
+    const key = wsAnswerKeyHtml(questions, answerNumbers).replace(/^<section[^>]*>/, "").replace(/<\/section>$/, "");
+    sources.push(`<section data-book="key"><div data-cpb-items>${key}</div></section>`);
+  }
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>${wsPrintCss()}${cpbPsleCss()}</style></head>
+    <body data-auto-print="${!!opts.autoPrint}">${opts.readOnly ? "" : `<div class="ws-printbar ws-noprint"><button class="ghost" onclick="window.close()">Close</button><button id="cpbPrintButton" disabled onclick="window.print()">Preparing pages…</button></div>`}
+    <div id="cpbPages"></div><div id="cpbSource">${sources.join("")}</div><script>(${cpbPaginateDocument.toString()})();<\/script></body></html>`;
+}
+
 // The line a booklet — or a worksheet — opens with. Same shape and the same
 // print CSS either way, so an instruction reads as the same thing on both.
 function cpbLeadHtml(text, marks) {
@@ -21804,22 +22009,8 @@ function cpbPaperOpts() {
   const lay = cpbLayout();
   const m = cpbMarks();
   const onPaper = !!cpbMetaGet("mcqOnPaper");
-  const groups = [];
-  if (lay.a.length) {
-    groups.push({
-      cover: cpbCoverA(m.a, lay.a.length),
-      lead: cpbLeadHtml(`For each question from 1 to ${lay.a.length}, four options are given. One of them is the correct answer. Make your choice (1, 2, 3 or 4) and ${onPaper ? "write it in the bracket provided" : "shade your answer on the Answer Sheet"}.`, m.a),
-      questions: lay.a,
-    });
-  }
-  if (lay.b.length) {
-    const from = lay.a.length + 1, to = lay.a.length + lay.b.length;
-    groups.push({
-      cover: cpbCoverB(m.b, from, to),
-      lead: cpbLeadHtml(`For questions ${from} to ${to}, show your working clearly in the space provided. The number of marks available is shown in brackets [ ] at the end of each question.`, m.b),
-      questions: lay.b,
-    });
-  }
+  const groups = ["a", "b", "p2"].filter(book => lay[book].length).map(book => ({ book, questions: lay[book] }));
+  const allocations = Object.fromEntries(lay.list.map(q => [q.id, cpbExamMarks(q, lay)]));
   const wantSheet = lay.a.length && !onPaper && !!cpbMetaGet("answerSheet");
   return {
     list: lay.list, numbers: lay.numbers, marks: m,
@@ -21827,7 +22018,7 @@ function cpbPaperOpts() {
       cover: false, fields: false, withQr: false,
       withAnswers: !!cpbMetaGet("answerKey"),
       paper: {
-        groups, numbers: lay.numbers,
+        psle: true, groups, numbers: lay.numbers, allocations,
         // Booklet A carries no answer box when it is answered on the answer
         // sheet — a box nobody writes in is a mark a child looks for and
         // cannot find.
@@ -21896,7 +22087,7 @@ function cpbSend() {
   const n = cpbQuestions.length;
   const what = cpbIsWorksheet()
     ? `${n} question${n === 1 ? "" : "s"} go`
-    : `${lay.a.length} multiple choice and ${lay.b.length} open-ended go`;
+    : `${lay.a.length} multiple choice and ${lay.b.length + lay.p2.length} open-ended go`;
   if (!confirm(`Send ${n} question${n === 1 ? "" : "s"} to the bank?\n\n`
     + `${what} into the question bank HELD BACK FROM STUDENTS — you can edit, check, print and put them on a worksheet, and no practice mode, quest or game will serve one to a child until you release them.\n\n`
     + `Release them later from the ⏳ bar at the top of the Question Bank, which lists them under this ${thing}'s name.\n\n`
@@ -22028,9 +22219,9 @@ function cpbLibHtml() {
     const bits = [];
     // A worksheet has no booklets, so "0 + 12" would be arithmetic about a
     // thing it does not have.
-    if (r.nA || r.nB) bits.push(r.mode === "worksheet"
-      ? (r.nA + r.nB) + " question" + (r.nA + r.nB === 1 ? "" : "s")
-      : r.nA + " + " + r.nB + " question" + (r.nA + r.nB === 1 ? "" : "s"));
+    const count = r.nA + r.nB + (r.nP2 || 0);
+    if (count) bits.push(count + " question" + (count === 1 ? "" : "s"));
+    if (r.mode !== "worksheet" && r.nP2) bits.push(r.nP2 + " in Paper 2");
     if (r.marks) bits.push(r.marks + " marks");
     if (r.sentAt) bits.push("sent to the bank 🔒");
     return `<div class="cpb-lib-row${on ? " on" : ""}">
@@ -22131,7 +22322,7 @@ function cpbSetupHtml() {
   const sheet = !!cpbMetaGet("answerSheet");
   return `<div class="cpb-card">
     <div class="cpb-head"><h3 class="cpb-h3">① The paper</h3></div>
-    <p class="cpb-lead">These print on the two covers. They are yours to fill in — nothing here is prefilled with an examination board's name, because this is your centre's paper and a cover that passes for an official one is not one to hand a class.</p>
+    <p class="cpb-lead">The layout follows the uploaded 2023 PSLE Mathematics paper: Paper 1 Booklet A (20 marks), Booklet B (25 marks), and Paper 2 (55 marks). Fill in your centre’s details, then choose each question’s section and marks below. Empty sections are omitted.</p>
     <div class="cpb-fields">
       ${cpbField("name", "Paper name", "e.g. 2026 P6 Maths Prelim Mock 1", "— stored on every question as its source, and what groups them for release")}
       ${cpbField("org", "Centre / school")}
@@ -22139,10 +22330,13 @@ function cpbSetupHtml() {
       ${cpbField("subject", "Subject")}
       ${cpbField("level", "Level line", "e.g. PRIMARY 6")}
       ${cpbField("year", "Year")}
-      ${cpbField("code", "Paper code", "e.g. 0009/1", "— optional")}
-      ${cpbField("duration", "Total time", "e.g. 1 h 50 min")}
+      ${cpbField("code", "Paper 1 code", "e.g. PLC/1", "— optional")}
+      ${cpbField("code2", "Paper 2 code", "e.g. PLC/2", "— optional")}
+      ${cpbField("duration", "Paper 1 time (both booklets)", "1 hour")}
+      ${cpbField("duration2", "Paper 2 time", "1 hour 30 minutes")}
       ${cpbNumField("targetMcq", "Booklet A target", "— questions; 0 turns the target off")}
       ${cpbNumField("targetOpen", "Booklet B target", "— marks; 0 turns the target off")}
+      ${cpbNumField("targetPaper2", "Paper 2 target", "— marks; 0 turns the target off")}
       ${cpbLevelFieldHtml()}
     </div>
     <div class="cpb-switches">
@@ -22217,9 +22411,9 @@ function cpbZoneHtml() {
 function cpbRowHtml(q, num, book, first, last) {
   const ws = !book;
   const auto = cpbIsMcqOnly(q) ? "a" : "b";
-  const overridden = !ws && (q._cpbBook === "a" || q._cpbBook === "b") && q._cpbBook !== auto;
+  const overridden = !ws && ["a", "b", "p2"].includes(q._cpbBook) && q._cpbBook !== auto;
   const own = cpbQuestionMarks(q);
-  const marks = ws ? (own || cpbDefaultMarks(q)) : (book === "a" ? CPB_MCQ_MARKS : own);
+  const marks = ws ? (own || cpbDefaultMarks(q)) : cpbExamMarks(q, cpbLayout());
   const bits = [q.level, adminTopicsLabel(q)].filter(Boolean).join(" · ");
   return `<div class="cpb-row${overridden ? " moved" : ""}" data-qid="${escapeHtml(String(q.id))}">
     <span class="cpb-row-n">${escapeHtml(num || "")}</span>
@@ -22229,7 +22423,7 @@ function cpbRowHtml(q, num, book, first, last) {
         ${escapeHtml(bits)}
         · ${ws
             ? (own ? escapeHtml(own + " mark" + (own === 1 ? "" : "s")) : `<span class="cpb-nomarks">no marks printed — counted as ${marks}</span>`)
-            : (book === "a" ? escapeHtml(CPB_MCQ_MARKS + " marks") : (marks ? escapeHtml(marks + " mark" + (marks === 1 ? "" : "s")) : `<span class="cpb-nomarks">no marks printed</span>`))}
+            : escapeHtml(marks + " mark" + (marks === 1 ? "" : "s") + (own ? "" : " (default)"))}
         ${q.diagramWhole ? ` · <span class="cpb-nomarks">🖼 whole page — crop it</span>` : ""}
         ${q._dupOf ? ` · <span class="cpb-nomarks">possible duplicate</span>` : ""}
         ${overridden ? ` · <span class="cpb-moved">moved here by hand</span>` : ""}
@@ -22238,20 +22432,21 @@ function cpbRowHtml(q, num, book, first, last) {
     <div class="cpb-row-tools">
       <button type="button" class="cpb-tool" onclick="cpbMove('${q.id}',-1)" title="Move up${ws ? "" : " within this booklet"}" ${first ? "disabled" : ""}>▲</button>
       <button type="button" class="cpb-tool" onclick="cpbMove('${q.id}',1)" title="Move down${ws ? "" : " within this booklet"}" ${last ? "disabled" : ""}>▼</button>
-      ${ws ? "" : `<button type="button" class="cpb-tool" onclick="cpbSetBook('${q.id}','${book === "a" ? "b" : "a"}')" title="${book === "a" ? "Move to Booklet B — the child writes the answer" : "Move to Booklet A — the child chooses an option"}">⇄ ${book === "a" ? "B" : "A"}</button>`}
+      ${ws ? "" : `<select class="cpb-tool" aria-label="Section for question ${escapeHtml(num)}" onchange="cpbSetBook('${q.id}',this.value)">${Object.entries(CPB_BOOK_LABELS).map(([k, label]) => `<option value="${k}" ${book === k ? "selected" : ""}>${label}</option>`).join("")}</select>
+      <label class="cpb-row-marks">Marks <input type="number" min="0" max="99" value="${own || 0}" title="0 uses the reference allocation (${marks} marks currently)" aria-label="Marks for question ${escapeHtml(num)}" onchange="cpbSetMarks('${q.id}',this.value)"></label>`}
       <button type="button" class="cpb-tool" onclick="cpbEditQuestion('${q.id}')" title="Open this question in the block editor — the same one the question bank uses. Saving puts it back on this sheet, right here, and nothing goes to the bank." ${cpbBusy ? "disabled" : ""}>✏️ Edit</button>
       <button type="button" class="cpb-tool danger" onclick="cpbDropQuestion('${q.id}')" title="Take this question off the sheet">✕</button>
     </div>
   </div>`;
 }
 function cpbBookletHtml(book, list, numbers, marks) {
-  const title = book === "a" ? "📗 Booklet A — multiple choice" : "📘 Booklet B — open-ended";
+  const title = CPB_BOOK_LABELS[book] + (book === "a" ? " — multiple choice" : " — written answers");
   if (!list.length) {
     return `<div class="cpb-booklet">
       <div class="cpb-booklet-head"><h4>${title}</h4><span class="cpb-booklet-sum">empty</span></div>
       <p class="cpb-empty">${book === "a"
         ? "No multiple-choice questions yet. Any question whose answer is chosen from a fixed set of options lands here."
-        : "No open-ended questions yet. Any question the child writes an answer to lands here."} You can also move one across with ⇄.</p>
+        : "No open-ended questions yet. Any question the child writes an answer to lands here."} Choose its section from the question’s section menu.</p>
     </div>`;
   }
   return `<div class="cpb-booklet">
@@ -22292,14 +22487,15 @@ function cpbSheetCardHtml() {
     : `<span class="cpb-total-big${m.wantTotal ? cpbGapClass(m.wantTotal - m.total) : ""}">
          <b>${m.total}</b>${m.wantTotal ? " of " + m.wantTotal : ""} marks in total${m.wantTotal ? ` <span class="cpb-gap">${escapeHtml(cpbGapLabel(m.wantTotal - m.total, "mark"))}</span>` : ""}
        </span>
-       <span class="${(m.needMcq == null ? "" : cpbGapClass(m.needMcq)).trim()}" title="Booklet A is ${CPB_MCQ_MARKS} marks a question, so the questions and the marks move together.">
+       <span class="${(m.needMcq == null ? "" : cpbGapClass(m.needMcq)).trim()}" title="The reference assigns 1 mark to the first 10 MCQs and 2 marks to the rest. Printed or edited marks take priority.">
          Booklet A <b>${m.nA}</b>${m.wantMcq ? " of " + m.wantMcq : ""} question${m.nA === 1 ? "" : "s"} ·
          <b>${m.a}</b>${m.wantA ? " of " + m.wantA : ""} marks${m.needMcq ? ` <span class="cpb-gap">${escapeHtml(cpbGapLabel(m.needMcq, "question"))}</span>` : ""}
        </span>
        <span class="${(m.needOpen == null ? "" : cpbGapClass(m.needOpen)).trim()}">
          Booklet B <b>${m.nB}</b> question${m.nB === 1 ? "" : "s"} ·
          <b>${m.b}</b>${m.wantOpen ? " of " + m.wantOpen : ""} marks${m.needOpen ? ` <span class="cpb-gap">${escapeHtml(cpbGapLabel(m.needOpen, "mark"))}</span>` : ""}
-       </span>`;
+       </span>
+       <span>Paper 2 <b>${m.nP2}</b> questions · <b>${m.p2}</b>${m.wantPaper2 ? " of " + m.wantPaper2 : ""} marks${m.needPaper2 ? ` <span class="cpb-gap">${escapeHtml(cpbGapLabel(m.needPaper2, "mark"))}</span>` : ""}</span>`;
   return `<div class="cpb-card">
     <div class="cpb-head">
       <h3 class="cpb-h3">③ The ${ws ? "worksheet" : "paper"} <span class="cpb-pill">${cpbQuestions.length}</span></h3>
@@ -22315,10 +22511,10 @@ function cpbSheetCardHtml() {
     </div>
     ${ws
       ? (m.needQuestions ? `<p class="cpb-target-note">🎯 Building to <b>${m.wantQuestions}</b> question${m.wantQuestions === 1 ? "" : "s"}. Change the target in ① The worksheet, or set it to 0 to stop measuring — a worksheet has no standard length.</p>` : "")
-      : ((m.needMcq || m.needOpen) ? `<p class="cpb-target-note">🎯 Building to <b>${m.wantMcq || "—"}</b> multiple choice${m.wantMcq ? ` (${m.wantA} marks)` : ""} and <b>${m.wantOpen || "—"}</b> marks of open-ended — <b>${m.wantTotal}</b> in all. Change the two targets in ① The paper, or set either to 0 for a shorter paper. Nothing printed on a cover comes from here: the covers always state what the paper really adds up to.</p>` : "")}
+      : `<p class="cpb-target-note">The targets are editable. Covers show actual totals. Marks set to 0 use the reference’s Paper 1 allocation, or 2 marks in Paper 2; check these before printing. Paper 2 starts at Question 1.</p>`}
     ${ws
       ? cpbWorksheetListHtml(lay.list, lay.numbers)
-      : cpbBookletHtml("a", lay.a, lay.numbers, m.a) + cpbBookletHtml("b", lay.b, lay.numbers, m.b)}
+      : cpbBookletHtml("a", lay.a, lay.numbers, m.a) + cpbBookletHtml("b", lay.b, lay.numbers, m.b) + cpbBookletHtml("p2", lay.p2, lay.numbers, m.p2)}
   </div>`;
 }
 // Opening the page: bind the paste target, and look for a draft left behind.
@@ -28933,7 +29129,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.69.0 · 2026-09-06";
+const APP_VERSION = "v1.70.0 · 2026-09-07";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -48245,6 +48441,7 @@ window.cpbRebuild = cpbRebuild;
 window.cpbCancelRun = cpbCancelRun;
 window.cpbMove = cpbMove;
 window.cpbSetBook = cpbSetBook;
+window.cpbSetMarks = cpbSetMarks;
 window.cpbDropQuestion = cpbDropQuestion;
 window.cpbEditQuestion = cpbEditQuestion;
 window.cpbPreview = cpbPreview;

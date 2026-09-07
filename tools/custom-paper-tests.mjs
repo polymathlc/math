@@ -155,13 +155,13 @@ ok("one option is not a multiple choice", api.cpbBookOf({ id: "q", options: ["on
   api.setMeta({});
   api.set([mcq("a1"), mcq("a2"), open("b1", 3), open("b2", 0)]);
   const m = api.cpbMarks();
-  eq("Booklet A is 2 marks a question", m.a, 4);
+  eq("The first ten unallocated MCQs default to 1 mark each", m.a, 2);
   // b1 prints 3; b2 prints nothing, so it counts as the default rather than as
   // nothing — a cover that silently understates the paper is worse than one
   // that says how many it had to assume.
-  eq("Booklet B sums what is printed, and counts an unmarked question as 2", m.b, 5);
-  eq("the total is the two together", m.total, 9);
-  eq("…and the page is told how many were assumed", m.guessed, 1);
+  eq("Booklet B preserves printed marks and defaults its first five questions to 1", m.b, 4);
+  eq("the total is all sections together", m.total, 6);
+  eq("…and the page is told how many were assumed", m.guessed, 3);
   eq("a mark allocation nobody printed is 0, so cpbMarks can tell it apart from a real one",
      api.cpbQuestionMarks({ marks: 0 }), 0);
   eq("…and an absurd one is not believed", api.cpbQuestionMarks({ marks: 4000 }), 0);
@@ -189,7 +189,7 @@ ok("one option is not a multiple choice", api.cpbBookOf({ id: "q", options: ["on
   api.setMeta({});
   api.set([]);
   const empty = api.cpbMarks();
-  eq("an empty paper knows what it is aiming at", empty.wantTotal, api.CPB_TARGET_MCQ * 2 + api.CPB_TARGET_OPEN_MARKS);
+  eq("an empty paper knows what it is aiming at", empty.wantTotal, 100);
   eq("…and how far off it is", empty.needMcq, api.CPB_TARGET_MCQ);
   eq("…on both counts", empty.needOpen, api.CPB_TARGET_OPEN_MARKS);
 
@@ -213,11 +213,11 @@ ok("one option is not a multiple choice", api.cpbBookOf({ id: "q", options: ["on
   // A TARGET OF 0 IS NO TARGET. A short topical sheet is a real thing to
   // build, and a page nagging that it is 22 questions short is a page whose
   // warnings stop being read.
-  api.setMeta({ targetMcq: 0, targetOpen: 0 });
+  api.setMeta({ targetMcq: 0, targetOpen: 0, targetPaper2: 0 });
   api.set([mcq("a1"), open("b1", 3)]);
   const none = api.cpbMarks();
   ok("a target of 0 measures nothing", none.needMcq === null && none.needOpen === null);
-  eq("…and the totals are still counted", none.total, 2 + 3);
+  eq("…and the totals are still counted", none.total, 1 + 3);
   eq("…and no total is claimed", none.wantTotal, 0);
   ok("nothing is said about a gap that does not exist", api.cpbGapLabel(null) === "");
 
@@ -310,7 +310,7 @@ ok("one option is not a multiple choice", api.cpbBookOf({ id: "q", options: ["on
  * ------------------------------------------------------------------ */
 const build = cut("async function wsBuildDocumentHtml(questions, title, opts) {",
                   "\n// ---- Editing the header ON the preview", "wsBuildDocumentHtml");
-const chunkFn = cut("function wsQuestionChunkHtml(q, n, qrSvg, reserveMm, noBracket, objBoxAll) {",
+const chunkFn = cut("function wsQuestionChunkHtml(q, n, qrSvg, reserveMm, noBracket, objBoxAll, exam) {",
                     "\nfunction wsAnswerKeyHtml(", "wsQuestionChunkHtml");
 const keyFn = cut("function wsAnswerKeyHtml(questions, numbers) {", "\nfunction wsPrintCss(", "wsAnswerKeyHtml");
 const doc = new Function(`
@@ -457,7 +457,7 @@ ok("a worksheet's instruction line prints above question 1, on the same sheet",
      /if \(!cpbIsWorksheet\(\)\) \{/.test(mv));
 
   const row = cut("function cpbRowHtml(q, num, book, first, last) {", "\nfunction cpbBookletHtml(", "row");
-  ok("a worksheet row has no ⇄ button", /\$\{ws \? "" : `<button[^`]*cpbSetBook/.test(row),
+  ok("a worksheet row has no section menu", /\$\{ws \? "" : `<select[^`]*cpbSetBook/.test(row),
      "a button that moves a question into a booklet nothing prints appears to do nothing");
   ok("…and it still carries the editor", /cpbEditQuestion/.test(row));
 

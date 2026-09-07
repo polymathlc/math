@@ -193,7 +193,7 @@ test('ONE renderer draws the box on every surface', () => {
 
 // ---- the printed sheet ------------------------------------------------------
 test('the chunk appends the automatic box, INSIDE the question', () => {
-  const chunk = cut('function wsQuestionChunkHtml(q, n, qrSvg, reserveMm, noBracket, objBoxAll) {',
+  const chunk = cut('function wsQuestionChunkHtml(q, n, qrSvg, reserveMm, noBracket, objBoxAll, exam) {',
                     '\nfunction wsAnswerKeyHtml', 'wsQuestionChunkHtml');
   const at = chunk.indexOf('objBoxAutoHtml(q, objBoxAll)');
   ok(at >= 0, 'the chunk never appends the box');
@@ -221,7 +221,7 @@ test('the working-space sizing knows about the box too', () => {
   for (const fn of ['wsEffectiveImgMm(q, reserveMm, objBoxAll)', 'wsWorkingSpaceMm(q, reserveMm, objBoxAll)']) {
     ok(src.indexOf('function ' + fn) >= 0, fn + ' does not take the flag');
   }
-  const chunk = cut('function wsQuestionChunkHtml(q, n, qrSvg, reserveMm, noBracket, objBoxAll) {',
+  const chunk = cut('function wsQuestionChunkHtml(q, n, qrSvg, reserveMm, noBracket, objBoxAll, exam) {',
                     '\nfunction wsAnswerKeyHtml', 'wsQuestionChunkHtml');
   ok(chunk.indexOf('wsEffectiveImgMm(q, reserveMm, objBoxAll)') >= 0, 'the chunk does not pass it to wsEffectiveImgMm');
   ok(chunk.indexOf('wsWorkingSpaceMm(q, reserveMm, objBoxAll)') >= 0, 'the chunk does not pass it to wsWorkingSpaceMm');

@@ -1,0 +1,40 @@
+name: PSLE exam layout checks
+on:
+  pull_request:
+    paths: ['index.html', 'tools/*paper*.mjs', 'tools/psle-browser-tests.mjs', '.github/workflows/psle-paper.yml']
+  push:
+    branches: [main]
+    paths: ['index.html', 'tools/*paper*.mjs', 'tools/psle-browser-tests.mjs', '.github/workflows/psle-paper.yml']
+permissions:
+  contents: read
+jobs:
+  exam-layout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check custom paper and worksheet regressions
+        run: |
+          node tools/custom-paper-tests.mjs
+          node tools/psle-paper-tests.mjs
+          node tools/scheduled-release-tests.mjs
+          node tools/worksheet-answer-fields-tests.mjs
+          node tools/worksheet-header-tests.mjs
+          node tools/objectives-box-tests.mjs
+      - name: Install browser for print checks
+        run: |
+          npm install --prefix /tmp/psle-browser --no-audit --no-fund playwright@1.62.1
+          /tmp/psle-browser/node_modules/.bin/playwright install --with-deps chromium
+      - name: Verify rendered A4 pages
+        env:
+          PLAYWRIGHT_MODULE: /tmp/psle-browser/node_modules/playwright
+        run: node tools/psle-browser-tests.mjs /tmp/psle-qa
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: psle-exam-layout
+          path: /tmp/psle-qa
+          retention-days: 7
