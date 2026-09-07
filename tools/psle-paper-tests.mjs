@@ -21,8 +21,9 @@ const api = new Function(`
   ${cut('// 🅰 TWO MODES — an exam paper, or an ordinary worksheet', '// ---- The draft survives the window')}
   ${cut('function cpbIndexGridHtml()', '// 📝 THE WORKSHEET.')}
   ${cut('const CPB_EDITOR_FIELDS', 'function cpbEditQuestion(')}
+  ${cut('function cpbLibRow(r)', '// The shelf is read out')}
   function cpbRender() {}
-  return { cpbLayout, cpbMarks, cpbSetBook, cpbSetMarks, cpbPaperOpts, cpbBuildPsleDocumentHtml, cpbMarkRuns, cpbCarryOver,
+  return { cpbLayout, cpbMarks, cpbSetBook, cpbSetMarks, cpbPaperOpts, cpbBuildPsleDocumentHtml, cpbMarkRuns, cpbCarryOver, cpbLibRow,
     set(qs, meta = {}) { cpbQuestions = qs; cpbMeta = meta; }, get() { return cpbQuestions; } };
 `)();
 const text = content => ({type:'text',content});
@@ -38,6 +39,8 @@ let lay=api.cpbLayout(), marks=api.cpbMarks();
 assert.deepEqual([marks.a,marks.b,marks.p2,marks.total,marks.wantTotal],[20,25,55,100,100]);
 assert.equal(lay.numbers.b0,'16');assert.equal(lay.numbers.b14,'30');assert.equal(lay.numbers.p0,'1');assert.equal(lay.numbers.p16,'17');
 assert.equal(new Set(lay.list.map(q=>q.id)).size,47);
+assert.equal(api.cpbLibRow({nP2:17}).nP2,17);
+assert.equal(api.cpbLibRow({}).nP2,0);
 api.cpbSetMarks('a0',3); assert.equal(api.cpbMarks().a,22);
 api.cpbSetMarks('a0',0); assert.equal(api.cpbMarks().a,20);
 api.cpbSetMarks('a0',-1); assert.equal(api.get()[0].marks,0);

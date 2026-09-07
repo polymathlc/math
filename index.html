@@ -21329,14 +21329,14 @@ async function cpbRunBuild(mode) {
     + (res.failed ? ` · ${res.failed} screenshot${res.failed === 1 ? "" : "s"} could not be read` : "");
   if (append) {
     toast(added
-      ? `Added ${added} question${added === 1 ? "" : "s"} — now ${total}${cpbIsWorksheet() ? "" : `, ${lay.a.length} multiple choice and ${lay.b.length} open-ended`}`
+      ? `Added ${added} question${added === 1 ? "" : "s"} — now ${total}${cpbIsWorksheet() ? "" : `, ${lay.a.length} multiple choice and ${lay.b.length + lay.p2.length} open-ended`}`
         + (joined ? " · 🔗 one carried on from the question before it" : "") + tail
       : `No new questions were read${joined ? " — what was on them carried on from the question before 🔗" : ""}${tail}`,
       added || joined ? "success" : "error");
     return;
   }
   toast(total
-    ? `Built ${total} question${total === 1 ? "" : "s"}${cpbIsWorksheet() ? "" : ` — ${lay.a.length} multiple choice, ${lay.b.length} open-ended`}${tail}`
+    ? `Built ${total} question${total === 1 ? "" : "s"}${cpbIsWorksheet() ? "" : ` — ${lay.a.length} multiple choice, ${lay.b.length + lay.p2.length} open-ended`}${tail}`
     : "No questions could be read from those screenshots", total ? "success" : "error");
 }
 function cpbCancelRun() {
@@ -21504,7 +21504,7 @@ function cpbLibRow(r) {
   // existed carries none, and is a paper.
   return { id: r.id, name: r.name || "", at: Number(r.at) || 0, sentAt: Number(r.sentAt) || 0,
     mode: r.mode === "worksheet" ? "worksheet" : "paper",
-    nA: Number(r.nA) || 0, nB: Number(r.nB) || 0, marks: Number(r.marks) || 0 };
+    nA: Number(r.nA) || 0, nB: Number(r.nB) || 0, nP2: Number(r.nP2) || 0, marks: Number(r.marks) || 0 };
 }
 // The shelf is read out of the SAME snapshot `loadVettingList` already takes,
 // so opening the page costs no extra round trip and a saved sheet can never be
@@ -21513,7 +21513,7 @@ function cpbLibRow(r) {
 function cpbLibFromVetting(rows) {
   cpbLib = (rows || []).map(v => cpbLibRow({
     id: v.paperId || String(v.id || "").replace(CPB_LIB_PREFIX, ""),
-    name: v.name, at: v.at, sentAt: v.sentAt, mode: v.mode, nA: v.nA, nB: v.nB, marks: v.marks,
+    name: v.name, at: v.at, sentAt: v.sentAt, mode: v.mode, nA: v.nA, nB: v.nB, nP2: v.nP2, marks: v.marks,
   }));
   cpbLib.sort((a, b) => (b.at || 0) - (a.at || 0));
 }
@@ -21530,7 +21530,7 @@ async function cpbSavePaper() {
   const payload = {
     id: cpbLibDocId(id), cpbPaper: true, paperId: id,
     name, at: Date.now(), mode: cpbMode(),
-    nA: m.nA, nB: m.nB, marks: m.total,
+    nA: m.nA, nB: m.nB, nP2: m.nP2 || 0, marks: m.total,
     meta: Object.assign({}, cpbMeta),
     questions: cpbQuestions,
     savedBy: (currentUser && currentUser.uid) || "",
@@ -21552,7 +21552,7 @@ async function cpbSavePaper() {
     await setDoc(doc(db, "users", currentUser.uid, "mathVetting", payload.id), payload);
     cpbLibId = id;
     const was = cpbLib.find(r => r.id === id);
-    const row = cpbLibRow({ id, name, at: payload.at, mode: payload.mode, nA: m.nA, nB: m.nB,
+    const row = cpbLibRow({ id, name, at: payload.at, mode: payload.mode, nA: m.nA, nB: m.nB, nP2: m.nP2 || 0,
       marks: m.total, sentAt: was ? was.sentAt : 0 });
     cpbLib = cpbLib.filter(r => r.id !== id).concat([row]).sort((a, b) => (b.at || 0) - (a.at || 0));
     toast("📁 Saved as “" + name + "” — reopen it any time from 📁 Saved papers", "success");
@@ -22087,7 +22087,7 @@ function cpbSend() {
   const n = cpbQuestions.length;
   const what = cpbIsWorksheet()
     ? `${n} question${n === 1 ? "" : "s"} go`
-    : `${lay.a.length} multiple choice and ${lay.b.length} open-ended go`;
+    : `${lay.a.length} multiple choice and ${lay.b.length + lay.p2.length} open-ended go`;
   if (!confirm(`Send ${n} question${n === 1 ? "" : "s"} to the bank?\n\n`
     + `${what} into the question bank HELD BACK FROM STUDENTS — you can edit, check, print and put them on a worksheet, and no practice mode, quest or game will serve one to a child until you release them.\n\n`
     + `Release them later from the ⏳ bar at the top of the Question Bank, which lists them under this ${thing}'s name.\n\n`
@@ -22219,9 +22219,9 @@ function cpbLibHtml() {
     const bits = [];
     // A worksheet has no booklets, so "0 + 12" would be arithmetic about a
     // thing it does not have.
-    if (r.nA || r.nB) bits.push(r.mode === "worksheet"
-      ? (r.nA + r.nB) + " question" + (r.nA + r.nB === 1 ? "" : "s")
-      : r.nA + " + " + r.nB + " question" + (r.nA + r.nB === 1 ? "" : "s"));
+    const count = r.nA + r.nB + (r.nP2 || 0);
+    if (count) bits.push(count + " question" + (count === 1 ? "" : "s"));
+    if (r.mode !== "worksheet" && r.nP2) bits.push(r.nP2 + " in Paper 2");
     if (r.marks) bits.push(r.marks + " marks");
     if (r.sentAt) bits.push("sent to the bank 🔒");
     return `<div class="cpb-lib-row${on ? " on" : ""}">
