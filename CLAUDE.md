@@ -2563,8 +2563,10 @@ transparent` outright, arbitrary WIDTHxHEIGHT sizes (both sides divisible by
 - **A REFUSAL ABOUT ONE PICTURE DOES NOT CLOSE THE ROUTE** (`_imgRouteFault`):
   an `invalid-argument` falls through and marks nothing down; a 401, a billing
   400 or a `failed-precondition` marks the route down.
-- **EVERY EDIT SENDS `input_fidelity: 'high'`** and keeps the reference's own
-  shape (`size: 'auto'`); a picture drawn from nothing is square.
+- **NO EDIT SENDS `input_fidelity` TO THE 2.5 FAMILY** (v1.72.1 — see 🩹
+  below): those models refuse the parameter, so `_imgFidelityFor` sends it to
+  gpt-image-1 alone, and an edit keeps the reference's own shape by sending
+  NO size (`_imgSizeField`); a picture drawn from nothing is square.
 - **A DEFAULT NOBODY CHOSE IS NOT A CHOICE.** `OPENAI_IMAGE_SUPERSEDED` is
   lifted to Flare **once** per device (`OPENAI_IMAGE_GEN`), the chat model's
   own rule; a deliberate legacy re-pick afterwards sticks; an id the dropdown
@@ -2611,6 +2613,47 @@ gpt-image-2.5-flare · server key*, or *Gemini · gemini-2.5-flash-image*, with
 - The AI Engine dialog's `imageRouteReport` prints the same describer's line,
   so the last picture's model can be checked after the box has gone.
 
+### 🩹 The 2.5 family REFUSES `input_fidelity` — every edit was Gemini's (v1.72.1)
+
+`OPENAI_IMAGE_FIDELITY_RE` / `_imgFidelityFor` / `_imgSizeField`, the widened
+`_isUnsupportedImageParam`, `_imgRefusalText` / `_imgRefusal` / `refusedBy` on
+`imageLastCall`, and the `openAiImage` callable's dropped `input_fidelity` in `functions/index.js` — **which needs the functions deploy the merge triggers**.
+
+The green box shipped and immediately said *Gemini · (after another route
+refused)* on a redrawn explanation diagram — with the server function deployed
+and a real key on it. Both ChatGPT routes were refusing the SAME request, which
+means the request, not the routes: **`input_fidelity` is a gpt-image-1 knob.**
+The gpt-image-2 family reads every reference at high fidelity by itself and
+answers the field with a 400 — *"does not support the 'input_fidelity'
+parameter"* — and v1.71.0 sent it on every edit, which is every avatar, every
+redrawn figure, every redrawn figure and every ✨ Enhance.
+
+- **THREE THINGS HID IT, and each was reasonable on its own.** The retry net
+  matched "not supported" and the API says "does not support" — one word, no
+  retry. A 400 is deliberately NOT a route fault (`_imgRouteFault`), so nothing
+  was marked down and the chooser had nothing to report. And the fallback
+  WORKED: Gemini drew the picture, so the only symptom was the badge.
+- **`_imgFidelityFor(model)` is the ONE rule**: `'high'` for `gpt-image-1` /
+  `gpt-image-1-mini` and their snapshots, `''` for everything newer — 1.5, 2
+  and both 2.5 models. The server sends it to nobody (it pins the model to
+  2.5) and IGNORES a client still passing `inputFidelity`, because the clients
+  shipped before this fix do.
+- **`size: auto` is never sent as a word either** (`_imgSizeField`). Leaving
+  the field out asks the API for its own default, which IS auto, and a model
+  that does not list the word among its sizes cannot refuse it.
+- **The retry net is wide now** — unknown / unrecognised / unsupported / not
+  support / invalid value / additional propert / not allowed|permitted — so
+  the next parameter a model stops taking earns one bare retry rather than
+  falling through.
+- **THE BADGE SAYS WHO REFUSED AND WHY.** *(after ChatGPT Images (server key)
+  refused: The model 'gpt-image-2.5-flare' does not support the
+  'input_fidelity' parameter.)* — transport prefixes stripped, clipped to
+  `IMG_REFUSAL_CHARS`. A box that only said "another route refused" was the
+  right signal and not enough of one. `_imgRefusal[route]` keeps every route's
+  last refusal whether or not it closed the route, and `imageRouteReport`
+  prints it, so the AI Engine dialog answers the same question after the box
+  has gone.
+
 ## House rules
 - After touching **🖼 the image engine** (`OPENAI_IMAGE_DEFAULT_MODEL`,
   `OPENAI_IMAGE_MODELS`, `OPENAI_IMAGE_25_RE`, `OPENAI_IMAGE_SUPERSEDED`,
@@ -2628,8 +2671,9 @@ gpt-image-2.5-flare · server key*, or *Gemini · gemini-2.5-flash-image*, with
   foot of the harness catches the next one. Put `openAiActive()` back in front
   of the ChatGPT route and the chat toggle decides who draws again. Mark the
   server route down on an `invalid-argument` and one odd-sized picture closes
-  ChatGPT Images for ten minutes. Drop `input_fidelity` and a battle avatar
-  comes back a different unit from its card. Let the server accept a model
+  ChatGPT Images for ten minutes. **Send `input_fidelity` to the 2.5 family
+  and every edit in the app is refused and drawn by Gemini** — the badge is
+  the only thing that says so, and it did. Let the server accept a model
   outside `OPENAI_IMAGE_MODEL_RE` and a client is naming models on the centre's
   bill; let it share `openAiDay` with the text engine and a card-art batch
   closes marking for the day. And a change under `functions/` **needs a

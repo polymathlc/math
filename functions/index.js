@@ -1611,10 +1611,19 @@ export const askOpenAi = onCall(OPENAI_OPTS, async (request) => {
 // outright — it was a preview on gpt-image-2), `output_format` png / jpeg /
 // webp, arbitrary `WIDTHxHEIGHT` sizes with both sides divisible by 16 and
 // an aspect ratio between 1:3 and 3:1 (maximum 3840x2160), and up to 16
-// reference images on `/images/edits` with `input_fidelity` high or low.
-// Every one of those is validated HERE, so a bad value is an
-// `invalid-argument` the page can print rather than a 400 the page has to
-// guess at.
+// reference images on `/images/edits`. Every one of those is validated HERE,
+// so a bad value is an `invalid-argument` the page can print rather than a
+// 400 the page has to guess at.
+//
+// `input_fidelity` IS NOT SENT, EVER. It is a gpt-image-1 parameter: the
+// gpt-image-2 family reads every reference at high fidelity by itself and
+// REFUSES the field with a 400 ("does not support the 'input_fidelity'
+// parameter"). The first deploy sent it on every edit, so every edit — every
+// redrawn figure, every avatar — was refused here and drawn by Gemini in the
+// app instead, with only the green box to say so. A client still sending
+// `inputFidelity` is ignored rather than refused, because the clients that
+// were shipped before this fix do. And `size: auto` is what the API does
+// when no size is sent, so the WORD is never sent either.
 //
 // IT HAS ITS OWN THROTTLE FIELDS (`openAiImgDay` / `openAiImgCount` /
 // `lastOpenAiImgAt`), for the reason every backup engine does: a card-art
@@ -1628,7 +1637,6 @@ const OPENAI_IMAGE_MODEL_RE = /^gpt-image-2\.5-(flare|sunburst)(-\d{4}-\d{2}-\d{
 const OPENAI_IMAGE_QUALITIES = ["low", "medium", "high", "xhigh", "max", "auto"];
 const OPENAI_IMAGE_BACKGROUNDS = ["transparent", "opaque", "auto"];
 const OPENAI_IMAGE_FORMATS = ["png", "jpeg", "webp"];
-const OPENAI_IMAGE_FIDELITY = ["low", "high"];
 const OPENAI_IMAGE_MAX_REFS = 16;
 const OPENAI_IMAGE_PROMPT_MAX = 32000;
 const OPENAI_IMAGE_MAX_SIDE = 3840;
@@ -1726,13 +1734,14 @@ export const openAiImage = onCall(OPENAI_OPTS, async (request) => {
   // asking for both gets png rather than a picture on a black plate.
   let outputFormat = openAiImageChoice(d.outputFormat, OPENAI_IMAGE_FORMATS, "png", "Output format");
   if (background === "transparent" && outputFormat === "jpeg") outputFormat = "png";
-  const fidelity = refs.length ? openAiImageChoice(d.inputFidelity, OPENAI_IMAGE_FIDELITY, "high", "Input fidelity") : null;
+  // d.inputFidelity is accepted and IGNORED — see the header: the 2.5 family
+  // refuses the parameter, and the clients shipped before v1.72.1 still send it.
 
   await reserveBackupSlot(auth.uid, OPENAI_IMAGE_SLOT);
 
-  const fields = { model, prompt, n: 1, size, quality, output_format: outputFormat };
+  const fields = { model, prompt, n: 1, quality, output_format: outputFormat };
+  if (size !== "auto") fields.size = size; // "auto" is the API's own default when the field is absent
   if (background !== "auto") fields.background = background;
-  if (fidelity) fields.input_fidelity = fidelity;
 
   const send = async (path, body, isForm) => {
     let res;
@@ -1761,8 +1770,9 @@ export const openAiImage = onCall(OPENAI_OPTS, async (request) => {
   // The 2.5 family takes every field above, so a retry without the extras is
   // only ever reached if a snapshot narrows its scale under us — in which case
   // a plainer picture beats no picture.
-  const unsupported = e => e && e.httpStatus === 400 && /unknown parameter|unsupported|not supported|invalid value|additional properties/i.test(e.detail || e.message || "");
-  const bare = { model, prompt, n: 1, size };
+  const unsupported = e => e && e.httpStatus === 400 && /unknown|unrecogni[sz]ed|unsupported|not support|invalid value|additional propert|not (?:allowed|permitted)/i.test(e.detail || e.message || "");
+  const bare = { model, prompt, n: 1 };
+  if (size !== "auto") bare.size = size;
   let data;
   if (refs.length) {
     try { data = await send("edits", openAiImageForm(fields, refs), true); }
