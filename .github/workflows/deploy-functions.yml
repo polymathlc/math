@@ -66,5 +66,27 @@ jobs:
         run: |
           printf '%s' "$GEMINI_API_KEY" | firebase functions:secrets:set GEMINI_API_KEY --project "$FIREBASE_PROJECT" --data-file -
 
+      # Every secret the functions DECLARE (defineSecret in functions/index.js)
+      # has to exist in Secret Manager or the deploy refuses outright in
+      # non-interactive mode, naming the first one it cannot find. Three
+      # engines are declared and a centre may hold a key for only one of them
+      # — so a missing key is given an EMPTY placeholder rather than blocking
+      # the deploy. Every function trims its key and answers
+      # `failed-precondition` ("not configured on the server") when it is
+      # blank, which is exactly what the apps already print for an engine
+      # nobody has switched on. A real key set later in the console or with
+      # `firebase functions:secrets:set` replaces the placeholder as a new
+      # version, and this step never touches a secret that already exists.
+      - name: Ensure every declared secret exists
+        run: |
+          for name in GEMINI_API_KEY OPENAI_API_KEY MOONSHOT_API_KEY; do
+            if firebase functions:secrets:access "$name" --project "$FIREBASE_PROJECT" >/dev/null 2>&1; then
+              echo "$name: present"
+            else
+              echo "::warning::$name is not set in Secret Manager. Creating an EMPTY placeholder so the deploy can proceed — that engine will answer 'not configured on the server' until a real key is set (Google Cloud console → Secret Manager → $name → New version, or: firebase functions:secrets:set $name)."
+              printf ' ' | firebase functions:secrets:set "$name" --project "$FIREBASE_PROJECT" --data-file - --force
+            fi
+          done
+
       - name: Deploy functions
         run: firebase deploy --only functions --project "$FIREBASE_PROJECT" --force --non-interactive
