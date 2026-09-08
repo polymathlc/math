@@ -1,0 +1,32 @@
+name: Check reflection storage permission
+on:
+  push:
+    branches: [codex/reflect-storage-check-20260908]
+    paths: [.github/workflows/reflect-storage-check.yml]
+permissions:
+  contents: read
+jobs:
+  permission-status:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Use this repository's existing Firebase deployment identity
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          token_format: access_token
+          create_credentials_file: false
+      - name: Check Rules API permission without reading or logging rule source
+        env:
+          RULES_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+        run: |
+          node --input-type=module <<'NODE'
+          const response = await fetch('https://firebaserules.googleapis.com/v1/projects/mathgen--app/releases/firebase.storage/mathgen--app.firebasestorage.app', {
+            headers: {Authorization: 'Bearer ' + process.env.RULES_ACCESS_TOKEN}
+          });
+          console.log('Storage rules release metadata HTTP status:', response.status);
+          // Intentionally never read or log the response body, live rules,
+          // release IDs, credential or any pupil data.
+          await response.body?.cancel();
+          if (!response.ok) process.exit(1);
+          NODE
