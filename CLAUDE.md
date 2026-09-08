@@ -2507,7 +2507,96 @@ pupil writes, in their own words, what they were learning.
   names, same two switches. Ship a change to both together.
 - Run **`node tools/objectives-box-tests.mjs`** after touching any of it.
 
+## 🖼 The image engine — ChatGPT Images 2.5 for EVERY picture (v1.71.0)
+
+`OPENAI_IMAGE_DEFAULT_MODEL` / `OPENAI_IMAGE_MODELS` / `OPENAI_IMAGE_25_RE` /
+`OPENAI_IMAGE_SUPERSEDED` / `OPENAI_IMAGE_GEN` / `getOpenAiImageModel` /
+`openAiImageModelOptionsHtml` / `AI_IMAGE_ENGINES` / `aiImageEngineSetting` /
+`imageEngineOrder` / `imageOpenAiPossible` / `imageEngineReady` /
+`imageEngineLabel` / `openAiGenerateImageDataUrl` / `openAiImageServer` /
+**`generateImageDataUrl`** / `imageRouteReport` (search `THE IMAGE ENGINE`),
+the **`openAiImage`** callable in `functions/index.js`, and the **Pictures**
+radios and image-model dropdown in the 🧠 AI Engine dialog. **`polymathlc/cer`
+and `polymathlc/anskey` carry the same block — ship a change to all three
+together.**
+
+Every picture this app draws — Nova Protocol card art, avatars, pack frames,
+artifacts, heroes, set banners, Codex plates, the figure cut out of a
+screenshot and cleaned to line work, the redrawn exam figure, ✨ Enhance, the
+✏️ Touch up editor's AI fill and ✨ Regenerate — is drawn by **ChatGPT Images
+2.5** now. OpenAI shipped it on 8 September 2026 with two API models:
+`gpt-image-2.5-flare` (its own default — higher quality than gpt-image-2 at
+half the latency) and `gpt-image-2.5-sunburst` (premium edits, slower). Both
+take `quality` low / medium / high / **xhigh** / **max**, `background:
+transparent` outright, arbitrary WIDTHxHEIGHT sizes (both sides divisible by
+16, aspect 1:3 to 3:1) and up to 16 reference pictures on an edit with
+`input_fidelity`. Both cost the same.
+
+- **BEFORE THIS, WHICH MODEL DREW WAS TWO ACCIDENTS.** The ChatGPT image model
+  fired only when this browser held an OpenAI key AND the *text* engine was
+  set to ChatGPT; every other picture was Gemini's, and `askGeminiImageEdit`
+  never asked ChatGPT at all — so ✨ Enhance and the screenshot clean-up were
+  Gemini's whatever the dialog said. **The image engine is its own setting
+  now** (`AI_ENGINE_STORE.imageEngine`, device-local like the rest of this
+  app's dialog), defaulting to ChatGPT Images.
+- **`generateImageDataUrl(prompt, opts)` IS THE ONE DOOR.** `_tcgGenOnce`,
+  `askGeminiImageEdit` (now an adapter that keeps its `{ mimeType, data }`
+  shape) and `generateEnhancedImageDataUrl` all go through it.
+  `generateImageDataUrlGemini` is the RAW Gemini route and is reached only from
+  inside the door; `tools/image-engine-tests.mjs` carries a census that fails
+  on the next caller that reaches it — or `geminiImageModels`, or
+  `openAiGenerateImageDataUrl` — directly.
+- **THE SERVER ROUTE IS WHAT MAKES THE CHOICE REAL.** `openAiImage` in
+  `functions/` holds the same `OPENAI_API_KEY` secret `askOpenAi` does, so a
+  device nobody has typed a key into draws with ChatGPT Images too. It is
+  deployed by `deploy-functions.yml` when a change under `functions/` lands on
+  main. Until then it answers `failed-precondition`, the route is marked down
+  for `AI_DOWN_MS` and the door falls to a browser key, then to Gemini — the
+  fallback, never the plan, and never dropped.
+- **THE SERVER PINS THE MODEL TO THE 2.5 FAMILY** (`OPENAI_IMAGE_MODEL_RE`): a
+  client's 2.5 pick is honoured, anything else is Flare, because a client that
+  could name a model could name an expensive one. It validates size, quality,
+  background, output format and fidelity into an `invalid-argument` the page
+  can print, forces png under a transparent background, sends several
+  references as `image[]`, and counts on **its own throttle fields**
+  (`openAiImgDay` …) so a card-art batch never closes the text engine.
+- **A REFUSAL ABOUT ONE PICTURE DOES NOT CLOSE THE ROUTE** (`_imgRouteFault`):
+  an `invalid-argument` falls through and marks nothing down; a 401, a billing
+  400 or a `failed-precondition` marks the route down.
+- **EVERY EDIT SENDS `input_fidelity: 'high'`** and keeps the reference's own
+  shape (`size: 'auto'`); a picture drawn from nothing is square.
+- **A DEFAULT NOBODY CHOSE IS NOT A CHOICE.** `OPENAI_IMAGE_SUPERSEDED` is
+  lifted to Flare **once** per device (`OPENAI_IMAGE_GEN`), the chat model's
+  own rule; a deliberate legacy re-pick afterwards sticks; an id the dropdown
+  no longer offers is the default, never a 404 on every picture; `xhigh` /
+  `max` are clamped to `high` on a legacy model.
+- **`imageAiReady()` counts ChatGPT Images as an image model**, guarded because
+  it is read before the block has run.
+- Run **`node tools/image-engine-tests.mjs`** after touching any of it.
+
 ## House rules
+- After touching **🖼 the image engine** (`OPENAI_IMAGE_DEFAULT_MODEL`,
+  `OPENAI_IMAGE_MODELS`, `OPENAI_IMAGE_25_RE`, `OPENAI_IMAGE_SUPERSEDED`,
+  `getOpenAiImageModel`, `aiImageEngineSetting`, `imageEngineOrder`,
+  `imageEngineReady`, `openAiGenerateImageDataUrl`, `openAiImageServer`,
+  `generateImageDataUrl`, `_imgRouteFault`, `_imgQualityFor`,
+  `askGeminiImageEdit`, `generateEnhancedImageDataUrl`,
+  `generateImageDataUrlGemini`, `_tcgGenOnce`, the **Pictures** radios, or the
+  `openAiImage` callable and its validators in `functions/index.js`), run
+  `node tools/image-engine-tests.mjs`, and `node tools/ai-command-tests.mjs`
+  and `node tools/screenshot-diagram-tests.mjs` beside it. A picture comes out
+  whichever model drew it, so every failure here is silent. **Let a caller reach
+  `generateImageDataUrlGemini` or `geminiImageModels` directly and that surface
+  quietly stays on Gemini** while every other picture moved — the census at the
+  foot of the harness catches the next one. Put `openAiActive()` back in front
+  of the ChatGPT route and the chat toggle decides who draws again. Mark the
+  server route down on an `invalid-argument` and one odd-sized picture closes
+  ChatGPT Images for ten minutes. Drop `input_fidelity` and a battle avatar
+  comes back a different unit from its card. Let the server accept a model
+  outside `OPENAI_IMAGE_MODEL_RE` and a client is naming models on the centre's
+  bill; let it share `openAiDay` with the text engine and a card-art batch
+  closes marking for the day. And a change under `functions/` **needs a
+  functions deploy** — the workflow does it on merge to main.
 - After touching **🎯 the learning-objectives box** (`OBJBOX_*`, `objBoxLines`,
   `objBoxLabel`, `objBoxHeightMm`, `objBoxHtml`, `objBoxAutoHtml`,
   `objBoxBlockHtml`, `objBoxSyncPreview`, `collectQuestion`'s branch,

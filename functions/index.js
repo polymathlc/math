@@ -1577,6 +1577,208 @@ export const askOpenAi = onCall(OPENAI_OPTS, async (request) => {
 });
 
 // =====================================================================
+// 🖼 openAiImage — CHATGPT IMAGES 2.5, WITH THE KEY ON THE SERVER
+// ---------------------------------------------------------------------
+// Every PICTURE the family draws — a trading card, a battle avatar, an
+// answer-key diagram, a redrawn exam figure, a cleaned-up scan, a note card's
+// illustration — used to come out of Gemini's image model unless the admin's
+// own browser happened to hold an OpenAI key AND the text engine happened to
+// be switched to ChatGPT. That is two accidents deciding which model draws,
+// and on a student's phone neither ever happens, so a student's pictures were
+// always Gemini's however the centre was configured.
+//
+// ChatGPT Images 2.5 (September 2026) is the image engine now, for every
+// image purpose in every portal, and this callable is what makes that choice
+// REAL rather than a preference on one laptop: the key lives here as the
+// same `OPENAI_API_KEY` secret `askOpenAi` uses, so a device nobody has typed
+// a key into can still draw with it. A browser key is only the route BEHIND
+// this one, and Gemini's image model is the route behind that.
+//
+// THE MODEL IS PINNED TO THE 2.5 FAMILY, and the client may choose only
+// WITHIN it. OpenAI released two: `gpt-image-2.5-flare` — the default choice
+// for most applications, higher quality than gpt-image-2 at half the latency
+// — and `gpt-image-2.5-sunburst`, built for tighter control across edits at
+// the cost of longer generation. Both are priced the same (image output
+// US$30 / 1M tokens, image input US$8 / 1M, text input US$5 / 1M), so
+// letting the client pick between them costs the centre nothing extra; a
+// client naming anything OUTSIDE the family falls back to Flare, because a
+// client that could name a model could name an expensive one and the bill
+// is the centre's. The dated snapshots (`…-2026-09-08`) are accepted too.
+//
+// WHAT THE 2.5 MODELS TAKE, from OpenAI's published API spec: `quality` in
+// low / medium / high / xhigh / max / auto (xhigh and max are new with 2.5),
+// `background` in transparent / opaque / auto (2.5 supports transparent
+// outright — it was a preview on gpt-image-2), `output_format` png / jpeg /
+// webp, arbitrary `WIDTHxHEIGHT` sizes with both sides divisible by 16 and
+// an aspect ratio between 1:3 and 3:1 (maximum 3840x2160), and up to 16
+// reference images on `/images/edits` with `input_fidelity` high or low.
+// Every one of those is validated HERE, so a bad value is an
+// `invalid-argument` the page can print rather than a 400 the page has to
+// guess at.
+//
+// IT HAS ITS OWN THROTTLE FIELDS (`openAiImgDay` / `openAiImgCount` /
+// `lastOpenAiImgAt`), for the reason every backup engine does: a card-art
+// batch of two hundred pictures must not close the text engine for the day,
+// and a class of thirty children marking must not close the art generator.
+// =====================================================================
+const OPENAI_IMAGE_URL = "https://api.openai.com/v1/images";
+const OPENAI_IMAGE_MODEL = "gpt-image-2.5-flare";
+// The FAMILY, not one id: both 2.5 models and their dated snapshots.
+const OPENAI_IMAGE_MODEL_RE = /^gpt-image-2\.5-(flare|sunburst)(-\d{4}-\d{2}-\d{2})?$/;
+const OPENAI_IMAGE_QUALITIES = ["low", "medium", "high", "xhigh", "max", "auto"];
+const OPENAI_IMAGE_BACKGROUNDS = ["transparent", "opaque", "auto"];
+const OPENAI_IMAGE_FORMATS = ["png", "jpeg", "webp"];
+const OPENAI_IMAGE_FIDELITY = ["low", "high"];
+const OPENAI_IMAGE_MAX_REFS = 16;
+const OPENAI_IMAGE_PROMPT_MAX = 32000;
+const OPENAI_IMAGE_MAX_SIDE = 3840;
+const OPENAI_IMAGE_MAX_PIXELS = 3840 * 2160;
+// An image call is slower and dearer than a chat call, and a batch of card art
+// is the one legitimate way to make a lot of them in a row — so the gap
+// between calls is short and the DAILY cap is what bounds the bill.
+const MIN_OPENAI_IMAGE_INTERVAL_MS = 1200;
+const DAILY_OPENAI_IMAGE_CAP = 400;
+const OPENAI_IMAGE_SLOT = { day: "openAiImgDay", count: "openAiImgCount", last: "lastOpenAiImgAt", interval: MIN_OPENAI_IMAGE_INTERVAL_MS, cap: DAILY_OPENAI_IMAGE_CAP };
+
+/* A size is either `auto`, one of the three standard squares/rectangles, or
+   any WIDTHxHEIGHT the 2.5 models take. Anything else is refused by name
+   rather than sent on to become a 400 the page cannot explain. */
+function openAiImageSize(raw) {
+  const s = String(raw == null ? "" : raw).trim().toLowerCase();
+  if (!s) return "1024x1024";
+  if (s === "auto") return "auto";
+  const m = /^(\d{2,4})x(\d{2,4})$/.exec(s);
+  if (!m) throw new HttpsError("invalid-argument", `Image size "${s}" is not WIDTHxHEIGHT or auto.`);
+  const w = Number(m[1]), h = Number(m[2]);
+  if (w % 16 || h % 16) throw new HttpsError("invalid-argument", `Image size ${s}: width and height must both be divisible by 16.`);
+  if (w > OPENAI_IMAGE_MAX_SIDE || h > OPENAI_IMAGE_MAX_SIDE || w * h > OPENAI_IMAGE_MAX_PIXELS) {
+    throw new HttpsError("invalid-argument", `Image size ${s} is above the model's ${OPENAI_IMAGE_MAX_SIDE}x2160 ceiling.`);
+  }
+  const ratio = w / h;
+  if (ratio < 1 / 3 || ratio > 3) throw new HttpsError("invalid-argument", `Image size ${s}: the aspect ratio must be between 1:3 and 3:1.`);
+  return `${w}x${h}`;
+}
+
+/* One of a short list, or the default — never whatever string arrived. */
+function openAiImageChoice(raw, allowed, fallback, label) {
+  const s = String(raw == null ? "" : raw).trim().toLowerCase();
+  if (!s) return fallback;
+  if (!allowed.includes(s)) throw new HttpsError("invalid-argument", `${label} "${s}" must be one of ${allowed.join(", ")}.`);
+  return s;
+}
+
+/* The model is the client's to choose only WITHIN the family. Anything else —
+   a legacy `gpt-image-1`, a typo, an id from a later release this deploy has
+   never heard of — is Flare, quietly, because the alternative is a 400 on
+   every picture for a reason nothing on the page can name. */
+function openAiImageModelFor(raw) {
+  const s = String(raw == null ? "" : raw).trim();
+  return OPENAI_IMAGE_MODEL_RE.test(s) ? s : OPENAI_IMAGE_MODEL;
+}
+
+/* An `edits` request is multipart: the pictures go up as files. Node 20 has
+   FormData, Blob and fetch built in, so nothing is added to package.json. */
+function openAiImageForm(fields, refs) {
+  const fd = new FormData();
+  Object.keys(fields).forEach(k => { if (fields[k] !== undefined && fields[k] !== null) fd.append(k, String(fields[k])); });
+  refs.forEach((r, i) => {
+    const bytes = Buffer.from(r.data, "base64");
+    const ext = r.mimeType === "image/jpeg" ? "jpg" : r.mimeType === "image/webp" ? "webp" : "png";
+    fd.append(refs.length > 1 ? "image[]" : "image", new Blob([bytes], { type: r.mimeType }), `reference-${i + 1}.${ext}`);
+  });
+  return fd;
+}
+
+export const openAiImage = onCall(OPENAI_OPTS, async (request) => {
+  const auth = requireAuth(request);
+  const key = (OPENAI_API_KEY.value() || "").trim();
+  // Named precisely, for the same reason `askOpenAi` names it: the page has
+  // to tell "nobody has set the key up yet" (a deploy step) from "the key was
+  // refused" (a bill), and print a different sentence for each.
+  if (!key) throw new HttpsError("failed-precondition", "No OpenAI key is configured on the server.");
+
+  const d = request.data || {};
+  const prompt = cleanText(d.prompt, OPENAI_IMAGE_PROMPT_MAX).trim();
+  if (!prompt) throw new HttpsError("invalid-argument", "Nothing to draw.");
+
+  // Reference pictures, when there are any, make this an EDIT: the card art a
+  // battle avatar is redrawn from, the exam figure a variant is redrawn from,
+  // the scan being cleaned. Only images — a PDF has no place on this endpoint.
+  const refs = [];
+  let total = 0;
+  const incoming = Array.isArray(d.images) ? d.images : (Array.isArray(d.media) ? d.media : []);
+  for (const raw of incoming.slice(0, OPENAI_IMAGE_MAX_REFS)) {
+    if (!raw) continue;
+    const mimeType = String(raw.mimeType || "image/png");
+    const data = String(raw.data || "");
+    if (!mimeType.startsWith("image/")) throw new HttpsError("invalid-argument", "Reference picture: only images.");
+    if (!data || data.length > MAX_IMAGE_B64) throw new HttpsError("invalid-argument", "Reference picture: missing or too large (max ~7 MB).");
+    total += data.length;
+    if (total > MAX_TOTAL_B64) throw new HttpsError("invalid-argument", "Combined reference pictures too large — send fewer at a time.");
+    refs.push({ mimeType, data });
+  }
+
+  const model = openAiImageModelFor(d.model);
+  const size = openAiImageSize(d.size);
+  const quality = openAiImageChoice(d.quality, OPENAI_IMAGE_QUALITIES, "high", "Image quality");
+  const background = openAiImageChoice(d.background || (d.transparent ? "transparent" : ""), OPENAI_IMAGE_BACKGROUNDS, "auto", "Background");
+  // A transparent background is only honoured on png / webp, so a caller
+  // asking for both gets png rather than a picture on a black plate.
+  let outputFormat = openAiImageChoice(d.outputFormat, OPENAI_IMAGE_FORMATS, "png", "Output format");
+  if (background === "transparent" && outputFormat === "jpeg") outputFormat = "png";
+  const fidelity = refs.length ? openAiImageChoice(d.inputFidelity, OPENAI_IMAGE_FIDELITY, "high", "Input fidelity") : null;
+
+  await reserveBackupSlot(auth.uid, OPENAI_IMAGE_SLOT);
+
+  const fields = { model, prompt, n: 1, size, quality, output_format: outputFormat };
+  if (background !== "auto") fields.background = background;
+  if (fidelity) fields.input_fidelity = fidelity;
+
+  const send = async (path, body, isForm) => {
+    let res;
+    try {
+      res = await fetch(`${OPENAI_IMAGE_URL}/${path}`, {
+        method: "POST",
+        headers: Object.assign({ "Authorization": `Bearer ${key}` }, isForm ? {} : { "Content-Type": "application/json" }),
+        body: isForm ? body : JSON.stringify(body)
+      });
+    } catch (e) {
+      throw new HttpsError("unavailable", "Could not reach ChatGPT Images: " + (e.message || e));
+    }
+    if (!res.ok) {
+      let detail = "";
+      try { const ej = await res.json(); detail = ej && ej.error ? ej.error.message : ""; } catch (_) { /* non-JSON error body */ }
+      const err = new HttpsError(
+        res.status === 429 ? "resource-exhausted" : (res.status === 400 ? "invalid-argument" : "internal"),
+        `ChatGPT Images API error ${res.status}${detail ? ": " + detail : ""}`);
+      err.httpStatus = res.status;
+      err.detail = detail;
+      throw err;
+    }
+    return res.json();
+  };
+
+  // The 2.5 family takes every field above, so a retry without the extras is
+  // only ever reached if a snapshot narrows its scale under us — in which case
+  // a plainer picture beats no picture.
+  const unsupported = e => e && e.httpStatus === 400 && /unknown parameter|unsupported|not supported|invalid value|additional properties/i.test(e.detail || e.message || "");
+  const bare = { model, prompt, n: 1, size };
+  let data;
+  if (refs.length) {
+    try { data = await send("edits", openAiImageForm(fields, refs), true); }
+    catch (e) { if (!unsupported(e)) throw e; data = await send("edits", openAiImageForm(bare, refs), true); }
+  } else {
+    try { data = await send("generations", fields, false); }
+    catch (e) { if (!unsupported(e)) throw e; data = await send("generations", bare, false); }
+  }
+  const item = data && data.data && data.data[0];
+  const b64 = item && item.b64_json;
+  if (typeof b64 !== "string" || !b64) throw new HttpsError("internal", "ChatGPT Images returned no picture.");
+  const mimeType = outputFormat === "jpeg" ? "image/jpeg" : outputFormat === "webp" ? "image/webp" : "image/png";
+  return { b64, mimeType, model, quality, size, background, usage: data.usage || null };
+});
+
+// =====================================================================
 // 🌙 askKimi — THE THIRD ENGINE, WITH ITS KEY ON THE SERVER TOO
 // ---------------------------------------------------------------------
 // `askOpenAi` above exists because one supplier is not a backup plan. Two
