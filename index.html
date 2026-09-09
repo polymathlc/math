@@ -14281,8 +14281,8 @@ function dupWatchBind() {
 const SCANNED_SOURCE = "scan";
 function vetIsScanned(q) { return !!q && q.source === SCANNED_SOURCE; }
 
-// 👁 VETTING EXPORTED HOVER — one lazy iframe, using the PDF's own renderer.
-// Resolve against Vetting each time: these questions are not in the bank, and
+// 👁 EXPORTED HOVER — one lazy iframe, using the PDF's own renderer.
+// Resolve against Vetting or Custom Paper each time: these are not in the bank, and
 // holding an old object would show yesterday's version after an edit.
 var _vetPrintPeek = null;
 var _vetPrintPeekOpenTimer = null;
@@ -14290,12 +14290,12 @@ var _vetPrintPeekCloseTimer = null;
 var _vetPrintPeekSerial = 0;
 var _vetPrintPeekBound = false;
 
-function vetPrintPeekButton(q) {
-  return `<button type="button" class="btn btn-ghost btn-sm vet-print-eye" data-qid="${escapeHtml(String(q.id))}"
+function vetPrintPeekButton(q, source = 'vet') {
+  return `<button type="button" class="btn btn-ghost btn-sm vet-print-eye" data-qid="${escapeHtml(String(q.id))}" data-source="${source === 'cpb' ? 'cpb' : 'vet'}"
     aria-label="Preview exported question: ${escapeHtml(q.title || 'Untitled')}" aria-haspopup="dialog" aria-expanded="false"
     onpointerenter="vetPrintPeekShow(this,event)" onpointerleave="vetPrintPeekLeave()"
     onfocus="vetPrintPeekShow(this)" onblur="vetPrintPeekLeave()"
-    onclick="event.stopPropagation();vetPrintPeekFull(this.dataset.qid)">
+    onclick="event.stopPropagation();vetPrintPeekFull(this.dataset.qid,this.dataset.source)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
   </button>`;
 }
@@ -14321,10 +14321,15 @@ function vetPrintPeekHide() {
   _vetPrintPeek = null;
 }
 
-function vetPrintPeekFull(id) {
+function vetPrintPeekQuestion(id, source) {
+  const list = source === 'cpb' ? cpbQuestions : vettingList;
+  return list.find(q => String(q.id) === String(id));
+}
+
+function vetPrintPeekFull(id, source) {
   if (!canManageQuestions()) return;
   vetPrintPeekHide();
-  const q=vettingList.find(q=>String(q.id)===String(id));
+  const q=vetPrintPeekQuestion(id, source);
   if(q) wsOpenDocument([structuredClone(q)],q.title||'Question',{...vetPrintOptions(),readOnly:false});
 }
 
@@ -14335,10 +14340,12 @@ function vetPrintPeekDismiss() {
   clearTimeout(_vetPrintPeekOpenTimer); // focus must not reopen a dismissed peek
 }
 
-function vetPrintPeekEdit(id) {
+function vetPrintPeekEdit(id, source) {
   if (!canManageQuestions()) return;
   vetPrintPeekHide();
-  vetEdit(id);
+  if (!vetPrintPeekQuestion(id, source)) return;
+  if (source === 'cpb') cpbEditQuestion(id);
+  else vetEdit(id);
 }
 
 function vetPrintPeekShow(anchor, event) {
@@ -14350,7 +14357,8 @@ function vetPrintPeekShow(anchor, event) {
   const serial = _vetPrintPeekSerial;
   _vetPrintPeekOpenTimer = setTimeout(async () => {
     if (serial !== _vetPrintPeekSerial || !anchor.isConnected || !canManageQuestions()) return;
-    const q = vettingList.find(item => String(item.id) === anchor.dataset.qid);
+    const source = anchor.dataset.source;
+    const q = vetPrintPeekQuestion(anchor.dataset.qid, source);
     if (!q) return;
     const host = document.createElement('section');
     host.className = 'vet-print-peek';
@@ -14363,8 +14371,8 @@ function vetPrintPeekShow(anchor, event) {
     host.querySelector('strong').textContent = q.title || 'Untitled question';
     const buttons = host.querySelectorAll('button');
     buttons[0].onclick = vetPrintPeekDismiss;
-    buttons[1].onclick = () => vetPrintPeekFull(q.id);
-    buttons[2].onclick = () => vetPrintPeekEdit(q.id);
+    buttons[1].onclick = () => vetPrintPeekFull(q.id, source);
+    buttons[2].onclick = () => vetPrintPeekEdit(q.id, source);
     host.addEventListener('pointerenter', vetPrintPeekKeep);
     host.addEventListener('pointerleave', vetPrintPeekLeave);
     host.addEventListener('focusin', vetPrintPeekKeep);
@@ -20867,7 +20875,7 @@ async function printCurrentWorksheet(autoPrint) {
 const CPB_MODES = {
   paper: {
     key: "paper", icon: "📄", label: "Exam paper",
-    blurb: "2023 PSLE format — Paper 1 Booklets A and B, then Paper 2, with separate covers, working space and an answer sheet.",
+    blurb: "PSLE covers with the 2026 paper structure — Paper 1 Booklets A and B, then Paper 2, with working space and an answer sheet.",
   },
   worksheet: {
     key: "worksheet", icon: "📝", label: "Worksheet",
@@ -20890,11 +20898,11 @@ const CPB_BATCH = 4;                        // images per AI call — read as ON
 const CPB_MCQ_MARKS = 2;
 const CPB_OPEN_DEFAULT_MARKS = 2;
 
-// Targets follow the uploaded 2023 PSLE reference, not the current syllabus.
+// Targets follow the uploaded 2026 Nan Chiau reference; retain the PSLE covers.
 // Covers and answer keys always use actual question allocations.
-const CPB_TARGET_MCQ = 15;
-const CPB_TARGET_OPEN_MARKS = 25;
-const CPB_TARGET_PAPER2_MARKS = 55;
+const CPB_TARGET_MCQ = 18;
+const CPB_TARGET_OPEN_MARKS = 24;
+const CPB_TARGET_PAPER2_MARKS = 50;
 const CPB_BOOK_LABELS = { a: "Paper 1 · Booklet A", b: "Paper 1 · Booklet B", p2: "Paper 2" };
 // A WORKSHEET HAS NO STANDARD LENGTH, so its target starts at 0 — which in
 // this file means "do not measure me". A teacher who does want twenty
@@ -20941,8 +20949,8 @@ const CPB_META_DEFAULTS = {
   code: "",
   year: String(new Date().getFullYear()),
   level: "PRIMARY 6",
-  duration: "1 hour",
-  duration2: "1 hour 30 minutes",
+  duration: "1 hour 10 minutes",
+  duration2: "1 hour 20 minutes",
   code2: "",
   name: "",            // the sheet's name in the bank, stamped on every question as its source
   qLevel: "",          // the syllabus level its objectives are filed at
@@ -20968,6 +20976,15 @@ let cpbMeta = Object.assign({}, CPB_META_DEFAULTS);
 function cpbMetaGet(k) {
   const v = cpbMeta[k];
   return v === undefined || v === null ? CPB_META_DEFAULTS[k] : v;
+}
+// Existing drafts keep teacher settings until the teacher chooses the new
+// targets. This changes only targets/timings, never questions or their marks.
+function cpbUseReferenceFormat() {
+  if (!canManageQuestions() || cpbBusy) return;
+  for (const k of ["targetMcq", "targetOpen", "targetPaper2", "duration", "duration2"]) {
+    cpbMeta[k] = CPB_META_DEFAULTS[k];
+  }
+  cpbRender();
 }
 
 // ---- Which booklet a question belongs in ---------------------------------
@@ -21096,7 +21113,7 @@ function cpbExamMarks(q, lay) {
   const own = cpbQuestionMarks(q);
   if (own) return own;
   if (lay.a.includes(q)) return lay.a.indexOf(q) < 10 ? 1 : 2;
-  if (lay.b.includes(q)) return lay.b.indexOf(q) < 5 ? 1 : 2;
+  if (lay.b.includes(q)) return 2;
   return CPB_OPEN_DEFAULT_MARKS;
 }
 function cpbSetMarks(id, value) {
@@ -22485,6 +22502,7 @@ async function cpbCommit() {
 
 // ---- Rendering ------------------------------------------------------------
 function cpbRender() {
+  vetPrintPeekHide();
   const el = $("cpbBody");
   if (!el) return;
   if (!canManageQuestions()) {
@@ -22653,7 +22671,14 @@ function cpbSetupHtml() {
   const sheet = !!cpbMetaGet("answerSheet");
   return `<div class="cpb-card">
     <div class="cpb-head"><h3 class="cpb-h3">① The paper</h3></div>
-    <p class="cpb-lead">The layout follows the uploaded 2023 PSLE Mathematics paper: Paper 1 Booklet A (20 marks), Booklet B (25 marks), and Paper 2 (55 marks). Fill in your centre’s details, then choose each question’s section and marks below. Empty sections are omitted.</p>
+    <p class="cpb-lead">The covers use the PSLE format. Question types, marks targets and timings follow the 2026 Nan Chiau Mathematics paper: 50 marks for Paper 1 and 50 marks for Paper 2.</p>
+    <ul style="margin:12px 0 16px;padding-left:24px;line-height:1.8;list-style:disc">
+      <li>Paper 1 Booklet A: 18 MCQs — Q1–10 at 1 mark each, Q11–18 at 2 marks each (26 marks).</li>
+      <li>Paper 1 Booklet B: 12 short-answer questions — Q19–30 at 2 marks each (24 marks).</li>
+      <li>Paper 2: 5 short-answer questions at 2 marks each (10 marks), then 10 longer questions worth 3–5 marks each (40 marks in total). Numbering restarts at Q1.</li>
+    </ul>
+    <p class="cpb-lead">Choose each question’s section and marks below. Printed or edited marks take priority; missing Paper 2 marks count as 2 until edited. Totals show the marks actually allocated.</p>
+    <button type="button" class="btn btn-ghost btn-sm" style="margin-bottom:16px" onclick="cpbUseReferenceFormat()" ${cpbBusy ? "disabled" : ""}>Use 2026 targets and timings</button>
     <div class="cpb-fields">
       ${cpbField("name", "Paper name", "e.g. 2026 P6 Maths Prelim Mock 1", "— stored on every question as its source, and what groups them for release")}
       ${cpbField("org", "Centre / school")}
@@ -22663,8 +22688,8 @@ function cpbSetupHtml() {
       ${cpbField("year", "Year")}
       ${cpbField("code", "Paper 1 code", "e.g. PLC/1", "— optional")}
       ${cpbField("code2", "Paper 2 code", "e.g. PLC/2", "— optional")}
-      ${cpbField("duration", "Paper 1 time (both booklets)", "1 hour")}
-      ${cpbField("duration2", "Paper 2 time", "1 hour 30 minutes")}
+      ${cpbField("duration", "Paper 1 time (both booklets)", "1 hour 10 minutes")}
+      ${cpbField("duration2", "Paper 2 time", "1 hour 20 minutes")}
       ${cpbNumField("targetMcq", "Booklet A target", "— questions; 0 turns the target off")}
       ${cpbNumField("targetOpen", "Booklet B target", "— marks; 0 turns the target off")}
       ${cpbNumField("targetPaper2", "Paper 2 target", "— marks; 0 turns the target off")}
@@ -22761,6 +22786,7 @@ function cpbRowHtml(q, num, book, first, last) {
       </div>
     </div>
     <div class="cpb-row-tools">
+      ${vetPrintPeekButton(q, 'cpb')}
       <button type="button" class="cpb-tool" onclick="cpbMove('${q.id}',-1)" title="Move up${ws ? "" : " within this booklet"}" ${first ? "disabled" : ""}>▲</button>
       <button type="button" class="cpb-tool" onclick="cpbMove('${q.id}',1)" title="Move down${ws ? "" : " within this booklet"}" ${last ? "disabled" : ""}>▼</button>
       ${ws ? "" : `<select class="cpb-tool" aria-label="Section for question ${escapeHtml(num)}" onchange="cpbSetBook('${q.id}',this.value)">${Object.entries(CPB_BOOK_LABELS).map(([k, label]) => `<option value="${k}" ${book === k ? "selected" : ""}>${label}</option>`).join("")}</select>
@@ -29460,7 +29486,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.72.1 · 2026-09-08";
+const APP_VERSION = "v1.73.0 · 2026-09-09";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -48751,6 +48777,7 @@ window.renderDiagnosticPage = renderDiagnosticPage;
 // dead button.
 window.cpbSetMode = cpbSetMode;
 window.cpbSetMeta = cpbSetMeta;
+window.cpbUseReferenceFormat = cpbUseReferenceFormat;
 window.cpbPick = cpbPick;
 window.cpbFiles = cpbFiles;
 window.cpbDragOver = cpbDragOver;

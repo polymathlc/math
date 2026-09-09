@@ -40,11 +40,13 @@ try {
       for(const data of [screen,print]) for(const row of data) {assert.deepEqual(row.overflow,[],file+' page '+row.page);assert(row.scroll<=row.height+2,file+' page '+row.page+' content overflow');}
       assert.deepEqual(screen.map(x=>x.questions),print.map(x=>x.questions));
       if(file==='psle-sample') {
-        assert.equal(screen.flatMap(x=>x.questions).length,47);
+        assert.equal(screen.flatMap(x=>x.questions).length,45);
         for(const book of ['a','b','p2']) {const rows=screen.filter(x=>x.book===book);assert.equal(rows.length%2,0);assert.equal(rows[0].number,'1');assert.equal(rows[1].number,'2');}
-        assert.deepEqual(screen.filter(x=>x.book==='p2').flatMap(x=>x.questions),Array.from({length:17},(_,i)=>String(i+1)));
+        assert.deepEqual(screen.filter(x=>x.book==='a').flatMap(x=>x.questions),Array.from({length:18},(_,i)=>String(i+1)));
+        assert.deepEqual(screen.filter(x=>x.book==='b').flatMap(x=>x.questions),Array.from({length:12},(_,i)=>String(i+19)));
+        assert.deepEqual(screen.filter(x=>x.book==='p2').flatMap(x=>x.questions),Array.from({length:15},(_,i)=>String(i+1)));
         assert.equal(await page.locator('.ws-answer-parts .ws-answer-final').count(),2);
-        assert.equal(await page.locator('.cpb-as-row:not(.cpb-as-blank)').count(),15);
+        assert.equal(await page.locator('.cpb-as-row:not(.cpb-as-blank)').count(),18);
       }
       if(file==='psle-long') {
         const text=await page.locator('#cpbPages').innerText();

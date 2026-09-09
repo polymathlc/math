@@ -159,8 +159,8 @@ ok("one option is not a multiple choice", api.cpbBookOf({ id: "q", options: ["on
   // b1 prints 3; b2 prints nothing, so it counts as the default rather than as
   // nothing — a cover that silently understates the paper is worse than one
   // that says how many it had to assume.
-  eq("Booklet B preserves printed marks and defaults its first five questions to 1", m.b, 4);
-  eq("the total is all sections together", m.total, 6);
+  eq("Booklet B preserves printed marks and defaults unallocated questions to 2", m.b, 5);
+  eq("the total is all sections together", m.total, 7);
   eq("…and the page is told how many were assumed", m.guessed, 3);
   eq("a mark allocation nobody printed is 0, so cpbMarks can tell it apart from a real one",
      api.cpbQuestionMarks({ marks: 0 }), 0);
