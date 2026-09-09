@@ -2022,11 +2022,23 @@ in the EDITOR. `sylAutoFileEditor` is the same call applied to the editor — th
 
 ## 🗂️ Custom Paper — a mock exam paper, or an ordinary worksheet (v1.68.0)
 
-**Math update v1.70.0:** Exam mode now follows the supplied 2023 PSLE Maths
-paper: Paper 1 Booklets A/B and Paper 2, with Paper 2 numbering restarted.
-See `docs/psle-exam-format.md` for the current layout, marks and validation
-contract. This Maths-specific format supersedes the two-booklet details below
-and must not be ported to the Science app.
+**Math update v1.74.0 — the 2026 Nan Hua format.** Exam mode follows the
+supplied `P6_Maths_Prelim_2026_NanHua_Exam_Papers.pdf` section for section,
+with a DIFFERENT NUMBER OF QUESTIONS in each: Paper 1 Booklet A is **18 MCQs**
+(Q1–10 × 1, Q11–18 × 2 = 26), Booklet B is **12 questions** at 2 marks (Q19–30
+= 24), and Paper 2 restarts at Q1 with **5 short** questions at 2 marks then
+**10 longer** ones at 3–5 marks printed in brackets (50). `CPB_REF` (search
+`THE REFERENCE PAPER`) is that table in code; `cpbPaper2Split` is the ONE place
+Paper 2's two sections are decided; `cpbMarks` counts QUESTIONS per section as
+well as marks; the reader returns `partMarks` and `cpbPartMarks` prints them as
+`[1]` / `[2]` on each `Ans:` line of the bracketed section. The three covers
+(`cpbPsleCover`), the section wording, the "Please do not write in the margin"
+gutter with a score box per written question, the Marks Obtained tables and
+the Booklet A key grid (`cpbMcqKeyHtml`) are the reference's own. See
+`docs/psle-exam-format.md` for the layout, marks and validation contract. This
+Maths-specific format supersedes the two-booklet details below and must not be
+ported to the Science app. Run `node tools/psle-paper-tests.mjs` after touching
+any of it.
 
 `cpb*` / `CPB_*` (search `🗂️ CUSTOM PAPER`), `#page-custompaper` and the
 `.cpb-*` CSS, plus the four things it SHARES rather than forks:
