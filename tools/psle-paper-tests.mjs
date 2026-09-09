@@ -27,7 +27,7 @@ const api = new Function(`
   ${cut('function cpbReadMarks(row)', '// The figure, through the ONE door')}
   function cpbRender() {}
   return { cpbLayout, cpbMarks, cpbSetBook, cpbSetMarks, cpbPaperOpts, cpbBuildPsleDocumentHtml, cpbMarkRuns, cpbCarryOver, cpbLibRow, cpbUseReferenceFormat, cpbMetaGet,
-    cpbPaper2Split, cpbPartMarks, cpbReadPartMarks, cpbReadMarks, cpbPaginateDocument, CPB_REF, CPB_P2_SHORT,
+    cpbPaper2Split, cpbPartMarks, cpbReadPartMarks, cpbReadMarks, cpbPaginateDocument, CPB_REF, CPB_P2_SHORT, cpbMetaFromStored,
     set(qs, meta = {}) { cpbQuestions = qs; cpbMeta = meta; }, get() { return cpbQuestions; } };
 `)();
 const text = content => ({type:'text',content});
@@ -97,6 +97,13 @@ assert.equal(api.cpbMetaGet('duration'),'custom time');
 api.cpbUseReferenceFormat();
 assert.deepEqual(['targetMcq','targetOpenQ','targetOpen','targetPaper2Q','targetPaper2','duration','duration2'].map(api.cpbMetaGet),[18,12,24,15,50,'1 hour 10 minutes','1 hour 20 minutes']);
 assert.deepEqual(['classLabel','date'].map(api.cpbMetaGet),['Class','']);
+// A draft or saved paper still carrying the 2023 PSLE defaults (15 / 25 / 55, 1 hour / 1 hour 30
+// minutes) is lifted to the reference on the way in; anything a teacher typed is kept.
+let lifted=api.cpbMetaFromStored({targetMcq:15,targetOpen:25,targetPaper2:55,duration:'1 hour',duration2:'1 hour 30 minutes',name:'Old draft'});
+assert.deepEqual([lifted.targetMcq,lifted.targetOpenQ,lifted.targetOpen,lifted.targetPaper2Q,lifted.targetPaper2,lifted.duration,lifted.duration2,lifted.name],[18,12,24,15,50,'1 hour 10 minutes','1 hour 20 minutes','Old draft']);
+lifted=api.cpbMetaFromStored({targetMcq:'15',targetOpen:30,targetPaper2:0,duration:'45 minutes'});
+assert.deepEqual([lifted.targetMcq,lifted.targetOpen,lifted.targetPaper2,lifted.duration,lifted.duration2],[18,30,0,'45 minutes','1 hour 20 minutes']);
+assert.equal(api.cpbMetaFromStored(null).targetMcq,18);assert.equal(api.cpbMetaFromStored(undefined).classLabel,'Class');
 assert.equal(api.cpbMetaGet('name'),'Saved mock');assert.deepEqual(api.get(),saved);
 const meta={code:'0008/1',code2:'0008/2',year:'2026',exam:'PRELIMINARY EXAMINATION',level:'PRIMARY SIX',classLabel:'Teaching Group',date:'20 August 2026',answerKey:true};api.set(saved,meta);
 let out=api.cpbPaperOpts();assert.equal(out.opts.paper.groups.length,3);assert(out.opts.paper.noBracketIds.has('a0'));
