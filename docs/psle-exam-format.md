@@ -40,6 +40,13 @@ Source pages in the PDF: covers on 1 / 11 / 20; section instructions on
   `targetPaper2Q` (15) and `targetPaper2` (50) on the meta object; 0 turns
   one off. **Use the 2026 Nan Hua targets and timings** resets them without
   touching questions or marks.
+- **A stored default nobody chose is lifted on the way in** (`cpbMetaFromStored`,
+  v1.74.1). Targets and timings are written into every draft and saved paper, so
+  a sheet started under the 2023 PSLE layout carried 15 / 25 / 55 and 1 hour /
+  1 hour 30 minutes in its own meta and the panel kept measuring against them.
+  Every stored meta now passes through `cpbMetaFromStored`, which replaces a
+  value listed in `CPB_META_SUPERSEDED` with the current default, field by
+  field, and leaves anything a teacher typed alone.
 - **`cpbPaper2Split()` is the ONE place Paper 2's two sections are decided**:
   the first `CPB_P2_SHORT` (5) questions form the 2-mark opening section when
   there are at least five and each is worth exactly 2; otherwise the whole

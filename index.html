@@ -21027,6 +21027,31 @@ const CPB_META_DEFAULTS = {
   wsFields: true,      // print the Name / Class / Date strip
 };
 let cpbMeta = Object.assign({}, CPB_META_DEFAULTS);
+// A DEFAULT NOBODY CHOSE IS NOT A CHOICE — the chat model's own rule, and it
+// bit here. The targets and timings are written into every draft and every
+// saved paper, so a sheet started under the 2023 PSLE layout carries 15 MCQs /
+// 25 marks / 55 marks pinned in its own meta, and the panel went on measuring
+// against them ("18 of 15 questions · 3 questions over") after the reference
+// changed, with the new defaults reaching nobody who had a draft open. Every
+// stored meta comes in through here: a value that was only ever an OLD
+// DEFAULT is lifted to the current one, field by field, and anything else —
+// a target somebody typed — is left exactly as it was. The button in ① is
+// still there for a deliberate reset.
+const CPB_META_SUPERSEDED = {
+  targetMcq: [15],                        // the 2023 PSLE paper
+  targetOpen: [25],
+  targetPaper2: [55],
+  duration: ["1 hour"],
+  duration2: ["1 hour 30 minutes"],
+};
+function cpbMetaFromStored(raw) {
+  const meta = Object.assign({}, CPB_META_DEFAULTS, raw && typeof raw === "object" ? raw : {});
+  for (const [k, olds] of Object.entries(CPB_META_SUPERSEDED)) {
+    const v = meta[k];
+    if (olds.some(o => o === v || String(o) === String(v))) meta[k] = CPB_META_DEFAULTS[k];
+  }
+  return meta;
+}
 function cpbMetaGet(k) {
   const v = cpbMeta[k];
   return v === undefined || v === null ? CPB_META_DEFAULTS[k] : v;
@@ -21385,7 +21410,7 @@ async function cpbDraftLoad(tab) {
   if (!work && !shot) return false;
   cpbShots = (shot && Array.isArray(shot.shots)) ? shot.shots : [];
   cpbQuestions = (work && Array.isArray(work.questions)) ? work.questions : [];
-  cpbMeta = Object.assign({}, CPB_META_DEFAULTS, (work && work.meta) || {});
+  cpbMeta = cpbMetaFromStored(work && work.meta);
   cpbDirty = !!(work && work.dirty);
   cpbLastRead = String((work && work.lastRead) || "");
   cpbDraftSig = cpbShotsSig();
@@ -22046,7 +22071,7 @@ async function cpbLibOpenNow(id) {
       // an empty pad. Set true it would nag to re-read a sheet it cannot.
       cpbShots = [];
       cpbQuestions = Array.isArray(v.questions) ? v.questions : [];
-      cpbMeta = Object.assign({}, CPB_META_DEFAULTS, v.meta || {});
+      cpbMeta = cpbMetaFromStored(v.meta);
       cpbDirty = false;
       // No screenshots came with it, so there is no pile for a later one to
       // carry on from — a seed here would join a new screenshot to a question
@@ -29758,7 +29783,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.74.0 · 2026-09-09";
+const APP_VERSION = "v1.74.1 · 2026-09-09";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
