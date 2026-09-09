@@ -52,15 +52,16 @@ function harness() {
   };
   const window = {innerWidth:1200,innerHeight:800,addEventListener:(k,cb)=>{listeners[k]=cb;}};
   const factory = new Function('document','window','setTimeout','clearTimeout','canManageQuestions','wsBuildDocumentHtml','actions', `
-    let vettingList=[];
+    let vettingList=[], cpbQuestions=[];
     const escapeHtml=s=>String(s).replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;').replaceAll('>','&gt;');
     const _wnyCachedNotes=()=>({cached:true}), wnyPrintOn=()=>false, akxPrintOn=()=>true;
     const wsOpenDocument=(qs,title,opts)=>actions.push(['full',qs[0].id,opts]);
     const vetEdit=id=>actions.push(['edit',id]);
+    const cpbEditQuestion=id=>actions.push(['cpbEdit',id]);
     ${hover}
     return {show:vetPrintPeekShow,leave:vetPrintPeekLeave,keep:vetPrintPeekKeep,hide:vetPrintPeekHide,
       dismiss:vetPrintPeekDismiss,key:vetPrintPeekKeydown,button:vetPrintPeekButton,
-      full:vetPrintPeekFull,edit:vetPrintPeekEdit,get state(){return _vetPrintPeek},set list(x){vettingList=x}};
+      full:vetPrintPeekFull,edit:vetPrintPeekEdit,get state(){return _vetPrintPeek},set list(x){vettingList=x},set paper(x){cpbQuestions=x}};
   `);
   const api = factory(document, window, (cb,ms)=>{const id=++timerSeq;timers.set(id,{cb,ms});return id;}, id=>timers.delete(id), ()=>author,
     (qs,title,opts)=>{rendered.push({qs,title,opts});return '<p>exported</p>';},
@@ -114,4 +115,18 @@ test('navigation, refresh, resize and outside clicks dismiss the preview',async(
  const h=harness();h.api.list=[Q('a')];h.show(h.anchor('a'));await h.flush();
  h.listeners.pointerdown({target:new El()});assert.equal(h.api.state,null);
  h.show(h.anchor('a'));await h.flush();h.listeners.resize();assert.equal(h.api.state,null);
+});
+test('Custom Paper eyes resolve the current draft even when Vetting has the same ID',async()=>{
+ const h=harness(),a=h.anchor('a');a.dataset.source='cpb';
+ h.api.list=[{...Q('a'),title:'Vetting copy'}];h.api.paper=[Q('a')];h.show(a);
+ h.api.paper=[{...Q('a'),title:'Latest paper edit'}];await h.flush();
+ assert.equal(h.rendered[0].title,'Latest paper edit');
+ assert.match(h.button(Q('a'),'cpb'),/data-source="cpb"/);
+ const buttons=h.api.state.host.querySelectorAll('button');buttons[2].onclick();
+ assert.deepEqual(h.actions,[['cpbEdit','a']]);
+ h.full('a','cpb');assert.equal(h.actions[1][0],'full');
+ h.api.paper=[];h.full('a','cpb');h.edit('a','cpb');
+ assert.equal(h.actions.length,2,'a removed paper question must never fall back to Vetting');
+ assert.match(src,/function cpbRender\(\) \{\s*vetPrintPeekHide\(\)/);
+ assert.match(cut('function cpbRowHtml(', 'function cpbBookletHtml('),/vetPrintPeekButton\(q, 'cpb'\)/);
 });

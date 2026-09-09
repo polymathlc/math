@@ -20,6 +20,7 @@ jobs:
         run: |
           node tools/custom-paper-tests.mjs
           node tools/psle-paper-tests.mjs
+          node tools/vetting-export-hover-tests.mjs
           node tools/scheduled-release-tests.mjs
           node tools/worksheet-answer-fields-tests.mjs
           node tools/worksheet-header-tests.mjs
