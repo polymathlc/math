@@ -45,8 +45,24 @@ try {
         assert.deepEqual(screen.filter(x=>x.book==='a').flatMap(x=>x.questions),Array.from({length:18},(_,i)=>String(i+1)));
         assert.deepEqual(screen.filter(x=>x.book==='b').flatMap(x=>x.questions),Array.from({length:12},(_,i)=>String(i+19)));
         assert.deepEqual(screen.filter(x=>x.book==='p2').flatMap(x=>x.questions),Array.from({length:15},(_,i)=>String(i+1)));
-        assert.equal(await page.locator('.ws-answer-parts .ws-answer-final').count(),2);
+        // Q7 (two parts) and Q8 (three parts) of Paper 2 print one Ans line per part.
+        assert.equal(await page.locator('.ws-answer-parts .ws-answer-final').count(),5);
         assert.equal(await page.locator('.cpb-as-row:not(.cpb-as-blank)').count(),18);
+        // The written-answer pages carry the margin rule, its note and a score box per question;
+        // Booklet A, the covers, the blank pages, the answer sheet and the key carry none.
+        const margined=await page.locator('.cpb-exam-page.cpb-has-margin').count();
+        assert(margined>0);assert.equal(await page.locator('.cpb-margin-note').count(),margined);
+        assert.equal(await page.locator('.cpb-exam-page.cpb-has-margin[data-book="a"], .cpb-is-cover.cpb-has-margin, .cpb-is-blank.cpb-has-margin').count(),0);
+        assert.equal(await page.locator('.cpb-has-margin .ws-chunk .cpb-score:visible').count(),27);
+        assert.equal(await page.locator('[data-book="a"] .cpb-score:visible').count(),0);
+        // Every score box sits inside its page and to the right of the question column.
+        const boxes=await page.evaluate(()=>[...document.querySelectorAll('.cpb-has-margin .ws-chunk .cpb-score')].map(b=>{const p=b.closest('.cpb-exam-page').getBoundingClientRect(),c=b.closest('.ws-chunk').getBoundingClientRect(),r=b.getBoundingClientRect();return r.left>=c.right && r.right<=p.right && r.top>=c.top && r.bottom<=c.bottom+1;}));
+        assert(boxes.every(Boolean),'a score box left its page or its question');
+        // Brackets on the Ans lines of Paper 2's second section, and the Marks Obtained tables on two covers.
+        assert.equal(await page.locator('.cpb-part-marks').count(),13);
+        assert.equal(await page.locator('.cpb-cv-marks').count(),2);
+        assert.equal(await page.locator('.cpb-key-grid th').count(),18);
+        for(const p of screen.filter(x=>x.book!=='answers'&&x.book!=='key')) assert.equal(p.number,String(screen.filter(y=>y.book===p.book).indexOf(p)+1));
       }
       if(file==='psle-long') {
         const text=await page.locator('#cpbPages').innerText();
