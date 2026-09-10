@@ -124,6 +124,32 @@ Every question row in both Custom Paper modes has an eye button that shares
 the Vetting export preview controller and worksheet renderer; **Edit
 question** returns through `cpbEditQuestion`.
 
+## Editing on the preview (v1.76.0)
+
+👁️ Preview opens the sheet **editable**: a yellow panel beside every question
+(`.ws-edit-bar`, never printed, hanging outside the page on the grey) with
+− / + for each diagram, − / + for the number of Ans lines, and a marks box
+per Ans line. 🖨️ Print opens the plain sheet.
+
+- The preview is a window the page wrote, so it calls back through
+  `window.opener.cpbPreviewEdit(qid, msg)` — the same door as the editable
+  sheet header. Actions: `img` (`bid`, `delta` on the block's own `scale`),
+  `lines` (`delta` on `q.answerParts`) and `marks` (`index`, `value`, through
+  `cpbSetPartMark` / `cpbSetMarks`). Admin-checked; anything naming nothing
+  real returns false and the preview says so.
+- After every edit the ③ list and the draft follow, and **the whole preview is
+  redrawn from the real builder** (`cpbPreviewRefresh`) and scrolled back —
+  never patched in place, so "exactly as it prints" stays true.
+- `q.answerParts` is the one new field: an explicit number of Ans lines that
+  `wsQuestionParts` honours over the wording (1 = a single plain line, 2–8 =
+  lettered parts), so the printed lines, the mm estimate, the ③ row's boxes and
+  the brackets all follow it. A split for the old number of parts is dropped.
+- `cpbPreviewEditHtml` computes what each panel shows from the same functions
+  the sheet was built with; `cpbPreviewEditRun` is serialised into the
+  document and touches only its argument and the DOM. Chunks carry `data-qid`
+  and pictures `data-bid` so the panel can name them; a question continued
+  over a page keeps one panel.
+
 ## Validation
 
 - `node tools/psle-paper-tests.mjs`: the model (section counts, marks, part

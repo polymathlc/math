@@ -7534,7 +7534,7 @@ function renderQuestionBlockHtml(b) {
   if (b.type === "table") return tblHtml(b);
   if (b.type === "image") {
     const url = String(b.url || "").trim();
-    return url ? `<img class="question-image" src="${escapeHtml(url)}" alt="diagram" ${imageStyleAttr(b.scale)}>` : "";
+    return url ? `<img class="question-image" src="${escapeHtml(url)}" alt="diagram" data-bid="${escapeHtml(String(b.id || ""))}" ${imageStyleAttr(b.scale)}>` : "";
   }
   return `<p>${renderMathBlock(b.content || "")}</p>`;
 }
@@ -20674,6 +20674,14 @@ function wsQuestionTextLines(q) {
 // answer, which is what the plain blank already gives.
 function wsQuestionParts(q) {
   if (!q || wsHasMcq(q) || questionIsAnnotation(q)) return [];
+  // ✏️ An EXPLICIT number of answer lines, set from the Custom Paper preview
+  // (`q.answerParts`), beats the wording: 1 is the single plain "Ans:" line,
+  // 2 to 8 are lettered parts. Absent, junk or out of range, the wording
+  // decides exactly as it always has — so no saved question changes.
+  const forced = Number(q.answerParts);
+  if (Number.isInteger(forced) && forced >= 1 && forced <= WS_PART_LETTERS.length) {
+    return forced >= 2 ? Array.from(WS_PART_LETTERS).slice(0, forced) : [];
+  }
   const text = wsQuestionTextLines(q);
   if (!text) return [];
   const out = [];
@@ -20732,7 +20740,7 @@ function wsQuestionChunkHtml(q, n, qrSvg, reserveMm, noBracket, objBoxAll, exam)
     ? `<div class="ws-annot-note">✍️ Write and draw your answer directly on the diagram above.</div>`
     // Blank working space, then the answer blank at the bottom right.
     : `<div class="ws-answer-box"><div class="ws-work" style="height:${exam ? cpbWorkMm(exam) : wsWorkingSpaceMm(q, reserveMm, objBoxAll)}mm"></div>${wsAnswerBlankHtml(q, exam)}</div>`;
-  return `<section class="ws-chunk${questionIsAnnotation(q) ? " ws-chunk-annot" : ""}"${imgVar}>
+  return `<section class="ws-chunk${questionIsAnnotation(q) ? " ws-chunk-annot" : ""}" data-qid="${escapeHtml(String(q.id || ""))}"${imgVar}>
     ${qr}
     <!-- Just the number. The level and topic are the teacher's filing labels,
          not part of the question, and printing "P5 · Decimals, Ratio" over a
@@ -21121,7 +21129,7 @@ async function wsBuildDocumentHtml(questions, title, opts) {
   const bar = `<div class="ws-printbar ws-noprint">${editId ? `<span class="ws-editnote" id="wsEditNote">${WS_EDIT_HINT}</span>` : ""}<button class="ghost" onclick="window.close()">Close</button><button onclick="window.print()">🖨️ Print / Save PDF</button></div>`;
   return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
     <style>${wsPrintCss()}</style></head>
-    <body>${opts.readOnly ? "" : bar}<div class="ws-sheet">${doc}</div>${editId ? wsHeaderEditScript(editId) : ""}${opts.autoPrint ? `<script>window.addEventListener("load",()=>setTimeout(()=>{window.focus();window.print();},350));<\/script>` : ""}</body></html>`;
+    <body>${opts.readOnly ? "" : bar}<div class="ws-sheet">${doc}</div>${editId ? wsHeaderEditScript(editId) : ""}${opts.edit === "cpb" ? cpbPreviewEditHtml(questions, opts) : ""}${opts.autoPrint ? `<script>window.addEventListener("load",()=>setTimeout(()=>{window.focus();window.print();},350));<\/script>` : ""}</body></html>`;
 }
 // ---- Editing the header ON the preview -----------------------------------
 // The teacher is looking at the sheet exactly as it will print, which is where
@@ -21196,6 +21204,7 @@ async function wsOpenDocument(questions, title, opts) {
   w.document.open();
   w.document.write(html);
   w.document.close();
+  return w;
 }
 async function printCurrentWorksheet(autoPrint) {
   const questions = wsSelectedQuestions();
@@ -22881,6 +22890,7 @@ function cpbPaginateDocument() {
           let fragment;
           function start(cont) {
             fragment = document.createElement("section"); fragment.className = item.className;
+            if (item.dataset.qid) fragment.dataset.qid = item.dataset.qid;
             const label = document.createElement("div"); label.className = "ws-q-no"; label.textContent = number; fragment.appendChild(label);
             if (cont) { const note = document.createElement("div"); note.className = "cpb-continued"; note.textContent = "(continued)"; fragment.appendChild(note); }
             body.appendChild(fragment);
@@ -22984,7 +22994,7 @@ async function cpbBuildPsleDocumentHtml(questions, title, opts) {
   }
   return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>${wsPrintCss()}${cpbPsleCss()}</style></head>
     <body data-auto-print="${!!opts.autoPrint}">${opts.readOnly ? "" : `<div class="ws-printbar ws-noprint"><button class="ghost" onclick="window.close()">Close</button><button id="cpbPrintButton" disabled onclick="window.print()">Preparing pages…</button></div>`}
-    <div id="cpbPages"></div><div id="cpbSource">${sources.join("")}</div><script>(${cpbPaginateDocument.toString()})();<\/script></body></html>`;
+    <div id="cpbPages"></div><div id="cpbSource">${sources.join("")}</div><script>(${cpbPaginateDocument.toString()})();<\/script>${opts.edit === "cpb" ? cpbPreviewEditHtml(questions, opts) : ""}</body></html>`;
 }
 
 // The line a booklet — or a worksheet — opens with. Same shape and the same
@@ -23087,7 +23097,196 @@ function cpbTitle() {
 async function cpbOpenSheet(autoPrint) {
   if (!cpbQuestions.length) { toast("Read the screenshots first — there is no " + cpbThing() + " yet", ""); return; }
   const o = cpbOutputOpts();
-  await wsOpenDocument(o.list, cpbTitle(), Object.assign({ autoPrint }, o.opts));
+  // 👁️ Preview opens EDITABLE (see below); 🖨️ Print opens the plain sheet and
+  // prints it, because a panel beside every question is not what the printer
+  // was asked for.
+  const w = await wsOpenDocument(o.list, cpbTitle(), Object.assign({ autoPrint, edit: autoPrint ? "" : "cpb" }, o.opts));
+  if (w && !autoPrint) cpbPreviewWin = w;
+}
+
+// =====================================================================
+// ✏️ EDITING ON THE PREVIEW — the sheet as it prints, with the knobs beside it
+//
+// 👁️ Preview shows the paper exactly as the class will sit it, which is exactly
+// where a diagram is seen to be too big, a question is seen to need a second
+// answer line, and a mark is seen to be wrong — and until now the only way to
+// change any of them was to close the preview, find the question in the ③
+// list or the editor, change it blind, and open the preview again.
+//
+// So the preview carries a small YELLOW PANEL beside every question (never
+// printed — it is `ws-noprint`, and it hangs OUTSIDE the page on the grey
+// background so it covers nothing): − / + for each diagram, − / + for the
+// number of Ans lines, and a marks box per Ans line.
+//
+// THE PREVIEW IS A WINDOW THIS PAGE WROTE, so it is same-origin and calls
+// back through `window.opener.cpbPreviewEdit` — the same door the editable
+// sheet header uses. The edit lands on the question in `cpbQuestions` (the
+// ③ list and the draft follow), and then THE WHOLE PREVIEW IS REDRAWN from
+// the real builder, scrolled back to where it was. Patching the page in
+// place would mean a second layout engine that drifts from the printer's;
+// redrawing is what keeps "exactly as it prints" true after every click.
+//
+// `answerParts` is the ONE new field: an explicit number of Ans lines that
+// `wsQuestionParts` honours over the wording, so the printed lines, the mm
+// estimate, the per-part boxes on the ③ row and the brackets all follow it
+// without being told. The diagram size is the block's own `scale`, the same
+// one the editor's ± buttons move; the marks go through `cpbSetMarks` /
+// `cpbSetPartMark`, the ③ row's own setters, so the two never disagree.
+//
+// Admin-checked in the handler — it writes to the paper — and every action
+// that names nothing real returns false, which the preview says out loud.
+// =====================================================================
+let cpbPreviewWin = null;
+function cpbPreviewEdit(qid, msg) {
+  if (!canManageQuestions()) return false;
+  const q = cpbQuestions.find(x => x.id === qid);
+  const m = msg && typeof msg === "object" ? msg : {};
+  if (!q) return false;
+  if (m.action === "img") {
+    const b = (q.blocks || []).find(x => x && x.type === "image" && x.id === m.bid);
+    if (!b) return false;
+    b.scale = normalizeImageScale((b.scale == null ? 1 : b.scale) + Number(m.delta || 0));
+  } else if (m.action === "lines") {
+    if (wsHasMcq(q) || questionIsAnnotation(q)) return false;
+    const cur = Math.max(1, wsQuestionParts(q).length || 1);
+    const next = Math.max(1, Math.min(WS_PART_LETTERS.length, cur + Number(m.delta || 0)));
+    if (next === cur) return true;
+    q.answerParts = next;
+    // A split written for the old number of parts is not a split for the new.
+    if (q.partMarks && q.partMarks.length !== (next >= 2 ? next : 0)) delete q.partMarks;
+  } else if (m.action === "marks") {
+    if (wsQuestionParts(q).length) cpbSetPartMark(qid, m.index, m.value);
+    else cpbSetMarks(qid, m.value);
+  } else return false;
+  cpbDraftSave();
+  cpbRender();
+  cpbPreviewRefresh();
+  return true;
+}
+// Redraw the open preview from the real builder, and put it back where it was.
+async function cpbPreviewRefresh() {
+  const w = cpbPreviewWin;
+  if (!w || w.closed) { cpbPreviewWin = null; return; }
+  const o = cpbOutputOpts();
+  let y = 0;
+  try { y = w.scrollY || 0; } catch (e) { y = 0; }
+  const html = await wsBuildDocumentHtml(o.list, cpbTitle(), Object.assign({}, o.opts, { autoPrint: false, edit: "cpb", editScroll: y }));
+  try { w.document.open(); w.document.write(html); w.document.close(); }
+  catch (e) { console.warn("preview refresh", e); }
+}
+// What the preview needs to know about each question to draw its panel: the
+// marks it is worth, its parts and their split, whether it is written (an MCQ
+// has no Ans lines to add to). Computed HERE, from the same functions the
+// sheet was built with, so the panel and the paper cannot disagree.
+function cpbPreviewEditHtml(questions, opts) {
+  if (!opts || opts.edit !== "cpb") return "";
+  const lay = cpbLayout();
+  const q = {};
+  (questions || []).forEach(x => {
+    if (!x || !x.id) return;
+    const marks = lay.worksheet ? (cpbQuestionMarks(x) || cpbDefaultMarks(x)) : cpbExamMarks(x, lay);
+    const parts = wsQuestionParts(x);
+    q[x.id] = {
+      marks, parts,
+      partMarks: parts.length ? cpbPartDraft(x, parts) : null,
+      written: !wsHasMcq(x) && !questionIsAnnotation(x),
+      lines: parts.length || 1,
+    };
+  });
+  const cfg = { q, scroll: Number(opts.editScroll) || 0, thing: cpbThing() };
+  return `<style>${cpbPreviewEditCss()}</style>`
+    + `<div class="ws-edit-banner ws-noprint">✏️ The yellow panels beside each question change this ${escapeHtml(cpbThing())} — diagram size, answer lines and marks — and are never printed. Use 🖨️ Print for the plain sheet.</div>`
+    + `<script>(${cpbPreviewEditRun.toString()})(${JSON.stringify(cfg)});<\/script>`;
+}
+function cpbPreviewEditCss() {
+  return `
+    body { overflow-x: auto; }
+    .ws-chunk { position: relative; }
+    .ws-edit-bar { position: absolute; top: 0; left: calc(100% + 18mm); width: 54mm; box-sizing: border-box; display: flex; flex-direction: column; gap: 5px; padding: 8px 10px; font: 12px/1.5 system-ui, Arial, sans-serif; color: #3d3620; background: #fffbea; border: 1px solid #e6cf7a; border-radius: 9px; box-shadow: 0 2px 8px #0002; z-index: 5; }
+    /* An exam page keeps a margin gutter and its own padding to the right of the question column; the panel starts past both, on the grey. */
+    .cpb-exam-page .ws-edit-bar { left: calc(100% + 22mm); }
+    .cpb-exam-page.cpb-has-margin .ws-edit-bar { left: calc(100% + 40mm); }
+    .ws-edit-h { font-weight: 700; font-size: 11px; letter-spacing: .04em; color: #7a6a2a; }
+    .ws-edit-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .ws-edit-row > span { flex: 1 1 auto; }
+    .ws-edit-row b { min-width: 34px; text-align: center; }
+    .ws-edit-row button { width: 24px; height: 24px; border: 1px solid #c9b45c; background: #fff; border-radius: 6px; cursor: pointer; font-size: 15px; line-height: 1; color: #3d3620; }
+    .ws-edit-row button:hover { background: #fff3c4; }
+    .ws-edit-row button:disabled { opacity: .4; cursor: default; }
+    .ws-edit-row label { display: inline-flex; align-items: center; gap: 4px; }
+    .ws-edit-row input { width: 42px; padding: 3px 4px; border: 1px solid #c9b45c; border-radius: 5px; font: inherit; text-align: center; background: #fff; }
+    .ws-edit-note { font-size: 10px; color: #8a7b3c; line-height: 1.4; }
+    .ws-edit-banner { position: fixed; left: 18px; bottom: 16px; max-width: 420px; padding: 10px 14px; font: 12px/1.5 system-ui, Arial, sans-serif; color: #3d3620; background: #fffbea; border: 1px solid #e6cf7a; border-radius: 10px; box-shadow: 0 2px 10px #0002; z-index: 9; }
+    @media print { .ws-edit-bar, .ws-edit-banner { display: none !important; } }
+  `;
+}
+// Runs INSIDE the preview document. Self-contained on purpose — it is
+// serialised with toString(), so it may touch only its argument and the DOM.
+function cpbPreviewEditRun(cfg) {
+  var api = null;
+  try { api = window.opener && window.opener.cpbPreviewEdit; } catch (e) { api = null; }
+  function send(qid, msg) {
+    if (!api) { alert("The Custom Paper page is no longer open, so this cannot be changed here. Reopen the preview from that page."); return; }
+    try { if (!api(qid, msg)) alert("That change could not be applied."); }
+    catch (e) { alert("Could not apply that change: " + ((e && e.message) || e)); }
+  }
+  function pct(img) { var v = (img.style.getPropertyValue("--question-image-width") || "").trim(); return v || "100%"; }
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+  function btn(label, title, on, off) { var b = el("button", "", label); b.type = "button"; b.title = title; b.disabled = !!off; b.onclick = on; return b; }
+  function build() {
+    var seen = {}, chunks = document.querySelectorAll(".ws-chunk[data-qid]");
+    for (var i = 0; i < chunks.length; i++) (function (ch) {
+      var qid = ch.getAttribute("data-qid");
+      if (!qid || seen[qid]) return;          // a question continued over a page keeps ONE panel
+      seen[qid] = true;
+      var info = (cfg.q && cfg.q[qid]) || {};
+      var bar = el("div", "ws-edit-bar ws-noprint");
+      var no = ch.querySelector(".ws-q-no");
+      bar.appendChild(el("div", "ws-edit-h", "Question " + (no ? no.textContent.replace(/[^0-9a-z]/gi, "") : "")));
+      var imgs = ch.querySelectorAll("img.question-image[data-bid]");
+      for (var k = 0; k < imgs.length; k++) (function (img, n) {
+        var bid = img.getAttribute("data-bid");
+        var row = el("div", "ws-edit-row");
+        row.appendChild(el("span", "", "🖼 Diagram" + (imgs.length > 1 ? " " + (n + 1) : "")));
+        row.appendChild(btn("−", "Smaller", function () { send(qid, { action: "img", bid: bid, delta: -0.1 }); }));
+        row.appendChild(el("b", "", pct(img)));
+        row.appendChild(btn("+", "Larger", function () { send(qid, { action: "img", bid: bid, delta: 0.1 }); }));
+        bar.appendChild(row);
+      })(imgs[k], k);
+      if (info.written) {
+        var lines = Number(info.lines) || 1;
+        var lr = el("div", "ws-edit-row");
+        lr.appendChild(el("span", "", "Ans lines"));
+        lr.appendChild(btn("−", "One answer line fewer", function () { send(qid, { action: "lines", delta: -1 }); }, lines <= 1));
+        lr.appendChild(el("b", "", String(lines)));
+        lr.appendChild(btn("+", "Add an answer line — (a), (b), (c)…", function () { send(qid, { action: "lines", delta: 1 }); }, lines >= 8));
+        bar.appendChild(lr);
+      }
+      var mr = el("div", "ws-edit-row");
+      var parts = info.parts || [];
+      if (parts.length) {
+        mr.appendChild(el("span", "", "Marks"));
+        for (var pi = 0; pi < parts.length; pi++) (function (ch2, idx) {
+          var lab = el("label", "", "(" + ch2 + ")");
+          var inp = el("input"); inp.type = "number"; inp.min = "0"; inp.max = "20";
+          inp.value = String((info.partMarks && info.partMarks[idx]) || 0);
+          inp.onchange = function () { send(qid, { action: "marks", index: idx, value: inp.value }); };
+          lab.appendChild(inp); mr.appendChild(lab);
+        })(parts[pi], pi);
+      } else {
+        var lab1 = el("label", "", "Marks");
+        var inp1 = el("input"); inp1.type = "number"; inp1.min = "0"; inp1.max = "99";
+        inp1.value = String(info.marks == null ? 0 : info.marks);
+        inp1.onchange = function () { send(qid, { action: "marks", index: 0, value: inp1.value }); };
+        lab1.appendChild(inp1); mr.appendChild(lab1);
+      }
+      bar.appendChild(mr);
+      if (parts.length) bar.appendChild(el("div", "ws-edit-note", "Fill every part and the question's total follows. Marks print in brackets in Paper 2's second section."));
+      ch.appendChild(bar);
+    })(chunks[i]);
+    if (cfg.scroll) window.scrollTo(0, cfg.scroll);
+  }
+  (function go() { if (window.cpbReady === false) return setTimeout(go, 80); build(); })();
 }
 function cpbPreview() { cpbOpenSheet(false); }
 function cpbPrint() { cpbOpenSheet(true); }
@@ -30205,7 +30404,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.75.1 · 2026-09-10";
+const APP_VERSION = "v1.76.0 · 2026-09-10";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -49511,6 +49710,9 @@ window.cpbMove = cpbMove;
 window.cpbSetBook = cpbSetBook;
 window.cpbSetMarks = cpbSetMarks;
 window.cpbSetPartMark = cpbSetPartMark;
+// ✏️ The editable preview calls back through window.opener, so this has to be
+// reachable from another document, exactly like wsPreviewHeaderSave.
+window.cpbPreviewEdit = cpbPreviewEdit;
 window.cpbDropQuestion = cpbDropQuestion;
 window.cpbEditQuestion = cpbEditQuestion;
 window.cpbPreview = cpbPreview;
