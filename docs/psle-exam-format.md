@@ -65,6 +65,11 @@ Source pages in the PDF: covers on 1 / 11 / 20; section instructions on
   end of each `Ans: (a)` line in Paper 2's bracketed section; a question in
   parts with one printed mark carries it on the last part's line. Editing a
   question's total by hand drops a split that no longer adds up.
+  **They can also be typed on the row** (v1.75.1): a Paper 2 question whose
+  wording has parts shows one box per part beside its Marks box
+  (`cpbRowPartsHtml` / `cpbSetPartMark`); once every part has a mark the
+  question's total becomes their sum, and a part still at 0 keeps the split
+  unprinted until it is filled.
 - **Section menu.** `_cpbBook` is `a`, `b` or `p2`. An unidentified written
   question stays in Booklet B; a marks value alone never implies Paper 2. The
   reader can supply `paperSection` when a visible heading or footer names it.

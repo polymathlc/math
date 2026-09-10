@@ -24,11 +24,12 @@ const api = new Function(`
   ${cut('function cpbIndexGridHtml()', '// 📝 THE WORKSHEET.')}
   ${cut('const CPB_EDITOR_FIELDS', 'function cpbEditQuestion(')}
   ${cut('function cpbLibRow(r)', '// The shelf is read out')}
+  ${cut('function cpbRowPartsHtml(q, num, book) {', 'function cpbBookletHtml(book, list, numbers, marks) {')}
   ${cut('function cpbReadMarks(row)', '// The figure, through the ONE door')}
   ${cut('function normalizeMathSymbols(s)', 'function renderMathPlain(text)')}
   function cpbRender() {}
   return { cpbLayout, cpbMarks, cpbSetBook, cpbSetMarks, cpbPaperOpts, cpbBuildPsleDocumentHtml, cpbMarkRuns, cpbCarryOver, cpbLibRow, cpbUseReferenceFormat, cpbMetaGet,
-    cpbPaper2Split, cpbPartMarks, cpbReadPartMarks, cpbReadMarks, cpbPaginateDocument, CPB_REF, CPB_P2_SHORT, cpbMetaFromStored, normalizeMathSymbols,
+    cpbPaper2Split, cpbPartMarks, cpbReadPartMarks, cpbReadMarks, cpbPaginateDocument, CPB_REF, CPB_P2_SHORT, cpbMetaFromStored, normalizeMathSymbols, cpbSetPartMark, cpbPartDraft, cpbRowPartsHtml,
     set(qs, meta = {}) { cpbQuestions = qs; cpbMeta = meta; }, get() { return cpbQuestions; } };
 `)();
 const text = content => ({type:'text',content});
@@ -87,6 +88,25 @@ assert.equal(api.cpbReadMarks({marks:'1998'}),0);
 api.cpbSetMarks('p6',5);assert.equal(api.get().find(q=>q.id==='p6').partMarks,undefined);
 api.cpbSetMarks('p6',3);api.get().find(q=>q.id==='p6').partMarks=[1,2];
 api.cpbSetMarks('p8',3);assert.deepEqual(api.get().find(q=>q.id==='p8').partMarks,[1,2]);
+// ✍️ Part marks typed on the row. Q8 (p7) has parts (a)(b)(c): the boxes show, the total follows
+// once every part is in, a part still at 0 keeps the split unprinted, and a question with no parts
+// or outside Paper 2 offers no boxes.
+{
+  const q8=api.get().find(q=>q.id==='p7');
+  assert(api.cpbRowPartsHtml(q8,'8','p2').includes('(a)') && api.cpbRowPartsHtml(q8,'8','p2').includes('(c)'));
+  assert.equal(api.cpbRowPartsHtml(q8,'8','b'),'');assert.equal(api.cpbRowPartsHtml(api.get().find(q=>q.id==='p10'),'11','p2'),'');
+  delete q8.partMarks; q8.marks=4;
+  assert.deepEqual(api.cpbPartDraft(q8),[0,0,0]);
+  api.cpbSetPartMark('p7',0,1);assert.deepEqual(q8.partMarks,[1,0,0]);assert.equal(q8.marks,4,'the total waits until every part is in');
+  assert.equal(api.cpbPartMarks(q8,4),null,'an unfinished split is not printed');
+  assert(api.cpbRowPartsHtml(q8,'8','p2').includes('2 parts to fill'));
+  api.cpbSetPartMark('p7',1,1);api.cpbSetPartMark('p7',2,2);
+  assert.deepEqual(q8.partMarks,[1,1,2]);assert.equal(q8.marks,4);assert(api.cpbRowPartsHtml(q8,'8','p2').includes('= 4'));
+  api.cpbSetPartMark('p7',2,3);assert.equal(q8.marks,5,'the total follows the parts');
+  api.cpbSetPartMark('p7',9,3);api.cpbSetPartMark('p7',0,99);api.cpbSetPartMark('p7',0,'x');assert.deepEqual(q8.partMarks,[1,1,3],'out of range is ignored');
+  api.cpbSetMarks('p7',4);assert.equal(q8.partMarks,undefined,'a total typed over a split that no longer adds up drops it');
+  api.cpbSetPartMark('p7',0,1);api.cpbSetPartMark('p7',1,1);api.cpbSetPartMark('p7',2,2);assert.equal(q8.marks,4);
+}
 assert.equal(api.cpbMarks().total,100);
 api.cpbSetMarks('a0',3); assert.equal(api.cpbMarks().a,28);
 api.cpbSetMarks('a0',0); assert.equal(api.cpbMarks().a,26);

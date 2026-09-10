@@ -475,6 +475,9 @@ a { color: var(--primary); }
 .cpb-row-tools, .cpb-lib-tools { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .cpb-row-marks { display: flex; align-items: center; gap: 5px; font-size: .74rem; }
 .cpb-row-marks input { width: 52px; padding: 4px; border: 1px solid var(--border); border-radius: 6px; }
+.cpb-row-parts { display: inline-flex; align-items: center; gap: 6px 8px; flex-wrap: wrap; font-size: .74rem; padding: 4px 8px; border-radius: 8px; background: var(--surface-alt, #f8fafc); border: 1px dashed var(--border); }
+.cpb-row-parts label { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; color: var(--text-muted); }
+.cpb-row-parts input { width: 44px; padding: 3px 4px; border: 1px solid var(--border); border-radius: 6px; font: inherit; text-align: center; }
 .cpb-tool { border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 4px 8px; font-size: .74rem; line-height: 1.2; cursor: pointer; color: var(--text-muted); }
 .cpb-tool:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
 .cpb-tool:disabled { opacity: .35; cursor: default; }
@@ -21617,6 +21620,39 @@ function cpbSetMarks(id, value) {
   if (q.partMarks && !cpbPartMarks(q, n)) delete q.partMarks;
   cpbRender();
 }
+// ✍️ THE MARKS FOR EACH PART, typed on the row. A Paper 2 question in parts
+// prints "[1]" against (a) and "[2]" against (b), and the reader finds those
+// only when the page printed them — a question written here, or read off a
+// screenshot that left them out, had no way to get them. The parts are READ
+// OFF THE WORDING (`wsQuestionParts`), never stored, so the row offers one
+// box per part the wording actually has; a question with no parts offers
+// none. THE TOTAL FOLLOWS THE PARTS: once every part has a mark the
+// question's own `marks` is their sum, because a total the parts do not add
+// up to is a paper that contradicts itself one line lower. A part still at 0
+// is work in progress — the split is kept but not printed (cpbPartMarks
+// refuses it), and the total is left alone until every part is in.
+function cpbSetPartMark(id, index, value) {
+  const q = cpbQuestions.find(x => x.id === id);
+  if (!q) return;
+  const parts = wsQuestionParts(q);
+  const i = Number(index);
+  if (!parts.length || !Number.isInteger(i) || i < 0 || i >= parts.length) return;
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 0 || n > 20) { cpbRender(); return; }
+  const cur = cpbPartDraft(q, parts);
+  cur[i] = n;
+  q.partMarks = cur;
+  if (cur.every(x => x > 0)) q.marks = cur.reduce((a, b) => a + b, 0);
+  cpbRender();
+}
+// The per-part marks as the row shows them: the stored split when it has one
+// entry per part, otherwise a fresh row of zeros — never a split from a
+// wording that has since gained or lost a part.
+function cpbPartDraft(q, parts) {
+  const ps = parts || wsQuestionParts(q);
+  const stored = Array.isArray(q && q.partMarks) ? q.partMarks.map(x => { const n = parseInt(x, 10); return isFinite(n) && n > 0 ? n : 0; }) : [];
+  return stored.length === ps.length ? stored : ps.map(() => 0);
+}
 
 // "8 questions to go" / "3 marks over" / "✓" — written once, because it is
 // said about Booklet A's questions, about Booklet B's marks and about the
@@ -23430,11 +23466,29 @@ function cpbRowHtml(q, num, book, first, last) {
       <button type="button" class="cpb-tool" onclick="cpbMove('${q.id}',-1)" title="Move up${ws ? "" : " within this booklet"}" ${first ? "disabled" : ""}>▲</button>
       <button type="button" class="cpb-tool" onclick="cpbMove('${q.id}',1)" title="Move down${ws ? "" : " within this booklet"}" ${last ? "disabled" : ""}>▼</button>
       ${ws ? "" : `<select class="cpb-tool" aria-label="Section for question ${escapeHtml(num)}" onchange="cpbSetBook('${q.id}',this.value)">${Object.entries(CPB_BOOK_LABELS).map(([k, label]) => `<option value="${k}" ${book === k ? "selected" : ""}>${label}</option>`).join("")}</select>
-      <label class="cpb-row-marks">Marks <input type="number" min="0" max="99" value="${own || 0}" title="0 uses the reference allocation (${marks} marks currently)" aria-label="Marks for question ${escapeHtml(num)}" onchange="cpbSetMarks('${q.id}',this.value)"></label>`}
+      <label class="cpb-row-marks">Marks <input type="number" min="0" max="99" value="${own || 0}" title="0 uses the reference allocation (${marks} marks currently)" aria-label="Marks for question ${escapeHtml(num)}" onchange="cpbSetMarks('${q.id}',this.value)"></label>
+      ${cpbRowPartsHtml(q, num, book)}`}
       <button type="button" class="cpb-tool" onclick="cpbEditQuestion('${q.id}')" title="Open this question in the block editor — the same one the question bank uses. Saving puts it back on this sheet, right here, and nothing goes to the bank." ${cpbBusy ? "disabled" : ""}>✏️ Edit</button>
       <button type="button" class="cpb-tool danger" onclick="cpbDropQuestion('${q.id}')" title="Take this question off the sheet">✕</button>
     </div>
   </div>`;
+}
+// The per-part boxes on a Paper 2 row — "(a) [1] (b) [2]" — for a question
+// whose wording has parts. Paper 2 only: that is the paper that prints marks
+// in brackets on every Ans line, and a split typed on a Booklet B question
+// would print nowhere. The note beside them says whether they add up yet.
+function cpbRowPartsHtml(q, num, book) {
+  if (book !== "p2") return "";
+  const parts = wsQuestionParts(q);
+  if (!parts.length) return "";
+  const draft = cpbPartDraft(q, parts);
+  const filled = draft.every(x => x > 0);
+  const sum = draft.reduce((a, b) => a + b, 0);
+  const note = filled ? `= ${sum}` : `${draft.filter(x => !x).length} part${draft.filter(x => !x).length === 1 ? "" : "s"} to fill`;
+  return `<span class="cpb-row-parts" title="The marks for each part, printed in brackets on its Ans line in Paper 2's second section. Once every part has a mark, the question's total is their sum.">
+    ${parts.map((ch, i) => `<label>(${ch}) <input type="number" min="0" max="20" value="${draft[i] || 0}" aria-label="Marks for part (${ch}) of question ${escapeHtml(num)}" onchange="cpbSetPartMark('${q.id}',${i},this.value)"></label>`).join("")}
+    <span class="cpb-dim">${escapeHtml(note)}</span>
+  </span>`;
 }
 function cpbBookletHtml(book, list, numbers, marks) {
   const title = CPB_BOOK_LABELS[book] + (book === "a" ? " — multiple choice" : " — written answers");
@@ -30151,7 +30205,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.75.0 · 2026-09-10";
+const APP_VERSION = "v1.75.1 · 2026-09-10";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -49456,6 +49510,7 @@ window.cpbCancelRun = cpbCancelRun;
 window.cpbMove = cpbMove;
 window.cpbSetBook = cpbSetBook;
 window.cpbSetMarks = cpbSetMarks;
+window.cpbSetPartMark = cpbSetPartMark;
 window.cpbDropQuestion = cpbDropQuestion;
 window.cpbEditQuestion = cpbEditQuestion;
 window.cpbPreview = cpbPreview;
