@@ -3083,3 +3083,12 @@ redrawn figure, every redrawn figure and every ✨ Enhance.
   harness pins both, plus the title and the options counting, and the vetting
   list being searched at all.
 - Commit messages and pushed artifacts must not contain the model identifier.
+
+
+## Interface Studio (2026-09-10)
+
+See `docs/interface-studio.md`. The new arcade interface is an admin preview
+until the protected config flag is explicitly released. Preserve default-off
+student access, subject separation, transactional writes, auth cleanup,
+reduced motion, and the screen-only CSS scope. Run
+`node tools/interface-studio-tests.mjs` when changing the rollout.

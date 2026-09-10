@@ -4697,6 +4697,7 @@ body.lore-reading { overflow: hidden; }
 
 .vet-print-eye svg {width:18px;height:18px;}
 </style>
+<link rel="stylesheet" href="arcade-ui.css?v=1">
 </head>
 <body>
 
@@ -6244,11 +6245,12 @@ body.lore-reading { overflow: hidden; }
 // under mathQuestions / mathMarking / mathGeneration / config.mathAdmin
 // so it never collides with the Science app's documents).
 // =====================================================================
+import { mountInterfaceStudio, isReleased as interfaceIsReleased } from "./interface-studio.mjs?v=1";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
   updateProfile, GoogleAuthProvider, signInWithPopup, signOut, signInAnonymously, browserPopupRedirectResolver }
   from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, collection, getDocs, deleteDoc, deleteField, addDoc, increment, query, where, orderBy, limit, onSnapshot }
+import { getFirestore, runTransaction, serverTimestamp, doc, getDoc, setDoc, collection, getDocs, deleteDoc, deleteField, addDoc, increment, query, where, orderBy, limit, onSnapshot }
   from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app-check.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-functions.js";
@@ -6325,6 +6327,34 @@ const ATTEMPTS_COL_LEGACY = "questionAttempts";
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+
+// Interface rollout is independent of game releases and of the other subject.
+// Transactions fail offline rather than queueing a surprise release for later.
+let interfaceStudio = null;
+function syncInterfaceStudio() {
+  if (!interfaceStudio) {
+    const releaseRef = doc(db, 'config', 'mathAdmin');
+    const storage = {
+      getItem: key => sessionStorage.getItem('Math:interface:' + key),
+      setItem: (key, value) => sessionStorage.setItem('Math:interface:' + key, value)
+    };
+    interfaceStudio = mountInterfaceStudio({
+      subject: 'Math', root: document.querySelector('.main'), storage,
+      subscribe: (next, fail) => onSnapshot(releaseRef, { includeMetadataChanges: true },
+        snap => next(snap.exists() ? snap.data() : {}, snap.metadata), fail),
+      save: (released, uid, expected) => runTransaction(db, async transaction => {
+        if (!currentUser || currentUser.role !== 'admin' || currentUser.uid !== uid || auth.currentUser?.uid !== uid)
+          throw new Error('Sign in as an admin to change the student interface.');
+        const snapshot = await transaction.get(releaseRef);
+        if (interfaceIsReleased(snapshot.exists() ? snapshot.data() : {}) !== expected)
+          throw new Error('Another admin changed the release setting. Review the current status and try again.');
+        transaction.set(releaseRef, { arcadeUi: { version: 1, released, updatedAt: serverTimestamp(), updatedBy: uid } }, { merge: true });
+      })
+    });
+  }
+  interfaceStudio.setUser(currentUser);
+}
+
 const storage = getStorage(app);
 // Trusted backend: marking, hints, XP and admin claims all happen in Cloud
 // Functions so browser dev tools can't award XP or read answer keys.
@@ -8992,6 +9022,7 @@ onAuthStateChanged(auth, async (user) => {
   if (user) { await enterApp(user); }
   else {
     currentUser = null;
+    interfaceStudio?.setUser(null);
     rapidCloudReset();
     vetPrintPeekHide();
     adminUid = null;
@@ -9038,6 +9069,7 @@ async function enterApp(user) {
   const isGuest = !!user.isAnonymous;
   currentUser = { uid: user.uid, email: user.email, name: user.displayName || (user.email || "").split("@")[0] || (isGuest ? "Guest" : "Student"), role: isAdmin ? "admin" : "student", isGuest };
 
+  syncInterfaceStudio();
   $("authScreen").style.display = "none";
   $("appShell").classList.add("show");
   $("userName").textContent = currentUser.name;
@@ -29232,7 +29264,7 @@ async function rpgRenderLeaderboard(force = false) {
     const rank = i + 1;
     const me = r.uid === myUid;
     const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank;
-    return `<div class="rpg-board-row ${rpgRowClass(rank)} ${me ? "me" : ""}">
+    return `<div class="rpg-board-row ${rpgRowClass(rank)} ${me ? "me" : ""}" data-arcade-rank="${rank}" style="--arcade-delay:${Math.min(i, 9) * 45}ms">
       <div class="rpg-board-rank">${medal}</div>
       <div class="rpg-board-ava">${rpgAvatarSvg(r.equipment || {})}</div>
       <div class="rpg-board-main">
@@ -30404,7 +30436,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.76.0 · 2026-09-10";
+const APP_VERSION = "v1.77.0 · 2026-09-10";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
