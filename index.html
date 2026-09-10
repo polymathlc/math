@@ -1368,6 +1368,36 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .obx-hint { flex: 1 1 100%; margin: 2px 0 0; line-height: 1.6; }
 .obx-preview { flex: 1 1 100%; }
 .obx-preview .obx-box { margin: 0; }
+/* 📊 The table block — the table itself (shared with the printed sheet by class
+   name; wsPrintCss carries the paper sizes) and the editor card around it. */
+.qtb-wrap { margin: 12px 0; overflow-x: auto; }
+.qtb-caption { font-weight: 700; margin-bottom: 6px; }
+.qtb { border-collapse: collapse; font-size: 0.98rem; line-height: 1.45; }
+.qtb th, .qtb td { border: 1.5px solid #514d47; padding: 7px 14px; text-align: center; min-width: 56px; vertical-align: middle; }
+.qtb th { font-weight: 700; background: var(--surface-alt, #f5f3ee); }
+.qtb td:empty::after { content: "\00a0"; }
+.tbl-edit { display: flex; flex-direction: column; gap: 12px; }
+.tbl-zone { display: flex; align-items: center; gap: 14px; border: 1.5px dashed var(--border); border-radius: var(--radius-sm); padding: 14px 16px; color: var(--text-muted); font-size: 0.85rem; line-height: 1.6; cursor: pointer; background: #fff; outline: none; }
+.tbl-zone:hover, .tbl-zone:focus { border-color: var(--primary); color: var(--primary); }
+.tbl-zone-ico { font-size: 1.6rem; flex-shrink: 0; }
+.tbl-status { min-height: 1.2em; font-size: 0.8rem; color: var(--text-muted); line-height: 1.5; }
+.tbl-status:empty { display: none; }
+.tbl-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.tbl-tools .mini-btn.wide { width: auto; padding: 0 10px; font-size: 0.78rem; white-space: nowrap; }
+.tbl-head-switch { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-muted); }
+.tbl-head-switch input { appearance: auto; }
+.tbl-caption-field { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); flex: 1 1 220px; }
+.tbl-caption-field input { flex: 1 1 auto; min-width: 120px; padding: 6px 9px; border: 1px solid var(--border); border-radius: var(--radius-sm, 6px); font: inherit; font-weight: 400; color: var(--text); background: var(--surface); }
+.tbl-size { font-size: 0.78rem; }
+.tbl-grid-wrap { overflow-x: auto; }
+.tbl-grid { border-collapse: collapse; }
+.tbl-grid td { padding: 3px; }
+.tbl-cell { width: 100%; min-width: 88px; box-sizing: border-box; padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px; font: inherit; font-size: 0.9rem; text-align: center; background: #fff; color: var(--text); }
+.tbl-cell.is-head { font-weight: 700; background: var(--surface-alt, #f5f3ee); }
+.tbl-cell:focus { outline: none; border-color: var(--border-focus, var(--primary)); }
+.tbl-hint { margin: 0; line-height: 1.6; }
+.tbl-preview { padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: #fff; }
+.tbl-preview .qtb-wrap { margin: 0; }
 .block-edit { min-height: 50px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: #fff; font-size: 0.98rem; line-height: 1.5; outline: none; }
 .block-edit:focus { border-color: var(--border-focus); }
 .block-edit:empty::before { content: attr(data-ph); color: var(--text-light); }
@@ -7497,6 +7527,8 @@ function renderQuestionBlockHtml(b) {
   // through it — so the box looks the same everywhere without any surface
   // being told about it.
   if (b.type === "objectivesBox") return objBoxHtml(b);
+  // 📊 A table, through its one renderer, for the same reason.
+  if (b.type === "table") return tblHtml(b);
   if (b.type === "image") {
     const url = String(b.url || "").trim();
     return url ? `<img class="question-image" src="${escapeHtml(url)}" alt="diagram" ${imageStyleAttr(b.scale)}>` : "";
@@ -9769,7 +9801,7 @@ async function deleteQuestionDoc(id) {
 function bankSearchHaystack(q) {
   return [
     q.title, q.level, adminTopicsLabel(q), conceptLabel(q), q.expected, q.markingGuide, q.createdBy,
-    (q.blocks || []).filter(b => b.type === "text").map(b => stripHtml(b.content)).join(" ")
+    questionText(q)
   ].filter(Boolean).join(" ").toLowerCase();
 }
 // =====================================================================
@@ -10201,8 +10233,137 @@ function objBoxAutoHtml(q, on) {
   return objBoxHtml({ lines: OBJBOX_DEFAULT_LINES, label: OBJBOX_LABEL });
 }
 
+// 📊 TABLE BLOCK — a real table in a question: a "Movie / Starts at / Duration"
+// timetable, a price list, a tally chart, a table with blanks the pupil fills
+// in. Until now a table was either typed out as prose with spaces standing
+// in for columns (and re-flowed into nonsense on print) or pasted in as a
+// picture, which cannot be edited, searched, marked against or read by the
+// answer-key checker. This is the block type for it: `{ type: "table",
+// header, rows: [[cell, …], …], caption }`, with `tbl*` / `TBL_*` helpers.
+//
+// THE ROWS ARE THE ONE SOURCE OF TRUTH and `tblRows` is the ONE place a
+// stored grid becomes a rectangle: every row is padded to the widest row,
+// every cell is a string, junk or an empty field falls back to a small blank
+// grid rather than to nothing — a table with no cells is a block that renders
+// as nothing and looks like a bug. The caps stop a runaway AI reply becoming
+// a thousand-cell document.
+//
+// `tblHtml` IS THE ONE RENDERER, called from `renderQuestionBlockHtml` — the
+// one place a block becomes markup — so practice, every preview, the block
+// card's live preview and the printed sheet all draw the same table. The
+// app's stylesheet carries the screen sizes and `wsPrintCss` the paper ones,
+// under the same class names.
+//
+// THE PICTURE READER (`tblReadImage`) is the reason the block has a paste
+// window: a teacher's table is nearly always already printed on a paper. A
+// picture pasted, dropped or chosen into the window is read by the vision
+// model into cells — `tblReadPrompt` asks for a rectangle of strings and
+// `tblFromAi` refuses anything that is not one — and the cells are then
+// ordinary editable cells, because the model is very good and not perfect.
+// Text pasted into the same window (a block copied out of Excel or a PDF)
+// is split into cells locally by `tblFromText`, with no AI call at all.
+//
+// A TABLE IS PART OF THE QUESTION'S WORDS. `tblText` is what the duplicate
+// warning, the bank search, every AI prompt that re-reads the question and
+// the server's marker see, through `blockPlainText` / `blocksPlainText` — a
+// table the marker cannot see is a question it marks on half the data.
+const TBL_ROWS_MAX = 40;
+const TBL_COLS_MAX = 12;
+const TBL_DEFAULT_ROWS = 3;
+const TBL_DEFAULT_COLS = 3;
+const TBL_ROW_MM = 8;        // one printed row, in the mm the sheet is measured in
+const TBL_CHROME_MM = 6;     // the margin above and below, plus rounding
+const TBL_CAPTION_MM = 6;    // a caption line above the table
+const TBL_CELL_MAX = 200;    // characters per cell — a paragraph is not a cell
+function tblCell(v) { return String(v == null ? "" : v).replace(/\s+/g, " ").trim().slice(0, TBL_CELL_MAX); }
+function tblBlankRows(r, c) {
+  const out = [];
+  for (let i = 0; i < r; i++) { const row = []; for (let j = 0; j < c; j++) row.push(""); out.push(row); }
+  return out;
+}
+// The rectangle. Always at least one row of one cell, never more than the caps.
+function tblRows(b) {
+  const raw = Array.isArray(b && b.rows) ? b.rows : null;
+  if (!raw || !raw.length) return tblBlankRows(TBL_DEFAULT_ROWS, TBL_DEFAULT_COLS);
+  const rows = raw.slice(0, TBL_ROWS_MAX).map(r => (Array.isArray(r) ? r : [r]).slice(0, TBL_COLS_MAX).map(tblCell));
+  const cols = Math.max(1, ...rows.map(r => r.length));
+  rows.forEach(r => { while (r.length < cols) r.push(""); });
+  return rows;
+}
+function tblHeader(b) { return !(b && b.header === false); }
+function tblCaption(b) { return tblCell(b && b.caption); }
+function tblCols(b) { return tblRows(b)[0].length; }
+// How much of the sheet the table asks for — every row, plus the caption.
+// Over-estimates on purpose, like everything wsBodyEstimateMm reserves.
+function tblHeightMm(b) {
+  return tblRows(b).length * TBL_ROW_MM + TBL_CHROME_MM + (tblCaption(b) ? TBL_CAPTION_MM : 0);
+}
+// The table as words — one line per row, cells separated by " | " — for the
+// search, the duplicate matcher, the AI prompts and the marker.
+function tblText(b) {
+  const cap = tblCaption(b);
+  return (cap ? cap + "\n" : "") + tblRows(b).map(r => r.join(" | ")).join("\n");
+}
+// True when the table holds any words at all. A grid somebody added and never
+// typed into is dropped on save, the way an empty text block is; a table with
+// headings and blank body cells ("Complete the table") is kept, because the
+// headings are the question.
+function tblHasContent(b) { return tblRows(b).some(r => r.some(c => c)); }
+function tblHtml(b) {
+  const rows = tblRows(b), head = tblHeader(b), cap = tblCaption(b);
+  const cell = (c, tag) => `<${tag}>${renderMathInline(c)}</${tag}>`;
+  const body = rows.map((r, i) => `<tr>${r.map(c => cell(c, head && i === 0 ? "th" : "td")).join("")}</tr>`);
+  const thead = head ? `<thead>${body.shift()}</thead>` : "";
+  return `<div class="qtb-wrap">`
+    + (cap ? `<div class="qtb-caption">${renderMathInline(cap)}</div>` : "")
+    + `<table class="qtb">${thead}<tbody>${body.join("")}</tbody></table></div>`;
+}
+// Text pasted into the window — a block copied out of Excel, Sheets, a PDF or
+// a web page — split into cells with NO AI call: tabs first (what a
+// spreadsheet puts on the clipboard), then pipes, then commas, then runs of
+// two or more spaces. Returns null when there is nothing table-shaped in it,
+// so the caller can say so rather than filing a one-cell table.
+function tblFromText(text) {
+  const lines = String(text || "").replace(/\r\n?/g, "\n").split("\n").map(l => l.replace(/\s+$/, "")).filter(l => l.trim());
+  if (!lines.length) return null;
+  const split = lines.some(l => l.includes("\t")) ? l => l.split("\t")
+    : lines.every(l => l.includes("|")) ? l => l.replace(/^\s*\|/, "").replace(/\|\s*$/, "").split("|")
+    : lines.filter(l => l.includes(",")).length >= Math.ceil(lines.length / 2) ? l => l.split(",")
+    : l => l.trim().split(/ {2,}/);
+  const rows = lines.map(l => split(l).map(tblCell)).filter(r => r.some(c => c));
+  if (!rows.length) return null;
+  const cols = Math.max(...rows.map(r => r.length));
+  if (cols < 2 && rows.length < 2) return null;
+  return tblRows({ rows });
+}
+// What the vision model is asked for. A rectangle of strings and nothing
+// else: no markdown, no prose, and the wording AROUND the table left out —
+// that is the question, and it is already in the text block above.
+function tblReadPrompt() {
+  return "You are reading a TABLE off the attached picture for a Singapore primary-school mathematics teacher, so it can be typed into a question as a real table.\n" +
+    "Return ONLY valid JSON in this exact shape, with no markdown fences and nothing before or after it:\n" +
+    '{"caption":"<the table\'s own title or caption, or an empty string>","header":<true if the first row is a heading row, else false>,"rows":[["<cell>","<cell>"],["<cell>","<cell>"]]}\n' +
+    "Rules:\n" +
+    "- One inner array per printed row, top to bottom, and EVERY row with the SAME number of cells — write \"\" for an empty cell.\n" +
+    "- Copy each cell's text exactly as printed, including units, symbols and currency; write a fraction as 2/5 and a mixed number as 1 2/5.\n" +
+    "- A cell that spans several columns is repeated in each of them. Row labels down the left are the first cell of each row.\n" +
+    "- Leave out the question wording around the table, the question number and anything that is not part of the table itself.\n" +
+    '- If the picture holds no table at all, return {"caption":"","header":true,"rows":[]}.';
+}
+// The reply, believed only when it is table-shaped: an array of arrays, at
+// least one row, at least one cell with something in it. Anything else is
+// null, and the window says the picture held no table.
+function tblFromAi(parsed) {
+  const raw = parsed && Array.isArray(parsed.rows) ? parsed.rows : (Array.isArray(parsed) ? parsed : null);
+  if (!raw || !raw.length) return null;
+  const rows = tblRows({ rows: raw.map(r => Array.isArray(r) ? r : (r && typeof r === "object" ? Object.values(r) : [r])) });
+  if (!rows.some(r => r.some(c => c))) return null;
+  return { rows, header: !(parsed && parsed.header === false), caption: tblCell(parsed && parsed.caption) };
+}
+
 function newBlock(type) {
   if (type === "image") return { id: genBlockId(), type: "image", url: "", scale: 1 };
+  if (type === "table") return { id: genBlockId(), type: "table", header: true, rows: tblBlankRows(TBL_DEFAULT_ROWS, TBL_DEFAULT_COLS), caption: "" };
   if (type === "objectivesBox") return { id: genBlockId(), type: "objectivesBox", lines: OBJBOX_DEFAULT_LINES, label: OBJBOX_LABEL };
   return { id: genBlockId(), type: "text", content: "" };
 }
@@ -10322,6 +10483,7 @@ function wireBlockInserters(root) {
   root.querySelectorAll("[data-insert-text]").forEach(btn => btn.addEventListener("click", () => addBlock("text", Number(btn.dataset.insertText))));
   root.querySelectorAll("[data-insert-image]").forEach(btn => btn.addEventListener("click", () => addBlock("image", Number(btn.dataset.insertImage))));
   root.querySelectorAll("[data-insert-objbox]").forEach(btn => btn.addEventListener("click", () => addBlock("objectivesBox", Number(btn.dataset.insertObjbox))));
+  root.querySelectorAll("[data-insert-table]").forEach(btn => btn.addEventListener("click", () => addBlock("table", Number(btn.dataset.insertTable))));
 }
 function blockInserterHtml(at, first) {
   return `<div class="block-insert${first ? " is-first" : ""}" data-insert-at="${at}">
@@ -10329,6 +10491,7 @@ function blockInserterHtml(at, first) {
     <div class="block-insert-menu">
       <button type="button" class="btn btn-ghost btn-sm" data-insert-text="${at}">＋ Text</button>
       <button type="button" class="btn btn-ghost btn-sm" data-insert-image="${at}">＋ Image / diagram</button>
+      <button type="button" class="btn btn-ghost btn-sm" data-insert-table="${at}" title="A table with editable cells — paste a picture of a printed table and AI reads it into the cells, or paste the cells straight from a spreadsheet">＋ 📊 Table</button>
       <button type="button" class="btn btn-ghost btn-sm" data-insert-objbox="${at}" title="A blank rounded box for the student to write their own learning objectives in">＋ 🎯 Learning objectives</button>
     </div>
   </div>`;
@@ -10350,16 +10513,17 @@ function renderEditorBlocks() {
     card.setAttribute("data-block-card", b.id);
     const isImg = b.type === "image";
     const isObx = b.type === "objectivesBox";
+    const isTbl = b.type === "table";
     card.innerHTML = `
       <div class="block-head">
-        <span class="block-badge ${isImg ? "image" : ""}">${isObx ? "🎯 Learning objectives" : isImg ? "Image" : "Text"}</span>
+        <span class="block-badge ${isImg ? "image" : ""}">${isTbl ? "📊 Table" : isObx ? "🎯 Learning objectives" : isImg ? "Image" : "Text"}</span>
         <div class="block-head-actions">
           <button class="mini-btn" data-up="${b.id}" title="Move up">↑</button>
           <button class="mini-btn" data-down="${b.id}" title="Move down">↓</button>
           <button class="mini-btn" data-rm="${b.id}" title="Remove">✕</button>
         </div>
       </div>
-      <div class="block-body">${isObx ? objBoxBlockHtml(b) : isImg ? imgBlockHtml(b) : textBlockHtml(b)}</div>`;
+      <div class="block-body">${isTbl ? tblBlockHtml(b) : isObx ? objBoxBlockHtml(b) : isImg ? imgBlockHtml(b) : textBlockHtml(b)}</div>`;
     wrap.appendChild(card);
   });
   wrap.insertAdjacentHTML("beforeend", blockInserterHtml(editorBlocks.length, false));
@@ -10379,6 +10543,8 @@ function renderEditorBlocks() {
     setBlockField(inp.dataset.obxlabel, "label", inp.value);
     objBoxSyncPreview(inp.dataset.obxlabel);
   }));
+  // 📊 the table block: cells, the row / column buttons and the paste window.
+  tblWire(wrap);
   // 🎤 Dictate / ✨ Improve on each text block
   wrap.querySelectorAll("[data-block-dictate]").forEach(btn => btn.addEventListener("click", () => {
     const ed = wrap.querySelector(`.block-edit[data-block="${btn.dataset.blockDictate}"]`);
@@ -10472,6 +10638,177 @@ function objBoxSyncPreview(id) {
   const b = editorBlocks.find(x => x.id === id);
   const el = $("blocksList") && $("blocksList").querySelector(`[data-obxprev="${id}"]`);
   if (b && el) el.innerHTML = objBoxHtml(b);
+}
+// 📊 The table block's card: the paste window on top (a picture of a table,
+// or its cells as text), the row / column tools, then the cells themselves
+// as inputs, and a live preview of the table exactly as it will print.
+function tblBlockHtml(b) {
+  b.rows = tblRows(b);            // normalise ONCE, so every cell below has a slot
+  const rows = b.rows, head = tblHeader(b);
+  const grid = rows.map((r, ri) => `<tr>${r.map((c, ci) =>
+    `<td><input type="text" class="tbl-cell${head && ri === 0 ? " is-head" : ""}" value="${escapeHtml(c)}" data-tblcell="${b.id}" data-r="${ri}" data-c="${ci}" aria-label="Row ${ri + 1}, column ${ci + 1}" placeholder="${head && ri === 0 ? "Heading" : ""}"></td>`).join("")}</tr>`).join("");
+  return `<div class="tbl-edit">
+    <div class="tbl-zone" data-tblzone="${b.id}" tabindex="0" title="Paste here with Ctrl/⌘ V">
+      <span class="tbl-zone-ico">📋</span>
+      <div><b>Paste a picture of the table here</b> (hover or click, then Ctrl/⌘ V) and AI reads it into the cells.<br>
+      <span class="cpb-dim">Or paste the cells as text from a spreadsheet, drop an image in, or <button type="button" class="cpb-linkbtn" data-tblpick="${b.id}">choose a picture</button>.</span></div>
+    </div>
+    <input type="file" accept="image/*" class="hidden" data-tblfile="${b.id}">
+    <div class="tbl-status" data-tblstatus="${b.id}"></div>
+    <div class="tbl-tools">
+      <button type="button" class="mini-btn wide" data-tbladdrow="${b.id}" title="Add a row at the bottom">＋ Row</button>
+      <button type="button" class="mini-btn wide" data-tbldelrow="${b.id}" title="Remove the last row" ${rows.length <= 1 ? "disabled" : ""}>− Row</button>
+      <button type="button" class="mini-btn wide" data-tbladdcol="${b.id}" title="Add a column on the right">＋ Column</button>
+      <button type="button" class="mini-btn wide" data-tbldelcol="${b.id}" title="Remove the last column" ${rows[0].length <= 1 ? "disabled" : ""}>− Column</button>
+      <label class="tbl-head-switch"><input type="checkbox" data-tblhead="${b.id}" ${head ? "checked" : ""}> First row is a heading</label>
+      <label class="tbl-caption-field">Caption <input type="text" value="${escapeHtml(tblCaption(b))}" data-tblcap="${b.id}" placeholder="optional — printed above the table"></label>
+      <span class="cpb-dim tbl-size">${rows.length} × ${rows[0].length}</span>
+    </div>
+    <div class="tbl-grid-wrap"><table class="tbl-grid">${grid}</table></div>
+    <p class="hint tbl-hint">Every cell is editable — check them against the picture after AI has read it. Leave a cell empty for a blank the pupil fills in. Fractions can be typed as 2/5.</p>
+    <div class="tbl-preview" data-tblprev="${b.id}">${tblHtml(b)}</div>
+  </div>`;
+}
+// Repaint ONE card's body in place. renderEditorBlocks() replaces the whole
+// list, which would take the caret out of the cell being typed in — so the
+// cells write straight into the block and only the preview follows them,
+// while a row or column added or removed redraws this card alone.
+function tblRepaint(id) {
+  const body = $("blocksList") && $("blocksList").querySelector(`[data-block-card="${id}"] .block-body`);
+  const b = editorBlocks.find(x => x.id === id && x.type === "table");
+  if (!body || !b) return;
+  body.innerHTML = tblBlockHtml(b);
+  tblWire(body);
+}
+function tblSyncPreview(id) {
+  const b = editorBlocks.find(x => x.id === id && x.type === "table");
+  const el = $("blocksList") && $("blocksList").querySelector(`[data-tblprev="${id}"]`);
+  if (b && el) el.innerHTML = tblHtml(b);
+}
+function tblStatus(id, msg) {
+  const el = $("blocksList") && $("blocksList").querySelector(`[data-tblstatus="${id}"]`);
+  if (el) el.textContent = msg || "";
+}
+function tblWire(root) {
+  const block = id => editorBlocks.find(x => x.id === id && x.type === "table");
+  root.querySelectorAll("[data-tblcell]").forEach(inp => inp.addEventListener("input", () => {
+    const b = block(inp.dataset.tblcell); if (!b) return;
+    const r = Number(inp.dataset.r), c = Number(inp.dataset.c);
+    b.rows = tblRows(b);
+    if (b.rows[r] && c < b.rows[r].length) b.rows[r][c] = tblCell(inp.value);
+    tblSyncPreview(b.id);
+  }));
+  root.querySelectorAll("[data-tbladdrow]").forEach(btn => btn.addEventListener("click", () => {
+    const b = block(btn.dataset.tbladdrow); if (!b) return;
+    b.rows = tblRows(b);
+    if (b.rows.length >= TBL_ROWS_MAX) { toast("That is as many rows as a table can hold (" + TBL_ROWS_MAX + ")", ""); return; }
+    b.rows.push(tblBlankRows(1, b.rows[0].length)[0]);
+    tblRepaint(b.id);
+  }));
+  root.querySelectorAll("[data-tbldelrow]").forEach(btn => btn.addEventListener("click", () => {
+    const b = block(btn.dataset.tbldelrow); if (!b) return;
+    b.rows = tblRows(b);
+    if (b.rows.length <= 1) return;
+    b.rows.pop();
+    tblRepaint(b.id);
+  }));
+  root.querySelectorAll("[data-tbladdcol]").forEach(btn => btn.addEventListener("click", () => {
+    const b = block(btn.dataset.tbladdcol); if (!b) return;
+    b.rows = tblRows(b);
+    if (b.rows[0].length >= TBL_COLS_MAX) { toast("That is as many columns as a table can hold (" + TBL_COLS_MAX + ")", ""); return; }
+    b.rows.forEach(r => r.push(""));
+    tblRepaint(b.id);
+  }));
+  root.querySelectorAll("[data-tbldelcol]").forEach(btn => btn.addEventListener("click", () => {
+    const b = block(btn.dataset.tbldelcol); if (!b) return;
+    b.rows = tblRows(b);
+    if (b.rows[0].length <= 1) return;
+    b.rows.forEach(r => r.pop());
+    tblRepaint(b.id);
+  }));
+  root.querySelectorAll("[data-tblhead]").forEach(cb => cb.addEventListener("change", () => {
+    const b = block(cb.dataset.tblhead); if (!b) return;
+    b.header = !!cb.checked;
+    tblRepaint(b.id);
+  }));
+  root.querySelectorAll("[data-tblcap]").forEach(inp => inp.addEventListener("input", () => {
+    const b = block(inp.dataset.tblcap); if (!b) return;
+    b.caption = inp.value;
+    tblSyncPreview(b.id);
+  }));
+  root.querySelectorAll("[data-tblpick]").forEach(btn => btn.addEventListener("click", e => {
+    e.stopPropagation();
+    const f = root.querySelector(`[data-tblfile="${btn.dataset.tblpick}"]`) || ($("blocksList") && $("blocksList").querySelector(`[data-tblfile="${btn.dataset.tblpick}"]`));
+    if (f) { f.value = ""; f.click(); }
+  }));
+  root.querySelectorAll("[data-tblfile]").forEach(inp => inp.addEventListener("change", e => {
+    const f = e.target.files && e.target.files[0];
+    if (f) tblReadImage(inp.dataset.tblfile, f);
+    e.target.value = "";
+  }));
+  root.querySelectorAll("[data-tblzone]").forEach(z => {
+    const id = z.dataset.tblzone;
+    // Click focuses the window so a plain Ctrl/⌘ V lands here; hovering is
+    // enough too, the way the image box works.
+    z.addEventListener("click", () => z.focus());
+    enableHoverPaste(z, e => tblHandlePaste(id, e));
+    z.addEventListener("paste", e => tblHandlePaste(id, e));
+    z.addEventListener("dragover", e => e.preventDefault());
+    z.addEventListener("drop", e => {
+      e.preventDefault();
+      const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) { tblReadImage(id, f); return; }
+      const text = e.dataTransfer && e.dataTransfer.getData("text/plain");
+      if (text) tblPasteText(id, text);
+    });
+  });
+}
+// What lands in the window: a picture goes to the model, words are split
+// locally. A paste with neither is left alone for whatever else wanted it.
+function tblHandlePaste(id, e) {
+  const items = (e.clipboardData || {}).items || [];
+  for (const it of items) {
+    if (it.type && it.type.startsWith("image/")) { e.preventDefault(); tblReadImage(id, it.getAsFile()); return; }
+  }
+  const text = e.clipboardData ? e.clipboardData.getData("text/plain") : "";
+  if (text && text.trim()) { e.preventDefault(); tblPasteText(id, text); }
+}
+function tblPasteText(id, text) {
+  const b = editorBlocks.find(x => x.id === id && x.type === "table"); if (!b) return;
+  const rows = tblFromText(text);
+  if (!rows) { tblStatus(id, "That text is not table-shaped — paste cells copied from a spreadsheet, or a picture of the table."); return; }
+  b.rows = rows;
+  tblRepaint(id);
+  tblStatus(id, `✓ ${rows.length} row${rows.length === 1 ? "" : "s"} × ${rows[0].length} column${rows[0].length === 1 ? "" : "s"} from the pasted text — check the cells.`);
+  dupWatchKick();
+}
+// 🤖 The picture reader. One vision call, the reply believed only when it is a
+// rectangle of cells, and the cells left editable — the model is very good
+// and not perfect, and a wrong number in a table is a question that marks
+// every child wrong. A caption already typed by the author is kept.
+async function tblReadImage(id, file) {
+  const b = editorBlocks.find(x => x.id === id && x.type === "table"); if (!b) return;
+  if (!file || !String(file.type || "").startsWith("image/")) { tblStatus(id, "That is not a picture — paste or drop an image of the table."); return; }
+  if (!aiReady()) { tblStatus(id, "AI isn't ready yet — try again in a moment."); return; }
+  if (file.size > 25 * 1024 * 1024) { tblStatus(id, "That picture is too large (max 25 MB) — a screenshot of just the table is ideal."); return; }
+  tblStatus(id, "🤖 Reading the table off the picture…");
+  try {
+    const media = await imageFileToInlineMedia(file);
+    const raw = await askGeminiVision(tblReadPrompt(), [media], { maxOutputTokens: 6000, json: true });
+    const got = tblFromAi(parseAIJson(raw));
+    if (!got) { tblStatus(id, "No table found in that picture — try a tighter crop of just the table."); return; }
+    // The block may have been removed while the model was reading.
+    if (!editorBlocks.some(x => x.id === id && x.type === "table")) return;
+    b.rows = got.rows;
+    b.header = got.header;
+    if (got.caption && !tblCaption(b)) b.caption = got.caption;
+    tblRepaint(id);
+    tblStatus(id, `✓ Read ${got.rows.length} row${got.rows.length === 1 ? "" : "s"} × ${got.rows[0].length} column${got.rows[0].length === 1 ? "" : "s"} — check every cell against the picture before you save.`);
+    dupWatchKick();
+  } catch (e) {
+    console.warn("table read", e);
+    tblStatus(id, "Couldn't read that — " + aiErrorMessage(e) + ". Try a clearer, tighter picture of the table.");
+  }
 }
 function imgBlockHtml(b) {
   const has = b.url ? "block" : "none";
@@ -10609,7 +10946,7 @@ async function annotWriteKeyFromImage(id) {
   try {
     const media = await imageUrlToInlineMedia(b.answerImg);
     if (!media) throw new Error("could not read the answer screenshot");
-    const stem = editorBlocks.filter(x => x.type === "text").map(x => (x.content || "").trim()).filter(Boolean).join(" ").slice(0, 700);
+    const stem = blocksPlainText(editorBlocks, " ").slice(0, 700);
     const prompt =
       `The attached picture is a Singapore primary-school math diagram WITH the correct annotations already drawn on it — the teacher's answer to a "tick and label" question. ` +
       (stem ? `The question reads: "${stem}". ` : ``) +
@@ -13560,6 +13897,9 @@ function collectQuestion() {
       // written out as an empty TEXT block and then dropped by the filter
       // below — the box saved perfectly and gone on the next load.
       if (b.type === "objectivesBox") return { id: b.id, type: "objectivesBox", lines: objBoxLines(b), label: objBoxLabel(b) };
+      // 📊 Persisted as its rectangle. Same trap as the box: without this
+      // branch it is written out as an empty text block and dropped.
+      if (b.type === "table") return { id: b.id, type: "table", header: tblHeader(b), rows: tblRows(b), caption: tblCaption(b) };
       if (b.type !== "image") return { id: b.id, type: "text", content: (b.content || "").trim() };
       const img = { id: b.id, type: "image", url: (b.url || "").trim(), scale: normalizeImageScale(b.scale) };
       // Annotation question: this diagram is the answer surface, and it carries
@@ -13576,7 +13916,7 @@ function collectQuestion() {
     })
     // A box is BLANK by design, so it has no content to be kept for — it is
     // kept for being there at all.
-    .filter(b => (b.type === "objectivesBox" ? true : b.type === "image" ? b.url : b.content));
+    .filter(b => (b.type === "objectivesBox" ? true : b.type === "table" ? tblHasContent(b) : b.type === "image" ? b.url : b.content));
   const existing = currentEditingId ? (questionBank.find(q => q.id === currentEditingId) || {}) : {};
   // Keep the variant link: from a fresh Regenerate (pendingVariantOf), or carry
   // an existing one when editing a question that is already a variant.
@@ -13615,7 +13955,7 @@ $("saveQBtn").addEventListener("click", async () => {
   if (cpbEditActive()) { cpbEditSave(); return; }
   const isNewQuestion = !currentEditingId;
   const q = collectQuestion();
-  if (!q.blocks.some(b => b.type === "text") && !q.blocks.some(b => b.type === "image")) { toast("Add some question content first", "error"); return; }
+  if (!q.blocks.some(b => b.type === "text" || b.type === "table") && !q.blocks.some(b => b.type === "image")) { toast("Add some question content first", "error"); return; }
   if (!q.expected && !q.markingGuide && !q.answerKeyImageUrl) { toast("Add a correct answer, marking guide, or answer key image", "error"); return; }
   // The backstop. The banner above may never have been looked at — it sits at
   // the top of a long editor and this button is at the bottom — so the last
@@ -13905,7 +14245,7 @@ async function editorImageMedia(max = 3) {
 async function aiAnswerAndGuide() {
   if (!canManageQuestions()) { toast("Only admin accounts can do this", "error"); return; }
   if (!aiReady()) { toast("AI isn't ready yet — please wait a moment", "error"); return; }
-  const text = editorBlocks.filter(b => b.type === "text").map(b => (b.content || "").trim()).filter(Boolean).join("\n\n");
+  const text = blocksPlainText(editorBlocks, "\n\n");
   const imgCount = editorBlocks.filter(b => b.type === "image" && ((b.url || "").trim() || imgChoices.has(b.id))).length;
   if (!text && !imgCount) { toast("Write the question first — there's nothing to answer yet", "error"); return; }
   const btn = $("aiAnswerBtn"), orig = btn.innerHTML;
@@ -17696,7 +18036,7 @@ async function regenerateQuestionVariant(difficulty = "same", instruction = "") 
   // The original this variant derives from (its root if the source is itself a
   // variant), recorded on the saved variant so practice can link them.
   const variantRootId = currentEditingId ? (q.variantOf || q.id) : "";
-  const sourceText = editorBlocks.filter(b => b.type === "text").map(b => (b.content || "").trim()).filter(Boolean).join("\n\n");
+  const sourceText = blocksPlainText(editorBlocks, "\n\n");
   const hasDiagram = editorBlocks.some(b => b.type === "image");
   // Every picture the question carries, in order. `diagramChanges` is POSITIONAL
   // against this list, so it is the one list the reading call, the redraw loop
@@ -17954,7 +18294,7 @@ async function checkQuestionWithAI() {
   if (!canManageQuestions()) { toast("Only admin accounts can check questions", "error"); return; }
   if (!aiReady()) { toast("AI isn't ready yet — please wait a moment", "error"); return; }
   const q = collectQuestion();
-  const sourceText = editorBlocks.filter(b => b.type === "text").map(b => (b.content || "").trim()).filter(Boolean).join("\n\n");
+  const sourceText = blocksPlainText(editorBlocks, "\n\n");
   const hasDiagram = editorBlocks.some(b => b.type === "image");
   const diagramUrls = editorBlocks.filter(b => b.type === "image" && (b.url || "").trim()).map(b => (b.url || "").trim());
   if (!sourceText && !hasDiagram) { toast("Add or build a question first, then check it with AI", "error"); return; }
@@ -18186,7 +18526,7 @@ function akcAgreesWithKey(q, r) {
 // Identical for both on purpose: a comparison between two models asked
 // different questions compares the questions, not the models.
 function akcPrompt(q, imageNote) {
-  const text = (q.blocks || []).filter(b => b.type === "text").map(b => stripHtml(b.content).trim()).filter(Boolean).join("\n\n");
+  const text = blocksPlainText(q.blocks, "\n\n");
   const opts = wsHasMcq(q)
     ? `\nThis is a multiple-choice question. The options, as the student sees them:\n`
       + q.options.map((o, i) => `${mcqLabel(i)} ${o}`).join("\n")
@@ -19658,7 +19998,21 @@ async function exportWorkingPng() {
 // PRACTICE — render question + AI marking
 // =====================================================================
 function stripHtml(s) { const d = document.createElement("div"); d.innerHTML = s || ""; return (d.textContent || "").trim(); }
-function questionText(q) { return (q.blocks || []).filter(b => b.type === "text").map(b => stripHtml(b.content)).join(" "); }
+// 📊 A block's words. A TEXT block is its content with the markup stripped; a
+// TABLE is its cells, row by row (`tblText`). Everything that asks "what does
+// this question say" — the search, the duplicate matcher, the AI prompts that
+// re-read a question, the answer-key cross-check — goes through these two, so
+// a table is part of the question everywhere and not only on the page.
+function blockPlainText(b) {
+  if (!b) return "";
+  if (b.type === "table") return tblText(b);
+  if (b.type === "text") return stripHtml(b.content || "");
+  return "";
+}
+function blocksPlainText(blocks, sep) {
+  return (blocks || []).map(blockPlainText).map(t => String(t || "").trim()).filter(Boolean).join(sep == null ? " " : sep);
+}
+function questionText(q) { return blocksPlainText((q && q.blocks) || [], " "); }
 let previewPrintQuestions = [];
 // MCQ options as a static list (for previews / printouts). showCorrect marks the
 // answer with a ✓ (admin views only — never in the student-facing preview).
@@ -20243,6 +20597,9 @@ function wsBodyEstimateMm(q, imgMm, objBoxAll) {
     // a twenty-line box is reserved twelve millimetres and the question spills
     // its answer field onto the next page.
     else if (b.type === "objectivesBox") mm += objBoxHeightMm(b);
+    // 📊 Every row of a table, or a ten-row table is reserved twelve
+    // millimetres and the question spills its answer row onto the next page.
+    else if (b.type === "table") mm += tblHeightMm(b);
     else if (b.type === "text") {
       const chars = stripHtml(b.content || "").length;
       mm += Math.max(1, Math.ceil(chars / WS_BODY_CHARS)) * WS_BODY_LINE_MM + 2;
@@ -20505,6 +20862,13 @@ function wsPrintCss() {
     .obx-label { font-size: 8pt; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #7b756c; margin-bottom: 1.5mm; }
     .obx-lines { width: 100%; }
     .obx-line { height: 7mm; border-bottom: 0.5pt dotted #b9c0c7; }
+    /* 📊 A table block on paper. */
+    .qtb-wrap { margin: 3mm 0 3.5mm; break-inside: avoid; page-break-inside: avoid; }
+    .qtb-caption { font-weight: 700; margin-bottom: 1.5mm; font-size: 11pt; }
+    .qtb { border-collapse: collapse; font-size: 11pt; line-height: 1.35; }
+    .qtb th, .qtb td { border: 0.7pt solid #000; padding: 1.6mm 4mm; text-align: center; min-width: 16mm; vertical-align: middle; }
+    .qtb th { font-weight: 700; }
+    .qtb td:empty::after { content: "\\00a0"; }
     /* clear:right keeps the blank clear of the question's QR float, so it is
        always the full width on the right edge instead of being narrowed. */
     .ws-answer-final { clear: right; display: flex; justify-content: flex-end; align-items: baseline; gap: 3mm; font-size: 11pt; color: #514d47; }
@@ -25826,7 +26190,7 @@ function aiMarkRenderPicker(candidates) {
     const t = String(term || "").trim().toLowerCase();
     const matches = questionBank.filter(q => {
       if (!t) return true;
-      const hay = [q.title, q.level, studentTopicsLabel(q), (q.blocks || []).filter(b => b.type === "text").map(b => stripHtml(b.content)).join(" ")].join(" ").toLowerCase();
+      const hay = [q.title, q.level, studentTopicsLabel(q), questionText(q)].join(" ").toLowerCase();
       return hay.includes(t);
     }).slice(0, 30);
     $("aiMarkPickResults").innerHTML = matches.length
@@ -29787,7 +30151,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.74.2 · 2026-09-10";
+const APP_VERSION = "v1.75.0 · 2026-09-10";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -29936,7 +30300,7 @@ function graphFindQ(id) {
     (Array.isArray(studentGeneratedQuestions) ? studentGeneratedQuestions.find(x => x && x.id === id) : null) || null;
 }
 function graphPlainText(blocks) {
-  const t = (blocks || []).filter(b => b.type === "text").map(b => b.content || "").join(" ");
+  const t = (blocks || []).map(b => b && b.type === "table" ? tblText(b) : (b && b.type === "text" ? b.content || "" : "")).join(" ");
   const tmp = document.createElement("div"); tmp.innerHTML = t;
   return (tmp.textContent || "").replace(/\s+/g, " ").trim();
 }
@@ -48141,7 +48505,7 @@ async function sylAutoFileEditor(owner) {
   if (editorLos.length) return [];        // filed by the read or by hand — never overwrite
   try {
     const q = collectQuestion();
-    if (!(q.blocks || []).some(b => b.type === "text" && b.content)) return [];
+    if (!questionText(q)) return [];
     const level = String(q.level || "").trim().toUpperCase();
     const ids = await sylSuggestLos(q, SYL_LEVELS.indexOf(level) >= 0 ? level : "");
     if (owner && editorBlocks !== owner) return [];

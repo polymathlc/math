@@ -158,7 +158,17 @@ function studentTopicLabel(topic) {
 const topicForMemory = q => studentTopicLabel(questionTopics(q));
 const conceptLabel = q => String((q && q.concept) || "").trim();
 const stripHtml = s => String(s || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-const questionText = q => (q.blocks || []).filter(b => b.type === "text").map(b => stripHtml(b.content)).join(" ");
+// 📊 A TABLE block is part of the question's words: its cells, row by row,
+// the way the page's own `tblText` writes them. Read only the text blocks and
+// a question whose data is in a table is marked on half the question.
+const tableText = b => {
+  const rows = Array.isArray(b && b.rows) ? b.rows : [];
+  const cap = String((b && b.caption) || "").trim();
+  return (cap ? cap + " " : "") + rows.map(r => (Array.isArray(r) ? r : [r]).map(c => String(c == null ? "" : c).trim()).join(" | ")).join(" ; ");
+};
+const questionText = q => (q.blocks || [])
+  .map(b => (b && b.type === "text") ? stripHtml(b.content) : (b && b.type === "table") ? tableText(b) : "")
+  .filter(Boolean).join(" ");
 const progressDocId = q => String((q && q.id) || "question").replace(/[\/\\#?\[\]]/g, "_").slice(0, 140);
 
 const pointsEarned = v => { const n = Number(v && v.marks); return Number.isFinite(n) ? Math.max(0, n) : 0; };

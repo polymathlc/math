@@ -2519,6 +2519,75 @@ pupil writes, in their own words, what they were learning.
   names, same two switches. Ship a change to both together.
 - Run **`node tools/objectives-box-tests.mjs`** after touching any of it.
 
+## 📊 A TABLE in a question — read off a picture by AI (v1.75.0)
+
+`TBL_*` / `tblRows` / `tblHeader` / `tblCaption` / `tblHeightMm` / `tblText` /
+`tblHasContent` / **`tblHtml`** / `tblFromText` / `tblReadPrompt` / `tblFromAi`
+/ `tblBlockHtml` / `tblWire` / `tblRepaint` / `tblHandlePaste` / `tblPasteText`
+/ **`tblReadImage`** (search `📊 TABLE BLOCK`), the `table` block type, the
+`.qtb-*` CSS in both the app's stylesheet and `wsPrintCss`, the `.tbl-*`
+editor CSS, `blockPlainText` / `blocksPlainText` beside `questionText`, and
+`tableText` in `functions/index.js`. **This app only** so far.
+
+A real table in a question — a timetable, a price list, a tally chart, a
+table with blanks the pupil fills in — as `{ type: "table", header, rows:
+[[cell, …], …], caption }`. Before this a table was prose with spaces standing
+in for columns, re-flowed into nonsense on print, or a picture nobody could
+edit, search, mark against or cross-check.
+
+- **`tblRows` is the ONE place a stored grid becomes a rectangle**, and it
+  FAILS TO A BLANK GRID: every row padded to the widest, every cell a
+  string, junk or an absent field a 3 × 3 of empty cells rather than nothing
+  — a table with no cells renders as nothing and looks like a bug. The caps
+  (`TBL_ROWS_MAX` 40, `TBL_COLS_MAX` 12, `TBL_CELL_MAX` 200 characters) stop a
+  runaway reply becoming a thousand-cell document.
+- **`tblHtml` IS THE ONE RENDERER**, called from `renderQuestionBlockHtml`,
+  so practice, every preview, the editor card's live preview and the printed
+  sheet draw the same table; the class names are the same on screen and on
+  paper and `wsPrintCss` carries the paper sizes. Cells go through
+  `renderMathInline`, so `2/5` prints as a fraction and everything is escaped.
+- **THE PASTE WINDOW takes a picture OR words.** A picture pasted, dropped or
+  chosen goes to `tblReadImage`: one `askGeminiVision` call with
+  `tblReadPrompt` (a rectangle of strings, the wording around the table left
+  OUT — that is the question, and it is in the text block above), read
+  through `parseAIJson`, believed only when `tblFromAi` finds a rectangle
+  with something in it. Text pasted into the same window (Excel, Sheets, a
+  PDF) is split by `tblFromText` — tabs, then pipes, then commas, then runs
+  of spaces — with **no AI call**. A paste that is neither is left for
+  whatever else wanted it.
+- **THE CELLS STAY EDITABLE, and the status line says to check them.** The
+  model is very good and not perfect, and a wrong number in a table is a
+  question that marks every child wrong. A caption the author already typed
+  is never overwritten by the reader's.
+- **CELLS WRITE STRAIGHT INTO THE BLOCK; only a structural change repaints.**
+  `renderEditorBlocks()` replaces the whole list and would take the caret out
+  of the cell being typed in, so a cell edit updates the block and the live
+  preview (`tblSyncPreview`) and nothing else; a row or column added or
+  removed, or the heading toggled, repaints THIS card alone (`tblRepaint`).
+  `tblWire` is called with the list on every render and with the card body on
+  every repaint.
+- **`collectQuestion` NEEDS ITS OWN BRANCH**, exactly like the objectives
+  box: without it the table is written out as an empty text block, dropped by
+  the filter, and gone on the next load. The filter keeps a table that has any
+  words at all (`tblHasContent`) — headings over blank cells are a fill-in
+  table, and the headings are the question — and drops a grid nobody typed
+  into, the way an empty text block is dropped.
+- **`wsBodyEstimateMm` reserves EVERY ROW** (`tblHeightMm`). Left to the flat
+  12mm every unknown block gets, a ten-row table spills the answer row onto
+  the next page. A printed table is `break-inside: avoid`.
+- **A TABLE IS PART OF THE QUESTION'S WORDS.** `questionText` now goes through
+  `blocksPlainText`, which reads a text block's content and a table's cells
+  (`tblText`, one line per row, cells piped) — so the bank search, the
+  duplicate matcher, ✅ Check with AI, 🔄 Regenerate, the annotation reader,
+  🔍 the answer-key cross-check and the syllabus filer all see the table.
+  **`functions/index.js` carries `tableText` for the same reason** and the
+  marker reads it: a question whose data is in the table was otherwise marked
+  on half the question. **That half needs a functions deploy** — the workflow
+  does it on merge to main.
+- `wsQuestionTextLines` deliberately still reads TEXT blocks only: it exists
+  to find the (a) (b) part markers, and a cell beginning "(a)" is not a part.
+- Run **`node tools/table-block-tests.mjs`** after touching any of it.
+
 ## 🖼 The image engine — ChatGPT Images 2.5 for EVERY picture (v1.71.0)
 
 `OPENAI_IMAGE_DEFAULT_MODEL` / `OPENAI_IMAGE_MODELS` / `OPENAI_IMAGE_25_RE` /
@@ -2690,6 +2759,23 @@ redrawn figure, every redrawn figure and every ✨ Enhance.
   bill; let it share `openAiDay` with the text engine and a card-art batch
   closes marking for the day. And a change under `functions/` **needs a
   functions deploy** — the workflow does it on merge to main.
+- After touching **📊 the table block** (`TBL_*`, `tblRows`, `tblHtml`,
+  `tblHeightMm`, `tblText`, `tblHasContent`, `tblFromText`, `tblFromAi`,
+  `tblReadPrompt`, `tblReadImage`, `tblWire`, `tblRepaint`, `collectQuestion`'s
+  branch, `wsBodyEstimateMm`'s branch, `blockPlainText` / `blocksPlainText`,
+  the `.qtb-*` CSS, or `tableText` in `functions/index.js`), run
+  `node tools/table-block-tests.mjs` and `node tools/answer-key-check-tests.mjs`.
+  Every failure is silent and the question still saves. **Losing
+  `collectQuestion`'s branch is the worst**: the table is written out as an
+  empty text block, dropped by the filter, and gone on the next load. Reserve
+  the flat 12mm for it in `wsBodyEstimateMm` and a ten-row table spills the
+  answer row onto the next page. Let `tblRows` return an empty grid and the
+  block renders as nothing. Let `tblFromAi` believe a reply that is not a
+  rectangle and a paragraph of prose is filed as a one-cell table. Take a table
+  out of `questionText` and the duplicate warning, the search, ✅ Check with AI
+  and the cross-check all read a question with its data missing — and take
+  `tableText` out of the Cloud Function and the marker does, on every child's
+  attempt. And a change under `functions/` **needs a functions deploy**.
 - After touching **🎯 the learning-objectives box** (`OBJBOX_*`, `objBoxLines`,
   `objBoxLabel`, `objBoxHeightMm`, `objBoxHtml`, `objBoxAutoHtml`,
   `objBoxBlockHtml`, `objBoxSyncPreview`, `collectQuestion`'s branch,
