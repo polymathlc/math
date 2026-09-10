@@ -25,11 +25,13 @@ const api = new Function(`
   ${cut('const CPB_EDITOR_FIELDS', 'function cpbEditQuestion(')}
   ${cut('function cpbLibRow(r)', '// The shelf is read out')}
   ${cut('function cpbRowPartsHtml(q, num, book) {', 'function cpbBookletHtml(book, list, numbers, marks) {')}
+  ${cut('let cpbPreviewWin = null;', 'function cpbPreview() {')}
+  function cpbDraftSave() {}
   ${cut('function cpbReadMarks(row)', '// The figure, through the ONE door')}
   ${cut('function normalizeMathSymbols(s)', 'function renderMathPlain(text)')}
   function cpbRender() {}
   return { cpbLayout, cpbMarks, cpbSetBook, cpbSetMarks, cpbPaperOpts, cpbBuildPsleDocumentHtml, cpbMarkRuns, cpbCarryOver, cpbLibRow, cpbUseReferenceFormat, cpbMetaGet,
-    cpbPaper2Split, cpbPartMarks, cpbReadPartMarks, cpbReadMarks, cpbPaginateDocument, CPB_REF, CPB_P2_SHORT, cpbMetaFromStored, normalizeMathSymbols, cpbSetPartMark, cpbPartDraft, cpbRowPartsHtml,
+    cpbPaper2Split, cpbPartMarks, cpbReadPartMarks, cpbReadMarks, cpbPaginateDocument, CPB_REF, CPB_P2_SHORT, cpbMetaFromStored, normalizeMathSymbols, cpbSetPartMark, cpbPartDraft, cpbRowPartsHtml, cpbPreviewEdit, cpbPreviewEditHtml, cpbPreviewEditRun, wsQuestionParts,
     set(qs, meta = {}) { cpbQuestions = qs; cpbMeta = meta; }, get() { return cpbQuestions; } };
 `)();
 const text = content => ({type:'text',content});
@@ -106,6 +108,37 @@ api.cpbSetMarks('p8',3);assert.deepEqual(api.get().find(q=>q.id==='p8').partMark
   api.cpbSetPartMark('p7',9,3);api.cpbSetPartMark('p7',0,99);api.cpbSetPartMark('p7',0,'x');assert.deepEqual(q8.partMarks,[1,1,3],'out of range is ignored');
   api.cpbSetMarks('p7',4);assert.equal(q8.partMarks,undefined,'a total typed over a split that no longer adds up drops it');
   api.cpbSetPartMark('p7',0,1);api.cpbSetPartMark('p7',1,1);api.cpbSetPartMark('p7',2,2);assert.equal(q8.marks,4);
+}
+// ✏️ Editing on the preview: the panel's three actions land on the question through the same
+// setters the ③ row uses, and the printed sheet carries what the panel needs.
+{
+  const q6=api.get().find(q=>q.id==='p5');            // Paper 2 Q6: one Ans line, 3 marks
+  q6.blocks=[text('Firdaus had some money.'),{type:'image',url:'data:image/gif;base64,R0lGODlhAQABAAAAACw=',scale:1,id:'img6'}];
+  assert.equal(api.cpbPreviewEdit('p5',{action:'img',bid:'img6',delta:0.1}),true);assert.equal(q6.blocks[1].scale,1.1);
+  api.cpbPreviewEdit('p5',{action:'img',bid:'img6',delta:-0.3});assert.equal(q6.blocks[1].scale,0.8);
+  assert.equal(api.cpbPreviewEdit('p5',{action:'img',bid:'nope',delta:0.1}),false,'a picture that is not there');
+  assert.deepEqual(api.wsQuestionParts(q6),[]);
+  assert.equal(api.cpbPreviewEdit('p5',{action:'lines',delta:1}),true);assert.deepEqual(api.wsQuestionParts(q6),['a','b']);assert.equal(q6.answerParts,2);
+  api.cpbPreviewEdit('p5',{action:'lines',delta:1});assert.deepEqual(api.wsQuestionParts(q6),['a','b','c']);
+  api.cpbPreviewEdit('p5',{action:'marks',index:0,value:1});api.cpbPreviewEdit('p5',{action:'marks',index:1,value:1});api.cpbPreviewEdit('p5',{action:'marks',index:2,value:2});
+  assert.deepEqual(q6.partMarks,[1,1,2]);assert.equal(q6.marks,4,'marks typed on the preview reach the question through cpbSetPartMark');
+  api.cpbPreviewEdit('p5',{action:'lines',delta:-1});assert.deepEqual(api.wsQuestionParts(q6),['a','b']);assert.equal(q6.partMarks,undefined,'a split for three parts is not a split for two');
+  api.cpbPreviewEdit('p5',{action:'lines',delta:-1});assert.deepEqual(api.wsQuestionParts(q6),[]);assert.equal(q6.answerParts,1);
+  api.cpbPreviewEdit('p5',{action:'lines',delta:-1});assert.equal(q6.answerParts,1,'never below one line');
+  api.cpbPreviewEdit('p5',{action:'marks',index:0,value:3});assert.equal(q6.marks,3,'one line: the total');
+  assert.equal(api.cpbPreviewEdit('a0',{action:'lines',delta:1}),false,'an MCQ has no Ans lines to add');
+  assert.equal(api.cpbPreviewEdit('p5',{action:'nonsense'}),false);assert.equal(api.cpbPreviewEdit('zz',{action:'img'}),false);
+  assert.equal(api.wsQuestionParts({blocks:[text('(a) one\n(b) two')],answerParts:'x'}).length,2,'junk answerParts falls back to the wording');
+  assert.equal(api.wsQuestionParts({blocks:[text('(a) one\n(b) two')],answerParts:1}).length,0,'1 forces a single line');
+  const edited=await api.cpbBuildPsleDocumentHtml(api.cpbPaperOpts().list,'Edit',{...api.cpbPaperOpts().opts,edit:'cpb',editScroll:420});
+  assert(edited.includes('class="ws-edit-banner ws-noprint"') && edited.includes('cpbPreviewEditRun') && edited.includes('"scroll":420'),'the editable preview carries its layer');
+  assert(edited.includes('data-qid="p5"') && edited.includes('data-bid="img6"'),'chunks and pictures are named for the panel');
+  assert(edited.includes('"p5":{"marks":3,"parts":[],"partMarks":null,"written":true,"lines":1}'),'the panel is told what the sheet was built from');
+  assert(edited.includes('"a0":{"marks":1,"parts":[],"partMarks":null,"written":false,"lines":1}'),'an MCQ is not written');
+  const plain=await api.cpbBuildPsleDocumentHtml(api.cpbPaperOpts().list,'Plain',api.cpbPaperOpts().opts);
+  assert(!plain.includes('ws-edit-banner') && !plain.includes('cpbPreviewEditRun'),'the plain sheet carries none of it');
+  assert(!/\bwindow\.opener\b[^;]*=\s/.test(api.cpbPreviewEditRun.toString()),'the in-preview script only ever calls the opener');
+  delete q6.answerParts; q6.blocks=[text('Find the value of 1705 − 27.')];
 }
 assert.equal(api.cpbMarks().total,100);
 api.cpbSetMarks('a0',3); assert.equal(api.cpbMarks().a,28);
@@ -215,5 +248,8 @@ if(process.argv[2]) {
   api.set([long,written('next','p2',2)],{...meta,answerKey:false});out=api.cpbPaperOpts();
   fs.writeFileSync(path.join(dir,'psle-long.html'),await api.cpbBuildPsleDocumentHtml(out.list,'Long question',out.opts));
   fs.writeFileSync(path.join(dir,'psle-mcq.html'),onPaper);fs.writeFileSync(path.join(dir,'psle-paper2.html'),onlyP2);
+  // The editable preview, for a look at the panels beside the questions.
+  api.set(saved,meta);out=api.cpbPaperOpts();
+  fs.writeFileSync(path.join(dir,'psle-edit.html'),await api.cpbBuildPsleDocumentHtml(out.list,'Editable preview',{...out.opts,edit:'cpb'}));
 }
 console.log('Nan Hua 2026 model: section counts, marks, part marks, section moves, persistence, numbering, covers, margin boxes, answer sheet and answer key checks passed.');
