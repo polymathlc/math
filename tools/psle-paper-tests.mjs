@@ -25,12 +25,16 @@ const api = new Function(`
   ${cut('const CPB_EDITOR_FIELDS', 'function cpbEditQuestion(')}
   ${cut('function cpbLibRow(r)', '// The shelf is read out')}
   ${cut('function cpbReadMarks(row)', '// The figure, through the ONE door')}
+  ${cut('function normalizeMathSymbols(s)', 'function renderMathPlain(text)')}
   function cpbRender() {}
   return { cpbLayout, cpbMarks, cpbSetBook, cpbSetMarks, cpbPaperOpts, cpbBuildPsleDocumentHtml, cpbMarkRuns, cpbCarryOver, cpbLibRow, cpbUseReferenceFormat, cpbMetaGet,
-    cpbPaper2Split, cpbPartMarks, cpbReadPartMarks, cpbReadMarks, cpbPaginateDocument, CPB_REF, CPB_P2_SHORT, cpbMetaFromStored,
+    cpbPaper2Split, cpbPartMarks, cpbReadPartMarks, cpbReadMarks, cpbPaginateDocument, CPB_REF, CPB_P2_SHORT, cpbMetaFromStored, normalizeMathSymbols,
     set(qs, meta = {}) { cpbQuestions = qs; cpbMeta = meta; }, get() { return cpbQuestions; } };
 `)();
 const text = content => ({type:'text',content});
+// The word "triangle" stays a word; only the LaTeX command becomes the symbol.
+assert.equal(api.normalizeMathSymbols('a rectangle and a triangle. 75% of the triangle is shaded'),'a rectangle and a triangle. 75% of the triangle is shaded');
+assert.equal(api.normalizeMathSymbols('\\triangle ABC'),'△ ABC');
 const mcq = (id, marks=0) => ({id,title:'Rounding',marks, options:['20 000','21 000','21 300','22 000'],correctOption:1, blocks:[text('Round 21 345 to the nearest thousand.')], _cpbBook:'a'});
 const written = (id, book, marks) => ({id,title:'Written problem',_cpbBook:book,marks,expected:'42',blocks:[text('Find the value of 1705 − 27.')]});
 const A=Array.from({length:18},(_,i)=>mcq('a'+i));
