@@ -70,6 +70,10 @@ async function askOpenAI() { throw new Error("not used in these tests"); }
 async function askGeminiVision() { throw new Error("not used in these tests"); }
 function wsFind() { return null; }
 function wsSavedQuestions() { return []; }
+// 📊 The question's words now include its table blocks (see tools/table-block-tests.mjs);
+// the prompt reads them through these two, the real ones cut out of index.html.
+function tblText(b) { return (Array.isArray(b && b.rows) ? b.rows : []).map(r => (Array.isArray(r) ? r : [r]).join(" | ")).join(" "); }
+` + cut('function blockPlainText(b) {', '\nfunction questionText(q)', 'blockPlainText') + `
 `;
 
 const compareBlock = cut(
