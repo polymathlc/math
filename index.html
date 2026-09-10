@@ -7407,7 +7407,11 @@ function normalizeMathSymbols(s) {
     .replace(/\\beta|\bbeta\b/gi, "β")
     .replace(/\\gamma|\bgamma\b/gi, "γ")
     .replace(/\\angle|\bangle\b/gi, "∠")
-    .replace(/\\triangle|\btriangle\b/gi, "△")
+    // ONLY the LaTeX command. The bare WORD "triangle" is left alone: a
+    // question saying "a rectangle and a triangle" must print those words,
+    // not "a rectangle and a △" — a symbol in running prose reads as a typo
+    // to a child and it is not how any paper prints the word.
+    .replace(/\\triangle/gi, "△")
     .replace(/\\parallel/gi, "∥")
     .replace(/\\perp/gi, "⊥")
     .replace(/\\degree|\bdegrees?\b/gi, "°")
@@ -29783,7 +29787,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.74.1 · 2026-09-09";
+const APP_VERSION = "v1.74.2 · 2026-09-10";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
