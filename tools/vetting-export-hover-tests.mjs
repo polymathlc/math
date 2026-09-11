@@ -58,6 +58,7 @@ function harness() {
     const wsOpenDocument=(qs,title,opts)=>actions.push(['full',qs[0].id,opts]);
     const vetEdit=id=>actions.push(['edit',id]);
     const cpbEditQuestion=id=>actions.push(['cpbEdit',id]);
+    const pvsFlush=()=>{};   // 🔍± the picture-size pills: a peek that closes writes the sizes back
     ${hover}
     return {show:vetPrintPeekShow,leave:vetPrintPeekLeave,keep:vetPrintPeekKeep,hide:vetPrintPeekHide,
       dismiss:vetPrintPeekDismiss,key:vetPrintPeekKeydown,button:vetPrintPeekButton,

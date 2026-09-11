@@ -331,6 +331,7 @@ const doc = new Function(`
   const wsScoreTableHtml = () => '<score>';
   const wsHeadEstimateMm = () => 26;
   const wsHeaderEditScript = () => '';
+  const pvsPreviewScriptHtml = () => '';   // 🔍± the preview pills, tested in their own harness
   const wsPrintCss = () => '';
   const buildQrMap = async () => ({});
   const makeQrSvg = async () => '<qr>';

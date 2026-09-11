@@ -187,7 +187,7 @@ test('the card carries a badge, both controls and a live preview', () => {
 test('ONE renderer draws the box on every surface', () => {
   // renderQuestionBlockHtml is the one place a block becomes markup — practice,
   // every preview and the printed sheet all come through it.
-  const r = cut('function renderQuestionBlockHtml(b) {', '\nfunction renderQuestionBlocksHtml', 'renderQuestionBlockHtml');
+  const r = cut('function renderQuestionBlockHtml(b, q) {', '\nfunction renderQuestionBlocksHtml', 'renderQuestionBlockHtml');
   ok(r.indexOf('objBoxHtml(b)') >= 0, 'the one renderer does not draw the box');
 });
 
