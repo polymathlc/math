@@ -1485,14 +1485,16 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .qb-tile-title { font-size: 0.9rem; font-weight: 700; line-height: 1.45; margin-bottom: 10px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .qb-tile-meta { display: flex; flex-wrap: wrap; gap: 6px; }
 
-/* Rest on a tile and the whole question opens beside the cursor. It never takes
-   the pointer (`pointer-events: none`) — the tile underneath is what you click. */
+/* Rest on a tile and the whole question opens beside the cursor. It takes the
+   pointer, because the 🔍± pill on each picture has to be pressed — so leaving
+   the tile waits a beat (qbHoverLeave) and reaching the card keeps it open. It
+   opens BESIDE the cursor, never under it, so the tile is still what you click. */
 .qb-hover-card {
   position: fixed; z-index: 400; width: min(460px, 92vw); max-height: 62vh;
   display: flex; flex-direction: column;
   padding: 16px 18px; background: var(--surface); border: 1.5px solid var(--primary);
   border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
-  font-size: 0.88rem; line-height: 1.6; pointer-events: none;
+  font-size: 0.88rem; line-height: 1.6;
 }
 /* The question is what may overrun; the hint under it must stay put, or a long
    question quietly eats the one line telling you what a click does. */
@@ -7553,7 +7555,11 @@ function renderMathBlock(text) {
   if (!lines.some(line => Q_LIST_LABEL_RE.test(line))) return lines.map(line => renderMathInline(line)).join("<br>");
   return lines.map(renderMathLineHtml).join("");
 }
-function renderQuestionBlockHtml(b) {
+// `q` is OPTIONAL and only a PREVIEW passes it: with it, a picture is wrapped
+// with the 🔍± pill (`pvsBarHtml`) so it can be resized where it is read.
+// Without it the markup is byte-for-byte what it always was — practice, the
+// printed sheet and the share card pass nothing and get no pill.
+function renderQuestionBlockHtml(b, q) {
   if (!b) return "";
   // 🎯 The learning-objectives box. This function is the ONE place a block
   // becomes markup — practice, every preview and the printed sheet all come
@@ -7564,12 +7570,15 @@ function renderQuestionBlockHtml(b) {
   if (b.type === "table") return tblHtml(b);
   if (b.type === "image") {
     const url = String(b.url || "").trim();
-    return url ? `<img class="question-image" src="${escapeHtml(url)}" alt="diagram" data-bid="${escapeHtml(String(b.id || ""))}" ${imageStyleAttr(b.scale)}>` : "";
+    if (!url) return "";
+    const img = `<img class="question-image" src="${escapeHtml(url)}" alt="diagram" data-bid="${escapeHtml(String(b.id || ""))}" ${imageStyleAttr(b.scale)}>`;
+    const pill = q ? pvsBarHtml(q, b) : "";
+    return pill ? `<div data-pvs-q="${escapeHtml(String(q.id))}" data-pvs-b="${escapeHtml(String(b.id))}">${img}${pill}</div>` : img;
   }
   return `<p>${renderMathBlock(b.content || "")}</p>`;
 }
-function renderQuestionBlocksHtml(blocks) {
-  return (blocks || []).map(renderQuestionBlockHtml).join("");
+function renderQuestionBlocksHtml(blocks, q) {
+  return (blocks || []).map(b => renderQuestionBlockHtml(b, q)).join("");
 }
 const CLUE_TOPIC_WORDS = [
   "assumption", "supposition", "guess", "guess and check", "trial and error",
@@ -9499,8 +9508,8 @@ function markingPreamble(questionGuide) {
   return s;
 }
 document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => closeOverlay(b.dataset.close)));
-function closeOverlay(id) { $(id).classList.remove("show"); }
-document.querySelectorAll(".overlay").forEach(o => o.addEventListener("click", e => { if (e.target === o) o.classList.remove("show"); }));
+function closeOverlay(id) { $(id).classList.remove("show"); pvsFlush(); }   // 🔍± a picture resized in a dialog is written as it closes
+document.querySelectorAll(".overlay").forEach(o => o.addEventListener("click", e => { if (e.target === o) { o.classList.remove("show"); pvsFlush(); } }));
 
 // =====================================================================
 // QUESTION BANK (Firestore: users/{uid}/mathQuestions)
@@ -9980,7 +9989,7 @@ function renderBankTiles(list, matches) {
     tile.addEventListener("dblclick", () => { qbHoverHide(); editQuestion(id); });
     tile.addEventListener("mouseenter", e => qbHoverEnter(e, id));
     tile.addEventListener("mousemove", qbHoverMove);
-    tile.addEventListener("mouseleave", qbHoverHide);
+    tile.addEventListener("mouseleave", qbHoverLeave);
   });
 }
 
@@ -9995,7 +10004,16 @@ let _qbHoverTimer = null;
 let _qbHoverId = null;   // the tile the pending preview belongs to
 let _qbHoverPt = null;   // latest cursor position, so the card opens where the cursor IS
 
+let _qbHoverGrace = null;   // the moment between leaving the tile and reaching the card
+// The card takes the pointer now (its pill has to be pressed), so leaving the
+// TILE is not yet leaving the preview: the hide waits a beat, and reaching the
+// card cancels it. A tile the cursor merely sweeps across still closes.
+function qbHoverKeep() { clearTimeout(_qbHoverGrace); _qbHoverGrace = null; }
+function qbHoverLeave() { clearTimeout(_qbHoverGrace); _qbHoverGrace = setTimeout(qbHoverHide, 320); }
 function qbHoverHide() {
+  pvsFlush();   // 🔍± a picture resized in the hover is written as it closes
+  clearTimeout(_qbHoverGrace);
+  _qbHoverGrace = null;
   clearTimeout(_qbHoverTimer);
   _qbHoverTimer = null;
   _qbHoverId = null;
@@ -10007,7 +10025,10 @@ function qbHoverEnter(ev, id) {
   // Touch devices synthesise a mouseenter on tap — there is no "resting" there,
   // and a card that opens under the finger only gets in the way.
   if (window.matchMedia && !window.matchMedia("(hover: hover)").matches) return;
-  qbHoverHide();
+  if (_qbHoverId !== id) qbHoverHide();
+  // Back onto the tile from its own card: keep what is open rather than
+  // opening a second card beside the first.
+  else { qbHoverKeep(); if ($("qbHoverCard") || _qbHoverTimer) return; }
   _qbHoverId = id;
   _qbHoverPt = { clientX: ev.clientX, clientY: ev.clientY };
   _qbHoverTimer = setTimeout(() => {
@@ -10020,10 +10041,12 @@ function _qbHoverOpen(q) {
   const card = document.createElement("div");
   card.id = "qbHoverCard";
   card.className = "qb-hover-card";
+  card.addEventListener("mouseenter", qbHoverKeep);
+  card.addEventListener("mouseleave", qbHoverLeave);
   card.innerHTML =
     `<div class="qb-hover-body">
        <div class="qb-hover-title">${escapeHtml(q.title || "Untitled")}</div>
-       <div class="q-body">${renderQuestionBlocksHtml(q.blocks || [])}</div>
+       <div class="q-body">${renderQuestionBlocksHtml(q.blocks || [], q)}</div>
        ${mcqOptionsPreviewHtml(q, true)}
      </div>
      <div class="qb-hover-hint">Click the tile to add this question to your worksheet selection.</div>`;
@@ -10453,6 +10476,223 @@ function syncImageScaleUi(id) {
   if (down) down.disabled = scale <= IMAGE_SCALE_MIN;
   if (up) up.disabled = scale >= IMAGE_SCALE_MAX;
 }
+
+// =====================================================================
+// 🔍± PICTURE SIZE, FROM A PREVIEW — resized where it is READ, written back
+// =====================================================================
+// Resizing a picture is the commonest edit a question ever gets, and until
+// now it lived behind ✎ Edit: open the editor, find the block, press + four
+// times, Save, find the way back. Every surface that PREVIEWS a question —
+// resting on a bank tile, the 👁 exported hover in Vetting, the ✎ Questions
+// drawer, the ▾ expand under a worksheet pick, the ⇄ duplicate comparison and
+// the 👁️ Preview window of a saved worksheet — now carries a − / + pill on
+// every picture, and the size is SAVED TO THE BANK when the preview closes.
+//
+// - `block.scale` IS the field — the same one the editor's own +/− writes
+//   (`setImageScale`) and `imageStyleAttr` reads — stepped through the SAME
+//   `normalizeImageScale` / `IMAGE_SCALE_STEP`, so + means the same thing on a
+//   preview as on the block card. There is no second number.
+// - THE WRITE HAPPENS WHEN THE PREVIEW CLOSES, not on every press. A teacher
+//   presses + four times to find the size, and four writes of the same
+//   document for one decision is noise on the wire. `_pvsDirty` holds the
+//   questions touched; every preview's close (the hover, an overlay, the
+//   vetting peek) calls `pvsFlush`. A surface with no close of its own is
+//   flushed PVS_IDLE_MS after the last press, and `pagehide` flushes whatever
+//   is left, so a tab closed with a hover still open does not lose the edit.
+// - THE QUESTION IS RE-RESOLVED BY ID at press time and at write time
+//   (`pvsFind`): the bank is re-read and re-assigned wholesale elsewhere, and a
+//   hover outlives that. A vetting question goes through `saveVettingDoc`, a
+//   bank question through `saveQuestionDoc` — the doors every committed
+//   question already goes through, which is what keeps the public/private
+//   split on the way out.
+// - ONLY AN ADMIN GETS THE PILL, AND THE HANDLER ASKS AGAIN. A student never
+//   rests on a bank tile, but the block renderer is shared, and a hidden
+//   button is not a lock.
+// - EVERY COPY OF THE PICTURE ON THE PAGE IS REPAINTED TOGETHER (`pvsPaint`),
+//   and the question open in the EDITOR follows too, so pressing Save there a
+//   minute later does not put the old size straight back.
+// - A PREVIEW WRITTEN INTO ANOTHER DOCUMENT — the vetting peek's iframe, the
+//   saved worksheet's own window — cannot call this module's functions, so
+//   `pvsPreviewScript` is serialised into it (the way `cpbPreviewEditRun` is)
+//   and talks back through `window.opener` / `window.parent`'s
+//   `pvsPreviewStep`. Its pills are `ws-noprint`, so the printed sheet never
+//   carries them, and they sit OVER the picture's corner so they change no
+//   layout the sheet was measured against.
+const PVS_IDLE_MS = 3500;
+const _pvsDirty = new Map();   // qid -> "bank" | "vetting"
+let _pvsIdleTimer = null;
+const PVS_CSS = `
+.pvs-bar{display:inline-flex;align-items:center;gap:2px;margin:4px 0 6px;padding:2px 4px;border-radius:999px;background:rgba(255,255,255,.94);border:1px solid rgba(0,0,0,.14);box-shadow:0 1px 4px rgba(0,0,0,.12);font-family:inherit;font-size:11px;font-weight:600;line-height:1;color:#333;pointer-events:auto;user-select:none;vertical-align:top}
+.pvs-bar.pvs-over{position:absolute;margin:0;z-index:5}
+.pvs-btn{width:22px;height:22px;border:0;border-radius:999px;background:transparent;font-family:inherit;font-size:14px;font-weight:700;line-height:1;color:#333;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0}
+.pvs-btn:hover{background:rgba(0,0,0,.08)}
+.pvs-btn:disabled{opacity:.35;cursor:default}
+.pvs-label{min-width:34px;text-align:center;font-variant-numeric:tabular-nums}
+@media print{.pvs-bar{display:none!important}}`;
+function pvsAllowed() { try { return !!canManageQuestions(); } catch (_) { return false; } }
+// The ONE resolver: bank first, then the vetting list. Anything else (a Custom
+// Paper's unsaved question, an editor draft) has no document to write to, so
+// it gets no pill.
+function pvsFind(qid) {
+  const id = String(qid == null ? "" : qid);
+  if (!id) return null;
+  let q = (questionBank || []).find(x => x && String(x.id) === id);
+  if (q) return { q, where: "bank" };
+  q = (vettingList || []).find(x => x && String(x.id) === id);
+  if (q) return { q, where: "vetting" };
+  return null;
+}
+function _pvsBlock(found, bid) {
+  return ((found && found.q && found.q.blocks) || []).find(b => b && b.type === "image" && String(b.id) === String(bid)) || null;
+}
+function pvsEnsureCss(doc) {
+  try {
+    const d = doc || document;
+    if (!d.head || d.getElementById("pvsStyle")) return;
+    const st = d.createElement("style"); st.id = "pvsStyle"; st.textContent = PVS_CSS;
+    d.head.appendChild(st);
+  } catch (_) {}
+}
+function pvsLabel(block) { return imageScalePercent(block && block.scale == null ? 1 : block.scale) + "%"; }
+// The pill as rendered INTO a preview's own markup. Empty for anyone who is not
+// an admin, for a question with no id (an editor draft) and for a block with
+// none — a pill that cannot name what it changes is a button that does nothing.
+function pvsBarHtml(q, block) {
+  if (!q || q.id == null || q.id === "" || !block || !block.id || !pvsAllowed()) return "";
+  pvsEnsureCss(document);
+  const qid = escapeHtml(String(q.id)), bid = escapeHtml(String(block.id));
+  const sc = normalizeImageScale(block.scale == null ? 1 : block.scale);
+  return `<div class="pvs-bar" data-pvs-bar="1" onclick="event.stopPropagation()" onmouseenter="qbHoverKeep()" onmouseleave="qbHoverLeave()" title="Picture size — saved to the question bank when this preview closes">
+    <button type="button" class="pvs-btn" aria-label="Smaller picture" title="Smaller (−10%)"${sc <= IMAGE_SCALE_MIN ? " disabled" : ""} onclick="event.stopPropagation();pvsStep('${qid}','${bid}',-1)">−</button>
+    <span class="pvs-label">${escapeHtml(pvsLabel(block))}</span>
+    <button type="button" class="pvs-btn" aria-label="Larger picture" title="Larger (+10%)"${sc >= IMAGE_SCALE_MAX ? " disabled" : ""} onclick="event.stopPropagation();pvsStep('${qid}','${bid}',1)">+</button>
+  </div>`;
+}
+// Every document a preview can be showing in: the app's own, and any
+// same-origin iframe (the 👁 exported hover).
+function pvsDocs() {
+  const docs = [document];
+  document.querySelectorAll("iframe").forEach(f => {
+    try { const d = f.contentDocument; if (d && d.body) docs.push(d); } catch (_) {}
+  });
+  return docs;
+}
+function pvsWraps(qid, bid) {
+  const sel = '[data-pvs-q="' + String(qid).replace(/"/g, '\\"') + '"][data-pvs-b="' + String(bid).replace(/"/g, '\\"') + '"]';
+  const out = [];
+  pvsDocs().forEach(d => { try { d.querySelectorAll(sel).forEach(w => out.push(w)); } catch (_) {} });
+  return out;
+}
+// Repaint every copy of ONE picture from the block, and the editor's own card
+// when this very question is open there.
+function pvsPaint(qid, bid, block) {
+  const sc = normalizeImageScale(block.scale == null ? 1 : block.scale);
+  pvsWraps(qid, bid).forEach(wrap => {
+    const img = wrap.querySelector("img");
+    if (img) img.style.setProperty("--question-image-width", imageWidthStyle(sc));
+    wrap.querySelectorAll(".pvs-label").forEach(l => { l.textContent = pvsLabel(block); });
+    const btns = wrap.querySelectorAll(".pvs-btn");
+    if (btns.length >= 2) { btns[0].disabled = sc <= IMAGE_SCALE_MIN; btns[1].disabled = sc >= IMAGE_SCALE_MAX; }
+  });
+  try {
+    if (currentEditingId && String(currentEditingId) === String(qid) && Array.isArray(editorBlocks)) {
+      const eb = editorBlocks.find(b => b && b.type === "image" && String(b.id) === String(bid));
+      if (eb && eb !== block) { eb.scale = sc; syncImageScaleUi(bid); }
+    }
+  } catch (_) {}
+}
+function _pvsMark(found) {
+  _pvsDirty.set(String(found.q.id), found.where);
+  clearTimeout(_pvsIdleTimer);
+  _pvsIdleTimer = setTimeout(() => { pvsFlush(); }, PVS_IDLE_MS);
+}
+// One press of − or +, through the editor's own step and clamp.
+function pvsStep(qid, bid, dir) {
+  if (!pvsAllowed()) return null;
+  const found = pvsFind(qid);
+  if (!found) { toast("That question is no longer here", "error"); return null; }
+  const block = _pvsBlock(found, bid);
+  if (!block) return null;
+  const next = normalizeImageScale((block.scale == null ? 1 : block.scale) + (dir > 0 ? 1 : -1) * IMAGE_SCALE_STEP);
+  block.scale = next;
+  _pvsMark(found);
+  pvsPaint(qid, bid, block);
+  return pvsLabel(block);
+}
+// The door a preview written into ANOTHER document calls through (the vetting
+// peek's iframe, the saved worksheet's own window): the same step, and the
+// label to paint back, or null when nothing could be changed.
+function pvsPreviewStep(qid, bid, dir) { return pvsStep(qid, bid, dir); }
+// Write every question touched since the last flush. Called from every
+// preview's close, from the idle timer and from pagehide. A write that did not
+// land keeps the question dirty for the next flush and says so.
+async function pvsFlush() {
+  clearTimeout(_pvsIdleTimer);
+  if (!_pvsDirty.size) return;
+  const entries = Array.from(_pvsDirty.entries());
+  _pvsDirty.clear();
+  let n = 0, failed = 0;
+  for (const [qid] of entries) {
+    const found = pvsFind(qid);
+    if (!found) continue;   // deleted since — nothing left to write
+    try {
+      if (found.where === "vetting") await saveVettingDoc(found.q); else await saveQuestionDoc(found.q);
+      n++;
+    } catch (e) {
+      console.warn("preview picture size:", e);
+      failed++;
+      if (!_pvsDirty.has(qid)) _pvsDirty.set(qid, found.where);
+    }
+  }
+  if (failed) toast("Could not save " + failed + " picture size" + (failed === 1 ? "" : "s") + " — it will be tried again", "error");
+  else if (n) toast("🖼 Picture size saved" + (n > 1 ? " on " + n + " questions" : ""), "ok");
+}
+// Runs INSIDE a preview document (serialised with toString(), so it may touch
+// only the DOM and the window it was handed). Hangs a pill over every picture
+// that names its block, and steps it through the app tab.
+function pvsPreviewRun(css) {
+  var host = null;
+  try { host = window.opener && !window.opener.closed && window.opener.pvsPreviewStep ? window.opener : null; } catch (e) { host = null; }
+  if (!host) { try { host = window.parent && window.parent !== window && window.parent.pvsPreviewStep ? window.parent : null; } catch (e) { host = null; } }
+  if (!host) return;
+  var st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
+  function btn(label, title, on) { var b = document.createElement("button"); b.type = "button"; b.className = "pvs-btn"; b.textContent = label; b.title = title; b.onclick = function (e) { e.stopPropagation(); on(); }; return b; }
+  var chunks = document.querySelectorAll(".ws-chunk[data-qid]");
+  for (var i = 0; i < chunks.length; i++) (function (ch) {
+    var qid = ch.getAttribute("data-qid");
+    var imgs = ch.querySelectorAll("img.question-image[data-bid]");
+    for (var k = 0; k < imgs.length; k++) (function (img) {
+      var bid = img.getAttribute("data-bid");
+      if (!qid || !bid) return;
+      var bar = document.createElement("div"); bar.className = "pvs-bar pvs-over ws-noprint";
+      bar.title = "Picture size — saved to the question bank when this preview closes";
+      var label = document.createElement("span"); label.className = "pvs-label";
+      var v = (img.style.getPropertyValue("--question-image-width") || "").trim(); label.textContent = v || "100%";
+      function go(dir) {
+        var out = null;
+        try { out = host.pvsPreviewStep(qid, bid, dir); } catch (e) { out = null; }
+        if (out == null) { label.textContent = "?"; return; }
+        label.textContent = out;
+        img.style.setProperty("--question-image-width", out);
+      }
+      bar.appendChild(btn("−", "Smaller (−10%)", function () { go(-1); }));
+      bar.appendChild(label);
+      bar.appendChild(btn("+", "Larger (+10%)", function () { go(1); }));
+      var p = img.parentNode;
+      if (p && getComputedStyle(p).position === "static") p.style.position = "relative";
+      bar.style.left = (img.offsetLeft + 6) + "px"; bar.style.top = (img.offsetTop + 6) + "px";
+      p.insertBefore(bar, img.nextSibling);
+    })(imgs[k]);
+  })(chunks[i]);
+  window.addEventListener("pagehide", function () { try { host.pvsFlush(); } catch (e) {} });
+}
+// The <script> a preview document is handed — only when the tab building it
+// may write to the bank, so a student's printed sheet carries nothing.
+function pvsPreviewScriptHtml() {
+  if (!pvsAllowed()) return "";
+  return `<script>(${pvsPreviewRun.toString()})(${JSON.stringify(PVS_CSS)});<\/script>`;
+}
+try { window.addEventListener("pagehide", () => { pvsFlush(); }); } catch (_) {}
 
 // ---- MCQ option editor ---------------------------------------------------
 function mcqOptId() { return "opt_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6); }
@@ -14569,7 +14809,7 @@ function _dupDiffHtml(mine, theirs) {
   </div>`;
 }
 function _dupCompareSide(q, heading, headColour, sub) {
-  const body = `<div class="q-body">${renderQuestionBlocksHtml(q.blocks || [])}</div>` + mcqOptionsPreviewHtml(q);
+  const body = `<div class="q-body">${renderQuestionBlocksHtml(q.blocks || [], q)}</div>` + mcqOptionsPreviewHtml(q);
   return `<div style="border:1.5px solid ${headColour};border-radius:12px;overflow:hidden;display:flex;flex-direction:column;min-width:0;">
     <div style="padding:12px 16px;background:${headColour}1a;border-bottom:1px solid ${headColour};">
       <div style="font-weight:700;font-size:0.82rem;color:${headColour};letter-spacing:0.02em;">${escapeHtml(heading)}</div>
@@ -14694,6 +14934,7 @@ function vetPrintPeekLeave() {
 }
 
 function vetPrintPeekHide() {
+  pvsFlush();   // 🔍± a picture resized in the peek is written as it closes
   clearTimeout(_vetPrintPeekOpenTimer);
   clearTimeout(_vetPrintPeekCloseTimer);
   _vetPrintPeekSerial++;
@@ -20432,11 +20673,11 @@ function renderWsQuestions() {
 function toggleWsPreview(id, btn) {
   const el = $("wsQuestionGrid").querySelector(`[data-ws-preview="${id}"]`);
   if (!el) return;
-  if (el.classList.contains("open")) { el.classList.remove("open"); btn.textContent = "▾"; return; }
+  if (el.classList.contains("open")) { el.classList.remove("open"); btn.textContent = "▾"; pvsFlush(); return; }
   if (!el.dataset.rendered) {
     const q = wsQuestionById(id);
     el.innerHTML = q
-      ? renderQuestionBlocksHtml(q.blocks || []) + mcqOptionsPreviewHtml(q, canManageQuestions())
+      ? renderQuestionBlocksHtml(q.blocks || [], q) + mcqOptionsPreviewHtml(q, canManageQuestions())
       : "<div>That question is no longer in the bank.</div>";
     el.dataset.rendered = "1";
   }
@@ -21161,7 +21402,7 @@ async function wsBuildDocumentHtml(questions, title, opts) {
   const bar = `<div class="ws-printbar ws-noprint">${editId ? `<span class="ws-editnote" id="wsEditNote">${WS_EDIT_HINT}</span>` : ""}<button class="ghost" onclick="window.close()">Close</button><button onclick="window.print()">🖨️ Print / Save PDF</button></div>`;
   return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
     <style>${wsPrintCss()}</style></head>
-    <body>${opts.readOnly ? "" : bar}<div class="ws-sheet">${doc}</div>${editId ? wsHeaderEditScript(editId) : ""}${opts.edit === "cpb" ? cpbPreviewEditHtml(questions, opts) : ""}${opts.autoPrint ? `<script>window.addEventListener("load",()=>setTimeout(()=>{window.focus();window.print();},350));<\/script>` : ""}</body></html>`;
+    <body>${opts.readOnly ? "" : bar}<div class="ws-sheet">${doc}</div>${editId ? wsHeaderEditScript(editId) : ""}${opts.edit === "cpb" ? cpbPreviewEditHtml(questions, opts) : ""}${opts.autoPrint || opts.edit === "cpb" ? "" : pvsPreviewScriptHtml()}${opts.autoPrint ? `<script>window.addEventListener("load",()=>setTimeout(()=>{window.focus();window.print();},350));<\/script>` : ""}</body></html>`;
 }
 // ---- Editing the header ON the preview -----------------------------------
 // The teacher is looking at the sheet exactly as it will print, which is where
@@ -24393,6 +24634,11 @@ async function wsPreviewHeaderSave(wsId, field, value) {
 // On `window` for the same reason the inline-handler functions are: this module
 // has its own scope, and the preview window reaches it as `opener.<name>`.
 window.wsPreviewHeaderSave = wsPreviewHeaderSave;
+window.pvsStep = pvsStep;
+window.pvsPreviewStep = pvsPreviewStep;
+window.pvsFlush = pvsFlush;
+window.qbHoverKeep = qbHoverKeep;
+window.qbHoverLeave = qbHoverLeave;
 // Practise a worksheet on screen: the practice queue becomes this worksheet's
 // questions, in its own order. `prioritizeReviewQuestions` is deliberately not
 // re-run afterwards — the teacher chose this order.
@@ -24528,7 +24774,7 @@ function wseToggle(qid) {
 function wsePreviewHtml(q) {
   const admin = canManageQuestions();
   const bits = [
-    `<div class="q-body">${renderQuestionBlocksHtml(q.blocks || [])}</div>`,
+    `<div class="q-body">${renderQuestionBlocksHtml(q.blocks || [], q)}</div>`,
     mcqOptionsPreviewHtml(q, admin)
   ];
   if (admin) {
@@ -30436,7 +30682,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.77.0 · 2026-09-10";
+const APP_VERSION = "v1.78.0 · 2026-09-11";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)

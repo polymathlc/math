@@ -159,7 +159,7 @@ test('header defaults to true and is only false when the reply says so', () => {
 
 // ---- the wiring, read as text --------------------------------------------------------
 test('renderQuestionBlockHtml — the ONE place a block becomes markup — draws the table', () => {
-  const body = cut('function renderQuestionBlockHtml(b) {', '\nfunction renderQuestionBlocksHtml', 'renderQuestionBlockHtml');
+  const body = cut('function renderQuestionBlockHtml(b, q) {', '\nfunction renderQuestionBlocksHtml', 'renderQuestionBlockHtml');
   ok(body.includes('if (b.type === "table") return tblHtml(b);'), 'the branch');
 });
 test('collectQuestion persists the table and keeps one that has words', () => {

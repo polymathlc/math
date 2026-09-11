@@ -2735,7 +2735,89 @@ redrawn figure, every redrawn figure and every ✨ Enhance.
   prints it, so the AI Engine dialog answers the same question after the box
   has gone.
 
+## 🔍± Picture size, from a preview — resized where it is READ (v1.78.0)
+
+`PVS_IDLE_MS` / `PVS_CSS` / `pvsAllowed` / `pvsFind` / `pvsBarHtml` / `pvsDocs` /
+`pvsWraps` / `pvsPaint` / **`pvsStep`** / `pvsPreviewStep` / **`pvsFlush`** /
+`pvsPreviewRun` / `pvsPreviewScriptHtml` (search `PICTURE SIZE, FROM A PREVIEW`),
+the `q` argument on `renderQuestionBlockHtml` / `renderQuestionBlocksHtml`, the
+`pvsPreviewScriptHtml()` in `wsBuildDocumentHtml`, `qbHoverKeep` / `qbHoverLeave`
+on the bank hover, and the `pvsFlush()` in `qbHoverHide` / `closeOverlay` /
+`vetPrintPeekHide`. **The three portals carry the same feature over their own
+`imgSizeStyle` — ship a change to all four together.**
+
+Resizing a picture is the commonest edit a question ever gets, and it lived behind ✏️ Edit:
+open the editor, find the block, press + four times, Save, find the way back. Every surface that
+PREVIEWS a question — resting on a bank tile, the 👁 exported hover in Vetting, the ✎ Questions drawer, the ▾ expand under a worksheet pick, the ⇄ duplicate comparison and the 👁️ Preview window of a saved worksheet — now carries a **− / + pill on every picture**, and the size is
+**saved to the question bank when the preview closes**.
+
+- **`block.scale` IS THE FIELD** — the same one the editor's own +/− writes and the renderer reads —
+  so a size chosen on a preview prints, practises and previews exactly as one chosen in the
+  editor. There is no second number, and `normalizeImageScale` / `IMAGE_SCALE_STEP` are the ONE step and clamp — the editor's own
+  `setImageScale` reads them, so + means the same thing on a preview as
+  on the block card.
+- **THE WRITE HAPPENS WHEN THE PREVIEW CLOSES, not on every press.** A teacher presses + four
+  times to find the size, and four writes of the same document for one decision is noise on the
+  wire. `_pvsDirty` holds the questions touched; every preview's close calls `pvsFlush`. A
+  surface with no close of its own is flushed `PVS_IDLE_MS` after the last press, and `pagehide`
+  flushes whatever is left, so a tab closed with a hover still open does not lose the edit.
+- **THE QUESTION IS RE-RESOLVED BY ID at press time and at write time** (`pvsFind`, bank first
+  then the vetting list). The bank is re-read and re-assigned wholesale elsewhere, and a hover
+  outlives that. A vetting question is written through `saveVettingDoc`, a bank question through `saveQuestionDoc` — the doors every committed question
+  already goes through, which is what keeps the public/private split on the way out. A write that did not land keeps
+  the question DIRTY for the next flush and says so; a question deleted between the press and
+  the flush is skipped, never resurrected.
+- **ONLY AN AUTHOR GETS THE PILL, AND THE HANDLER ASKS AGAIN** (`canManageQuestions()`). A student's device
+  renders the very same preview, and a hidden button is not a lock. A draft with no id (the
+  left-hand side of the duplicate comparison) gets no pill either: a pill that cannot name what
+  it changes is a button that does nothing.
+- **EVERY COPY OF THE PICTURE ON THE PAGE IS REPAINTED TOGETHER** (`pvsPaint`, through the
+  `data-pvs-q` / `data-pvs-b` attributes on the wrapper), iframes included, so the hover, the
+  card underneath it and the A4 sheet cannot show three different sizes. Only the WIDTH
+  properties are touched, so a preview's own border-radius or print class is left alone. **The
+  question open in the EDITOR follows too** — its own block card is updated when it is this very
+  question — or pressing Save there a minute later puts the old size straight back. It must be
+  THIS question: duplicated questions share block ids, so a match on the block id alone would
+  resize a different question's picture.
+- **A PREVIEW WRITTEN INTO ANOTHER DOCUMENT cannot call this module's functions** — the vetting
+  peek is a `srcdoc` iframe and the saved worksheet's 👁️ Preview is its own window — so
+  `pvsPreviewRun` is SERIALISED into the document (`toString()`, the way `cpbPreviewEditRun` is)
+  and talks back through `window.opener` / `window.parent`'s `pvsPreviewStep`. It may touch only
+  the DOM and the window it was handed — a helper reached for from inside it is a
+  `ReferenceError` in a window that has none. Its pills are `ws-noprint` and sit OVER the
+  picture's corner (`pvs-over`), so the printed sheet never carries them and the sheet the
+  planner measured in millimetres is not changed under it. A document built with `autoPrint`,
+  or the Custom Paper preview (which already carries its own ± through `cpbPreviewEditRun` and
+  writes to the PAPER, not the bank), is handed nothing.
+- **THE HOVER CARD TAKES THE POINTER NOW.** It was `pointer-events: none` — the tile underneath
+  was what you clicked — and a pill nobody can press is a pill that is not there. So leaving the
+  TILE is no longer leaving the preview: `qbHoverLeave` waits a beat, reaching the card
+  (`qbHoverKeep`) cancels it, and coming back onto the tile from its own card keeps what is open
+  rather than opening a second card beside the first. The card still opens BESIDE the cursor,
+  never under it, so the tile is still what you click.
+- **Every press stops its own propagation.** The pill sits on a chip that attaches, a tile that
+  picks and a card that selects; a + that also fired the click under it is a + that files a
+  question somewhere.
+- Run **`node tools/preview-picture-size-tests.mjs`** after touching any of it.
+
 ## House rules
+- After touching **🔍± the preview picture size** (`pvsFind`, `pvsBarHtml`, `pvsPaint`,
+  `pvsStep`, `pvsPreviewStep`, `pvsFlush`, `pvsPreviewRun`, `pvsPreviewScriptHtml`, the `q`
+  argument on `renderQuestionBlockHtml`, the four preview callers that pass it, the
+  `pvsPreviewScriptHtml()` in `wsBuildDocumentHtml`, `qbHoverKeep` / `qbHoverLeave`, or the
+  `pvsFlush()` in any close), run `node tools/preview-picture-size-tests.mjs`. Every failure here
+  is silent and the preview still looks right. **A close that stops flushing is the worst of
+  them**: the teacher watches the picture change size, the hover closes, and the size never
+  reaches the bank — the very edit this exists to save. Write on every press and one decision is
+  four documents. Pass `q` from a STUDENT or PRINT surface (`questionPreviewHtml`,
+  `wsQuestionChunkHtml`, the practice page) and the pill is drawn where it must not be. Reach for
+  a module helper inside `pvsPreviewRun` and every press in the preview window is a
+  `ReferenceError`. Put the hover card back to `pointer-events: none` and the pill can never be
+  pressed; drop the grace on leaving the tile and it closes before the cursor reaches it; open a
+  second card on re-entering the tile and two cards stack. Sync the editor by block id alone and
+  a duplicated question's picture is resized through another question's hover. And put the pill
+  in the FLOW of the printed sheet instead of over the picture and a sheet sized in millimetres
+  spills its answer line onto the next page.
 - After touching **🖼 the image engine** (`OPENAI_IMAGE_DEFAULT_MODEL`,
   `OPENAI_IMAGE_MODELS`, `OPENAI_IMAGE_25_RE`, `OPENAI_IMAGE_SUPERSEDED`,
   `getOpenAiImageModel`, `aiImageEngineSetting`, `imageEngineOrder`,
