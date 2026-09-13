@@ -3169,8 +3169,8 @@ PREVIEWS a question — resting on a bank tile, the 👁 exported hover in Vetti
 
 ## Interface Studio (2026-09-10)
 
-See `docs/interface-studio.md`. The new arcade interface is an admin preview
-until the protected config flag is explicitly released. Preserve default-off
-student access, subject separation, transactional writes, auth cleanup,
-reduced motion, and the screen-only CSS scope. Run
-`node tools/interface-studio-tests.mjs` when changing the rollout.
+See `docs/interface-studio.md`. The user approved the arcade interface as
+permanent on 2026-09-14. Apply it immediately to every signed-in role without
+a release flag, preview banner or rollback controls. Preserve auth cleanup,
+subject-specific motion preferences, reduced motion and the screen-only CSS
+scope. Run `node tools/interface-studio-tests.mjs` when changing the interface.

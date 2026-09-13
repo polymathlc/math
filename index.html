@@ -4713,7 +4713,7 @@ body.lore-reading { overflow: hidden; }
 
 .vet-print-eye svg {width:18px;height:18px;}
 </style>
-<link rel="stylesheet" href="arcade-ui.css?v=1">
+<link rel="stylesheet" href="arcade-ui.css?v=2">
 </head>
 <body>
 
@@ -6262,7 +6262,7 @@ body.lore-reading { overflow: hidden; }
 // under mathQuestions / mathMarking / mathGeneration / config.mathAdmin
 // so it never collides with the Science app's documents).
 // =====================================================================
-import { mountInterfaceStudio, isReleased as interfaceIsReleased } from "./interface-studio.mjs?v=1";
+import { mountInterfaceStudio } from "./interface-studio.mjs?v=2";
 import { PRACTICE_FAMILY_COOLDOWN_MS, buildPracticeCatalog, createPracticeRun, recordPracticeServed, planPracticeQuestions } from "./practice-variety.js";
 import { buildPracticeMasteryContext, evaluatePracticeFit, practiceQuestionLevel, parsePracticeLevel } from "./practice-mastery.js";
 import { evaluateQuestionQuality, buildQuestionQualitySummary, questionQualitySignature, questionHasUnresolvedStudentFlag } from "./practice-quality.js";
@@ -6270,7 +6270,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/fireba
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
   updateProfile, GoogleAuthProvider, signInWithPopup, signOut, signInAnonymously, browserPopupRedirectResolver }
   from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
-import { getFirestore, runTransaction, serverTimestamp, doc, getDoc, setDoc, collection, getDocs, deleteDoc, deleteField, addDoc, increment, query, where, orderBy, limit, onSnapshot }
+import { getFirestore, doc, getDoc, setDoc, collection, getDocs, deleteDoc, deleteField, addDoc, increment, query, where, orderBy, limit, onSnapshot }
   from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app-check.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-functions.js";
@@ -6348,29 +6348,16 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Interface rollout is independent of game releases and of the other subject.
-// Transactions fail offline rather than queueing a surprise release for later.
+// The approved interface is permanent for every signed-in account.
+// Motion preferences remain local to this subject and browser tab.
 let interfaceStudio = null;
 function syncInterfaceStudio() {
   if (!interfaceStudio) {
-    const releaseRef = doc(db, 'config', 'mathAdmin');
     const storage = {
       getItem: key => sessionStorage.getItem('Math:interface:' + key),
       setItem: (key, value) => sessionStorage.setItem('Math:interface:' + key, value)
     };
-    interfaceStudio = mountInterfaceStudio({
-      subject: 'Math', root: document.querySelector('.main'), storage,
-      subscribe: (next, fail) => onSnapshot(releaseRef, { includeMetadataChanges: true },
-        snap => next(snap.exists() ? snap.data() : {}, snap.metadata), fail),
-      save: (released, uid, expected) => runTransaction(db, async transaction => {
-        if (!currentUser || currentUser.role !== 'admin' || currentUser.uid !== uid || auth.currentUser?.uid !== uid)
-          throw new Error('Sign in as an admin to change the student interface.');
-        const snapshot = await transaction.get(releaseRef);
-        if (interfaceIsReleased(snapshot.exists() ? snapshot.data() : {}) !== expected)
-          throw new Error('Another admin changed the release setting. Review the current status and try again.');
-        transaction.set(releaseRef, { arcadeUi: { version: 1, released, updatedAt: serverTimestamp(), updatedBy: uid } }, { merge: true });
-      })
-    });
+    interfaceStudio = mountInterfaceStudio({ subject: 'Math', storage });
   }
   interfaceStudio.setUser(currentUser);
 }
@@ -31182,7 +31169,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.79.0 · 2026-09-14";
+const APP_VERSION = "v1.79.1 · 2026-09-14";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
