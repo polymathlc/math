@@ -9,7 +9,8 @@ import { getStorage } from 'firebase-admin/storage';
 import { getFunctions } from 'firebase-admin/functions';
 import { GoogleGenAI } from '@google/genai';
 import { createCanvas, DOMMatrix, ImageData, Path2D } from '@napi-rs/canvas';
-import { MAX_PDF_BYTES, CHUNK_BYTES, MAX_PAGES, parseReply, cropRect, normaliseQuestion, assemblePage, signature } from './core.js';
+import { MAX_PDF_BYTES, CHUNK_BYTES, MAX_PAGES, parseReply, diagramBoxesForQuestion, normaliseQuestion, assemblePage, signature } from './core.js';
+import { cropDiagram } from './crop.js';
 
 initializeApp();
 Object.assign(globalThis, {DOMMatrix, ImageData, Path2D});
@@ -231,16 +232,15 @@ export const mathRapidImportPage = onTaskDispatched({region:'us-central1',secret
     const canvas=await render(doc,page), image=canvas.toBuffer('image/jpeg').toString('base64');
     const reference=page>1?(await render(doc,page-1)).toBuffer('image/jpeg').toString('base64'):null;
     const boundary=`\nPDF BOUNDARY RULES (override single-image assumptions): image 1 is the CURRENT page ${page}. ${reference?'Image 2 is the PREVIOUS page for context only; NEVER extract it again.':''} Extract ALL and ONLY questions/parts printed on image 1. Add sourceQuestionNumber to each entry (original main number, no part suffix). The first entry may have continuation:true if it belongs to the last question on the previous page, including repeated numbers with (continued), a new diagram for an existing question, a stem split mid-sentence, or later lettered parts. A repeated number or a continuation diagram does NOT start a new question. All other entries have continuation:false. Never renumber lettered parts. Use previous-page context to answer continuation parts. A continuation-only page is NOT blank. All image rectangles refer to image 1. Last held question: ${pending?JSON.stringify({number:pending.sourceQuestionNumber,blocks:pending.blocks}).slice(0,35000):'none; do not guess a preceding question'}.`;
-    const payloads=parseReply(await ask(job.prompt+boundary,reference?[image,reference]:[image],job));
+    const layout='\nPICTURE PLACEMENT RULES (override a single diagramBox): Each question must also include "blocks" in the original reading order, alternating {"type":"text","content":"verbatim wording"} and {"type":"image","diagramBox":[ymin,xmin,ymax,xmax]}. Split text before and after each figure, including between lettered parts. Keep questionText as the FULL wording, exactly equal to all text blocks joined in order. Each image block has its own rectangle on image 1, in integers 0-1000. Preserve all figure labels, numbers, units, axis titles and short captions; exclude question sentences. Keep grouped picture answer options together with their choice labels. A shared figure must appear in every question that needs it. Never combine separate figures across intervening prose into one rectangle. Include an image block even if its rectangle is uncertain (use null). Do not include prose inside image rectangles.';
+    const payloads=parseReply(await ask(job.prompt+boundary+layout,reference?[image,reference]:[image],job));
     if(payloads.length>60) throw new Error('Too many questions on one page; review this PDF.');
     const token=randomUUID(), sourceUrl=await storeImage(job,token,`page-${page}`,canvas), entries=[];
     for(let i=0;i<payloads.length;i++) {
       const payload=payloads[i], urls=[];
-      for(const box of payload.hasDiagram ? (Array.isArray(payload.diagramBoxes)&&payload.diagramBoxes.length?payload.diagramBoxes:[payload.diagramBox||payload.box_2d]) : []) {
-        const rect=cropRect(box,canvas.width,canvas.height);
-        if(!rect) {urls.push(sourceUrl);continue;}
-        const crop=createCanvas(rect.w,rect.h);
-        crop.getContext('2d').drawImage(canvas,rect.x,rect.y,rect.w,rect.h,0,0,rect.w,rect.h);
+      for(const box of diagramBoxesForQuestion(payload)) {
+        const crop=cropDiagram(canvas,box,createCanvas);
+        if(!crop) {urls.push(sourceUrl);continue;}
         urls.push(await storeImage(job,token,`page-${page}-q${i}-figure${urls.length}`,crop));
       }
       const q=normaliseQuestion(payload,`mq_rapid_${id}_${page}_${i}`,job,page,sourceUrl,urls);

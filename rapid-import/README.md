@@ -1,4 +1,4 @@
-# Math Rapid Add — v1.67.0
+# Math Rapid Add — v1.78.1
 
 Choose multiple PDFs in Rapid Add. Keep the tab open until every upload says
 “Stored online”. Online processing then reads, assembles, checks and saves
@@ -8,6 +8,17 @@ retry remaining pages. Screenshots and browser mode need an open browser tab.
 - Maximum 40 MB and 60 pages per PDF. Split larger papers into smaller files.
 - Questions spanning several pages stay together, with diagrams and links to
   their source pages. Unclear continuations are flagged for review.
+- Online imports protect figure labels, remove separate surrounding wording
+  and tighten blank margins using the same pixel passes as screenshot imports.
+  Blank or unusable selections keep the source page and show the existing
+  whole-page warning so the figure remains available for manual cropping.
+- Pictures stay between their corresponding text and lettered parts when the
+  reader returns a complete ordered layout. An incomplete layout keeps all
+  wording and pictures and asks you to check their placement against the source.
+- Screenshot, Build with AI and Custom Paper imports also preserve multiple
+  figures in reading order, with each figure taken from its own source image.
+  Existing saved questions are not automatically rewritten. The online crop
+  changes apply to newly processed pages after the PDF worker is deployed.
 - Your level, release date, generation guidance, automatic syllabus filing
   and answer-check choices are captured when you queue each PDF.
 - Questions go to Math's Vetting list and still need your approval before
@@ -33,6 +44,8 @@ check the completed jobs, diagrams and answers in Vetting.
 ```sh
 npm ci --prefix rapid-import/functions
 npm test --prefix rapid-import/functions
+node --test tools/diagram-placement-tests.mjs
+node tools/crop-tighten-tests.mjs
 node tools/rapid-pdf-tests.mjs
 node tools/rapid-cloud-tests.mjs
 node tools/vetting-export-hover-tests.mjs
@@ -42,6 +55,8 @@ node tools/worksheet-header-tests.mjs
 ```
 
 Worker tests render real PDFs while mocking external services. They verify
-multi-page grouping, duplicate retries, incomplete uploads and access checks.
+multi-page grouping, picture order, mixed successful and fallback crops,
+duplicate retries, incomplete uploads and access checks. Canvas fixtures also
+cover label preservation, tables, prose removal and photographed paper.
 They do not establish that production deployment and provider access work;
 the signed-in import check above is still needed.

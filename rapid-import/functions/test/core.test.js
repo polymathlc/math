@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {assemblePage,normaliseQuestion,parseReply,cropRect,signature} from '../core.js';
+import {assemblePage,normaliseQuestion,parseReply,cropRect,signature,diagramBoxesForQuestion,diagramSourcesForQuestion} from '../core.js';
 const q=(id,page,number='8')=>({id,sourceQuestionNumber:number,blocks:[{id:id+'_b',type:'text',content:id}],sourcePages:[{page,url:'https://example.test/'+page}]});
 test('a three-page question is held and saved as one, with all source pages',()=>{
   const a=assemblePage(null,[{q:q('a',1),continuation:false}],false);
@@ -56,4 +56,64 @@ test('invalid image rectangles use fallback; valid crop is clamped',()=>{
 });
 test('question signature changes after an answer edit',()=>{
   const a=q('a',1), before=signature(a);a.blocks[0].content='changed';assert.notEqual(signature(a),before);
+});
+test('ordered pictures stay between their wording, including an uncropped fallback',()=>{
+  const first=[100,100,300,400],last=[600,100,850,400];
+  const payload={questionText:'Read the graph. (a) Find x. (b) Find y.',hasDiagram:true,blocks:[
+    {type:'text',content:'Read the graph.'},{type:'image',diagramBox:first},
+    {type:'text',content:'(a) Find x.'},{type:'image',diagramBox:null},
+    {type:'text',content:'(b) Find y.'},{type:'image',diagramBox:last}]};
+  assert.deepEqual(diagramBoxesForQuestion(payload),[first,null,last]);
+  const r=normaliseQuestion(payload,'q',{},1,'page',['first','page','last']);
+  assert.deepEqual(r.blocks.map(b=>b.type),['text','image','text','image','text','image']);
+  assert.deepEqual(r.blocks.filter(b=>b.type==='image').map(b=>b.url),['first','page','last']);
+  assert.equal(new Set(r.blocks.map(b=>b.id)).size,6);
+});
+test('incomplete ordered text keeps the full question and all diagrams, with a warning',()=>{
+  const payload={questionText:'(a) First part. (b) Second part.',blocks:[
+    {type:'text',content:'(a) First part.'},{type:'image',diagramBox:[1,2,300,400]}]};
+  const boxes=diagramBoxesForQuestion(payload);
+  assert.equal(boxes.length,1);
+  const r=normaliseQuestion(payload,'q',{},1,'page',['image']);
+  assert.equal(r.blocks[0].content,payload.questionText);
+  assert.equal(r.blocks[1].url,'image');assert.match(r.importWarning,/placement/);
+});
+test('a text-only layout cannot silently remove a required figure',()=>{
+  const payload={questionText:'Read the diagram.',hasDiagram:true,blocks:[{type:'text',content:'Read the diagram.'}]};
+  assert.deepEqual(diagramBoxesForQuestion(payload),[null]);
+  const r=normaliseQuestion(payload,'q',{},1,'page',['page']);
+  assert.equal(r.blocks[1].url,'page');assert.match(r.importWarning,/placement/);
+});
+test('ordered continuation blocks retain the preceding image and every later part',()=>{
+  const payload={questionText:'Stem. Part (a).',blocks:[{type:'text',content:'Stem.'},{type:'image',diagramBox:null},{type:'text',content:'Part (a).'}]};
+  const a=normaliseQuestion(payload,'a',{},1,'page1',['figure1']);
+  const b=normaliseQuestion({...payload,questionText:'Part (b). Finish.',blocks:[{type:'text',content:'Part (b).'},{type:'image',diagramBox:null},{type:'text',content:'Finish.'}]},'b',{},2,'page2',['figure2']);
+  const result=assemblePage(a,[{q:b,continuation:true}],true).ready[0];
+  assert.deepEqual(result.blocks.map(b=>b.content||b.url),['Stem.','figure1','Part (a).','Part (b).','figure2','Finish.']);
+  assert.equal(result.sourcePages.length,2);
+});
+test('an incomplete layout cannot discard an additional legacy diagram',()=>{
+  const boxes=[[100,100,300,400],[500,100,700,400]];
+  const payload={questionText:'Read both.',diagramBoxes:boxes,blocks:[{type:'text',content:'Read both.'},{type:'image',diagramBox:boxes[0]}]};
+  assert.deepEqual(diagramBoxesForQuestion(payload),boxes);
+  const r=normaliseQuestion(payload,'q',{},1,'page',['first','second']);
+  assert.deepEqual(r.blocks.filter(b=>b.type==='image').map(b=>b.url),['first','second']);
+  assert.match(r.importWarning,/placement/);
+});
+test('separate source pages and loose multiple figures survive legacy union boxes',()=>{
+  const one=[100,100,300,400],two=[500,100,700,400];
+  const payload={questionText:'Full text.',diagramBox:[0,0,900,900],page:3,blocks:[
+    {type:'Text',text:'Full text.'},{type:'Image',diagramBox:one,page:1},{type:'image',diagramBox:two,page:2}]};
+  assert.deepEqual(diagramSourcesForQuestion(payload),[{diagramBox:one,page:1},{diagramBox:two,page:2}]);
+  payload.blocks[0].text='Partial';
+  assert.deepEqual(diagramSourcesForQuestion(payload),[{diagramBox:one,page:1},{diagramBox:two,page:2}]);
+  payload.diagramBoxes=[one,two];
+  assert.deepEqual(diagramSourcesForQuestion(payload),[{diagramBox:one,page:1},{diagramBox:two,page:2}],
+    'matching legacy boxes must not erase the individual source pages');
+});
+test('a placement warning remains visible when the answer option also needs review',()=>{
+  const payload={questionText:'Full wording.',options:['A','B'],correctOption:-1,
+    blocks:[{type:'text',content:'Partial'}]};
+  const q=normaliseQuestion(payload,'q',{},1,'page',[]);
+  assert.match(q.importWarning,/placement/);assert.match(q.importWarning,/MCQ/);
 });

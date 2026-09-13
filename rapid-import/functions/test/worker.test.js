@@ -1,5 +1,6 @@
 import {test,mock} from 'node:test';
 import assert from 'node:assert/strict';
+import {createCanvas,loadImage} from '@napi-rs/canvas';
 const docs=new Map(), files=new Map(), tasks=[];
 const clone=x=>x===undefined?undefined:structuredClone(x);
 const snap=path=>({exists:docs.has(path),data:()=>clone(docs.get(path))});
@@ -22,7 +23,7 @@ mock.module('firebase-functions/v2/https',{namedExports:{onCall:(opts,fn)=>fn,Ht
 mock.module('firebase-functions/v2/firestore',{namedExports:{onDocumentWritten:(opts,fn)=>fn}});
 mock.module('firebase-functions/v2/tasks',{namedExports:{onTaskDispatched:(opts,fn)=>fn}});
 mock.module('firebase-functions/params',{namedExports:{defineSecret:()=>({value:()=>''}),defineString:(name,opts)=>({value:()=>opts.default})}});
-let aiPages=[],checkReplies=[];
+let aiPages=[],checkReplies=[],pagePrompts=[];
 mock.module('@google/genai',{namedExports:{GoogleGenAI:class {
   models={generateContent:async request=>{
     if(!request.contents[0].parts[0].text.includes('CURRENT page')) {
@@ -30,6 +31,7 @@ mock.module('@google/genai',{namedExports:{GoogleGenAI:class {
       return {candidates:[{finishReason:'STOP'}],text:JSON.stringify(reply||{findings:[],ids:[]})};
     }
     const page=Number(/CURRENT page (\d+)/.exec(request.contents[0].parts[0].text)?.[1]);
+    pagePrompts.push(request.contents[0].parts[0].text);
     return {candidates:[{finishReason:'STOP'}],text:JSON.stringify({questions:aiPages[page-1]||[]})};
   }};
 }}});
@@ -116,6 +118,39 @@ test('full upload and real PDF rendering continue entirely server-side across th
   assert.match(merged.expected,/First part answer[\s\S]*Second part answer[\s\S]*Third part answer/);
   assert.equal([...docs.keys()].some(k=>k.includes('/vetting/')),false);
   assert.equal(merged.blocks.filter(b=>b.type==='image').length,3);
+});
+
+test('real PDF crops keep their reading order and expose each blank or full-page fallback',async()=>{
+  setup();docs.clear();files.clear();pagePrompts=[];
+  const figure=[680,70,960,400],blank=[50,500,300,900];
+  aiPages=[[{title:'Ordered diagrams',sourceQuestionNumber:'1',questionText:'Read the diagram. Find x. Then compare.',hasDiagram:true,
+    blocks:[{type:'text',content:'Read the diagram.'},{type:'image',diagramBox:figure},
+      {type:'text',content:'Find x.'},{type:'image',diagramBox:blank},{type:'image',diagramBox:[0,0,1000,1000]},
+      {type:'text',content:'Then compare.'},{type:'image',diagramBox:figure}]}]];
+  const pdf=pdfFixture(1);
+  await api.mathRapidImportBegin({auth,data:{id:'orderedpdf',name:'ordered.pdf',size:pdf.length,prompt:'Read Math questions',engineOrder:['gemini'],autoCheck:false,autoFile:false}});
+  await api.mathRapidImportChunk({auth,data:{id:'orderedpdf',index:0,data:pdf.toString('base64')}});
+  await api.mathRapidImportFinish({auth,data:{id:'orderedpdf'}});
+  for(let i=0;i<5;i++) {
+    const j=docs.get('mathRapidImports/orderedpdf');if(j.status==='completed')break;
+    await api.mathRapidImportPage({data:{id:j.id,page:j.nextPage,generation:j.generation,phase:j.phase,publishIndex:j.publishIndex},retryCount:0});
+  }
+  assert.equal(docs.get('mathRapidImports/orderedpdf').status,'completed');
+  const q=[...docs].find(([k])=>k.includes('/mathVetting/'))[1],source=q.sourcePages[0].url;
+  assert.deepEqual(q.blocks.map(b=>b.type),['text','image','text','image','image','text','image']);
+  assert.equal(q.blocks[3].url,source);assert.equal(q.blocks[4].url,source);assert.equal(q.diagramWhole,true);
+  assert.notEqual(q.blocks[1].url,source);assert.notEqual(q.blocks[6].url,source);
+  assert.match(q.blocks[1].url,/figure0/);assert.match(q.blocks[6].url,/figure3/);
+  assert.match(pagePrompts[0],/PICTURE PLACEMENT RULES/);assert.match(pagePrompts[0],/Split text before and after each figure/);
+  const crops=[...files].filter(([name])=>/-q0-figure\d+\.jpg$/.test(name));
+  assert.equal(crops.length,2);
+  for(const [,bytes] of crops) {
+    const img=await loadImage(bytes);assert.ok(img.width<400&&img.height<600);
+    const out=createCanvas(img.width,img.height),ctx=out.getContext('2d');ctx.drawImage(img,0,0);
+    const pixels=ctx.getImageData(0,0,img.width,img.height).data;
+    let ink=0;for(let i=0;i<pixels.length;i+=4)if(pixels[i]<120)ink++;
+    assert.ok(ink>1000,'a stored crop must contain the real PDF figure');
+  }
 });
 
 test('assembled answers are checked and repaired; only allowed same-level syllabus IDs survive',async()=>{
