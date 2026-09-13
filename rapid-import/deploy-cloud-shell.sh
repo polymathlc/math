@@ -55,6 +55,7 @@ fi
 echo 'Installing and checking the Rapid Add worker...'
 npm ci --prefix functions
 npm test --prefix functions
+node prepare-params.mjs "$RAPID_PROJECT"
 
 echo 'Deploying the isolated math-rapid-import codebase...'
 # Read first: the shared project's CER importer may already have enabled it.
