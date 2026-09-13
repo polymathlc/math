@@ -1,4 +1,4 @@
-# Math Rapid Add — v1.78.1
+# Math Rapid Add — v1.78.2
 
 Choose multiple PDFs in Rapid Add. Keep the tab open until every upload says
 “Stored online”. Online processing then reads, assembles, checks and saves
@@ -34,6 +34,11 @@ retry remaining pages. Screenshots and browser mode need an open browser tab.
 
 Online processing becomes available after its deployment succeeds. If the
 online option is unavailable, browser mode remains usable: keep the tab open.
+
+The deployment helper supplies missing nonsecret model parameters from the
+worker's declared defaults so unattended deployment does not prompt for them.
+Existing values in `functions/.env` or `functions/.env.mathgen--app` are kept.
+API keys continue to come from Secret Manager.
 
 After activation, try two small PDFs, including a question spanning pages.
 Wait for both upload confirmations, close the browser, then reopen Math and
