@@ -32,6 +32,52 @@ function uploadHarness(){
 }
 const pdf=name=>new File(['%PDF-test'],name,{type:'application/pdf',lastModified:1});
 const tick=()=>new Promise(r=>setImmediate(r));
+
+function refreshHarness(deploymentReady, available=true){
+ const jobs=[{id:'old-job',name:'Existing paper.pdf',status:'failed',page:2,added:3,error:'Worker deployment incomplete'}];
+ const elements={
+  rapidCloudMode:{checked:true,disabled:false},
+  rapidCloudNote:{textContent:''},
+  rapidCloudJobs:{innerHTML:'',querySelectorAll:()=>[]},
+  rapidAddOverlay:{classList:{contains:()=>false}}
+ };
+ const factory=new Function('deploymentReady','response','document',`
+  const RAPID_CLOUD_DEPLOYMENT_READY=deploymentReady;
+  const currentUser={uid:'teacher'},canManageQuestions=()=>true,app={};
+  const getFunctions=()=>({}),httpsCallable=()=>async()=>({data:response});
+  const escapeHtml=x=>String(x),toast=()=>{},clearTimeout=()=>{},setTimeout=()=>null;
+  const onSnapshot=()=>()=>{},_vetCol=uid=>uid;
+  ${cut('let _rapidCloudReady =', 'function _rapidUploadPdf(')}
+  return {refresh:_rapidCloudRefresh,enabled:_rapidCloudEnabled,get jobs(){return _rapidCloudJobs}};
+ `);
+ return {api:factory(deploymentReady,{available,jobs},{getElementById:id=>elements[id]}),elements,jobs};
+}
+
+test('partial deployment cannot enable online processing even when the status callable is available',async()=>{
+ const h=refreshHarness(false,true);
+ await h.api.refresh();
+ assert.equal(h.elements.rapidCloudMode.disabled,true);
+ assert.equal(h.elements.rapidCloudMode.checked,false,'a previously checked mode must be cleared');
+ assert.equal(h.api.enabled(),false,'PDF imports must continue through the browser path');
+ assert.match(h.elements.rapidCloudNote.textContent,/browser mode/i);
+ assert.match(h.elements.rapidCloudNote.textContent,/keep.*tab.*open/i);
+ assert.deepEqual(h.api.jobs,h.jobs,'existing jobs must remain available for inspection');
+ assert.match(h.elements.rapidCloudJobs.innerHTML,/Existing paper\.pdf/);
+ assert.match(h.elements.rapidCloudJobs.innerHTML,/Worker deployment incomplete/);
+ assert.equal(h.elements.rapidCloudJobs.innerHTML.includes('data-rapid-retry'),false,'unavailable jobs remain read-only');
+});
+
+test('online processing requires both deployment readiness and available status',async()=>{
+ const offline=refreshHarness(true,false);
+ await offline.api.refresh();
+ assert.equal(offline.api.enabled(),false);
+ assert.equal(offline.elements.rapidCloudMode.disabled,true);
+ const online=refreshHarness(true,true);
+ await online.api.refresh();
+ assert.equal(online.api.enabled(),true);
+ assert.equal(online.elements.rapidCloudMode.disabled,false);
+});
+
 test('two PDFs queue once, capture settings and only acknowledge after finalisation',async()=>{
  const h=uploadHarness(),a=h.api.upload(pdf('one.pdf'),'P3','2030-01-02'),b=h.api.upload(pdf('two.pdf'),'P5','2030-02-02');
  h.changeSettings();assert.equal(h.api.count,2);await tick();
