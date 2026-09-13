@@ -4,6 +4,8 @@ import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { buildPracticeCatalog, createPracticeRun, recordPracticeServed, planPracticeQuestions } from '../practice-variety.js';
+import * as mastery from '../practice-mastery.js';
+import * as quality from '../practice-quality.js';
 
 const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const cut = (from, to) => {
@@ -32,14 +34,20 @@ function fixture({ mcq = false } = {}) {
   element('page-practice').classList.add('active');
   element('typedWorking').value = mcq ? '' : '40 + 2';
   element('finalAnswer').value = mcq ? '' : '42';
-  const q = { id: 'peggy', title: "Peggy's Savings", blocks: [{ type: 'text', content: 'A question' }], ...(mcq ? { options: ['42', '24', '4', '2'] } : {}) };
-  const second = { id: 'colin', title: 'Another question' };
+  const q = { id: 'peggy', title: "Peggy's Savings", level: 'P4', blocks: [{ type: 'text', content: 'A question' }], ...(mcq ? { options: ['42', '24', '4', '2'] } : {}) };
+  const second = { id: 'colin', title: 'Another question', level: 'P4', blocks: [{ type: 'text', content: 'A second question' }] };
   const context = vm.createContext({
+    ...mastery, ...quality, buildPracticeCatalog,
     console: { warn() {}, error() {} }, $: element, currentUser: { uid: 'student1', role: 'student' },
     questionBank: [q, second], qIndex: 0, strokes: [], current: null, textBoxes: [], canvasCssW: 800, canvasCssH: 600,
     solutionPhotoDataUrl: '', mcqSelected: mcq ? 0 : null, aiPracticeActive: false, lastEloChange: null,
     _practiceViewEpoch: 0, _practiceMarkBusy: null, _practiceMcqRevising: false,
     _practiceExhausted: false, _practiceAutomatic: () => false,
+    _practiceManual: false, studentLevel: 'P4', studentProgress: {}, studentLearningProfile: {},
+    _studentFeedRevision: 0, _studentFeedContextCache: null, _studentGameSourceCache: null,
+    _studentFailedImages: new Map(), canManageQuestions: () => context.currentUser?.role === 'admin',
+    _tcgServedLoad: () => ({}),
+    SYL_LO_BY_ID: {}, TCG_QUIZ: [], qReleased: () => true,
     _practiceMarkedSignatures: new Map(), _practicePhotoSignature: { url: null, hash: '' },
     questionSource: q => q?.generatedByAi ? 'generated' : 'bank',
     questionIsMcq: q => !!q?.options?.length, questionIsAnnotation: q => !!q?.annotation,
@@ -55,7 +63,8 @@ function fixture({ mcq = false } = {}) {
     changeQuestion: delta => { events.push(['next', delta]); const next = context.qIndex + delta; if (next < context.questionBank.length) { context.qIndex = next; context._practiceViewEpoch++; } },
     mcqNumber: i => i + 1, escapeHtml: value => value
   });
-  vm.runInContext(mcqRenderer + '\n' + mcqResult + '\n' + submission, context);
+  vm.runInContext(cut('function _studentSyllabus()', '// ---- Automatic practice:') + '\n'
+    + mcqRenderer + '\n' + mcqResult + '\n' + submission, context);
   if (mcq) { context.renderMcqArea(q); context.mcqSelected = 0; }
   return { c: context, el: element, events, calls, records, results, rewards, options,
     submit: () => element('submitBtn').listeners.click(), refresh: () => context._practiceRefreshSubmit(),
@@ -65,6 +74,17 @@ function fixture({ mcq = false } = {}) {
 
 const cases = [];
 const test = (name, fn) => cases.push([name, fn]);
+for (const [name, invalidate] of [
+  ['unknown student level', f => { f.c.studentLevel = ''; }],
+  ['question above the student level', f => { f.c.questionBank[0].level = 'P6'; }],
+  ['unclassified question', f => { f.c.questionBank[0].level = ''; }],
+  ['structurally broken question', f => { f.c.questionBank[0].options = ['2', '2']; }],
+  ['teacher-quarantined question', f => { f.c.questionBank[0].practiceQuarantined = true; }]
+]) test(`stale submit cannot mark ${name}`, async () => {
+  const f = fixture(); invalidate(f); await f.submit();
+  assert.equal(f.calls.length, 0); assert.equal(f.records.length, 0);
+  assert.equal(f.events.filter(event => event[0] === 'export').length, 0, 'Rejected before capture or marking');
+});
 test('unchanged completed work advances once instead of creating another attempt', async () => {
   const f = fixture(); await f.submit();
   assert.equal(f.el('submitLabel').textContent, 'Next question ›');
@@ -205,7 +225,7 @@ function useRealNavigation(f) {
   const q = f.c.questionBank[0];
   q.topic = 'Percentage';
   f.c.questionBank = [q, { ...q, id: 'peggy-variant', blocks: [{ type: 'text', content: 'A different numerical variant' }] },
-    { id: 'colin', title: "Colin's Collection", topic: 'Percentage', blocks: [{ type: 'text', content: 'Another story' }] }];
+    { id: 'colin', title: "Colin's Collection", level: 'P4', topic: 'Percentage', blocks: [{ type: 'text', content: 'Another story' }] }];
   let run = recordPracticeServed(createPracticeRun('student1'), q, Date.now(), 'student1');
   f.c._practiceAutomatic = () => true;
   f.c._practicePlan = (candidates, extra = {}) => planPracticeQuestions(candidates, {

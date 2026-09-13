@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import * as mastery from '../practice-mastery.js';
+import * as quality from '../practice-quality.js';
 import {
   PRACTICE_FAMILY_COOLDOWN_MS, practiceContentKey, practiceTitleFamily,
   buildPracticeCatalog, createPracticeRun, recordPracticeServed, planPracticeQuestions
@@ -10,7 +12,7 @@ import {
 const NOW = Date.parse('2026-09-14T03:00:00Z');
 const iso = time => new Date(time).toISOString();
 const q = (id, content = `Calculate ${id}.`, extra = {}) => ({
-  id, title: 'Question', topic: 'Percentage', blocks: [{ type: 'text', content }], ...extra
+  id, title: 'Question', level: 'P4', topic: 'Percentage', blocks: [{ type: 'text', content }], ...extra
 });
 const ids = plan => plan.questions.map(item => item.id);
 const plan = (bank, options = {}) => planPracticeQuestions(bank, { now: NOW, uid: 'student-a', ...options });
@@ -197,12 +199,18 @@ function navigationFixture(bank, progress = {}) {
     return elements.get(id);
   };
   const c = vm.createContext({
+    ...mastery, ...quality,
     Date, Set, Map, PRACTICE_FAMILY_COOLDOWN_MS, buildPracticeCatalog, createPracticeRun,
     recordPracticeServed, planPracticeQuestions, currentUser: { uid: 'student-a', role: 'student' },
     questionBank: bank.slice(), studentProgress: progress, studentLearningProfile: {}, qIndex: 0,
     _practiceRun: createPracticeRun('student-a'), _practiceManual: false, _practiceExhausted: false,
     _practiceCatalogBank: null, _practiceCatalogLength: -1, _practiceCatalogValue: null,
     _practiceViewEpoch: 0, _practiceMcqRevising: false,
+    studentLevel: 'P4', _practiceEmptyReason: 'round',
+    _studentFeedRevision: 0, _studentFeedContextCache: null, _studentGameSourceCache: null,
+    _studentFailedImages: new Map(), canManageQuestions: () => c.currentUser?.role === 'admin',
+    _tcgServedLoad: () => ({}),
+    SYL_LO_BY_ID: {}, TCG_QUIZ: [], qReleased: () => true,
     aiPracticeActive: false, aiPracticeQueue: [], aiPracticeStats: {}, videoOnlyFilter: false,
     strokes: [], textBoxes: [], redoStack: [], current: null, solutionPhotoDataUrl: '',
     $: el, confirm: () => true, toast: noop, studentEloValue: () => 1000,
@@ -219,7 +227,8 @@ function navigationFixture(bank, progress = {}) {
     resetAskAi: noop, rpgQuestionChanged: noop, _practiceRefreshSubmit: noop, _practiceCurrentAnswerMarked: () => true,
     stopAiPractice: () => { c.aiPracticeActive = false; }, graphPrereqsOf: () => [], graphEasierVersionsOf: () => []
   });
-  const code = cut('function _practiceSetMode(', 'function updateDifficultyChip(')
+  const code = cut('function _studentSyllabus()', '// ---- Automatic practice:')
+    + cut('function _practiceSetMode(', 'function updateDifficultyChip(')
     + cut('function questionWrongBefore(', 'const AI_PRACTICE_SET_MAX')
     + cut('const AI_PRACTICE_SET_MAX', 'function renderAiPracticeBar(')
     + cut('function visiblePracticeIndices(', 'function renderVideoOnlyBtn(')

@@ -15,8 +15,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Check varied queues and safe marking retries
-        run: node --test tools/practice-variety-tests.mjs tools/practice-submission-tests.mjs
+      - name: Check level, mastery, quality, variety and safe marking
+        run: node --test tools/practice-mastery-tests.mjs tools/practice-quality-tests.mjs tools/practice-feeding-integration-tests.mjs tools/practice-identity-tests.mjs tools/practice-variety-tests.mjs tools/practice-submission-tests.mjs
       - name: Check existing question and student history behavior
         run: |
           node tools/duplicate-warning-tests.mjs
@@ -24,3 +24,26 @@ jobs:
           node tools/subject-level-tests.mjs
           node tools/scheduled-release-tests.mjs
           node tools/siege-squad-tests.mjs
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated browser runtime
+        run: |
+          npm install --prefix "$RUNNER_TEMP/practice-browser" --no-audit --no-fund playwright@1.62.1
+          "$RUNNER_TEMP/practice-browser/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Check the student practice flow
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/practice-browser/node_modules/playwright/index.mjs
+          PRACTICE_QA_DIR: ${{ runner.temp }}/practice-qa
+        run: node tools/practice-browser-tests.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: student-practice-browser
+          path: ${{ runner.temp }}/practice-qa
+          retention-days: 7
