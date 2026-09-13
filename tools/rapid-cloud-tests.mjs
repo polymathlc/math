@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { buildQuestionQualitySummary } from '../practice-quality.js';
 const src=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const worker=fs.readFileSync(new URL('../rapid-import/functions/index.js',import.meta.url),'utf8');
 const cut=(a,b)=>{const i=src.indexOf(a),j=src.indexOf(b,i+a.length);assert.ok(i>=0&&j>i);return src.slice(i,j);};
@@ -116,11 +117,14 @@ test('worker namespace, publication and frontend calls stay in Math',()=>{
 
 test('approval keeps original scans and checker findings in the teacher-only key',()=>{
  const block=cut('const QUESTION_KEY_FIELDS =', '\nasync function loadBank(');
- const split=new Function(block+';return splitQuestionDoc;')();
+ const split=new Function('_studentQualitySummary',block+';return splitQuestionDoc;')(buildQuestionQualitySummary);
  const original={id:'q',blocks:[{id:'text',type:'text',content:'Question'}],expected:'42',releaseOn:'2030-01-02',sourcePages:[{page:1,url:'https://example.test/source'}],sourcePdf:'paper.pdf',autoCheck:{findings:[{detail:'The answer is 42'}]},importWarning:'Review the answer'};
  const {pub,key}=split(original);
  for(const field of ['sourcePages','sourcePdf','autoCheck','importWarning','expected']){
   assert.equal(Object.hasOwn(pub,field),false);assert.deepEqual(key[field],original[field]);
  }
  assert.equal(pub.releaseOn,'2030-01-02');assert.equal(pub.blocks[0].content,'Question');
+ assert.ok(pub.practiceQuality.reasonCodes.includes('import-warning'));
+ assert.deepEqual(split({...original,expected:'A different private answer',autoCheck:{findings:[{detail:'Another private explanation'}]}}).pub.practiceQuality,
+   pub.practiceQuality,'private answers and finding text never change the public fingerprint');
 });

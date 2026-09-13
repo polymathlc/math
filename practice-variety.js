@@ -4,15 +4,24 @@
 export const PRACTICE_FAMILY_COOLDOWN_MS = 15 * 60 * 1000;
 
 const text = value => String(value == null ? '' : value);
-const formattingFree = value => {
+const formattingFree = (value, keepMathTags = false) => {
   const input = text(value);
   // Do not mistake inequalities such as "x<y and z>4" for an HTML tag.
   // Even a variable called b or a is kept unless a matching closing HTML
   // tag exists. Only the editor's ordinary paired formatting is discarded.
   return input.replace(/<\/?(p|div|span|br|b|strong|i|em|u|s|strike|sup|sub|ul|ol|li|a|h[1-6])\b[^>]*>/gi,
-    (tag, name) => name.toLowerCase() === 'br' || new RegExp(`</${name}\\s*>`, 'i').test(input) ? ' ' : tag);
+    (tag, name) => keepMathTags && /^(sup|sub)$/i.test(name) ? tag :
+      name.toLowerCase() === 'br' || new RegExp(`</${name}\\s*>`, 'i').test(input) ? ' ' : tag);
 };
 const normalized = value => formattingFree(value).normalize('NFKC').toLowerCase()
+  .replace(/&nbsp;|&#160;/g, ' ')
+  .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+  .replace(/[’‘]/g, "'").replace(/\s+/g, ' ').trim();
+// Exact question identity must retain mathematical case, superscripts and
+// subscripts. Compatibility folding would conflate x² with x2, and lowering
+// case would conflate variables or units such as m and M. Title families can
+// still use the looser normalization above as a separate spacing hint.
+const contentNormalized = value => formattingFree(value, true).normalize('NFC')
   .replace(/&nbsp;|&#160;/g, ' ')
   .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
   .replace(/[’‘]/g, "'").replace(/\s+/g, ' ').trim();
@@ -41,9 +50,9 @@ export function practiceContentKey(question) {
   const blocks = (Array.isArray(q.blocks) ? q.blocks : []).flatMap(block => {
     if (!block) return [];
     if (block.type === 'text') {
-      const words = normalized(block.content);
+      const words = contentNormalized(block.content);
       // Rich text may contain an inline picture. Preserve its source with
-      // case intact even though ordinary prose is case-insensitive.
+      // case intact, just like the mathematical text.
       const media = Array.from(text(block.content).matchAll(/<img\b[^>]*\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi),
         match => match[1] || match[2] || match[3] || '');
       return words ? [['text', words, media]] : [];
@@ -56,17 +65,17 @@ export function practiceContentKey(question) {
     }
     if (block.type === 'table') {
       const rows = Array.isArray(block.rows) ? block.rows.map(row =>
-        Array.isArray(row) ? row.map(normalized) : normalized(row)) : [];
-      return [['table', normalized(block.caption), block.header !== false, rows]];
+        Array.isArray(row) ? row.map(contentNormalized) : contentNormalized(row)) : [];
+      return [['table', contentNormalized(block.caption), block.header !== false, rows]];
     }
     return [];
   });
-  if (!blocks.length && normalized(q.questionText || q.question)) {
-    blocks.push(['text', normalized(q.questionText || q.question), []]);
+  if (!blocks.length && contentNormalized(q.questionText || q.question)) {
+    blocks.push(['text', contentNormalized(q.questionText || q.question), []]);
   }
   if (!blocks.length) return '';
   const optionValue = value => {
-    if (!value || typeof value !== 'object') return normalized(value);
+    if (!value || typeof value !== 'object') return contentNormalized(value);
     if (Array.isArray(value)) return value.map(optionValue);
     return Object.fromEntries(Object.keys(value).sort().map(key => [key, optionValue(value[key])]));
   };

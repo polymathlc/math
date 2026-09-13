@@ -4813,12 +4813,12 @@ body.lore-reading { overflow: hidden; }
       <div class="sidebar-level student-only" id="sidebarLevel">
         <label for="studentLevelSelect">My level</label>
         <select id="studentLevelSelect">
-          <option value="">Not set — every level</option>
+          <option value="">Choose My level</option>
           <option value="P4">Primary 4</option>
           <option value="P5">Primary 5</option>
           <option value="P6">Primary 6</option>
         </select>
-        <p id="studentLevelNote">Sets which questions the games ask you.</p>
+        <p id="studentLevelNote">Choose your school level before starting practice.</p>
       </div>
       <button class="logout-btn" id="logoutBtn">Sign out</button>
     </div>
@@ -4850,7 +4850,7 @@ body.lore-reading { overflow: hidden; }
               <span class="q-counter" id="qCounter">0 / 0</span>
             </div>
             <div class="q-nav">
-              <button class="btn btn-primary student-only" id="aiPracticeBtn" title="Practice questions you got wrong, then questions matched to your rating">🤖 AI practice</button>
+              <button class="btn btn-primary student-only" id="aiPracticeBtn" title="Practice matched to your school level and mastery">🤖 Smart practice</button>
               <button class="btn btn-ghost student-only" id="videoOnlyBtn" title="Practise only questions that have a video explanation" aria-pressed="false">🎬 Video only</button>
               <button class="btn btn-ghost" id="flagQuestionBtn">Flag</button>
               <button class="btn btn-ghost" id="practicePrintBtn">Print / PDF</button>
@@ -6264,6 +6264,8 @@ body.lore-reading { overflow: hidden; }
 // =====================================================================
 import { mountInterfaceStudio, isReleased as interfaceIsReleased } from "./interface-studio.mjs?v=1";
 import { PRACTICE_FAMILY_COOLDOWN_MS, buildPracticeCatalog, createPracticeRun, recordPracticeServed, planPracticeQuestions } from "./practice-variety.js";
+import { buildPracticeMasteryContext, evaluatePracticeFit, practiceQuestionLevel, parsePracticeLevel } from "./practice-mastery.js";
+import { evaluateQuestionQuality, buildQuestionQualitySummary, questionQualitySignature, questionHasUnresolvedStudentFlag } from "./practice-quality.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
   updateProfile, GoogleAuthProvider, signInWithPopup, signOut, signInAnonymously, browserPopupRedirectResolver }
@@ -7845,6 +7847,202 @@ function hideRatingTip() { const t = $("ratingTip"); if (t) t.hidden = true; }
   chart.addEventListener("touchstart", e => { const h = hit(e); if (h) showRatingTip(h); }, { passive: true });
   document.addEventListener("touchstart", e => { if (!hit(e)) hideRatingTip(); }, { passive: true });
 })();
+// ---- Student question feeding: grade, mastery and deterministic quality ----
+function _studentSyllabus() { try { return SYL_LO_BY_ID; } catch (_) { return {}; } }
+function _studentFeedInvalidate() { _studentFeedRevision++; _studentFeedContextCache = null; }
+function _studentGameSource(row) {
+  if (!row) return null;
+  if (row.feedSource) return row.feedSource;
+  const id = String(row.qid || row.id || "");
+  const filed = questionBank.find(q => String(q.id) === id);
+  if (filed) return filed;
+  const lo = _studentSyllabus()[row.lo] || {};
+  return { id, level: row.level || tcgQuizLevel(row), topic: lo.sub || lo.topic || "",
+    concept: lo.topic || "", los: row.lo ? [row.lo] : [],
+    blocks: [{ type: "text", content: row.q || row.html || "" }],
+    options: Array.isArray(row.opts) ? row.opts : [], correctOption: row.a };
+}
+function _studentBuiltInSources() {
+  if (!_studentGameSourceCache) {
+    try { _studentGameSourceCache = TCG_QUIZ.map(_studentGameSource); } catch (_) { return []; }
+  }
+  return _studentGameSourceCache;
+}
+function _studentFeedProgress() {
+  const out = Object.assign({}, studentProgress);
+  try {
+    const stored = JSON.parse(localStorage.getItem('mqGameAttempts_' + (currentUser && currentUser.uid || 'guest')) || '{}');
+    Object.entries(stored || {}).forEach(([id, item]) => {
+      if (!item || !Number.isFinite(Number(item.at)) || !(Number(item.t) > 0)) return;
+      if (parseTimeMs(out[id] && out[id].lastAttemptAt) >= Number(item.at)) return;
+      const credit = Math.max(0, Math.min(1, Number(item.s) / Number(item.t)));
+      out[id] = { questionId: id, attempts: 1, lastMarks: Number(item.s), lastOutOf: Number(item.t),
+        lastVerdict: credit >= 1 ? 'correct' : credit > 0 ? 'partial' : 'incorrect',
+        lastAttemptAt: new Date(Number(item.at)).toISOString() };
+    });
+  } catch (_) {}
+  return out;
+}
+function _studentFeedContext() {
+  const cached = _studentFeedContextCache;
+  const uid = currentUser && currentUser.uid || '';
+  if (cached && cached.uid === uid && cached.level === studentLevel && cached.bank === questionBank
+      && cached.length === questionBank.length && cached.progress === studentProgress
+      && cached.profile === studentLearningProfile && cached.revision === _studentFeedRevision) return cached.context;
+  const bank = questionBank.concat(_studentBuiltInSources());
+  const catalog = buildPracticeCatalog(bank);
+  const excludeEvidenceIds = new Set(bank.filter(q => _studentFailedImages.get(String(q.id))?.size || evaluateQuestionQuality(q, {
+    studentFlagged: _studentFlaggedQuestion(q), failedImageUrls: Array.from(_studentFailedImages.get(String(q.id)) || [])
+  }).tier !== 'sound').map(q => String(q.id)));
+  const context = buildPracticeMasteryContext({ studentLevel, progress: _studentFeedProgress(),
+    profile: studentLearningProfile, bank, catalog, syllabusById: _studentSyllabus(),
+    excludeEvidenceIds, now: Date.now() });
+  _studentFeedContextCache = { uid, level: studentLevel, bank: questionBank, length: questionBank.length,
+    progress: studentProgress, profile: studentLearningProfile, revision: _studentFeedRevision, catalog, context };
+  return context;
+}
+function _studentFlaggedQuestion(q) {
+  const flags = studentLearningProfile && studentLearningProfile.practiceFlags;
+  return questionHasUnresolvedStudentFlag(q, flags && flags[q && q.id]);
+}
+function _studentFeedCandidates(candidates, options = {}) {
+  if (canManageQuestions()) return { questions: candidates.filter(Boolean), skipped: 0, reasons: [] };
+  const context = options.context || _studentFeedContext();
+  const rows = [], reasons = [];
+  (candidates || []).forEach((q, order) => {
+    if (!q) return;
+    const fit = evaluatePracticeFit(q, { context, levelOnly: !!options.manual });
+    const quality = evaluateQuestionQuality(q, { studentFlagged: _studentFlaggedQuestion(q),
+      failedImageUrls: Array.from(_studentFailedImages.get(String(q.id)) || []) });
+    if (!fit.eligible || !quality.eligible || _studentFailedImages.get(String(q.id))?.size || (!options.manual && quality.tier !== 'sound') || !qReleased(q)) {
+      reasons.push(!fit.eligible ? fit.reason : 'question-review'); return;
+    }
+    rows.push({ q, order, fit, quality });
+  });
+  if (!options.manual) rows.sort((a, b) => a.quality.penalty - b.quality.penalty || b.fit.score - a.fit.score || a.order - b.order);
+  return { questions: rows.map(row => row.q), skipped: reasons.length, reasons,
+    reviewCount: rows.filter(row => row.quality.tier === 'suspect').length };
+}
+function _studentQuestionAllowed(q, manual = _practiceManual) {
+  return !!q && (canManageQuestions() || _studentFeedCandidates([q], { manual }).questions.length > 0);
+}
+function _studentFeedMessage() {
+  return !parsePracticeLevel(studentLevel).known
+    ? 'Choose My level first so questions stay within your school level.'
+    : 'No suitable questions are ready here. Try another worksheet or return after your teacher has checked the questions.';
+}
+function _studentChooseLevel() {
+  $("sidebar").classList.add("open");
+  const select = $("studentLevelSelect");
+  if (select) { select.focus(); select.scrollIntoView({ block: "center", behavior: "smooth" }); }
+}
+function _studentManualQuestions(questions) {
+  const result = _studentFeedCandidates(questions, { manual: true });
+  let note = result.skipped ? result.questions.length
+    ? result.skipped + ' question(s) were skipped to keep this practice suitable for you.' : _studentFeedMessage() : '';
+  if (result.reviewCount) note += ' Some selected questions are awaiting teacher review. Read them carefully and report anything unclear.';
+  if (note) toast(note.trim(), '');
+  return result.questions;
+}
+function _studentGateDirect(q) {
+  if (_studentQuestionAllowed(q, true)) {
+    if (!canManageQuestions() && evaluateQuestionQuality(q, { studentFlagged: _studentFlaggedQuestion(q) }).tier === 'suspect')
+      toast('This selected question is awaiting teacher review. Read it carefully and report anything unclear.', '');
+    return true;
+  }
+  toast(_studentFeedMessage(), '');
+  if (!parsePracticeLevel(studentLevel).known) _studentChooseLevel();
+  return false;
+}
+function _studentBindQuestionImages(q) {
+  if (!currentUser || currentUser.role !== 'student') return;
+  $("qBody").querySelectorAll("img").forEach(img => {
+    const src = img.getAttribute('src') || img.src;
+    img.addEventListener('error', () => {
+      const failed = _studentFailedImages.get(String(q.id)) || new Set();
+      failed.add(src); _studentFailedImages.set(String(q.id), failed); _studentFeedInvalidate(); _practiceRefreshSubmit();
+    });
+    img.addEventListener('load', () => {
+      const failed = _studentFailedImages.get(String(q.id));
+      if (failed && failed.delete(src)) _studentFeedInvalidate();
+    });
+  });
+}
+function _studentVarietyRun() {
+  const uid = String(currentUser && currentUser.uid || ''), now = Date.now();
+  const served = new Map();
+  if (_practiceRun.uid === uid) _practiceRun.served.forEach(item => served.set(item.id, item.at));
+  Object.entries(_tcgServedLoad()).forEach(([id, at]) => {
+    if (Number(at) > 0 && now - Number(at) < PRACTICE_FAMILY_COOLDOWN_MS) served.set(id, Math.max(served.get(id) || 0, Number(at)));
+  });
+  return { uid, served: Array.from(served, ([id, at]) => ({ id, at })) };
+}
+function _studentGameRows(rows, manual = false) {
+  const sources = rows.map(_studentGameSource);
+  let eligible = _studentFeedCandidates(sources, { manual }).questions;
+  if (!manual && eligible.length && !canManageQuestions()) {
+    const context = _studentFeedContext();
+    const best = evaluatePracticeFit(eligible[0], { context }).score;
+    // The game can shuffle this cohort for variety, but cannot promote a
+    // poorly matched question merely because it has an older served stamp.
+    eligible = eligible.filter(q => evaluatePracticeFit(q, { context }).score >= best - 150);
+    eligible = planPracticeQuestions(eligible, { bank: questionBank.concat(_studentBuiltInSources()),
+      catalog: _studentFeedContextCache.catalog, progress: studentProgress, run: _studentVarietyRun(),
+      uid: currentUser.uid, now: Date.now(), onePerFamily: true }).questions;
+  }
+  const byId = new Map(rows.map((row, i) => [String(sources[i] && sources[i].id), row]));
+  return eligible.map(q => byId.get(String(q.id))).filter(Boolean);
+}
+function _studentNextGameQuestion(run, field = 'poolI') {
+  if (!run || !Array.isArray(run.pool)) return null;
+  const uid = String(currentUser && currentUser.uid || '');
+  if (run.feedUid && run.feedUid !== uid) return null;
+  run.feedUid = uid;
+  if (run.feedLevel && run.feedLevel !== studentLevel) { run.pool = _tcgQuizPool(); run[field] = 0; }
+  run.feedLevel = studentLevel;
+  const eligible = _studentGameRows(run.pool);
+  const ids = new Set(eligible.map(q => String(q.id || q.qid)));
+  const seen = _tcgServedLoad(), now = Date.now();
+  for (let step = 0; step < run.pool.length; step++) {
+    const index = (Number(run[field]) || 0) % run.pool.length;
+    run[field] = index + 1;
+    const q = run.pool[index], id = String(q && (q.id || q.qid) || '');
+    if (!id || !ids.has(id) || (seen[id] && now - Number(seen[id]) < PRACTICE_FAMILY_COOLDOWN_MS)) continue;
+    return q;
+  }
+  return null;
+}
+function _studentQualitySummary(q, includeFlags = false) {
+  if (!_studentPrivateKeysLoaded && q.practiceQuality
+      && q.practiceQuality.signature === questionQualitySignature(q)) return q.practiceQuality;
+  const options = { importSignature: mathImportSignature(q) };
+  if (includeFlags && _studentAdminFlagsLoaded) {
+    const signature = questionQualitySignature(q);
+    const flags = flagNotifications.filter(flag => String(flag.questionId) === String(q.id)
+      && (!flag.questionSignature || flag.questionSignature === signature));
+    options.unresolvedFlagCount = flags.filter(flag => flag.status !== 'reviewed').length;
+    options.reportsReviewedAt = options.unresolvedFlagCount ? ''
+      : flags.map(flag => flag.reviewedAt || '').sort().pop() || '';
+  }
+  return buildQuestionQualitySummary(q, options);
+}
+async function _studentPublishQualitySummaries(questions = questionBank) {
+  if (!canManageQuestions()) return;
+  const uid = currentUser.uid;
+  for (let offset = 0; offset < questions.length; offset += 12) {
+    if (!canManageQuestions() || currentUser.uid !== uid) return;
+    await Promise.all(questions.slice(offset, offset + 12).map(async q => {
+      // Public-only merges never touch keys, even when a private read failed.
+      const summary = _studentQualitySummary(q, true);
+      if (JSON.stringify(summary) === JSON.stringify(q.practiceQuality)) return;
+      try {
+        await setDoc(doc(db, 'users', uid, 'mathQuestions', q.id), { practiceQuality: summary }, { merge: true });
+        if (currentUser && currentUser.uid === uid) q.practiceQuality = summary;
+      } catch (e) { console.warn('question quality summary', e); }
+    }));
+  }
+}
+
 // ---- Automatic practice: space repeated stories and completed questions ----
 function _practiceSetMode(manual = false) {
   const uid = String(currentUser && currentUser.uid || "");
@@ -7867,8 +8065,11 @@ function _practiceCatalog() {
   return _practiceCatalogValue;
 }
 function _practicePlan(candidates, extra = {}) {
-  return planPracticeQuestions(candidates, { bank: questionBank, catalog: _practiceCatalog(),
-    progress: studentProgress, run: _practiceRun, uid: currentUser && currentUser.uid,
+  const feed = _studentFeedCandidates(candidates, { manual: extra.manual ?? _practiceManual });
+  _practiceEmptyReason = !feed.questions.length && feed.reasons.length
+    ? feed.reasons.includes('student-level-required') ? 'level' : 'fit' : 'round';
+  return planPracticeQuestions(feed.questions, { bank: questionBank, catalog: canManageQuestions() ? _practiceCatalog() : _studentFeedContextCache.catalog,
+    progress: studentProgress, run: _studentVarietyRun(), uid: currentUser && currentUser.uid,
     now: Date.now(), videoOnly: videoOnlyFilter, manual: _practiceManual, ...extra });
 }
 function _practiceAutomatic() { return !!currentUser && currentUser.role === "student" && !_practiceManual; }
@@ -7887,11 +8088,17 @@ function _practiceRenderFinished() {
   $("questionCard").classList.add("practice-round-complete");
   $("qMeta").style.display = "none";
   $("flagQuestionBtn").disabled = true;
+  const needsLevel = !canManageQuestions() && !parsePracticeLevel(studentLevel).known;
+  const heading = needsLevel ? 'Choose My level to begin' : _practiceEmptyReason === 'fit'
+    ? 'No suitable questions are ready here' : 'You have reached the end of this practice round';
+  const note = needsLevel ? 'Tell us your school level first. Practice will stay at that level or below and adapt to each skill as you learn.'
+    : _practiceEmptyReason === 'fit' ? 'Try another worksheet or return after your teacher has checked and levelled the questions.'
+    : 'Questions you just saw are taking a break. Choose another worksheet, or come back later for fresh practice and scheduled reviews.';
   $("qBody").innerHTML = '<div class="empty-note" style="max-width:620px;margin:24px auto;padding:28px;line-height:1.65;">' +
-    '<h3 style="margin:0 0 12px;">You have reached the end of this practice round</h3>' +
-    '<p style="margin:0 0 20px;">Questions you just saw are taking a break. Choose another worksheet, or come back later for fresh practice and scheduled reviews.</p>' +
-    '<button type="button" class="btn btn-primary" id="practiceFindMoreBtn">Find available questions</button></div>';
-  $("practiceFindMoreBtn").addEventListener("click", _practiceFindMore);
+    '<h3 style="margin:0 0 12px;">' + heading + '</h3>' +
+    '<p style="margin:0 0 20px;">' + note + '</p>' +
+    '<button type="button" class="btn btn-primary" id="practiceFindMoreBtn">' + (needsLevel ? 'Choose My level' : 'Find available questions') + '</button></div>';
+  $("practiceFindMoreBtn").addEventListener("click", needsLevel ? _studentChooseLevel : _practiceFindMore);
   $("finalAnswer").value = ""; $("typedWorking").value = "";
   renderMcqArea(null); applyAnnotationMode(null); clearSolutionPhoto({ silent: true });
   strokes = []; redoStack = []; current = null; clearTextBoxes(); redraw();
@@ -7927,15 +8134,10 @@ function updateDifficultyChip(q) {
   const el = $("qDifficulty");
   if (!el) return;
   if (!q || !currentUser || currentUser.role !== "student") { el.style.display = "none"; return; }
+  const fit = evaluatePracticeFit(q, { context: _studentFeedContext(), levelOnly: _practiceManual });
   el.style.display = "";
-  const d = questionDifficultyRating(q);
-  if (aiPracticeActive) {
-    el.textContent = `Lvl ${d} · ${eloRelationLabel(d, studentEloValue())}`;
-    el.title = `Difficulty ${d} vs your rating ${Math.round(studentEloValue())}`;
-  } else {
-    el.textContent = `Lvl ${d}`;
-    el.title = "Question difficulty rating";
-  }
+  el.textContent = (qLevelCeiling(q) || 'Level awaiting review') + ' · ' + (!fit.diagnostic.evidenceCount ? 'Getting to know this skill' : fit.difficulty <= fit.target ? 'Practice' : 'Small challenge');
+  el.title = 'Matched to this skill and your school level';
 }
 function questionWrongBefore(p) {
   if (!p) return false;
@@ -8000,10 +8202,6 @@ function startAiPractice() {
   _practiceSetMode(false);
   _practiceRestartIfRested();
   const now = Date.now();
-  const rating = studentEloValue();
-  const target = rating + 80;            // growth zone: just above the current rating
-  const loBand = rating - 40, hiBand = rating + 200;
-  const weak = studentWeakTopics();
   // When the "Video only" filter is on, build the set from video-backed
   // questions and keep the rest aside so they stay in the bank.
   const review = [], pool = [], skipped = [];
@@ -8022,26 +8220,6 @@ function startAiPractice() {
     if (wa !== wb) return wb - wa;
     return parseTimeMs(pa.lastAttemptAt) - parseTimeMs(pb.lastAttemptAt);
   });
-  const growthScore = q => {
-    const d = questionDifficultyRating(q), p = studentProgress[q.id];
-    return {
-      mastered: questionMastered(p) ? 1 : 0,                 // already-mastered questions last
-      prereqReady: graphPrereqsMet(q.id) ? 0 : 1,            // skills whose prerequisites are mastered first (dependency board)
-      inBand: d >= loBand && d <= hiBand ? 0 : 1,            // inside the growth band first
-      weakHit: questionHitsWeakTopic(q, weak) ? 0 : 1,        // weak-topic questions first
-      seen: p && (p.attempts || 0) > 0 ? 1 : 0,              // never-seen questions first
-      dist: Math.abs(d - target)                              // then closest to the target level
-    };
-  };
-  pool.sort((a, b) => {
-    const sa = growthScore(a), sb = growthScore(b);
-    if (sa.mastered !== sb.mastered) return sa.mastered - sb.mastered;
-    if (sa.prereqReady !== sb.prereqReady) return sa.prereqReady - sb.prereqReady;
-    if (sa.inBand !== sb.inBand) return sa.inBand - sb.inBand;
-    if (sa.weakHit !== sb.weakHit) return sa.weakHit - sb.weakHit;
-    if (sa.seen !== sb.seen) return sa.seen - sb.seen;
-    return sa.dist - sb.dist;
-  });
   const reviewSet = _practicePlan(review, { limit: AI_PRACTICE_REVIEW_MAX }).questions;
   const growthSet = _practicePlan(pool, { limit: Math.max(0, AI_PRACTICE_SET_MAX - reviewSet.length),
     excludeFamilyIds: reviewSet.map(q => q.id) }).questions;
@@ -8056,24 +8234,23 @@ function startAiPractice() {
   renderAiPracticeBar();
   renderQuestion();
   if (_practiceExhausted) return;
-  toast(`AI practice ready: ${aiPracticeQueue.length} question${aiPracticeQueue.length === 1 ? "" : "s"} in your growth zone (rating ${Math.round(rating)})`, "success");
+  toast(`Smart practice ready: ${aiPracticeQueue.length} question${aiPracticeQueue.length === 1 ? "" : "s"} matched to your school level and mastery`, "success");
 }
 function renderAiPracticeBar() {
   const bar = $("aiPracticeBar");
   if (!bar) return;
   if (!aiPracticeActive) { bar.style.display = "none"; bar.innerHTML = ""; return; }
-  const rating = Math.round(studentEloValue());
   const r = aiPracticeStats.review || 0, g = aiPracticeStats.growth || 0, vCount = aiPracticeStats.variants || 0, pCount = aiPracticeStats.prereq || 0, eCount = aiPracticeStats.easier || 0;
   const parts = [];
   if (r) parts.push(`<b>${r}</b> to review`);
-  if (g) parts.push(`<b>${g}</b> in your growth zone`);
-  let lead = parts.length ? parts.join(" + ") + "." : "questions matched to your rating.";
+  if (g) parts.push(`<b>${g}</b> matched to your skills`);
+  let lead = parts.length ? parts.join(" + ") + "." : "questions matched to your school level and mastery.";
   lead += " Similar questions are spaced out, with fresh work between reviews.";
   const steps = [];
   if (pCount) steps.push(`${pCount} prerequisite skill${pCount === 1 ? "" : "s"}`);
   if (eCount) steps.push(`${eCount} easier version${eCount === 1 ? "" : "s"}`);
   if (steps.length) lead += ` Stepped you back to ${steps.join(" and ")} along the way.`;
-  bar.innerHTML = `🤖 <span>AI practice • rating <b>${rating}</b> — ${lead}</span>` +
+  bar.innerHTML = `🤖 <span>Smart practice • <b>${escapeHtml(studentLevel || "My level")}</b> — ${lead}</span>` +
     `<button class="btn btn-ghost btn-sm" id="aiPrintBtn" type="button" title="Print this practice set as PDF">🖨️ Print set</button>` +
     `<button class="ai-practice-close" id="aiPracticeCloseBtn" type="button" title="Exit AI practice">×</button>`;
   bar.style.display = "flex";
@@ -8698,9 +8875,9 @@ function renderStudentLevel() {
   const note = $("studentLevelNote");
   if (!note) return;
   const allow = studentLevelsAllowed();
-  note.textContent = allow
-    ? "The games ask you " + allow.join(", ") + " questions."
-    : "Not set — the games ask you questions from every level.";
+  note.textContent = allow && allow.length
+    ? "Practice and games stay at " + studentLevel + " or below, matched to each skill."
+    : "Choose My level before starting practice or a question game.";
 }
 async function saveStudentLevel(lv) {
   lv = STUDENT_LEVELS.indexOf(lv) >= 0 ? lv : "";
@@ -8708,6 +8885,11 @@ async function saveStudentLevel(lv) {
   // The built-in pool is cached against the cap, so the next question a game
   // asks already comes from the new range — no reload needed.
   renderStudentLevel();
+  _studentFeedInvalidate();
+  if (studentLearningProfile) studentLearningProfile.level = lv;
+  if (currentUser && currentUser.role === "student") {
+    _practiceSetMode(false); prioritizeReviewQuestions(); renderQuestion();
+  }
   if (!currentUser || currentUser.role !== "student" || currentUser.isGuest) return;
   // Kept on the in-memory profile too, or the next whole-object save of
   // studentLearningProfile would write the level straight back out again.
@@ -8848,7 +9030,8 @@ async function recordLearningAttempt(q, v, serverProgress) {
   if (note) recentNotes.push(note.slice(0, 180));
   const eloHistory = Array.isArray(studentLearningProfile.eloHistory) ? studentLearningProfile.eloHistory.slice(-19) : [];
   eloHistory.push({ at: nowIso, q: q.id, d: eloUpdate.difficulty, before: eloUpdate.before, after: eloUpdate.after, credit: Math.round(credit * 100) / 100 });
-  studentLearningProfile = { weaknesses, strengths, topicStats, conceptStats, skillStats, totals, recentNotes, elo: eloUpdate.after, eloAttempts: eloUpdate.attempts, eloHistory, updatedAt: nowIso };
+  studentLearningProfile = Object.assign({}, studentLearningProfile, { weaknesses, strengths, topicStats, conceptStats, skillStats, totals, recentNotes, elo: eloUpdate.after, eloAttempts: eloUpdate.attempts, eloHistory, updatedAt: nowIso });
+  _studentFeedInvalidate();
   // The attempt log and question progress are written server-side by the
   // marking function (clients are read-only there); the browser persists
   // only its private learning-profile analytics (elo, weakness buckets).
@@ -8911,6 +9094,7 @@ function questionFromWeaknessAi(d, target) {
 }
 async function generateWeaknessPractice() {
   if (!currentUser || currentUser.role !== "student") return;
+  if (!parsePracticeLevel(studentLevel).known) { toast(_studentFeedMessage(), ""); _studentChooseLevel(); return; }
   if (!aiReady()) { toast("AI question generation isn't ready yet", "error"); return; }
   const target = weaknessPracticeTarget();
   if (!target) { toast("Complete and submit a few questions first so AI can find a useful weakness", "error"); return; }
@@ -8920,10 +9104,13 @@ async function generateWeaknessPractice() {
   label.innerHTML = '<span class="spinner"></span> Generating...';
   try {
     const snapshot = learningSnapshotForGeneration(target);
+    const studentUid = currentUser.uid, requestedLevel = studentLevel;
+    const targetFit = evaluatePracticeFit({ level: studentLevel, topic: target.topic, concept: target.concept }, { context: _studentFeedContext() });
     const prompt =
       `You are creating one new Singapore-style math practice question for deliberate practice and spaced repetition. ` +
       `Use the private student performance snapshot to target the weakness, but do not mention weakness labels to the student.\n` +
       `Private performance snapshot: ${JSON.stringify(snapshot)}\n\n` +
+      `The student is in ${requestedLevel}. Use only mathematics at ${requestedLevel} or below; never introduce a later school topic. Use gentle difficulty around ${targetFit.target} for this skill. Return the actual school level in "level".\n` +
       `Create a fresh question that practises the target weakness with different numbers and wording from previous questions. ` +
       `Keep it suitable for worksheet working, no image or diagram required, and make sure the answer and marking guide are correct. ` +
       `For "topics", use the specific content topic only (e.g. Fractions, Ratio, Geometry) — never the generic label "Problem Solving". For "concept", use a specific private teacher-only method/concept label only when one clearly applies, or leave it empty; do not use the generic label "Model Method".\n\n` +
@@ -8933,6 +9120,8 @@ async function generateWeaknessPractice() {
     const data = parseAIJson(raw);
     const q = questionFromWeaknessAi(data, target);
     if (!q.expected || !q.markingGuide) throw new Error("AI generated an incomplete question");
+    if (!currentUser || currentUser.uid !== studentUid || studentLevel !== requestedLevel) return;
+    if (!_studentFeedCandidates([q]).questions.length) throw new Error("The generated question is not suitable for your current school level and mastery. It has not been added.");
     await setDoc(doc(db, "users", currentUser.uid, "generatedPracticeQuestions", q.id), q);
     studentGeneratedQuestions.unshift(q);
     questionBank.unshift(q);
@@ -9064,6 +9253,9 @@ let lastEloChange = null;
 // Automatic question rotation is private to this student and this tab.
 let _practiceRun = createPracticeRun("");
 let _practiceManual = false, _practiceExhausted = false;
+let _practiceEmptyReason = "round", _studentFeedRevision = 0, _studentFeedContextCache = null;
+let _studentGameSourceCache = null, _studentAdminFlagsLoaded = false, _studentPrivateKeysLoaded = false;
+const _studentFailedImages = new Map();
 let _practiceCatalogBank = null, _practiceCatalogLength = -1, _practiceCatalogValue = null;
 // Page-memory only: a completed answer is not another attempt until revised.
 let _practiceViewEpoch = 0, _practiceMarkBusy = null, _practiceMcqRevising = false;
@@ -9249,11 +9441,16 @@ function updateEmailBell() {
 }
 async function loadFlagNotifications() {
   flagNotifications = [];
+  _studentAdminFlagsLoaded = false;
   if (!canManageQuestions()) { updateFlagBadge(); return; }
+  const flagOwnerUid = currentUser.uid;
   try {
-    const snap = await getDocs(collection(db, "users", currentUser.uid, "questionFlags"));
+    const snap = await getDocs(collection(db, "users", flagOwnerUid, "questionFlags"));
+    if (!canManageQuestions() || currentUser.uid !== flagOwnerUid) return;
     snap.forEach(d => flagNotifications.push(Object.assign({ id: d.id }, d.data())));
     flagNotifications.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+    _studentAdminFlagsLoaded = true;
+    _studentPublishQualitySummaries().catch(e => console.warn("quality summaries", e));
   } catch (e) { console.warn("flag load", e); }
   updateFlagBadge();
 }
@@ -9293,7 +9490,11 @@ async function markFlagReviewed(id) {
       reviewedBy: currentUser.email || currentUser.uid
     }, { merge: true });
     const f = flagNotifications.find(x => x.id === id);
-    if (f) f.status = "reviewed";
+    if (f) {
+      f.status = "reviewed"; f.reviewedAt = new Date().toISOString();
+      const q = questionBank.find(q => q.id === f.questionId);
+      if (q) await _studentPublishQualitySummaries([q]);
+    }
     updateFlagBadge();
     renderFlagInbox();
   } catch (e) { toast("Couldn't update flag: " + e.message, "error"); }
@@ -9314,9 +9515,12 @@ async function submitQuestionFlag() {
   if (!uid) { toast("Admin account not found yet; try again after the questions load", "error"); return; }
   const q = questionBank[qIndex];
   const id = makeDocId("flag");
+  const reporterUid = currentUser.uid;
+  const reportSnapshot = { signature: questionQualitySignature(q), at: Date.now() };
   const flag = {
     id,
     questionId: q.id || "",
+    questionSignature: reportSnapshot.signature,
     questionTitle: q.title || "Question",
     questionSummary: compactQuestionSummary(q),
     questionTopic: studentTopicsLabel(q),
@@ -9334,7 +9538,18 @@ async function submitQuestionFlag() {
   btn.textContent = "Sending...";
   try {
     await setDoc(doc(db, "users", uid, "questionFlags", id), flag);
-    if (canManageQuestions()) { flagNotifications.unshift(flag); updateFlagBadge(); }
+    if (currentUser && currentUser.uid === reporterUid) {
+      if (canManageQuestions()) {
+        flagNotifications.unshift(flag); updateFlagBadge();
+        await _studentPublishQualitySummaries([q]);
+      } else {
+        const practiceFlags = Object.assign({}, studentLearningProfile.practiceFlags || {}, { [q.id]: reportSnapshot });
+        studentLearningProfile = Object.assign({}, studentLearningProfile, { practiceFlags });
+        _studentFeedInvalidate();
+        try { await setDoc(doc(db, "users", reporterUid, "settings", "mathLearningProfile"), { practiceFlags }, { merge: true }); }
+        catch (e) { console.warn("own question report snapshot", e); }
+      }
+    }
     closeOverlay("flagOverlay");
     toast("Question flagged for admin review", "success");
   } catch (e) { toast("Couldn't send flag: " + e.message, "error"); }
@@ -9822,6 +10037,7 @@ function mergeBlockAnswers(q) {
 }
 function splitQuestionDoc(q) {
   const pub = Object.assign({}, q);
+  pub.practiceQuality = _studentQualitySummary(q);
   const key = { id: q.id };
   QUESTION_KEY_FIELDS.forEach(f => { if (pub[f]) key[f] = pub[f]; delete pub[f]; });
   if (Array.isArray(pub.blocks)) {
@@ -9849,6 +10065,7 @@ function splitQuestionDoc(q) {
 async function loadBank(uid) {
   questionBank = [];
   lockedQuestions = {};
+  _studentPrivateKeysLoaded = false;
   const needsSplit = [];
   try {
     const snap = await getDocs(collection(db, "users", uid, "mathQuestions"));
@@ -9892,6 +10109,7 @@ async function loadBank(uid) {
           Object.assign(q, byId[q.id] || {});
           mergeBlockAnswers(q);
         });
+        _studentPrivateKeysLoaded = true;
       } catch (e) { console.warn("key load", e); }
       // Re-save docs that still carry answers in the public half (one-time
       // split migration) or whose public "has video" flag is out of sync, so
@@ -9917,6 +10135,7 @@ function isPermissionError(e) {
 async function saveQuestionDoc(q) {
   if (!canManageQuestions()) throw new Error("Only admin accounts can save questions");
   const { pub, key } = splitQuestionDoc(q);
+  q.practiceQuality = pub.practiceQuality;
   try {
     await setDoc(doc(db, "users", currentUser.uid, "mathQuestions", q.id), pub);
     await setDoc(doc(db, "users", currentUser.uid, "mathQuestionKeys", q.id), key);
@@ -20489,7 +20708,7 @@ function openQuestionShareById(id) {
   openQuestionShare(q);
 }
 function openQuestionShare(q) {
-  if (!q) return;
+  if (!q || !_studentGateDirect(q)) return;
   const admin = canManageQuestions();
   $("questionShareTitle").textContent = q.title || "Question";
   const metaBits = [q.level, studentTopicsLabel(q)].filter(Boolean).join(" · ");
@@ -20543,6 +20762,7 @@ function wireShareAdminSection(q) {
     .catch(() => { qrBox.textContent = "Couldn't load the QR generator — check your connection."; });
 }
 function goPracticeQuestion(q) {
+  if (!_studentGateDirect(q)) return;
   _practiceSetMode(true);
   const i = questionBank.findIndex(x => x.id === q.id);
   if (i >= 0) qIndex = i;
@@ -24580,9 +24800,11 @@ function renderWorksheetOverview() {
     wrap.innerHTML = `<div class="empty-note">Open a worksheet from <b>My Worksheets</b> to see everything on it in one place.</div>`;
     return;
   }
-  const questions = wsSavedQuestions(ws);
+  const allQuestions = wsSavedQuestions(ws);
+  const questions = _studentFeedCandidates(allQuestions, { manual: true }).questions;
+  const skipped = allQuestions.length - questions.length;
   const shutIds = wsLockedIds(ws);
-  const missing = (ws.questionIds || []).length - questions.length - shutIds.length;
+  const missing = (ws.questionIds || []).length - allQuestions.length - shutIds.length;
   const when = ws.createdAt ? new Date(ws.createdAt).toLocaleDateString() : "";
   const owned = wsMine(ws) || canManageQuestions();
   const share = owned ? `<div class="wv-share">
@@ -24597,6 +24819,7 @@ function renderWorksheetOverview() {
       <div class="wv-head-meta">
         <span>${questions.length} question${questions.length === 1 ? "" : "s"}</span>
         ${shutIds.length ? `<span style="color:#4338ca;">🔒 ${shutIds.length} not open yet</span>` : ""}
+        ${skipped ? `<span>${skipped} set aside for your school level or teacher review</span>` : ""}
         ${missing > 0 ? `<span style="color:var(--accent-red);">${missing} no longer in the bank</span>` : ""}
         ${when ? `<span>Saved ${escapeHtml(when)}</span>` : ""}
         ${ws.ownerName && !wsMine(ws) ? `<span>by ${escapeHtml(ws.ownerName)}</span>` : ""}
@@ -24625,7 +24848,7 @@ function renderWorksheetOverview() {
       </div>
       ${wvSolutionHtml(q)}
     </div>`).join("")
-    : `<div class="wv-q"><div class="wv-missing">None of this worksheet's questions are in the bank any more.</div></div>`}`;
+    : `<div class="wv-q"><div class="wv-missing">${skipped ? escapeHtml(_studentFeedMessage()) : "None of this worksheet's questions are in the bank any more."}</div></div>`}`;
 
   $("wvRevealAllBtn").addEventListener("click", () => {
     const panels = [...wrap.querySelectorAll(".wv-sol[data-wv-sol]")];
@@ -24785,7 +25008,7 @@ window.qbHoverLeave = qbHoverLeave;
 function practiseWorksheet(id) {
   const ws = wsFind(id);
   if (!ws) return;
-  const questions = wsSavedQuestions(ws);
+  const questions = _studentManualQuestions(wsSavedQuestions(ws));
   const shutIds = wsLockedIds(ws);
   if (!questions.length) {
     toast(shutIds.length
@@ -24803,7 +25026,7 @@ function practiseWorksheet(id) {
   toast(`Practising “${ws.title || "worksheet"}” — ${questions.length} question(s)`, "success");
 }
 function practiseCurrentWorksheet() {
-  const questions = wsSelectedQuestions();
+  const questions = _studentManualQuestions(wsSelectedQuestions());
   if (!questions.length) { toast("Select some questions first", "error"); return; }
   _practiceSetMode(true);
   const ids = new Set(questions.map(q => q.id));
@@ -25172,7 +25395,7 @@ function showHint(text) {
 // The student-readable doc carries a `hasVideoExplanation` flag (set in
 // splitQuestionDoc); admins also have the URL itself merged in.
 function questionHasVideo(q) { return !!(q && (q.videoExplanationUrl || q.hasVideoExplanation)); }
-function passesVideoFilter(q) { return !videoOnlyFilter || questionHasVideo(q); }
+function passesVideoFilter(q) { return _studentQuestionAllowed(q) && (!videoOnlyFilter || questionHasVideo(q)); }
 function visiblePracticeIndices() {
   const out = [];
   questionBank.forEach((q, i) => { if (passesVideoFilter(q)) out.push(i); });
@@ -25300,7 +25523,12 @@ function renderQuestion() {
   $("questionCard").classList.remove("practice-round-complete");
   renderLearningProfile();
   renderVideoOnlyBtn();
-  if (_practiceAutomatic() && _practiceExhausted) { _practiceRenderFinished(); return; }
+  if (currentUser && currentUser.role === "student" && !_practiceExhausted && !_studentQuestionAllowed(questionBank[qIndex])) {
+    const next = (_practiceManual ? _studentFeedCandidates(questionBank, { manual: true }) : _practicePlan(questionBank)).questions.find(q => !videoOnlyFilter || questionHasVideo(q));
+    if (next) qIndex = questionBank.findIndex(q => q.id === next.id);
+    else { _practiceExhausted = true; _practiceEmptyReason = !parsePracticeLevel(studentLevel).known ? 'level' : 'fit'; }
+  }
+  if (currentUser && currentUser.role === "student" && _practiceExhausted) { _practiceRenderFinished(); return; }
   $("nextBtn").disabled = false;
   if (!questionBank.length) {
     $("qMeta").style.display = "none";
@@ -25337,6 +25565,7 @@ function renderQuestion() {
   if (aiPracticeActive) renderAiPracticeBar();
   $("qBody").innerHTML = renderQuestionBlocksHtml(q.blocks || []);
   $("qBody").querySelectorAll("img").forEach(img => img.addEventListener("load", setupCanvasSize, { once: true }));
+  _studentBindQuestionImages(q);
   renderMcqArea(q);
   applyAnnotationMode(q);   // after renderMcqArea — it also sets the submit label
   $("finalAnswer").value = "";
@@ -26582,7 +26811,14 @@ function _practiceRequestCurrent(request) {
     && questionBank[qIndex] === request.q && $("page-practice").classList.contains("active"));
 }
 function _practiceRefreshSubmit() {
-  if (_practiceExhausted && _practiceAutomatic()) {
+  const currentQuestion = questionBank[qIndex];
+  if (currentUser && currentUser.role === 'student' && currentQuestion && !_studentQuestionAllowed(currentQuestion, true)) {
+    const btn = $("submitBtn"), label = $("submitLabel");
+    if (btn) btn.disabled = true;
+    if (label) label.textContent = 'Question unavailable — choose Next';
+    return;
+  }
+  if (_practiceExhausted && currentUser && currentUser.role === "student") {
     const btn = $("submitBtn"), label = $("submitLabel");
     if (btn) btn.disabled = true;
     if (label) label.textContent = "Practice round complete";
@@ -26628,7 +26864,7 @@ $("submitBtn").addEventListener("click", async () => {
   // Acquire the lock BEFORE worksheet export can yield to another tap.
   if (_practiceMarkBusy) return;
   if (!currentUser) { toast("Sign in to submit work for marking", "error"); return; }
-  if (!questionBank[qIndex] || (_practiceAutomatic() && _practiceExhausted)) return;
+  if (!questionBank[qIndex] || (currentUser.role === "student" && _practiceExhausted) || !_studentQuestionAllowed(questionBank[qIndex], true)) return;
   const q = questionBank[qIndex];
   const isMcq = questionIsMcq(q);
   const answer = _practiceAnswerSnapshot();
@@ -26760,7 +26996,7 @@ function aiMarkReset() {
 // Open AI Marking pre-aimed at one question (from a shared link / printed QR),
 // so the photo is graded against that exact question instead of being matched.
 function openAiMarkForQuestion(q) {
-  if (!q) return;
+  if (!q || !_studentGateDirect(q)) return;
   openAiMark();
   aiMarkTarget = { questionId: q.id, source: questionSource(q) };
   aiMarkSetStatus(`Ready to mark “${q.title || "this question"}” — snap or upload a photo of your working.`);
@@ -26804,6 +27040,10 @@ async function aiMarkRun(opts = {}) {
   if (aiMarkBusy) return;
   if (!aiMarkMedia) { toast("Choose a photo or PDF first", "error"); return; }
   if (!currentUser) { toast("Sign in to use AI Marking", "error"); return; }
+  if (aiMarkTarget) {
+    const target = questionBank.find(q => q.id === aiMarkTarget.questionId);
+    if (!target || !_studentGateDirect(target)) return;
+  }
   aiMarkBusy = true;
   const runBtn = $("aiMarkRunBtn"), label = $("aiMarkRunLabel");
   runBtn.disabled = true; label.innerHTML = '<span class="spinner"></span> Marking…';
@@ -30942,7 +31182,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.78.5 · 2026-09-14";
+const APP_VERSION = "v1.79.0 · 2026-09-14";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -31684,35 +31924,18 @@ let studentLevel = '';           // '' = not told yet, which caps nothing
 // guest, or a pupil who has not chosen yet. A full pool beats an empty one,
 // and a silent empty pool would take the maths out of every mode at once.
 function studentLevelsAllowed() {
-  if (!studentLevel || _isAdmin()) return null;
-  const i = STUDENT_LEVELS.indexOf(studentLevel);
-  return i < 0 ? null : STUDENT_LEVELS.slice(0, i + 1);
+  if (_isAdmin()) return null;
+  const level = parsePracticeLevel(studentLevel);
+  return level.known && !level.invalid ? STUDENT_LEVELS.filter(value => parsePracticeLevel(value).max <= level.max) : [];
 }
-// The level a question is judged at: the HIGHEST of its own `level` field and
-// the front of every syllabus tag it carries. Highest, not lowest — a question
-// tagged across two levels is as hard as its hardest objective, and the whole
-// promise here is that a P4 pupil never meets P5 content.
 function qLevelCeiling(q) {
-  let top = '';
-  const m = /P[1-6]/.exec(String((q && q.level) || '').toUpperCase());
-  if (m) top = m[0];
-  ((q && q.los) || []).forEach(id => {
-    const t = /^P[1-6]/.exec(String(id || ''));
-    if (t && t[0] > top) top = t[0];
-  });
-  return top;
+  return practiceQuestionLevel(q, { syllabusById: _studentSyllabus() }).label || '';
 }
 function qWithinStudentLevel(q) {
   if (!q) return false;
-  const allow = studentLevelsAllowed();
-  if (!allow) return true;
-  const lv = qLevelCeiling(q);
-  // A question that declares no level and carries no syllabus tag cannot be
-  // judged, so it is not withheld: a bank whose questions were never levelled
-  // would otherwise disappear from the games the moment a pupil picks a level.
-  if (!lv) return true;
-  // P1–P3 is revision below the whole cap and always allowed.
-  return lv < 'P4' || allow.indexOf(lv) >= 0;
+  if (_isAdmin()) return true;
+  const student = parsePracticeLevel(studentLevel), question = practiceQuestionLevel(q, { syllabusById: _studentSyllabus() });
+  return student.known && !student.invalid && question.known && !question.invalid && question.max <= student.max;
 }
 const IMG_AUTO_MAX_PCT = 70;
 function imgSizeStyle(block) {
@@ -31730,6 +31953,7 @@ function noteAttemptLocally(qid, score, total) {
     const m = JSON.parse(localStorage.getItem(k) || '{}');
     m[qid] = { s: score, t: total, at: Date.now() };
     localStorage.setItem(k, JSON.stringify(m));
+    _studentFeedInvalidate();
   } catch (e) {}
 }
 
@@ -39141,7 +39365,7 @@ function _tcgBankQuestions() {
         else if (b.type === 'image' && b.url) { html += '<div class="tcg-quiz-img"><img src="' + escapeHtml(transformImageUrl(b.url)) + '" onerror="handleImgError(this)" loading="lazy" decoding="async" style="' + imgSizeStyle(b) + '"></div>'; hasStem = true; }
       });
       if (!hasStem) return;
-      out.push({ id: q.id || '', html: html, opts: opts, a: ai, ex: ex, db: true });
+      out.push({ id: q.id || '', html: html, opts: opts, a: ai, ex: ex, db: true, feedSource: q });
     });
   } catch (e) {}
   return out;
@@ -39162,7 +39386,7 @@ function _tcgBuiltInQuestions() {
   const out = [];
   TCG_QUIZ.forEach(x => {
     if (!qWithinStudentLevel({ level: tcgQuizLevel(x), los: x.lo ? [x.lo] : [] })) return;
-    out.push({ id: x.qid, html: '<div class="qp-qtext">' + escapeHtml(x.q) + '</div>', opts: x.opts, a: x.a, ex: x.ex, lo: x.lo || '', db: false });
+    out.push({ id: x.qid, html: '<div class="qp-qtext">' + escapeHtml(x.q) + '</div>', opts: x.opts, a: x.a, ex: x.ex, lo: x.lo || '', db: false, feedSource: _studentGameSource(x) });
   });
   _tcgBuiltIn = out; _tcgBuiltInKey = key;
   return out;
@@ -39171,7 +39395,7 @@ function _tcgBuiltInQuestions() {
 // fallback. These 1 600 are the maths spine of every Aetherfall mode, and a
 // bank holding a dozen approved MCQs must not narrow the trainer, the Siege
 // and the arena back down to those dozen on repeat.
-function _tcgQuizPool() { return _tcgBankQuestions().concat(_tcgBuiltInQuestions()); }
+function _tcgQuizPool() { return _studentGameRows(_tcgBankQuestions().concat(_tcgBuiltInQuestions())); }
 function _tcgShuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
 // Persistent per-student trainer rotation: every question served in Unit
 // Cards training is stamped, and the pool is ordered least-recently-served
@@ -39191,7 +39415,7 @@ function tcgTrainCard(id) {
   // Shuffle for a random tie-break, then serve least-recently-trained first.
   const servedMap = _tcgServedLoad();
   const ordered = _tcgShuffle(pool).sort((a, b) => (servedMap[a.id] || 0) - (servedMap[b.id] || 0));
-  _tcgQuiz = { id, pool: ordered, i: 0, answered: false, cur: null };
+  _tcgQuiz = { id, pool: ordered, i: 0, answered: false, cur: null, feedLevel: studentLevel, feedUid: String(currentUser && currentUser.uid || "") };
   const c = TCG_BY_ID[id];
   const o = document.createElement('div');
   o.className = 'tcg-overlay'; o.id = 'tcgTrainOverlay';
@@ -39225,7 +39449,8 @@ function _tcgQuizRender() {
   }
   _tcgQuiz.answered = false;
   _tcgQuiz.at = performance.now();   // clocked so the shared anti-rush gate applies here too
-  const q = _tcgQuiz.pool[_tcgQuiz.i % _tcgQuiz.pool.length];
+  const q = _studentNextGameQuestion(_tcgQuiz, 'i');
+  if (!q) { _tcgQuiz.cur = null; _tcgQuiz.answered = true; body.innerHTML = '<div class="tcg-quiz-done">' + escapeHtml(_studentFeedMessage()) + '</div>'; return; }
   _tcgQuiz.cur = q;
   if (q && q.id) _tcgServedMark(q.id);
   body.innerHTML = '<div class="tcg-quiz-q">' + (q.html || escapeHtml(q.q || '')) + '</div>'
@@ -39273,7 +39498,7 @@ function _tcgQuizAnswer(idx) {
   const fb = document.getElementById('tcgqFb');
   if (fb) fb.innerHTML = msg;
 }
-function _tcgQuizNext() { if (!_tcgQuiz) return; _tcgQuiz.i++; _tcgQuizRender(); }
+function _tcgQuizNext() { if (!_tcgQuiz) return; _tcgQuizRender(); }
 function _tcgLevelUpBurst() {
   const modal = document.querySelector('.tcg-train-modal'); if (!modal) return;
   const d = document.createElement('div'); d.className = 'tcg-levelup-burst'; d.textContent = 'LEVEL UP!';
@@ -41405,6 +41630,7 @@ function duelStart() {
   // brought, so the same deck does not meet the same fight every time.
   const pHero = duelHero(s), eHero = duelRivalHero(s, pHero, plan);
   duelRun = {
+    feedLevel: studentLevel, feedUid: String(currentUser && currentUser.uid || ""),
     id: ++_duelRunSeq,
     turn: 1, whose: 'P', over: false, won: false, banked: false, busy: false, fxUntil: 0,
     p: { hp: DUEL_HERO_HP, maxHp: DUEL_HERO_HP, armor: 0, hero: pHero, powerUsed: false, mana: 0, cap: 0, deck: pDeck.slice(), hand: [], board: [], fatigue: 0 },
@@ -43230,7 +43456,8 @@ function duelOpenQuiz() {
   if (r.quiz) return;                                     // one panel, never two
   const stale = document.getElementById('duelQuiz'); if (stale) stale.remove();
   if (!r.pool.length) { showToast('No questions available yet', 'error'); return; }
-  const q = r.pool[r.poolI % r.pool.length]; r.poolI++;
+  const q = _studentNextGameQuestion(r);
+  if (!q) { showToast(_studentFeedMessage(), ""); return; }
   if (q && q.id) _tcgServedMark(q.id);
   r.quiz = { q, at: (typeof performance !== 'undefined' ? performance.now() : Date.now()), answered: false };
   const host = document.getElementById('duelOverlay'); if (!host) return;
@@ -43869,6 +44096,7 @@ function emsStart() {
   const served = _tcgServedLoad();
   emsRun.pool = _tcgShuffle(pool).sort((a, b) => (served[a.id] || 0) - (served[b.id] || 0));
   emsRun.poolI = 0;
+  emsRun.feedLevel = studentLevel; emsRun.feedUid = String(currentUser && currentUser.uid || "");
   const grid = document.getElementById('emsGrid');
   if (grid) {
     let cells = '';
@@ -44610,8 +44838,8 @@ function emsCloseQuiz() {
 }
 function emsNextQuestion() {
   const r = emsRun; if (!r) return;
-  const q = r.pool[r.poolI % r.pool.length];
-  r.poolI++;
+  const q = _studentNextGameQuestion(r);
+  if (!q) { emsCloseQuiz(); showToast(_studentFeedMessage(), ""); return; }
   r.quiz = { q: q, at: performance.now(), answered: false };
   if (q && q.id) _tcgServedMark(q.id);
   const body = document.getElementById('emsQuizBody');
@@ -45365,6 +45593,7 @@ function elgStart(cardId) {
   const pool = _tcgQuizPool();
   const served = _tcgServedLoad();
   elgRun.pool = _tcgShuffle(pool).sort((a, b) => (served[a.id] || 0) - (served[b.id] || 0));
+  elgRun.feedLevel = studentLevel; elgRun.feedUid = String(currentUser && currentUser.uid || "");
   elgBindInput();
   elgPrepFx(elgRun);   // key + cache the element FX frames for this hero
   elgRenderSkills();
@@ -46277,8 +46506,8 @@ function elgCloseQuiz() {
 }
 function elgNextQuestion() {
   const r = elgRun; if (!r) return;
-  const q = r.pool[r.poolI % r.pool.length];
-  r.poolI++;
+  const q = _studentNextGameQuestion(r);
+  if (!q) { elgCloseQuiz(); showToast(_studentFeedMessage(), ""); return; }
   r.quiz = { q, at: performance.now(), answered: false };
   if (q && q.id) _tcgServedMark(q.id);
   const box = document.getElementById('elgQuiz'); if (!box) return;
@@ -48867,7 +49096,7 @@ function _sylImportedIds() {
 function _tcgQuizIndex(x) { return +String((x && x.qid) || '').split(':')[1]; }
 let _sylQuiz = null;
 function sylQuizOpen(loId, i) {
-  const pool = sylQuizFor(loId);
+  const pool = _studentGameRows(sylQuizFor(loId), true);
   if (!pool.length) { toast("Nothing to practise here yet", "error"); return; }
   const existing = document.getElementById('sylQuizOverlay'); if (existing) existing.remove();
   const lo = SYL_LO_BY_ID[loId];
@@ -48891,6 +49120,7 @@ function sylQuizClose() {
 function sylQuizRender() {
   const body = document.getElementById('sylqBody'); if (!body || !_sylQuiz) return;
   const q = _sylQuiz.pool[_sylQuiz.i];
+  if (!_studentGateDirect(_studentGameSource(q))) { sylQuizClose(); return; }
   _sylQuiz.answered = false;
   const st = document.getElementById('sylqStatus');
   if (st) st.innerHTML = '<span class="tcg-quiz-count">Question ' + (_sylQuiz.i + 1) + ' of ' + _sylQuiz.pool.length + '</span>';
@@ -49070,6 +49300,8 @@ function sylPractiseLo(loId) {
 // Put these questions at the front of the practice queue — the same move the
 // worksheet's ✍️ Practise button makes, so there is one practice entry point.
 function sylPractise(qs) {
+  qs = _studentManualQuestions(qs);
+  if (!qs.length) return;
   _practiceSetMode(true);
   const ids = new Set(qs.map(q => q.id));
   questionBank = qs.concat(questionBank.filter(q => !ids.has(q.id)));
@@ -49653,7 +49885,7 @@ async function dgPrintDraft(autoPrint) {
     }));
 }
 function dgPractiseDraft() {
-  const questions = dgDraftQuestions();
+  const questions = _studentManualQuestions(dgDraftQuestions());
   if (!questions.length) { toast("Pick some questions first", "error"); return; }
   _practiceSetMode(true);
   const ids = new Set(questions.map(q => q.id));
