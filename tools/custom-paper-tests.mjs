@@ -595,7 +595,7 @@ ok("a worksheet's instruction line prints above question 1, on the same sheet",
   ok("…and for the marks the page prints, never an invented one",
      /"marks"/.test(prompt) && /never invent one/.test(prompt));
   ok("…and it reads the images as ONE CONTINUOUS RUN", /ONE CONTINUOUS RUN/.test(prompt));
-  ok("…and asks which image a figure is on", /"page": the 1-based index/.test(prompt));
+  ok("…and asks which image each figure is on", /Each image block's "page" is the 1-based index/.test(prompt));
   ok("a page holding only the TAIL of a question is not an empty page",
      /holding only the TAIL/.test(prompt),
      "the blank-page rule and the continuation rule read straight at each other");

@@ -6259,7 +6259,7 @@ import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/
 import { getAI, getGenerativeModel, GoogleAIBackend, ResponseModality } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-ai.js";
 import { getStorage, ref as storageRef, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-storage.js";
 
-import { assemblePage as assembleMathPdfPage, signature as mathImportSignature } from "./rapid-import/functions/core.js";
+import { assemblePage as assembleMathPdfPage, signature as mathImportSignature, questionBlocks as mathQuestionBlocks, diagramSourcesForQuestion, hasOrderedQuestionLayout } from "./rapid-import/functions/core.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAUSI3Uh28IeqASEp0JhH4QPaVt-O3meBo",
@@ -14336,7 +14336,7 @@ function aiQuestionReadPrompt(isPdf, withBox = false, many = false, run = null) 
     `{"title":"<short title>","level":"<e.g. P5 or Sec 1>","topics":["<e.g. Fractions>","<optional second topic>"],"concept":"<teacher-only concept or strategy label, or empty string>",` +
     `"questionText":"<the full question text, cleaned up>","expected":"<the correct final answer, with units>",` +
     `"markingGuide":"<concise worked solution / what to look for in the working>","hasDiagram":<true if the question relies on a figure/diagram, else false>,` +
-    (withBox ? `"diagramBox":[<ymin>,<xmin>,<ymax>,<xmax>] or null,` : ``) +
+    (withBox ? `"diagramBox":[<ymin>,<xmin>,<ymax>,<xmax>] or null,"blocks":[{"type":"text","content":"<wording before the figure>"},{"type":"image","diagramBox":[<ymin>,<xmin>,<ymax>,<xmax>],"page":1},{"type":"text","content":"<wording after the figure>"}],` : ``) +
     (many ? `"number":"<the paper's own question number, e.g. 12 or 8(a), or empty>",` : ``) +
     (run
       ? `"questionType":"mcq" or "open","marks":<the marks the page prints for this question, or null>,"partMarks":[<the marks printed against each lettered part, in order, e.g. [1,2]>] or null,` +
@@ -14351,7 +14351,9 @@ function aiQuestionReadPrompt(isPdf, withBox = false, many = false, run = null) 
     `For "concept", use a specific private teacher-only strategy/concept label only when one clearly applies, such as Assumption, Total unchanged, Difference unchanged, Guess and Check, or Working Backwards; otherwise leave it empty. Do not use the generic label "Model Method".\n` +
     `If the exam question is MULTIPLE-CHOICE, extract the answer options exactly as written and work out which one is correct. If it is not multiple-choice, return an empty options array and correctOption -1.\n` +
     (withBox
-      ? `If the question relies on a figure, diagram, table or graph, set "hasDiagram" to true and give "diagramBox" as [ymin,xmin,ymax,xmax] — integers 0-1000 measured on the attached image — the tight rectangle around that figure ONLY. Include the figure's own labels, axis titles, units and a short caption like "Diagram 1"; EXCLUDE full sentences of question text. WHEN THE ANSWER OPTIONS ARE PICTURES (four little diagrams, four graphs, four shapes, one per choice) they cannot be written out, so draw ONE rectangle around ALL of them together with the (1) (2) (3) (4) labels printed with them, and include it in diagramBox along with the figure if there is one. NEVER one rectangle per option. If there is no figure, set hasDiagram false and diagramBox null.\n`
+      ? `Preserve the printed reading order in "blocks": alternate text blocks and image blocks exactly where each figure appears among the wording and question parts. The text blocks joined in order MUST contain exactly all of questionText, with no missing or duplicated wording. A text-only question has only text blocks.\n` +
+        `If the question relies on a figure, diagram, table or graph, set "hasDiagram" to true. Give EVERY image block its own "diagramBox" as [ymin,xmin,ymax,xmax] — integers 0-1000 measured on its source image — and "page" as that attached image's 1-based index (1 for a single image). The rectangle tightly encloses that figure ONLY. Include ALL of the figure's own labels, axis titles, units and a short caption like "Diagram 1"; EXCLUDE full sentences of question text, which belong in surrounding text blocks. Separate figures with intervening wording MUST be separate image blocks, never one rectangle spanning the wording. Keep the first figure's rectangle in the top-level diagramBox for compatibility.\n` +
+        `WHEN THE ANSWER OPTIONS ARE PICTURES (four little diagrams, graphs or shapes, one per choice), use ONE image block enclosing ALL choices with their (1) (2) (3) (4) labels at their printed position. NEVER one rectangle per option, and never combine the choices with a separate earlier figure across question text. If there is no figure, set hasDiagram false and diagramBox null.\n`
       : ``) +
     (many
       ? `FIRST decide HOW MANY QUESTIONS the attached page holds. This decision comes before everything else:\n` +
@@ -14369,7 +14371,7 @@ function aiQuestionReadPrompt(isPdf, withBox = false, many = false, run = null) 
       ? (nImg > 1
           ? `\nIMPORTANT — read all ${nImg} images AS ONE CONTINUOUS RUN, not as ${nImg} separate questions. ONE question is very often spread across two or three of these images (its wording on one, its diagram on the next, its parts after that), and ONE image may hold several questions. Decide where each question starts and ends from the wording and the numbering, NEVER from where one image ends and the next begins. Do not drop content from any image, and do not split one question into two entries just because it crosses an image boundary.\n`
           : ``) +
-        (nImg > 1 ? `- "page": the 1-based index of the attached image this question's figure is on (1 = the first attached image). "diagramBox" is measured on THAT image: 0,0 is its top-left corner, 1000,1000 its bottom-right corner.\n` : ``) +
+        (nImg > 1 ? `- Each image block's "page" is the 1-based index of the attached image that figure is on (1 = the first attached image). Its "diagramBox" is measured on THAT image: 0,0 is its top-left corner, 1000,1000 its bottom-right corner. Figures in one question may have DIFFERENT pages; preserve every figure at its own place. Top-level page refers to the first figure.\n` : ``) +
         `- "questionType" is the MOST IMPORTANT field on this job, because it decides which booklet the question is printed in. "mcq" means the question offers a fixed set of numbered or lettered answer options to choose from and nothing is written out. "open" means the child writes the answer — a number, a sentence, working, a table to fill in, a diagram to draw or label. A question that offers options AND asks for written working is "open".\n` +
         `- "marks": the marks the page prints for this question, from the [2] or (2 marks) printed beside it. When a section instruction says "Questions 19 to 30 carry 2 marks each", every question in that range is worth that. Use null when the page does not say — never invent one.\n` +
         `- "partMarks": when a question in parts prints a mark against EACH part — "Ans: (a) ____ [1]" then "Ans: (b) ____ [2]" — return them in order as [1,2], and "marks" is their total. Use null when the marks are printed once for the whole question or not at all.\n` +
@@ -14399,12 +14401,13 @@ async function runAiBuildFromMedia(source) {
     // paste into by hand — exactly as it always did.
     const wantBox = !source.isPdf;
     const prompt = aiQuestionReadPrompt(source.isPdf, wantBox);
-    const raw = await askGeminiVision(prompt, [{ mimeType: source.mimeType, data: source.data }], { maxOutputTokens: wantBox ? 2400 : 2200, json: true });
+    const raw = await askGeminiVision(prompt, [{ mimeType: source.mimeType, data: source.data }], { maxOutputTokens: wantBox ? 4500 : 2200, json: true });
     const data = parseAIJson(raw);
     populateEditorFromAi(data);
     closeOverlay("aiBuildOverlay");
     navigateTo("create");
-    toast("Draft created — review and save", "success");
+    const placementWarning = aiQuestionLayoutWarning(data);
+    toast(placementWarning || "Draft created — review and save", placementWarning ? "error" : "success");
     // The picture and the objectives are two more AI calls, so they are finished
     // off in the BACKGROUND: the author can read the wording straight away, and
     // the bar above the editor says what is still coming.
@@ -14430,12 +14433,22 @@ function aiFinishBar(msg) {
 // picture cut out of last screenshot lands on the question open now.
 async function finishAiBuild(data, source, wantBox) {
   const owner = editorBlocks;
-  const imgBlock = wantBox ? owner.find(b => b.type === "image") : null;
-  if (!imgBlock && !sylAutoFileOn()) return;
-  let pic = null, ids = [];
+  const images = wantBox ? owner.filter(b => b.type === "image") : [];
+  const sources = diagramSourcesForQuestion(data);
+  if (!images.length && !sylAutoFileOn()) return;
+  const pics = [];
+  let ids = [];
   try {
-    if (imgBlock) {
-      pic = await autoDiagramIntoBlock(imgBlock, data.diagramBox || data.box_2d, source, m => aiFinishBar(m));
+    for (let i = 0; i < images.length; i++) {
+      if (editorBlocks !== owner) return;
+      try {
+        pics.push(await autoDiagramIntoBlock(images[i], sources[i]?.diagramBox, source, m => {
+          if (editorBlocks === owner) aiFinishBar(m);
+        }));
+      } catch (e) {
+        console.warn("finishing an AI figure", e);
+        pics.push({ url: "", cropped: false });
+      }
       if (editorBlocks !== owner) return;
       renderEditorBlocks();
     }
@@ -14445,13 +14458,15 @@ async function finishAiBuild(data, source, wantBox) {
   } catch (e) {
     console.warn("finishing the AI build", e);
   } finally {
-    aiFinishBar("");
+    if (editorBlocks === owner) aiFinishBar("");
   }
   const bits = [];
-  if (pic) bits.push(autoDiagramNote(pic));
+  const placementWarning = aiQuestionLayoutWarning(data);
+  if (placementWarning) bits.push(placementWarning);
+  if (pics.length) bits.push(...pics.map(autoDiagramNote));
   if (ids.length) bits.push(`filed under ${ids.length} objective${ids.length === 1 ? "" : "s"}`);
   if (!bits.length) return;
-  const clean = !pic || (pic.cropped && pic.url);
+  const clean = !placementWarning && pics.every(pic => pic.cropped && pic.url);
   toast(`${bits.join(" · ")} — check ${clean ? "them" : "it"} before saving`, clean ? "success" : "error");
 }
 function populateEditorFromAi(d) {
@@ -14464,10 +14479,7 @@ function populateEditorFromAi(d) {
   pendingVariantOf = null;
   editorLos = []; sylEditorRender();
   imgChoices.clear();
-  editorBlocks = [];
-  const qt = String(d.questionText || "").trim();
-  editorBlocks.push({ id: genBlockId(), type: "text", content: qt });
-  if (d.hasDiagram) editorBlocks.push({ id: genBlockId(), type: "image", url: "", scale: 1 });
+  editorBlocks = aiQuestionBlocks(d);
   $("qTitleInput").value = d.title || "";
   $("qLevelInput").value = d.level || "";
   const topics = parseTopics(d.topics && d.topics.length ? d.topics : d.topic);
@@ -16210,8 +16222,9 @@ function mathImportCheckBadge(q) {
   return '<span class="vet-badge" title="'+escapeHtml(label+(q.autoCheck.error?' — '+q.autoCheck.error:'')+(detail?'\n'+detail:''))+'" aria-label="'+escapeHtml(label)+'">'+colour+' AI</span>';
 }
 function mathImportSources(q) {
-  if(!q.sourcePages?.length) return '';
-  return '<div class="vet-meta">Source: '+q.sourcePages.filter(p=>/^https:\/\//.test(p.url)).map(p=>'<a target="_blank" rel="noopener" href="'+escapeHtml(p.url)+'">Page '+escapeHtml(String(p.page))+'</a>').join(' · ')
+  const pages = (q.sourcePages || []).filter(p=>/^https:\/\//.test(p.url));
+  if(!pages.length && !q.importWarning) return '';
+  return '<div class="vet-meta">'+(pages.length?'Source: '+pages.map(p=>'<a target="_blank" rel="noopener" href="'+escapeHtml(p.url)+'">Page '+escapeHtml(String(p.page))+'</a>').join(' · '):'')
     +(q.importWarning?'<span class="vet-badge warn">'+escapeHtml(q.importWarning)+'</span>':'')+'</div>';
 }
 
@@ -16489,13 +16502,15 @@ async function processRapidJob(jobId, file, batchLevel, opts) {
       // which is one ✂️ crop away from being right; an EMPTY picture block is
       // not an outcome, it is a question that reaches Vetting with a hole in
       // it and nothing but the paper to fix it from.
-      const imgBlock = q.blocks.find(b => b.type === "image");
-      if (imgBlock) {
+      const images = q.blocks.filter(b => b.type === "image");
+      const diagramSources = diagramSourcesForQuestion(row);
+      for (let imageIndex = 0; imageIndex < images.length; imageIndex++) {
+        const imgBlock = images[imageIndex];
         // ONE door, shared with ✨ Build with AI: cut it out, check the cut,
         // clean it up. It never throws — a question is worth keeping without
         // its figure.
         try {
-          const r = await autoDiagramIntoBlock(imgBlock, row.diagramBox || row.box_2d, media, m => {
+          const r = await autoDiagramIntoBlock(imgBlock, diagramSources[imageIndex]?.diagramBox, media, m => {
             setRapidJobState(jobId, { title: q.title || "Question", sub: lead + m });
             renderVettingList();
           }, many ? { sharePage } : {});
@@ -16546,10 +16561,16 @@ async function processRapidJob(jobId, file, batchLevel, opts) {
 // Turn one AI reading into a question object, without touching the editor.
 // Shares its field mapping with populateEditorFromAi so a Rapid-add question
 // and a Build-with-AI question come out the same shape.
+function aiQuestionBlocks(d) {
+  return mathQuestionBlocks(d, genBlockId(), Array(diagramSourcesForQuestion(d).length).fill(""));
+}
+function aiQuestionLayoutWarning(d) {
+  return Array.isArray(d.blocks) && !hasOrderedQuestionLayout(d)
+    ? "Picture placement could not be read safely. Check the picture positions against the source." : "";
+}
 function questionFromAiData(d) {
   const topics = parseTopics(d.topics && d.topics.length ? d.topics : d.topic);
-  const blocks = [{ id: genBlockId(), type: "text", content: String(d.questionText || "").trim() }];
-  if (d.hasDiagram) blocks.push({ id: genBlockId(), type: "image", url: "", scale: 1 });
+  const blocks = aiQuestionBlocks(d);
   const q = {
     id: "mq_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
     title: String(d.title || "").trim() || "Untitled",
@@ -16566,6 +16587,8 @@ function questionFromAiData(d) {
     createdAt: new Date().toISOString(),
     createdBy: currentUser ? currentUser.name : "Admin"
   };
+  const placementWarning = aiQuestionLayoutWarning(d);
+  if (placementWarning) q.importWarning = placementWarning;
   const opts = Array.isArray(d.options) ? d.options.map(o => String(o == null ? "" : o).trim()).filter(Boolean) : [];
   if (opts.length >= 2) {
     let ci = Number(d.correctOption);
@@ -16665,8 +16688,11 @@ function _expandRectToWhitespace(ctx, W, H, r, thr) {
   let { x, y, w, h } = r, gL = 0, gR = 0, gT = 0, gB = 0;
   for (let i = 0; i < 40; i++) {
     let moved = false;
-    if (x > 0 && gL < maxX && inkFrac(x, y, 3, h) > TH) { const d = Math.min(stepX, x, maxX - gL); x -= d; w += d; gL += d; moved = true; }
-    if (x + w < W && gR < maxX && inkFrac(x + w - 3, y, 3, h) > TH) { const d = Math.min(stepX, W - (x + w), maxX - gR); w += d; gR += d; moved = true; }
+    // Look one step past horizontal edges: a three-pixel strip can land in
+    // the gap BETWEEN letters and stop halfway through a label. This short
+    // halo bridges letter spacing while the existing growth caps still hold.
+    if (x > 0 && gL < maxX && inkFrac(Math.max(0, x - stepX), y, Math.min(stepX, x) + 3, h) > TH) { const d = Math.min(stepX, x, maxX - gL); x -= d; w += d; gL += d; moved = true; }
+    if (x + w < W && gR < maxX && inkFrac(x + w - 3, y, stepX + 3, h) > TH) { const d = Math.min(stepX, W - (x + w), maxX - gR); w += d; gR += d; moved = true; }
     if (y > 0 && gT < maxY && inkFrac(x, y, w, 3) > TH) { const d = Math.min(stepY, y, maxY - gT); y -= d; h += d; gT += d; moved = true; }
     if (y + h < H && gB < maxY && inkFrac(x, y + h - 3, w, 3) > TH) { const d = Math.min(stepY, H - (y + h), maxY - gB); h += d; gB += d; moved = true; }
     if (!moved) break;
@@ -22311,12 +22337,20 @@ async function cpbReadRun(shots, opt) {
       let pi = parseInt(row.page, 10);
       if (!isFinite(pi) || pi < 1 || pi > batch.length) pi = 1;
       const media = { mimeType: batch[pi - 1].mimeType, data: batch[pi - 1].data };
+      const sourceForPage = page => {
+        const missingPage = page === undefined || page === null;
+        let index = missingPage ? pi : Number(page);
+        const invalidPage = !missingPage && (!Number.isInteger(index) || index < 1 || index > batch.length);
+        if (invalidPage) index = pi;
+        const shot = batch[index - 1];
+        return { media: { mimeType: shot.mimeType, data: shot.data }, sharePage: sharePageFor(index - 1), invalidPage };
+      };
       // A CONTINUATION is the rest of the question the run finished on, and it
       // is only ever the FIRST entry of a batch: any other entry claiming to
       // continue something is a reply that ignored the question.
       if (r === 0 && row.continuation === true && last) {
         cpbNote("Joining " + span + " onto the question before it…");
-        await cpbExtend(last, row, media, sharePageFor(pi - 1), budget);
+        await cpbExtend(last, row, media, sharePageFor(pi - 1), budget, sourceForPage);
         if (o.onExtend) o.onExtend(last);
         continue;
       }
@@ -22332,7 +22366,7 @@ async function cpbReadRun(shots, opt) {
       if (["a", "b", "p2"].includes(row.paperSection)) q._cpbBook = row.paperSection;
       if (o.onBuilt) o.onBuilt(q, row);
       cpbNote("Cropping the picture for “" + (q.title || "question") + "”…");
-      await cpbFillDiagram(q, row, media, sharePageFor(pi - 1), budget);
+      await cpbFillDiagram(q, row, media, sharePageFor(pi - 1), budget, sourceForPage);
       last = q;
       made++;
       if (o.onDone) o.onDone(q);
@@ -22364,30 +22398,35 @@ function cpbReadPartMarks(row) {
 // The figure, through the ONE door ⚡ Rapid add and ✨ Build with AI already
 // share — cut it out, check the cut, clean it up. It never throws: a question
 // is worth keeping without its figure.
-async function cpbFillDiagram(q, row, media, sharePage, budget) {
-  const imgBlock = (q.blocks || []).find(b => b.type === "image");
-  if (!imgBlock) return;
+async function cpbFillDiagram(q, row, media, sharePage, budget, sourceForPage) {
+  const images = (q.blocks || []).filter(b => b.type === "image");
+  const sources = diagramSourcesForQuestion(row);
   // The clean-up is one image-model call per picture, so the run holds ONE
   // budget across every call rather than a cap per question — a per-call cap
   // is no cap at all on a forty-question sheet.
-  const clean = budget.left > 0;
-  try {
-    const r = await autoDiagramIntoBlock(imgBlock, row.diagramBox || row.box_2d, media, m => cpbNote(m),
-      { sharePage, clean });
-    if (clean && r.cleaned) budget.left = Math.max(0, budget.left - 1);
-    if (r.whole || (r.url && !r.cropped)) q.diagramWhole = true;
-  } catch (e) { console.warn("custom paper diagram failed", e); }
+  for (let i = 0; i < images.length; i++) {
+    const source = typeof sourceForPage === "function" ? sourceForPage(sources[i]?.page) : { media, sharePage };
+    // Coordinates on an unknown page cannot safely crop the fallback page.
+    // Keep a visible whole-page backup and require its placement to be checked.
+    const box = source.invalidPage ? null : sources[i]?.diagramBox;
+    if (source.invalidPage) q.importWarning = "A figure's source page could not be identified. Check its picture against the source screenshots.";
+    const clean = budget.left > 0;
+    try {
+      const r = await autoDiagramIntoBlock(images[i], box, source.media, m => cpbNote(m),
+        { sharePage: source.sharePage, clean });
+      if (clean && r.cleaned) budget.left = Math.max(0, budget.left - 1);
+      if (r.whole || (r.url && !r.cropped)) q.diagramWhole = true;
+    } catch (e) { console.warn("custom paper diagram failed", e); }
+  }
 }
 // A question carrying on from the one before it. Its wording is APPENDED and
 // its figure, if it has one, becomes another picture block — never a second
 // question, which is what the page break produced before this existed.
-async function cpbExtend(q, row, media, sharePage, budget) {
-  const more = String(row.questionText || "").trim();
-  if (more) {
-    const text = (q.blocks || []).filter(b => b.type === "text").pop();
-    if (text) text.content = String(text.content || "").trim() + "\n" + more;
-    else q.blocks.push({ id: genBlockId(), type: "text", content: more });
-  }
+async function cpbExtend(q, row, media, sharePage, budget, sourceForPage) {
+  // Append the continuation in its own reading order. Merging its wording
+  // into the previous text block would move it ahead of the previous figure.
+  const continuation = { blocks: aiQuestionBlocks(row), importWarning: aiQuestionLayoutWarning(row) };
+  q.blocks = [...(q.blocks || []), ...continuation.blocks];
   const opts = Array.isArray(row.options) ? row.options.map(x => String(x == null ? "" : x).trim()).filter(Boolean) : [];
   if (opts.length >= 2 && !(q.options || []).length) {
     let ci = Number(row.correctOption);
@@ -22398,17 +22437,9 @@ async function cpbExtend(q, row, media, sharePage, budget) {
   if (!q.markingGuide && row.markingGuide) q.markingGuide = String(row.markingGuide).trim();
   if (!q.marks) q.marks = cpbReadMarks(row);
   if (!q.partMarks) { const parts = cpbReadPartMarks(row); if (parts) q.partMarks = parts; }
-  if (row.hasDiagram) {
-    const block = { id: genBlockId(), type: "image", url: "", scale: 1 };
-    q.blocks.push(block);
-    const clean = budget.left > 0;
-    try {
-      const r = await autoDiagramIntoBlock(block, row.diagramBox || row.box_2d, media, m => cpbNote(m),
-        { sharePage, clean });
-      if (clean && r.cleaned) budget.left = Math.max(0, budget.left - 1);
-      if (!block.url) q.blocks = q.blocks.filter(b => b !== block);   // an empty slot is worse than none
-    } catch (e) { q.blocks = q.blocks.filter(b => b !== block); }
-  }
+  await cpbFillDiagram(continuation, row, media, sharePage, budget, sourceForPage);
+  if (continuation.diagramWhole) q.diagramWhole = true;
+  if (continuation.importWarning) q.importWarning = continuation.importWarning;
 }
 
 function cpbCanRead() {
@@ -23929,6 +23960,7 @@ function cpbRowHtml(q, num, book, first, last) {
             ? (own ? escapeHtml(own + " mark" + (own === 1 ? "" : "s")) : `<span class="cpb-nomarks">no marks printed — counted as ${marks}</span>`)
             : escapeHtml(marks + " mark" + (marks === 1 ? "" : "s") + (own ? "" : " (default)"))}${!ws && cpbPartMarks(q, marks) ? ` <span class="cpb-dim" title="The marks printed against each part of the question — they print in brackets on each Ans line in Paper 2">(${cpbPartMarks(q, marks).join(" + ")})</span>` : ""}
         ${q.diagramWhole ? ` · <span class="cpb-nomarks">🖼 whole page — crop it</span>` : ""}
+        ${q.importWarning ? ` · <span class="cpb-nomarks">${escapeHtml(q.importWarning)}</span>` : ""}
         ${q._dupOf ? ` · <span class="cpb-nomarks">possible duplicate</span>` : ""}
         ${overridden ? ` · <span class="cpb-moved">moved here by hand</span>` : ""}
       </div>
@@ -30682,7 +30714,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.78.0 · 2026-09-11";
+const APP_VERSION = "v1.78.1 · 2026-09-13";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)

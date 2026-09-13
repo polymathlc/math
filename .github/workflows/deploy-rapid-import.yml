@@ -2,7 +2,7 @@ name: Math PDF import checks and deployment
 
 on:
   pull_request:
-    paths: ["index.html", "rapid-import/**", "tools/rapid-*.mjs", "tools/vetting-export-hover-tests.mjs", ".github/workflows/deploy-rapid-import.yml"]
+    paths: ["index.html", "rapid-import/**", "tools/rapid-*.mjs", "tools/crop-tighten-tests.mjs", "tools/diagram-placement-tests.mjs", "tools/vetting-export-hover-tests.mjs", ".github/workflows/deploy-rapid-import.yml"]
   push:
     branches: [main]
     paths: ["rapid-import/**", ".github/workflows/deploy-rapid-import.yml"]
@@ -25,6 +25,8 @@ jobs:
           node-version: "22"
       - run: npm ci --prefix rapid-import/functions --no-audit --no-fund
       - run: npm test --prefix rapid-import/functions
+      - run: node --test tools/diagram-placement-tests.mjs
+      - run: node tools/crop-tighten-tests.mjs
       - run: node tools/rapid-pdf-tests.mjs
       - run: node tools/rapid-cloud-tests.mjs
       - run: node tools/vetting-export-hover-tests.mjs
