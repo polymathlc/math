@@ -1,4 +1,4 @@
-# Math Rapid Add — v1.78.2
+# Math Rapid Add — v1.78.3
 
 Choose multiple PDFs in Rapid Add. Keep the tab open until every upload says
 “Stored online”. Online processing then reads, assembles, checks and saves
@@ -39,6 +39,13 @@ The deployment helper supplies missing nonsecret model parameters from the
 worker's declared defaults so unattended deployment does not prompt for them.
 Existing values in `functions/.env` or `functions/.env.mathgen--app` are kept.
 API keys continue to come from Secret Manager.
+
+Unattended deployment acknowledges the dispatcher's existing retry policy and
+targets only the seven named Math importer functions. Before deployment, it
+checks the source and deployed function inventory for missing exports, name
+collisions or migrations. The shared artifact repository must already have a
+cleanup policy or an explicit cleanup opt-out; this deployment does not choose
+a retention policy for the other apps.
 
 After activation, try two small PDFs, including a question spanning pages.
 Wait for both upload confirmations, close the browser, then reopen Math and

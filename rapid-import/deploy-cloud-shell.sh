@@ -10,8 +10,12 @@ cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 
 rapid_runtime=''
 rapid_probe=''
+rapid_inventory=''
+rapid_artifacts=''
 rapid_cleanup() {
   if [[ -n "$rapid_probe" ]]; then rm -f -- "$rapid_probe"; fi
+  if [[ -n "$rapid_inventory" ]]; then rm -f -- "$rapid_inventory"; fi
+  if [[ -n "$rapid_artifacts" ]]; then rm -f -- "$rapid_artifacts"; fi
   if [[ -n "$rapid_runtime" ]]; then rm -rf -- "$rapid_runtime"; fi
 }
 trap rapid_cleanup EXIT
@@ -48,7 +52,8 @@ if [[ "$(node -p 'process.versions.node.split(".")[0]')" != 22 ]]; then
   [[ "$(node -p 'process.versions.node.split(".")[0]')" == 22 ]] || fail 'Could not activate Node 22. Setup stopped without restarting; check your Node installation before retrying.'
 fi
 rapid_firebase() { npx --yes "firebase-tools@$RAPID_FIREBASE_VERSION" "$@"; }
-if ! rapid_firebase functions:list --project "$RAPID_PROJECT" --json >/dev/null; then
+rapid_inventory=$(mktemp)
+if ! rapid_firebase functions:list --project "$RAPID_PROJECT" --json >"$rapid_inventory"; then
   fail "Firebase access failed. If the error requests login, run: npx --yes firebase-tools@$RAPID_FIREBASE_VERSION login --no-localhost, then rerun setup."
 fi
 
@@ -56,6 +61,9 @@ echo 'Installing and checking the Rapid Add worker...'
 npm ci --prefix functions
 npm test --prefix functions
 node prepare-params.mjs "$RAPID_PROJECT"
+rapid_artifacts=$(mktemp)
+gcloud artifacts repositories describe gcf-artifacts --project="$RAPID_PROJECT" --location="$RAPID_REGION" --format=json >"$rapid_artifacts"
+rapid_targets=$(node deploy-targets.mjs "$rapid_inventory" "$rapid_artifacts" "$RAPID_REGION")
 
 echo 'Deploying the isolated math-rapid-import codebase...'
 # Read first: the shared project's CER importer may already have enabled it.
@@ -64,7 +72,9 @@ rapid_tasks_enabled=$(gcloud services list --enabled --project="$RAPID_PROJECT" 
 if [[ "$rapid_tasks_enabled" != 'cloudtasks.googleapis.com' ]]; then
   gcloud services enable cloudtasks.googleapis.com --project="$RAPID_PROJECT"
 fi
-rapid_firebase deploy --project "$RAPID_PROJECT" --config "$PWD/firebase.json" --only functions:math-rapid-import --non-interactive
+# Accept the dispatcher's intentional retry policy only after scope and shared
+# artifact-retention checks. Never force a whole-codebase deletion plan.
+rapid_firebase deploy --project "$RAPID_PROJECT" --config "$PWD/firebase.json" --only "$rapid_targets" --non-interactive --force
 
 rapid_functions=(mathRapidImportStatus mathRapidImportBegin mathRapidImportChunk mathRapidImportFinish mathRapidImportRetry mathRapidImportDispatch mathRapidImportPage)
 for rapid_function in "${rapid_functions[@]}"; do
