@@ -166,6 +166,7 @@ a { color: var(--primary); }
 .section-label { font-family: 'Space Mono', monospace; font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; }
 
 /* ========== BUTTONS ========== */
+#reviseMcqBtn[hidden] { display: none; }
 .btn { font-family: inherit; font-size: 0.92rem; font-weight: 600; padding: 11px 16px; border-radius: var(--radius-md); border: 1.5px solid transparent; cursor: pointer; transition: all var(--transition); display: inline-flex; align-items: center; justify-content: center; gap: 8px; user-select: none; }
 .btn-primary { background: var(--primary); color: #fff; }
 .btn-primary:hover { background: var(--primary-hover); }
@@ -967,6 +968,19 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 /* Text boxes on the worksheet */
 #textLayer { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
 #textLayer.text-mode { pointer-events: auto; cursor: text; }
+#questionCard.practice-round-complete #padCanvas,
+#questionCard.practice-round-complete #textLayer,
+#questionCard.practice-round-complete #canvasEmpty,
+#questionCard.practice-round-complete #workingLabel,
+#questionCard.practice-round-complete .worksheet-question > .section-label,
+#questionCard.practice-round-complete .pad-head,
+#questionCard.practice-round-complete .toolbar,
+#questionCard.practice-round-complete .typed-working,
+#questionCard.practice-round-complete .final-answer,
+#questionCard.practice-round-complete .practice-actions { display: none !important; }
+#questionCard.practice-round-complete .worksheet-surface,
+#questionCard.practice-round-complete .worksheet-content { min-height: 0; background: none; border: 0; touch-action: auto; }
+#questionCard.practice-round-complete .worksheet-content { pointer-events: auto; }
 .text-box { position: absolute; pointer-events: inherit; max-width: 90%; }
 .text-box-editor { pointer-events: inherit; min-width: 64px; min-height: 1.5em; padding: 4px 9px; border: 1.5px dashed transparent; border-radius: 8px; background: rgba(255,255,255,0.82); color: #2c2a27; font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 500; line-height: 1.45; outline: none; white-space: pre-wrap; word-break: break-word; cursor: text; user-select: text; -webkit-user-select: text; }
 .text-box-editor b, .text-box-editor strong { font-weight: 800; }
@@ -4885,6 +4899,7 @@ body.lore-reading { overflow: hidden; }
             <div class="mcq-prompt">Choose your answer</div>
             <div class="mcq-options" id="mcqOptions"></div>
             <div class="mcq-working-toggle" id="mcqWorkingToggle">✍️ Show working to check your method with AI (optional)</div>
+            <button class="btn btn-ghost btn-sm" id="reviseMcqBtn" type="button" hidden>Revise answer</button>
           </div>
           <div class="typed-working">
             <label for="typedWorking">⌨️ Or type your working <span style="color:var(--text-light);font-weight:400;">(use this instead of writing if you prefer)</span></label>
@@ -6248,6 +6263,7 @@ body.lore-reading { overflow: hidden; }
 // so it never collides with the Science app's documents).
 // =====================================================================
 import { mountInterfaceStudio, isReleased as interfaceIsReleased } from "./interface-studio.mjs?v=1";
+import { PRACTICE_FAMILY_COOLDOWN_MS, buildPracticeCatalog, createPracticeRun, recordPracticeServed, planPracticeQuestions } from "./practice-variety.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
   updateProfile, GoogleAuthProvider, signInWithPopup, signOut, signInAnonymously, browserPopupRedirectResolver }
@@ -7829,8 +7845,64 @@ function hideRatingTip() { const t = $("ratingTip"); if (t) t.hidden = true; }
   chart.addEventListener("touchstart", e => { const h = hit(e); if (h) showRatingTip(h); }, { passive: true });
   document.addEventListener("touchstart", e => { if (!hit(e)) hideRatingTip(); }, { passive: true });
 })();
+// ---- Automatic practice: space repeated stories and completed questions ----
+function _practiceSetMode(manual = false) {
+  const uid = String(currentUser && currentUser.uid || "");
+  if (_practiceRun.uid !== uid) _practiceRun = createPracticeRun(uid);
+  _practiceManual = manual;
+  _practiceExhausted = false;
+  if (manual) { videoOnlyFilter = false; stopAiPractice(); }
+}
+function _practiceRestartIfRested() {
+  const last = _practiceRun.served.reduce((at, item) => Math.max(at, item.at), 0);
+  if (last && Date.now() - last >= PRACTICE_FAMILY_COOLDOWN_MS) _practiceRun = createPracticeRun(_practiceRun.uid);
+}
+function _practiceCatalog() {
+  // Reordering/splicing existing records does not change their families.
+  // A loaded/replaced bank or an added record rebuilds the index.
+  if (_practiceCatalogBank !== questionBank || _practiceCatalogLength !== questionBank.length) {
+    _practiceCatalogBank = questionBank; _practiceCatalogLength = questionBank.length;
+    _practiceCatalogValue = buildPracticeCatalog(questionBank);
+  }
+  return _practiceCatalogValue;
+}
+function _practicePlan(candidates, extra = {}) {
+  return planPracticeQuestions(candidates, { bank: questionBank, catalog: _practiceCatalog(),
+    progress: studentProgress, run: _practiceRun, uid: currentUser && currentUser.uid,
+    now: Date.now(), videoOnly: videoOnlyFilter, manual: _practiceManual, ...extra });
+}
+function _practiceAutomatic() { return !!currentUser && currentUser.role === "student" && !_practiceManual; }
+function _practiceNoteShown(q) {
+  if (_practiceAutomatic()) _practiceRun = recordPracticeServed(_practiceRun, q, Date.now(), currentUser.uid);
+}
+function _practiceAdaptiveCandidates(q, candidates) {
+  if (!_practiceAutomatic()) return [];
+  return _practicePlan(candidates, { excludeIds: [q.id], excludeFamilyIds: [q.id] }).questions;
+}
+function _practiceFindMore() {
+  _practiceSetMode(false); _practiceRestartIfRested(); stopAiPractice();
+  prioritizeReviewQuestions(); renderQuestion();
+}
+function _practiceRenderFinished() {
+  $("questionCard").classList.add("practice-round-complete");
+  $("qMeta").style.display = "none";
+  $("flagQuestionBtn").disabled = true;
+  $("qBody").innerHTML = '<div class="empty-note" style="max-width:620px;margin:24px auto;padding:28px;line-height:1.65;">' +
+    '<h3 style="margin:0 0 12px;">You have reached the end of this practice round</h3>' +
+    '<p style="margin:0 0 20px;">Questions you just saw are taking a break. Choose another worksheet, or come back later for fresh practice and scheduled reviews.</p>' +
+    '<button type="button" class="btn btn-primary" id="practiceFindMoreBtn">Find available questions</button></div>';
+  $("practiceFindMoreBtn").addEventListener("click", _practiceFindMore);
+  $("finalAnswer").value = ""; $("typedWorking").value = "";
+  renderMcqArea(null); applyAnnotationMode(null); clearSolutionPhoto({ silent: true });
+  strokes = []; redoStack = []; current = null; clearTextBoxes(); redraw();
+  hideResult(); hideHint(); resetAskAi();
+  $("submitBtn").disabled = true; $("submitLabel").textContent = "Practice round complete";
+  $("nextBtn").disabled = true;
+}
+
 function prioritizeReviewQuestions(resetIndex = true) {
   if (!questionBank.length || !currentUser || currentUser.role !== "student") return;
+  _practiceSetMode(false);
   const now = Date.now();
   questionBank.sort((a, b) => {
     const pa = studentProgress[a.id] || {};
@@ -7845,7 +7917,11 @@ function prioritizeReviewQuestions(resetIndex = true) {
     if (wa !== wb) return wb - wa;
     return parseTimeMs(a.createdAt) - parseTimeMs(b.createdAt);
   });
-  if (resetIndex) qIndex = 0;
+  const eligible = _practicePlan(questionBank).questions;
+  const selected = new Set(eligible.map(q => q.id));
+  questionBank = eligible.concat(questionBank.filter(q => !selected.has(q.id)));
+  _practiceExhausted = !eligible.length;
+  if (resetIndex && eligible.length) qIndex = 0;
 }
 function updateDifficultyChip(q) {
   const el = $("qDifficulty");
@@ -7890,7 +7966,7 @@ function relatedVariants(q) {
 // Best teacher-made variant to retry after a miss: skip mastered ones, prefer
 // never-seen, then the least-attempted.
 function bestVariantToServe(q) {
-  const cands = relatedVariants(q).filter(x => !questionMastered(studentProgress[x.id]));
+  const cands = _practiceAdaptiveCandidates(q, relatedVariants(q).filter(x => !questionMastered(studentProgress[x.id])));
   if (!cands.length) return null;
   cands.sort((a, b) => {
     const pa = studentProgress[a.id] || {}, pb = studentProgress[b.id] || {};
@@ -7921,6 +7997,8 @@ function startAiPractice() {
   if (!currentUser || currentUser.role !== "student") return;
   if (!questionBank.length) { toast("No questions to practise yet", "error"); return; }
   if ((strokes.length || textBoxes.length || $("typedWorking").value.trim() || solutionPhotoDataUrl) && !confirm("Start AI practice? Your current working will be cleared.")) return;
+  _practiceSetMode(false);
+  _practiceRestartIfRested();
   const now = Date.now();
   const rating = studentEloValue();
   const target = rating + 80;            // growth zone: just above the current rating
@@ -7964,17 +8042,20 @@ function startAiPractice() {
     if (sa.seen !== sb.seen) return sa.seen - sb.seen;
     return sa.dist - sb.dist;
   });
-  const reviewSet = review.slice(0, AI_PRACTICE_REVIEW_MAX);
-  const growthSet = pool.slice(0, Math.max(0, AI_PRACTICE_SET_MAX - reviewSet.length));
+  const reviewSet = _practicePlan(review, { limit: AI_PRACTICE_REVIEW_MAX }).questions;
+  const growthSet = _practicePlan(pool, { limit: Math.max(0, AI_PRACTICE_SET_MAX - reviewSet.length),
+    excludeFamilyIds: reviewSet.map(q => q.id) }).questions;
   aiPracticeQueue = reviewSet.concat(growthSet);
   const inSet = new Set(aiPracticeQueue.map(q => q.id));
-  const remainder = review.slice(reviewSet.length).concat(pool.slice(growthSet.length)).filter(q => !inSet.has(q.id));
+  const remainder = review.concat(pool).filter(q => !inSet.has(q.id));
   questionBank = aiPracticeQueue.concat(remainder, skipped);
   qIndex = 0;
+  _practiceExhausted = !aiPracticeQueue.length;
   aiPracticeActive = true;
   aiPracticeStats = { review: reviewSet.length, growth: growthSet.length, total: aiPracticeQueue.length, variants: 0 };
   renderAiPracticeBar();
   renderQuestion();
+  if (_practiceExhausted) return;
   toast(`AI practice ready: ${aiPracticeQueue.length} question${aiPracticeQueue.length === 1 ? "" : "s"} in your growth zone (rating ${Math.round(rating)})`, "success");
 }
 function renderAiPracticeBar() {
@@ -7987,7 +8068,7 @@ function renderAiPracticeBar() {
   if (r) parts.push(`<b>${r}</b> to review`);
   if (g) parts.push(`<b>${g}</b> in your growth zone`);
   let lead = parts.length ? parts.join(" + ") + "." : "questions matched to your rating.";
-  lead += vCount ? ` Miss one and you'll get a variant to try again (${vCount} so far).` : " Miss one and you'll get a variant to try again.";
+  lead += " Similar questions are spaced out, with fresh work between reviews.";
   const steps = [];
   if (pCount) steps.push(`${pCount} prerequisite skill${pCount === 1 ? "" : "s"}`);
   if (eCount) steps.push(`${eCount} easier version${eCount === 1 ? "" : "s"}`);
@@ -8696,6 +8777,7 @@ function reviewPlanText(verdict, nextReviewAt) {
 }
 async function recordLearningAttempt(q, v, serverProgress) {
   if (!currentUser || currentUser.role !== "student" || !q) return "";
+  const attemptUid = currentUser.uid;
   const verdict = (v.verdict || "incorrect").toLowerCase();
   const isCorrect = verdict === "correct";
   const credit = attemptCredit(verdict, v);
@@ -8771,8 +8853,9 @@ async function recordLearningAttempt(q, v, serverProgress) {
   // marking function (clients are read-only there); the browser persists
   // only its private learning-profile analytics (elo, weakness buckets).
   try {
-    await setDoc(doc(db, "users", currentUser.uid, "settings", "mathLearningProfile"), studentLearningProfile, { merge: true });
+    await setDoc(doc(db, "users", attemptUid, "settings", "mathLearningProfile"), studentLearningProfile, { merge: true });
   } catch (e) { console.warn("learning save", e); }
+  if (!currentUser || currentUser.uid !== attemptUid) return reviewPlanText(verdict, next.nextReviewAt);
   renderLearningProfile();
   saveStudentRosterSummary();
   return reviewPlanText(verdict, next.nextReviewAt);
@@ -8853,6 +8936,7 @@ async function generateWeaknessPractice() {
     await setDoc(doc(db, "users", currentUser.uid, "generatedPracticeQuestions", q.id), q);
     studentGeneratedQuestions.unshift(q);
     questionBank.unshift(q);
+    _practiceSetMode(true);
     qIndex = 0;
     renderQuestion();
     toast("Weakness practice question generated", "success");
@@ -8977,6 +9061,14 @@ let videoOnlyFilter = false;     // student filter: only show questions that hav
 let aiPracticeStats = { review: 0, growth: 0, total: 0 };
 let aiPracticeQueue = [];        // the focused growth-zone set (also what Print uses)
 let lastEloChange = null;
+// Automatic question rotation is private to this student and this tab.
+let _practiceRun = createPracticeRun("");
+let _practiceManual = false, _practiceExhausted = false;
+let _practiceCatalogBank = null, _practiceCatalogLength = -1, _practiceCatalogValue = null;
+// Page-memory only: a completed answer is not another attempt until revised.
+let _practiceViewEpoch = 0, _practiceMarkBusy = null, _practiceMcqRevising = false;
+const _practiceMarkedSignatures = new Map();
+let _practicePhotoSignature = { url: null, hash: "" };
 let flagNotifications = [];
 let emailNewQuestionOptIn = false;
 let studentRosterRows = [];        // last-loaded studentProfiles rows (for the admin dashboard)
@@ -9028,6 +9120,7 @@ function _authError(e) {
 
 let guestSignInTried = false;
 onAuthStateChanged(auth, async (user) => {
+  _practiceViewEpoch++;
   if (user) { await enterApp(user); }
   else {
     currentUser = null;
@@ -9324,6 +9417,7 @@ async function notifyQuestionSubscribers(q) {
 // NAVIGATION
 // =====================================================================
 function navigateTo(page) {
+  _practiceViewEpoch++;
   vetPrintPeekHide();
   // My Worksheets is deliberately NOT on this list: a student's own saved
   // worksheets are their own documents, and reprinting one is the whole point.
@@ -19757,6 +19851,7 @@ function redraw() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
   for (const s of strokes) drawStroke(s);
+  _practiceRefreshSubmit();
   emptyHint.style.display = strokes.length || current || textBoxes.length ? "none" : "flex";
 }
 function drawStroke(s) {
@@ -19993,6 +20088,7 @@ formatBar.addEventListener("mousedown", (e) => {
 });
 
 function updateEmptyHint() {
+  _practiceRefreshSubmit();
   emptyHint.style.display = strokes.length || current || textBoxes.length ? "none" : "flex";
 }
 function enableTextBoxDrag(rec, handle) {
@@ -20017,7 +20113,7 @@ function enableTextBoxDrag(rec, handle) {
     rec.el.style.top = ny + "px";
     if (activeTextBox === rec) positionFormatBar(rec);
   });
-  const endDrag = () => { if (!dragging) return; dragging = false; rec.el.classList.remove("dragging"); };
+  const endDrag = () => { if (!dragging) return; dragging = false; rec.el.classList.remove("dragging"); _practiceRefreshSubmit(); };
   handle.addEventListener("pointerup", endDrag);
   handle.addEventListener("pointercancel", endDrag);
 }
@@ -20226,8 +20322,7 @@ function drawWorksheetGrid(o, w, h) {
     o.beginPath(); o.moveTo(x, 0); o.lineTo(x, h); o.stroke();
   }
 }
-function drawPlainQuestionFallback(o, w) {
-  const q = questionBank[qIndex] || {};
+function drawPlainQuestionFallback(o, w, q = questionBank[qIndex] || {}) {
   const text = questionText(q);
   const padX = 20;
   o.fillStyle = "#9b958d";
@@ -20252,6 +20347,11 @@ async function exportWorkingPng() {
   const cssW = Math.max(1, Math.round(rect.width || canvas.width / dpr || 840));
   const cssH = Math.max(1, Math.round(rect.height || canvas.height / dpr || 680));
   const exportDpr = Math.max(1, window.devicePixelRatio || 1);
+  const questionSnapshot = questionBank[qIndex] || {};
+  const inkSnapshot = document.createElement("canvas");
+  inkSnapshot.width = canvas.width; inkSnapshot.height = canvas.height;
+  inkSnapshot.getContext("2d").drawImage(canvas, 0, 0);
+  const textSnapshot = textBoxes.length ? buildTextLayerSvgHtml(cssW, cssH) : "";
   const padX = 16, padY = 14, labelPx = 11, fontPx = 16, lineH = 25;
   const measure = document.createElement("canvas").getContext("2d");
   measure.font = `${fontPx}px 'Space Grotesk', sans-serif`;
@@ -20274,13 +20374,13 @@ async function exportWorkingPng() {
       o.drawImage(contentImg, 0, 0, cssW, cssH);
     } catch (e) {
       console.warn("Worksheet export question layer failed:", e);
-      drawPlainQuestionFallback(o, cssW);
+      drawPlainQuestionFallback(o, cssW, questionSnapshot);
     }
   }
-  o.drawImage(canvas, 0, 0, cssW, cssH);
-  if (textBoxes.length) {
+  o.drawImage(inkSnapshot, 0, 0, cssW, cssH);
+  if (textSnapshot) {
     try {
-      const tHtml = buildTextLayerSvgHtml(cssW, cssH);
+      const tHtml = textSnapshot;
       const tSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${cssW}" height="${cssH}" viewBox="0 0 ${cssW} ${cssH}"><foreignObject width="${cssW}" height="${cssH}">${tHtml}</foreignObject></svg>`;
       const tImg = await loadImage(svgDataUrl(tSvg));
       o.drawImage(tImg, 0, 0, cssW, cssH);
@@ -20443,6 +20543,7 @@ function wireShareAdminSection(q) {
     .catch(() => { qrBox.textContent = "Couldn't load the QR generator — check your connection."; });
 }
 function goPracticeQuestion(q) {
+  _practiceSetMode(true);
   const i = questionBank.findIndex(x => x.id === q.id);
   if (i >= 0) qIndex = i;
   navigateTo("practice");
@@ -24693,6 +24794,7 @@ function practiseWorksheet(id) {
     return;
   }
   if (shutIds.length) toast(wsLockNote(shutIds) + ` — practising the other ${questions.length}.`, "");
+  _practiceSetMode(true);
   const rest = questionBank.filter(q => !ws.questionIds.includes(q.id));
   questionBank = questions.concat(rest);
   qIndex = 0;
@@ -24703,6 +24805,7 @@ function practiseWorksheet(id) {
 function practiseCurrentWorksheet() {
   const questions = wsSelectedQuestions();
   if (!questions.length) { toast("Select some questions first", "error"); return; }
+  _practiceSetMode(true);
   const ids = new Set(questions.map(q => q.id));
   questionBank = questions.concat(questionBank.filter(q => !ids.has(q.id)));
   qIndex = 0;
@@ -25018,6 +25121,7 @@ function solutionPhotoInlineMedia() {
   return { mimeType: match[1] || "image/jpeg", data: match[2] };
 }
 function updateSolutionPhotoView(file = null) {
+  _practiceRefreshSubmit();
   const wrap = $("solutionPhotoWrap");
   wrap.classList.toggle("show", !!solutionPhotoDataUrl);
   if (solutionPhotoDataUrl) {
@@ -25075,6 +25179,12 @@ function visiblePracticeIndices() {
   return out;
 }
 function nextVisibleIndex(from, delta) {
+  if (delta > 0 && _practiceAutomatic()) {
+    const candidates = questionBank.slice(from + 1).concat(questionBank.slice(0, Math.max(0, from)));
+    const next = _practicePlan(candidates, { limit: 1, excludeIds: [questionBank[from]?.id],
+      excludeFamilyIds: [questionBank[from]?.id] }).questions[0];
+    return next ? questionBank.findIndex(q => q.id === next.id) : -1;
+  }
   const step = delta > 0 ? 1 : -1;
   for (let i = from + step; i >= 0 && i < questionBank.length; i += step) {
     if (passesVideoFilter(questionBank[i])) return i;
@@ -25094,6 +25204,12 @@ function toggleVideoOnlyFilter() {
   if (videoOnlyFilter && questionBank.length && !visiblePracticeIndices().length) {
     toast("No questions have a video explanation yet", "error");
   }
+  if (_practiceAutomatic()) {
+    _practiceExhausted = false;
+    const next = _practicePlan(questionBank, { limit: 1 }).questions[0];
+    if (next) qIndex = questionBank.findIndex(q => q.id === next.id);
+    else _practiceExhausted = true;
+  }
   renderQuestion();
 }
 // ---- Student MCQ (clickable options) ----
@@ -25102,6 +25218,7 @@ function questionIsMcq(q) { return !!q && Array.isArray(q.options) && q.options.
 function renderMcqArea(q) {
   const card = $("questionCard"), area = $("mcqArea"), opts = $("mcqOptions");
   mcqSelected = null;
+  $("reviseMcqBtn").hidden = true;
   if (!questionIsMcq(q)) {
     card.classList.remove("mcq-active", "mcq-show-working");
     if (area) area.style.display = "none";
@@ -25118,6 +25235,7 @@ function renderMcqArea(q) {
     if (btn.disabled) return;
     mcqSelected = Number(btn.dataset.i);
     opts.querySelectorAll(".mcq-option").forEach(x => x.classList.toggle("selected", x === btn));
+    _practiceRefreshSubmit();
   }));
   $("submitLabel").innerHTML = "✓ Check answer";
 }
@@ -25166,6 +25284,7 @@ function applyAnnotationMode(q) {
 }
 // After marking, reveal which option was right/wrong and lock the choices.
 function showMcqResult(selectedIdx, correctIdx) {
+  $("reviseMcqBtn").hidden = false;
   const opts = $("mcqOptions"); if (!opts) return;
   opts.querySelectorAll(".mcq-option").forEach(btn => {
     const i = Number(btn.dataset.i);
@@ -25176,8 +25295,13 @@ function showMcqResult(selectedIdx, correctIdx) {
   });
 }
 function renderQuestion() {
+  _practiceViewEpoch++;
+  _practiceMcqRevising = false;
+  $("questionCard").classList.remove("practice-round-complete");
   renderLearningProfile();
   renderVideoOnlyBtn();
+  if (_practiceAutomatic() && _practiceExhausted) { _practiceRenderFinished(); return; }
+  $("nextBtn").disabled = false;
   if (!questionBank.length) {
     $("qMeta").style.display = "none";
     $("flagQuestionBtn").disabled = true;
@@ -25224,22 +25348,22 @@ function renderQuestion() {
   hideHint();
   resetAskAi();
   rpgQuestionChanged();
+  _practiceNoteShown(q);
+  _practiceRefreshSubmit();
 }
 function changeQuestion(delta) {
-  let ni = nextVisibleIndex(qIndex, delta);
-  if (delta > 0 && currentUser && currentUser.role === "student") {
-    const now = Date.now();
-    // Prefer the next question that's due for review, but only look *forward*
-    // from the current position so Next keeps advancing — scanning from the
-    // start of the bank used to keep snapping back to an earlier due question,
-    // which trapped navigation in a loop (e.g. stuck bouncing 1 ↔ 2).
-    for (let i = qIndex + 1; i < questionBank.length; i++) {
-      const q = questionBank[i];
-      if (passesVideoFilter(q) && dueTime(studentProgress[q.id]) && dueTime(studentProgress[q.id]) <= now) { ni = i; break; }
-    }
+  if (_practiceExhausted && delta < 0 && questionBank[qIndex]) {
+    _practiceExhausted = false; renderQuestion(); return;
   }
-  if (ni < 0 || ni >= questionBank.length) return;
-  if ((strokes.length || textBoxes.length || $("typedWorking").value.trim() || solutionPhotoDataUrl) && !confirm("Move on? Your current working will be cleared.")) return;
+  let ni = nextVisibleIndex(qIndex, delta);
+  if (ni < 0 || ni >= questionBank.length) {
+    if (delta > 0 && _practiceAutomatic()) {
+      if (!_practiceCurrentAnswerMarked() && (strokes.length || textBoxes.length || $("typedWorking").value.trim() || solutionPhotoDataUrl) && !confirm("Finish this round? Your current working will be cleared.")) return;
+      _practiceExhausted = true; renderQuestion();
+    }
+    return;
+  }
+  if (!_practiceCurrentAnswerMarked() && (strokes.length || textBoxes.length || $("typedWorking").value.trim() || solutionPhotoDataUrl) && !confirm("Move on? Your current working will be cleared.")) return;
   qIndex = ni; renderQuestion();
 }
 $("prevBtn").addEventListener("click", () => changeQuestion(-1));
@@ -25256,8 +25380,8 @@ $("printSelectedBtn").addEventListener("click", () => {
     .filter(Boolean);
   printQuestions(selected, "Selected math questions", { withQr: printWantsQr() });
 });
-$("typedWorking").addEventListener("input", hideHint);
-$("finalAnswer").addEventListener("input", hideHint);
+$("typedWorking").addEventListener("input", () => { hideHint(); _practiceRefreshSubmit(); });
+$("finalAnswer").addEventListener("input", () => { hideHint(); _practiceRefreshSubmit(); });
 let cameraStream = null;
 let cameraFacing = "environment";
 // The live-camera modal is shared: "solution" attaches the photo to the
@@ -26407,88 +26531,185 @@ $("askAiInput").addEventListener("keydown", e => {
   if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); submitAskMrChung(); }
 });
 
+// ---- One submission per unchanged answer ---------------------------------
+// Only compact fingerprints are retained, only in this page's memory. Nothing
+// about the student's work is stored in localStorage or sent to another API.
+function _practiceFingerprint(value) {
+  const text = String(value);
+  let a = 2166136261, b = 5381;
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    a = Math.imul(a ^ c, 16777619); b = Math.imul(b, 33) ^ c;
+  }
+  return text.length + ":" + (a >>> 0).toString(36) + ":" + (b >>> 0).toString(36);
+}
+function _practiceAnswerSnapshot() {
+  const photo = solutionPhotoDataUrl || "";
+  if (_practicePhotoSignature.url !== photo) _practicePhotoSignature = { url: photo, hash: _practiceFingerprint(photo) };
+  const w = canvasCssW || 1, h = canvasCssH || 1;
+  const coord = (v, size) => Math.round((Number(v) || 0) / size * 100000);
+  const answer = {
+    typedWorking: $("typedWorking").value.trim(), finalAnswer: $("finalAnswer").value.trim(),
+    selectedOption: mcqSelected, solutionMedia: solutionPhotoInlineMedia(),
+    // Pixel dimensions change on rotation; normalized ink and box positions
+    // ensure that resizing is not mistaken for another attempt.
+    ink: strokes.concat(current && current.points && current.points.length ? [current] : []).map(s => ({
+      eraser: !!s.eraser, points: s.points.map(p => [coord(p.x, w), coord(p.y, h)])
+    })),
+    boxes: textBoxes.map(r => ({ html: r.editor.innerHTML,
+      x: coord(parseFloat(r.el.style.left), w), y: coord(parseFloat(r.el.style.top), h),
+      width: coord(parseFloat(r.el.style.width), w) }))
+  };
+  answer.hasWorking = !!(answer.ink.length || answer.boxes.length || answer.typedWorking || photo);
+  answer.signature = _practiceFingerprint(JSON.stringify({ typed: answer.typedWorking, final: answer.finalAnswer,
+    option: answer.selectedOption, photo: _practicePhotoSignature.hash, ink: answer.ink, boxes: answer.boxes }));
+  return answer;
+}
+function _practiceAnswerKey(q = questionBank[qIndex], uid = currentUser && currentUser.uid) {
+  return q && uid ? JSON.stringify([uid, questionSource(q), q.id]) : "";
+}
+function _practiceRememberMarked(request) {
+  let done = _practiceMarkedSignatures.get(request.key);
+  if (!done) _practiceMarkedSignatures.set(request.key, done = new Set());
+  done.add(request.answer.signature);
+}
+function _practiceCurrentAnswerMarked() {
+  const done = _practiceMarkedSignatures.get(_practiceAnswerKey());
+  return !!(done && done.has(_practiceAnswerSnapshot().signature));
+}
+function _practiceRequestCurrent(request) {
+  return !!(currentUser && currentUser.uid === request.uid && _practiceViewEpoch === request.epoch
+    && questionBank[qIndex] === request.q && $("page-practice").classList.contains("active"));
+}
+function _practiceRefreshSubmit() {
+  if (_practiceExhausted && _practiceAutomatic()) {
+    const btn = $("submitBtn"), label = $("submitLabel");
+    if (btn) btn.disabled = true;
+    if (label) label.textContent = "Practice round complete";
+    return;
+  }
+  // Drawing is live: do not inspect worksheet data before the first attempt.
+  if (!_practiceMarkBusy && !_practiceMarkedSignatures.size) {
+    const btn = $("submitBtn");
+    if (btn) btn.disabled = !questionBank[qIndex];
+    return;
+  }
+  const btn = $("submitBtn"), label = $("submitLabel"), q = questionBank[qIndex];
+  if (!btn || !label) return;
+  if (_practiceMarkBusy) { btn.disabled = true; label.textContent = "Marking in progress…"; return; }
+  const done = _practiceMarkedSignatures.get(_practiceAnswerKey());
+  if (done && done.has(_practiceAnswerSnapshot().signature)) {
+    const canNext = nextVisibleIndex(qIndex, 1) >= 0;
+    const canFinish = _practiceAutomatic() && !canNext;
+    btn.disabled = _practiceMcqRevising || (!canNext && !canFinish);
+    label.textContent = _practiceMcqRevising ? "Choose a different answer" : canNext ? "Next question ›"
+      : canFinish ? "Finish practice round" : "Marked — edit to check again";
+    return;
+  }
+  btn.disabled = !q;
+  label.textContent = done ? "✓ Check revised answer" : questionIsMcq(q) ? "✓ Check answer"
+    : questionIsAnnotation(q) ? "✓ Check my annotations" : "📸 Submit for AI marking";
+}
+$("reviseMcqBtn").addEventListener("click", () => {
+  if (_practiceMarkBusy) return;
+  _practiceMcqRevising = true;
+  $("mcqOptions").querySelectorAll(".mcq-option").forEach(btn => {
+    btn.disabled = false;
+    btn.classList.remove("correct", "wrong");
+    btn.classList.toggle("selected", Number(btn.dataset.i) === mcqSelected);
+  });
+  $("reviseMcqBtn").hidden = true;
+  hideResult();
+  _practiceRefreshSubmit();
+  const option = $("mcqOptions").querySelector(".mcq-option"); if (option) option.focus();
+});
+
 $("submitBtn").addEventListener("click", async () => {
+  // Acquire the lock BEFORE worksheet export can yield to another tap.
+  if (_practiceMarkBusy) return;
   if (!currentUser) { toast("Sign in to submit work for marking", "error"); return; }
-  if (!questionBank.length) return;
+  if (!questionBank[qIndex] || (_practiceAutomatic() && _practiceExhausted)) return;
   const q = questionBank[qIndex];
   const isMcq = questionIsMcq(q);
-  const typedWorking = $("typedWorking").value.trim();
-  const hasWorking = !!(strokes.length || textBoxes.length || typedWorking || solutionPhotoDataUrl);
+  const answer = _practiceAnswerSnapshot();
+  const key = _practiceAnswerKey(q);
+  if (_practiceMarkedSignatures.get(key)?.has(answer.signature)) {
+    if (!_practiceMcqRevising) changeQuestion(1);
+    return;
+  }
   if (isMcq) {
-    if (mcqSelected === null || mcqSelected === undefined) { toast("Tap an option (A–D) to answer", "error"); return; }
-  } else if (!hasWorking && !$("finalAnswer").value.trim()) {
-    toast(questionIsAnnotation(q)
-      ? "Draw or label on the diagram first — use ✏️ or 🅣"
+    if (answer.selectedOption === null || answer.selectedOption === undefined) { toast("Tap an option (1–4) to answer", "error"); return; }
+  } else if (!answer.hasWorking && !answer.finalAnswer) {
+    toast(questionIsAnnotation(q) ? "Draw or label on the diagram first — use ✏️ or 🅣"
       : "Write, type, take a photo, or enter an answer first", "error");
     return;
   }
-  // MCQ with no shown working → skip the worksheet screenshot for a fast,
-  // deterministic option check; otherwise capture the worksheet for the AI.
-  const sendWorksheet = !isMcq || hasWorking;
-  const png = sendWorksheet ? await exportWorkingPng() : "";
-  const b64 = png ? png.split(",")[1] : "";
-  const submitIdle = isMcq ? "✓ Check answer" : "📸 Submit for AI marking";
-  const btn = $("submitBtn"); btn.disabled = true; $("submitLabel").innerHTML = '<span class="spinner"></span> ' + (isMcq && !hasWorking ? "Checking…" : "Marking your worksheet…");
+  const request = { q, uid: currentUser.uid, epoch: _practiceViewEpoch, key, answer,
+    question: JSON.parse(JSON.stringify(q)), practiceMode: aiPracticeActive, source: questionSource(q) };
+  _practiceMarkBusy = request;
+  _practiceRefreshSubmit();
   try {
-    // Marking happens in the markAttempt Cloud Function: it reads the private
-    // answer key (incl. the correct MCQ option), grades, and writes the attempt
-    // + XP with the Admin SDK. The browser never sees the key.
-    const solutionMedia = solutionPhotoInlineMedia();
-    const payload = {
-      questionId: q.id,
-      source: questionSource(q),
-      typedWorking,
-      finalAnswer: isMcq ? "" : $("finalAnswer").value.trim(),
-      worksheetPng: b64,
-      solutionPhoto: solutionMedia,
-      practiceMode: aiPracticeActive
-    };
-    if (isMcq) payload.selectedOption = mcqSelected;
-    const res = await markAttemptCall(payload);
-    const out = res.data || {};
+    const png = !isMcq || answer.hasWorking ? await exportWorkingPng() : "";
+    if (!_practiceRequestCurrent(request)) return;
+    if (_practiceAnswerSnapshot().signature !== answer.signature) {
+      toast("Your work changed while the worksheet was captured. Check your revised answer when ready.", ""); return;
+    }
+    const b64 = png ? png.split(",")[1] : "";
+    const payload = { questionId: request.question.id, source: request.source,
+      typedWorking: answer.typedWorking, finalAnswer: isMcq ? "" : answer.finalAnswer,
+      worksheetPng: b64, solutionPhoto: answer.solutionMedia, practiceMode: request.practiceMode };
+    if (isMcq) payload.selectedOption = answer.selectedOption;
+    let out, onDevice = false;
+    // Only a failed SERVER CALL can invoke fallback. A later rendering or
+    // learning-profile failure must never grade an already-marked answer again.
+    try { out = (await markAttemptCall(payload)).data || {}; }
+    catch (e) {
+      if (!_practiceRequestCurrent(request)) return;
+      if (!markUnreachable(e)) throw e;
+      const media = b64 ? [{ mimeType: "image/png", data: b64 }] : [];
+      if (answer.solutionMedia) media.push(answer.solutionMedia);
+      const verdict = await clientMarkVerdict(request.question, { media, typedWorking: answer.typedWorking,
+        finalAnswer: isMcq ? (request.question.options[answer.selectedOption] || "") : answer.finalAnswer });
+      out = { verdict }; onDevice = true;
+    }
     const v = out.verdict || {};
-    if (out.videoExplanationUrl) q.videoExplanationUrl = out.videoExplanationUrl; // revealed only after marking
-    // The amendments drawn over that video come back on the same response, for
-    // the same reason: a note on the film can name the answer.
+    if (!["correct", "partial", "incorrect"].includes(String(v.verdict || "").toLowerCase())) throw new Error("No marking result returned — please try again");
+    // Retain the fingerprint even if the pupil moved away during marking.
+    // The server has already saved this attempt; Back must not submit it again.
+    _practiceRememberMarked(request);
+    if (!_practiceRequestCurrent(request)) return;
+    if (out.videoExplanationUrl) q.videoExplanationUrl = out.videoExplanationUrl;
     q.videoOverlays = Array.isArray(out.videoOverlays) ? out.videoOverlays : [];
-    if (out.answerKeyImageUrl) q.answerKeyImageUrl = out.answerKeyImageUrl; // answer-key image, revealed only after marking
-    // The correctly annotated diagram(s) — private until now, so they come back
-    // on the response rather than from the question doc the student can read.
+    if (out.answerKeyImageUrl) q.answerKeyImageUrl = out.answerKeyImageUrl;
     q.annotationAnswers = Array.isArray(out.annotationAnswers) ? out.annotationAnswers : [];
     const reviewPlan = await recordLearningAttempt(q, v, out.progress);
-    try { rpgOnMarked(q, v, { server: out }); } catch (err) { console.warn("rpg reward", err); }
-    showResult(v, png, reviewPlan, !!solutionMedia);
-    if (isMcq) showMcqResult(mcqSelected, typeof out.correctOption === "number" ? out.correctOption : undefined);
+    if (!_practiceRequestCurrent(request)) return;
+    try { rpgOnMarked(q, v, onDevice ? {} : { server: out }); } catch (err) { console.warn("rpg reward", err); }
+    if (_practiceAnswerSnapshot().signature !== answer.signature) {
+      toast("Your earlier answer was marked. Check your revised work when ready.", ""); return;
+    }
+    _practiceMcqRevising = false;
+    showResult(v, png, reviewPlan, !!answer.solutionMedia);
+    if (isMcq) showMcqResult(answer.selectedOption, typeof out.correctOption === "number" ? out.correctOption
+      : onDevice && String(v.verdict).toLowerCase() === "correct" ? answer.selectedOption : undefined);
     if (!maybeServePrerequisiteOnMiss(q, v) && !maybeServeEasierOnMiss(q, v)) maybeServeVariantOnMiss(q, v);
-    const verdict = (v.verdict || "").toLowerCase();
-    let markMsg = verdict === "correct" ? "Great work! 🎉" : "Marked — see the feedback";
-    if (lastEloChange && currentUser && currentUser.role === "student") {
+    const verdict = String(v.verdict).toLowerCase();
+    let message = verdict === "correct" ? "Great work! 🎉" : "Marked — see the feedback";
+    if (lastEloChange && currentUser.role === "student") {
       const delta = lastEloChange.after - lastEloChange.before;
-      markMsg += ` • Rating ${lastEloChange.after}${delta ? ` (${delta > 0 ? "+" : ""}${delta})` : ""}`;
+      message += ` • Rating ${lastEloChange.after}${delta ? ` (${delta > 0 ? "+" : ""}${delta})` : ""}`;
     }
-    toast(markMsg, verdict === "correct" ? "success" : "");
+    if (onDevice) message += " · marked on this device";
+    toast(message, verdict === "correct" ? "success" : "");
   } catch (e) {
-    if (!markUnreachable(e)) { console.error(e); toast("AI mark error: " + serverErrorMessage(e), "error"); }
-    else {
-      // Server marking unreachable (e.g. functions not deployed) — mark in
-      // the browser so practice still works. For MCQ the device doesn't hold the
-      // correct option, so the AI marks best-effort by solving it itself.
-      try {
-        const solutionMedia = solutionPhotoInlineMedia();
-        const worksheetMedia = b64 ? [{ mimeType: "image/png", data: b64 }] : [];
-        if (solutionMedia) worksheetMedia.push(solutionMedia);
-        const v = await clientMarkVerdict(q, { media: worksheetMedia, typedWorking, finalAnswer: isMcq ? (q.options[mcqSelected] || "") : $("finalAnswer").value.trim() });
-        const reviewPlan = await recordLearningAttempt(q, v);
-        try { rpgOnMarked(q, v, {}); } catch (err) { console.warn("rpg reward", err); }
-        showResult(v, png, reviewPlan, !!solutionMedia);
-        if (isMcq) showMcqResult(mcqSelected, (v.verdict || "").toLowerCase() === "correct" ? mcqSelected : undefined);
-        if (!maybeServePrerequisiteOnMiss(q, v) && !maybeServeEasierOnMiss(q, v)) maybeServeVariantOnMiss(q, v);
-        const verdict = (v.verdict || "").toLowerCase();
-        toast((verdict === "correct" ? "Great work! 🎉" : "Marked — see the feedback") + " · marked on this device", verdict === "correct" ? "success" : "");
-      } catch (e2) { console.error(e, e2); toast("AI mark error: " + serverErrorMessage(e2), "error"); }
-    }
+    if (_practiceRequestCurrent(request)) { console.error(e); toast("AI mark error: " + serverErrorMessage(e), "error"); }
+  } finally {
+    if (_practiceMarkBusy === request) _practiceMarkBusy = null;
+    // Empty history on the first failed attempt still needs to unlock Submit.
+    $("submitBtn").disabled = false;
+    $("submitLabel").textContent = questionIsMcq(questionBank[qIndex]) ? "✓ Check answer" : questionIsAnnotation(questionBank[qIndex]) ? "✓ Check my annotations" : "📸 Submit for AI marking";
+    _practiceRefreshSubmit();
   }
-  finally { btn.disabled = false; $("submitLabel").innerHTML = submitIdle; }
 });
 $("mcqWorkingToggle").addEventListener("click", () => {
   const card = $("questionCard");
@@ -30721,7 +30942,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.78.4 · 2026-09-13";
+const APP_VERSION = "v1.78.5 · 2026-09-14";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -31354,8 +31575,8 @@ function graphOnWheel(e) {
 
 // ---- AI practice integration: serve a prerequisite on a miss ----
 function graphBestPrerequisiteToServe(q) {
-  const cands = graphPrereqsOf(q.id).map(id => questionBank.find(x => x && x.id === id)).filter(Boolean)
-    .filter(x => !questionMastered(studentProgress[x.id]));
+  const cands = _practiceAdaptiveCandidates(q, graphPrereqsOf(q.id).map(id => questionBank.find(x => x && x.id === id)).filter(Boolean)
+    .filter(x => !questionMastered(studentProgress[x.id])));
   if (!cands.length) return null;
   cands.sort((a, b) => {
     const pa = studentProgress[a.id] || {}, pb = studentProgress[b.id] || {};
@@ -31380,8 +31601,8 @@ function maybeServePrerequisiteOnMiss(q, v) {
   return true;
 }
 function graphBestEasierToServe(q) {
-  const cands = graphEasierVersionsOf(q.id).map(id => questionBank.find(x => x && x.id === id)).filter(Boolean)
-    .filter(x => !questionMastered(studentProgress[x.id]));
+  const cands = _practiceAdaptiveCandidates(q, graphEasierVersionsOf(q.id).map(id => questionBank.find(x => x && x.id === id)).filter(Boolean)
+    .filter(x => !questionMastered(studentProgress[x.id])));
   if (!cands.length) return null;
   cands.sort((a, b) => (studentProgress[a.id]?.attempts || 0) - (studentProgress[b.id]?.attempts || 0));
   return cands[0];
@@ -48849,6 +49070,7 @@ function sylPractiseLo(loId) {
 // Put these questions at the front of the practice queue — the same move the
 // worksheet's ✍️ Practise button makes, so there is one practice entry point.
 function sylPractise(qs) {
+  _practiceSetMode(true);
   const ids = new Set(qs.map(q => q.id));
   questionBank = qs.concat(questionBank.filter(q => !ids.has(q.id)));
   qIndex = 0;
@@ -49433,6 +49655,7 @@ async function dgPrintDraft(autoPrint) {
 function dgPractiseDraft() {
   const questions = dgDraftQuestions();
   if (!questions.length) { toast("Pick some questions first", "error"); return; }
+  _practiceSetMode(true);
   const ids = new Set(questions.map(q => q.id));
   questionBank = questions.concat(questionBank.filter(q => !ids.has(q.id)));
   qIndex = 0;

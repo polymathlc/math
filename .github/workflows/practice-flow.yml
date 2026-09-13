@@ -1,0 +1,26 @@
+name: Practice variety and submission checks
+on:
+  pull_request:
+    paths: ['index.html', 'practice-*.js', 'tools/practice-*.mjs', '.github/workflows/practice-flow.yml']
+  push:
+    branches: [main]
+    paths: ['index.html', 'practice-*.js', 'tools/practice-*.mjs', '.github/workflows/practice-flow.yml']
+permissions:
+  contents: read
+jobs:
+  practice:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check varied queues and safe marking retries
+        run: node --test tools/practice-variety-tests.mjs tools/practice-submission-tests.mjs
+      - name: Check existing question and student history behavior
+        run: |
+          node tools/duplicate-warning-tests.mjs
+          node tools/usage-tracker-tests.mjs
+          node tools/subject-level-tests.mjs
+          node tools/scheduled-release-tests.mjs
+          node tools/siege-squad-tests.mjs

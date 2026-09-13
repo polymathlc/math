@@ -143,7 +143,7 @@ test('an attempt written BEFORE those fields existed still names a mode', () => 
 // ── modes ───────────────────────────────────────────────────────────────────
 
 test('a known mode is named, not printed raw', () => {
-  eq(T.usageMode('tcg-siege').label, 'Orbital Siege', 'the Siege label');
+  eq(T.usageMode('tcg-siege').label, 'Manafront Siege', 'the Siege label');
   eq(T.usageMode('tcg-siege').group, 'game', 'the Siege group');
   eq(T.usageMode('marked').group, 'practice', 'marked practice groups as practice');
 });
