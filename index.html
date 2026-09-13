@@ -16080,6 +16080,10 @@ function rapidApplyLevel(q, level) {
 //    red card for each of them is a wall of red that makes the one real red
 //    card get clicked past (`blankOk`).
 // Durable PDF imports. Uploads need this tab; acknowledged jobs do not.
+// The initial cloud rollout is incomplete: the deployment account lacks
+// cloudtasks.queues.get for mathRapidImportPage. Enable only after all seven
+// functions, the queue and scoped task permissions pass deployment checks.
+const RAPID_CLOUD_DEPLOYMENT_READY = false;
 let _rapidCloudReady = false;
 let _rapidCloudOwner = null;
 let _rapidCloudTimer = null;
@@ -16089,7 +16093,7 @@ let _rapidCloudUnsub = null;
 let _rapidCloudWatchUid = null;
 let _rapidCloudUploadTail = Promise.resolve();
 function _rapidCloudEnabled() {
-  return _rapidCloudReady && _rapidCloudOwner === currentUser?.uid && !!document.getElementById('rapidCloudMode')?.checked;
+  return RAPID_CLOUD_DEPLOYMENT_READY && _rapidCloudReady && _rapidCloudOwner === currentUser?.uid && !!document.getElementById('rapidCloudMode')?.checked;
 }
 async function _rapidCloudCall(name, data = {}) {
   const result = await httpsCallable(getFunctions(app), name, {timeout:120000})(data);
@@ -16103,9 +16107,10 @@ function _rapidCloudPaint() {
     + escapeHtml(j.status === 'completed' ? 'Complete · ' + j.added + ' questions added to vetting'
       : j.status === 'uploading' ? 'Upload incomplete — select this PDF again; keep the tab open until upload finishes.'
       : j.status === 'failed' ? 'Stopped on page ' + (j.page + 1)
+      : !_rapidCloudReady ? 'Waiting for online processing to become available'
       : 'Stored online · processed ' + j.page + (j.total ? ' / ' + j.total : '') + ' pages · ' + j.added + ' questions saved')
     + (j.error ? '<br><span style="color:var(--accent-orange);">' + escapeHtml(j.error) + '</span>' : '')
-    + (j.status === 'failed' ? '<br><button type="button" class="btn btn-outline" data-rapid-retry="' + escapeHtml(j.id) + '">Retry remaining pages</button>' : '')
+    + (j.status === 'failed' && _rapidCloudReady ? '<br><button type="button" class="btn btn-outline" data-rapid-retry="' + escapeHtml(j.id) + '">Retry remaining pages</button>' : '')
     + '</div>').join('');
   el.querySelectorAll('[data-rapid-retry]').forEach(button => button.addEventListener('click', async () => {
     button.disabled = true;
@@ -16127,9 +16132,11 @@ async function _rapidCloudRefresh() {
     const r = await _rapidCloudCall('mathRapidImportStatus');
     if(currentUser?.uid!==uid) return;
     const first=!_rapidCloudReady || _rapidCloudOwner!==uid;
-    _rapidCloudReady=r.available===true; _rapidCloudOwner=uid; _rapidCloudJobs=r.jobs||[];
-    if(box){box.disabled=!_rapidCloudReady;if(first) box.checked=_rapidCloudReady;}
-    if(note) note.textContent='PDFs: keep the tab open during upload. After “Stored online — safe to close”, processing continues even with your browser closed. Screenshots still need an open tab.';
+    _rapidCloudReady=RAPID_CLOUD_DEPLOYMENT_READY && r.available===true; _rapidCloudOwner=uid; _rapidCloudJobs=r.jobs||[];
+    if(box){box.disabled=!_rapidCloudReady;if(first || !_rapidCloudReady) box.checked=_rapidCloudReady;}
+    if(note) note.textContent=_rapidCloudReady
+      ? 'PDFs: keep the tab open during upload. After “Stored online — safe to close”, processing continues even with your browser closed. Screenshots still need an open tab.'
+      : 'Online PDF processing is not ready. Use browser mode and keep this tab open while your PDFs are processed.';
     _rapidCloudPaint();
     if (_rapidCloudWatchUid !== uid) {
       if (_rapidCloudUnsub) _rapidCloudUnsub();
@@ -30714,7 +30721,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.78.3 · 2026-09-13";
+const APP_VERSION = "v1.78.4 · 2026-09-13";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
