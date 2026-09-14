@@ -1,15 +1,18 @@
 # Hades Math beta
 
-Administrators open **Hades · BETA** from the sidebar or the Aetherfall game
-modes page. Choose a primary school level, then press **Start preview**. The
-bank and its private answer keys must finish loading first. Student accounts
-do not see or enter this beta; no existing student release setting changes.
+Signed-in students and administrators open **Hades · BETA** from the sidebar
+or the Aetherfall game modes page. Students press **Play Hades** and use the
+school level in their profile. Administrators choose a primary school level,
+then press **Start preview** once the bank and private answer keys have loaded.
+Administrator preview history stays separate from student learning progress.
 
 Every cleared chamber pauses for exactly five multiple-choice questions from
 the Math question bank. Each correct answer restores 8% of maximum health,
 up to 40%. Every correct answer improves the upgrade, with a large difference
 between no correct answers and a perfect round. The game only receives the finished score and reward tier;
-questions and answer keys stay in the platform.
+questions and answer keys stay in the platform. Fullscreen keeps the sanctuary
+questions visible above the game and provides an expanded fallback when the
+browser does not support fullscreen.
 
 | Correct answers | Heal (% maximum life) | Reward tier | Scalable boon / Pom upgrade |
 | --- | --- | --- | --- |
@@ -43,10 +46,10 @@ undersized pool pauses progress instead of repeating questions, substituting
 easier material, inventing questions or calling AI.
 
 Preview history is saved locally for each administrator and preview level,
-separately from student results and points. The beta makes no AI or marking
-service calls. Math's existing private-key architecture remains intact: a
-future student release must first connect an authenticated deterministic MCQ
-grading route, rather than sending private answer keys to students.
+separately from student results and points. Student top-level MCQs use the
+existing authenticated `markAttempt` service; student clients do not load
+private answer keys. Existing block MCQs are graded by the parent portal.
+No AI questions are generated. Failed or stale marking results block the round.
 
 The learning bridge validates the frame, same origin, session and sequential
 round, grades each answer once, and replays completed rewards without duplicate
@@ -54,10 +57,23 @@ history. Changing the preview level, leaving the page or signing out closes the
 old learning session. Missing diagrams block answer buttons so a student cannot
 be assessed on incomplete visual information.
 
-Run `node --test tools/hades-math-bank-tests.mjs tools/hades-learning-tests.mjs`
-and `node tools/hades-math-browser-tests.mjs` for bank/bridge and rendered Math
-checks. The browser check uses the production Math renderer and question dialog.
+Run `node --test tools/hades-math-bank-tests.mjs tools/hades-learning-tests.mjs tools/hades-remote-grading-tests.mjs`
+for bank and bridge checks. The Hades Math beta workflow also verifies the
+manifest, production Math renderer, fullscreen controls and five-question
+sanctuary dialogs. `node tools/hades-cursor-browser.mjs` exercises real mouse,
+keyboard and touch controls against the bundled game, including camera movement,
+screen shake, canvas scaling and a stationary cursor after layout changes.
 
-Release bundle: **Hades 2.1.2**, Math **v1.81.2**. The generated game and shared bridge are verified against `hades-game.manifest.json` in CI. Tests exercise all six scores, rendered reward summaries and duplicate-request protection.
+Release bundle: **Hades 2.2.1**, Math **v1.81.2**. The generated game and shared bridge are verified against `hades-game.manifest.json` in CI. Tests exercise all six scores, rendered reward summaries and duplicate-request protection.
 
-The cast now forms a detailed SVG summoning circle on the floor, beneath scenery and combat actors. Its fixed boundary matches the spell’s reach, with counter-rotating interior rune bands that stop in reduced-motion mode.
+Pressing Q or E places the SVG summoning circle at the floor position beneath
+the mouse cursor at that instant. It stays fixed in the world as the player and
+camera move; pressing Cast again detonates it there. Keyboard-only and touch
+players retain assisted targeting. The boundary matches the spell's reach,
+with rune bands that stop in reduced-motion mode.
+
+Repeated Doom attacks preserve the pending detonation, Chill slows enemies
+consistently, and cast Chill pulses apply consistently across frame rates.
+Blizzard pulls respect pillars; dash duration and directional knockback now
+match the movement. The student beta retains its chamber artwork, gate rings,
+spectral dash silhouettes and menu polish.
