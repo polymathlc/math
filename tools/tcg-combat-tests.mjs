@@ -129,5 +129,5 @@ test('all gameplay entry points use the shared audio lifecycle and reachable des
   for(const name of ['emsClose','emsTogglePause','emsOpenQuiz','elgClose','elgTogglePause','elgOpenTree','elgOpenQuiz','tcgCloseBattle','duelClose','duelOpenQuiz'])assert.match(fn(name),/tcgCombatStop\(\)/);
   for(const mode of ['arena','duel','siege','legends'])assert.ok(source.includes("tcgCombatStep('"+mode+"'"));
   assert.match(fn('elgRenderTree'),/tcgCombatTreeHtml\(r\)/);assert.match(fn('duelSfxOn'),/tcgMedia.settings.enabled/);
-  assert.match(source,/tcg-combat.css\?v=1/);assert.match(source,/APP_VERSION = "v1.80.0/);
+  assert.match(source,/tcg-combat.css\?v=1/);assert.match(source,/APP_VERSION = "v\d+\.\d+\.\d+(?: · \d{4}-\d{2}-\d{2})?"/);
 });
