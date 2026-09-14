@@ -1,3 +1,4 @@
+import { installHadesDisplay } from './hades-display.js';
 import { installHadesLearningParent } from './hades-learning-parent.js?v=2.1.1';
 import { selectHadesMathBankRound } from './hades-math-bank.js';
 import { questionQualitySignature } from './practice-quality.js';
@@ -11,6 +12,7 @@ const CSS = `
 // supplies a dedicated, authenticated MCQ grading route.
 export function installHadesMathBeta(env) {
   const win = env.window || window, doc = win.document;
+  let display = null;
   let overlay = null, frame = null, bridge = null, grade = '', state = null, priorFocus = null;
   const failedImages = new Map();
   const unavailableContent = new Map();
@@ -43,6 +45,7 @@ export function installHadesMathBeta(env) {
   }
   function saveState() { memory.set(storageKey(), state); try { win.localStorage.setItem(storageKey(), JSON.stringify(state)); } catch (_) {} }
   function close() {
+    display?.destroy(); display = null;
     bridge?.destroy(); bridge = null; frame?.remove(); frame = null;
     overlay?.remove(); overlay = null; grade = ''; state = null;
     if (priorFocus?.isConnected) priorFocus.focus(); priorFocus = null;
@@ -92,7 +95,7 @@ export function installHadesMathBeta(env) {
     overlay = doc.createElement('section'); overlay.className = 'hades-math-beta'; overlay.setAttribute('role', 'dialog'); overlay.setAttribute('aria-modal', 'true'); overlay.setAttribute('aria-label', 'Hades Math beta');
     overlay.innerHTML = '<header class="hades-math-bar"><h2>Hades · Math beta</h2><label>Preview level <select aria-label="Hades preview level"><option value="">Choose level</option>'
       + Array.from({ length: 6 }, (_, i) => '<option value="P' + (i + 1) + '">P' + (i + 1) + '</option>').join('')
-      + '</select></label><button type="button" data-start>Start preview</button><button type="button" data-close>Close</button></header>'
+      + '</select></label><button type="button" data-start>Start preview</button><button type="button" data-fullscreen>Fullscreen</button><button type="button" data-close>Close</button></header>'
       + '<p class="hades-math-note">Admin beta · Five bank questions between chambers · 0/5: tiny consolation, no boon upgrade · 5/5: Heroic Lv 8 boon or +8 Pom levels · 8% life restored per correct answer</p>'
       + '<div class="hades-math-stage"><div class="hades-math-intro"><h3>Fight. Learn. Rise again.</h3><p>Choose a school level to test the complete adventure. Five fresh Math questions pause the action between chambers. Accurate answers heal your hero and improve your next boon.</p><p>This preview uses the question bank, with level, mastery, question quality and repeat checks. Preview progress stays separate from student results.</p></div></div>';
     const select = overlay.querySelector('select'), stage = overlay.querySelector('.hades-math-stage');
@@ -103,7 +106,9 @@ export function installHadesMathBeta(env) {
       bridge?.destroy(); bridge = null; frame?.remove(); frame = null; grade = ''; state = null;
       stage.textContent = 'Press Start preview to begin at the selected school level.';
     };
-    doc.body.append(overlay); select.focus(); return true;
+    doc.body.append(overlay);
+    display = installHadesDisplay({ container: overlay, button: overlay.querySelector('[data-fullscreen]'), window: win });
+    select.focus(); return true;
   }
   return { open, close, getQuestions: questions };
 }
