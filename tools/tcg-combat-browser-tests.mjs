@@ -76,7 +76,9 @@ try{
  check(await page.locator('#duelOverlay .tcg-audio-controls').count()===1,'duel uses same audio settings');check(await page.evaluate(()=>fixture.damage())===17,'live duel consumes numeric barrier');await page.evaluate(()=>fixture.close());
  await page.locator('#arena').click();await page.waitForFunction(()=>document.getElementById('tcgbStage'));await page.waitForTimeout(400);await screenshot('math-rift-arena');check(await page.locator('#tcgBattleOverlay .tcg-audio-controls').count()===1,'arena controls visible');await page.evaluate(()=>fixture.close());
  await page.reload();await page.waitForFunction(()=>window.ready);current=await page.evaluate(()=>fixture.state());check(current.sound.enabled===false&&current.sound.volume===.55,'preferences survive reload');
- await page.emulateMedia({reducedMotion:'reduce'});await page.locator('#play').click();await page.evaluate(()=>fixture.hero('c101'));await page.evaluate(()=>fixture.pulse());await page.waitForTimeout(180);check((await page.evaluate(()=>fixture.state())).fx===0,'reduced-motion effect expires');await page.evaluate(()=>fixture.close());
+ await page.emulateMedia({reducedMotion:'reduce'});await page.locator('#play').click();await page.evaluate(()=>fixture.hero('c101'));await page.evaluate(()=>fixture.pulse());
+ check(await page.evaluate(()=>{const animations=[...document.querySelectorAll('.tcg-signature-fx')].flatMap(n=>n.getAnimations());return animations.length>0&&animations.every(a=>a.effect.getTiming().duration<=140);}), 'reduced-motion effects use the short fade');
+ await page.waitForFunction(()=>fixture.state().fx===0,null,{timeout:2000});check((await page.evaluate(()=>fixture.state())).fx===0,'reduced-motion effect expires');await page.evaluate(()=>fixture.close());
  check(errors.length===0,errors.join('\n'));check((await page.evaluate(()=>fixture.state())).writes===0,'no remote persistence from visual tests');
  console.log('PASS '+checks+' production TCG browser checks');
 }finally{await browser.close();await new Promise(r=>server.close(r));}
