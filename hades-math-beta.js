@@ -82,7 +82,7 @@ export function installHadesMathBeta(env) {
       onImageFailure: (q, url) => { const urls = failedImages.get(q.id) || new Set(); urls.add(url); failedImages.set(q.id, urls); },
       onQuestionUnavailable: q => { if (q.source) unavailableContent.set(q.id, questionQualitySignature(q.source)); },
       onExit: close });
-    const url = new URL('./hades-game.html', win.location.href); url.searchParams.set('learning', '1'); url.searchParams.set('subject', 'math'); url.searchParams.set('v', '2.1.1');
+    const url = new URL('./hades-game.html', win.location.href); url.searchParams.set('learning', '1'); url.searchParams.set('subject', 'math'); url.searchParams.set('v', '2.1.2');
     frame.src = url.href; stage.append(frame); frame.focus();
   }
   function open() {
