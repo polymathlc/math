@@ -72,12 +72,21 @@ test('block MCQs require one valid private key, preserving option notation', () 
   assert.equal(readHadesMathMcq({ ...q(0), blocks: [mcq] }), null);
 });
 
-test('the shipping integration gates navigation and gameplay independently from student releases', () => {
+test('student beta navigation retains auth, grade and private-answer safeguards', () => {
   const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const wrapper = fs.readFileSync(new URL('../hades-math-beta.js', import.meta.url), 'utf8');
-  assert.match(html, /class="nav-item admin-only" id="navHadesBeta"/);
-  assert.match(wrapper, /getUser\(\)\?\.role === 'admin' && !!env.keysAvailable\(\)/);
+  assert.match(html, /class="nav-item" id="navHadesBeta"/);
+  assert.match(wrapper, /env.getUser\(\)\?\.role === 'student'/);
+  assert.match(wrapper, /select.disabled = true/);
+  assert.match(html, /markAttemptCall\(\{source:'bank'/);
   assert.match(html, /onAuthStateChanged\(auth, async \(user\) => \{\s+hadesMathBeta.close\(\)/);
   assert.match(html, /function navigateTo\(page\) \{\s+vetPrintPeekHide\(\);\s+hadesMathBeta.close\(\)/);
   assert.doesNotMatch(wrapper, /TCG_QUIZ|_tcgQuizPool|fetch\(|httpsCallable|rpgAwardGameQuestion/);
+});
+
+test('student top-level MCQs never require or retain a private key', () => {
+  const rows = select({remote:true,bank:bank().map(({correctOption,...q})=>q)});
+  assert.equal(rows.length,5);
+  assert.ok(rows.every(q=>q.grading==='remote' && q.answer===null));
+  assert.equal(readHadesMathMcq({options:['A','B'],correctOption:1},true).answer,null);
 });

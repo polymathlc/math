@@ -50,6 +50,7 @@ async function setup({ questions, manual = false, progress = {}, level = 'P4', p
   await page.goto('about:blank');
   await page.setContent(`<html><head><style>${css}</style></head><body><aside id="sidebar">${levelMarkup}</aside><main>${markup}</main></body></html>`);
   await page.addScriptTag({ content: policies + '\n' + `
+    const hadesMathBeta = { close() {} };
     const $ = id => document.getElementById(id);
     let currentUser = { uid: 'browser-student', role: 'student' };
     let questionBank = ${JSON.stringify(questions)}, qIndex = 0, studentProgress = ${JSON.stringify(progress)};

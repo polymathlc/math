@@ -4,7 +4,7 @@ import { buildPracticeMasteryContext, evaluatePracticeFit, parsePracticeLevel } 
 import { evaluateQuestionQuality } from './practice-quality.js';
 import { buildPracticeCatalog, planPracticeQuestions } from './practice-variety.js';
 
-export function readHadesMathMcq(question) {
+export function readHadesMathMcq(question, remote = false) {
   const q = question || {};
   const blocks = Array.isArray(q.blocks) ? q.blocks : [];
   const mcqBlocks = blocks.filter(block => block?.type === 'mcq');
@@ -13,7 +13,7 @@ export function readHadesMathMcq(question) {
     || (q.annotation && block.type === 'image' && block.annotate !== false)))) return null;
   if (Array.isArray(q.options) && q.options.length >= 2 && mcqBlocks.length) return null;
   let options = q.options, answer = q.correctOption;
-  if (!Array.isArray(options) || !Number.isInteger(answer)) {
+  if (!Array.isArray(options) || (!remote && !Number.isInteger(answer))) {
     const block = mcqBlocks.find(b => Array.isArray(b.options));
     if (!block || typeof block.correctId !== 'string' || !block.correctId) return null;
     const matches = block.options.filter(option => option?.id === block.correctId);
@@ -21,16 +21,17 @@ export function readHadesMathMcq(question) {
     answer = block.options.findIndex(option => option?.id === block.correctId);
     options = block.options.map(option => option?.text);
   }
+  if (remote && Array.isArray(q.options)) answer = null;
   if (options.length < 2 || options.length > 8 || answer < 0 || answer >= options.length) return null;
   if (!options.every(value => typeof value === 'string' && value.trim())) return null;
   if (new Set(options.map(value => value.normalize('NFC').trim().replace(/\s+/g, ' '))).size !== options.length) return null;
-  return { options: options.slice(), answer };
+  return { options: options.slice(), answer, ...(remote && answer === null ? { grading: 'remote' } : {}) };
 }
 
 export function selectHadesMathBankRound({ bank = [], level, progress = {}, profile = {},
   uid = '', served = {}, excludedIds = [], syllabusById = {}, isReleased = () => true,
   qualityOptions = () => ({}), renderBlocks, renderOption = value => value,
-  now = Date.now(), random = Math.random } = {}) {
+  now = Date.now(), random = Math.random, remote = false } = {}) {
   if (!parsePracticeLevel(level).known || !uid || typeof renderBlocks !== 'function') return [];
   const questions = Array.isArray(bank) ? bank.filter(Boolean) : [];
   const catalog = buildPracticeCatalog(questions);
@@ -44,7 +45,7 @@ export function selectHadesMathBankRound({ bank = [], level, progress = {}, prof
     excludeEvidenceIds: new Set(questions.filter(q => !sound.has(String(q.id))).map(q => String(q.id))) });
   const candidates = questions.flatMap(q => {
     const id = String(q.id || '');
-    const mcq = readHadesMathMcq(q);
+    const mcq = readHadesMathMcq(q, remote);
     if (!id || !mcq || !sound.has(id) || !isReleased(q) || (q.status && q.status !== 'approved')) return [];
     const fit = evaluatePracticeFit(q, { context });
     return fit.eligible ? [{ q, mcq, fit, quality: sound.get(id), tie: random() }] : [];
@@ -72,7 +73,7 @@ export function selectHadesMathBankRound({ bank = [], level, progress = {}, prof
   return selected.map(q => {
     const { mcq } = byId.get(String(q.id));
     return { id: String(q.id), title: String(q.title || 'Math question'), topic: String(q.topic || 'Math'),
-      html: renderBlocks(q), options: mcq.options.map(renderOption), answer: mcq.answer,
+      html: renderBlocks(q), options: mcq.options.map(renderOption), answer: mcq.answer, ...(mcq.grading ? { grading: mcq.grading } : {}),
       explainHtml: typeof q.markingGuide === 'string' ? q.markingGuide : '', source: q };
   });
 }
