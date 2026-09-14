@@ -58,4 +58,6 @@ Run `node --test tools/hades-math-bank-tests.mjs tools/hades-learning-tests.mjs`
 and `node tools/hades-math-browser-tests.mjs` for bank/bridge and rendered Math
 checks. The browser check uses the production Math renderer and question dialog.
 
-Release bundle: **Hades 2.1.1**, Math **v1.81.1**. The generated game and shared bridge are verified against `hades-game.manifest.json` in CI. Tests exercise all six scores, rendered reward summaries and duplicate-request protection.
+Release bundle: **Hades 2.1.2**, Math **v1.81.2**. The generated game and shared bridge are verified against `hades-game.manifest.json` in CI. Tests exercise all six scores, rendered reward summaries and duplicate-request protection.
+
+The cast now forms a detailed SVG summoning circle on the floor, beneath scenery and combat actors. Its fixed boundary matches the spell’s reach, with counter-rotating interior rune bands that stop in reduced-motion mode.
