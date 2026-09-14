@@ -66,6 +66,7 @@ try {
   if (shots) { fs.mkdirSync(shots, { recursive: true }); await page.screenshot({ path: path.join(shots, 'math-sanctuary-mobile.png'), fullPage: true }); }
   for (let i = 0; i < 5; i++) {
     await page.locator('.hades-learning-option').first().click();
+    if (i === 4) assert.match(await page.locator('.hades-learning-reward').textContent(), /Heroic: next scalable boon Lv 8, or Pom \+8 levels/);
     await page.getByRole('button', { name: i === 4 ? 'Claim sanctuary reward' : 'Next question', exact: true }).click();
   }
   await frame.waitForFunction(() => messages.at(-1)?.type === 'HADES_ROUND_RESULT');

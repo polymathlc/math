@@ -7,9 +7,28 @@ do not see or enter this beta; no existing student release setting changes.
 
 Every cleared chamber pauses for exactly five multiple-choice questions from
 the Math question bank. Each correct answer restores 8% of maximum health,
-up to 40%. The next boon is Common at 0–1 correct, Rare at 2–3, Epic at 4,
-or Heroic at 5. The game only receives the finished score and reward tier;
+up to 40%. Every correct answer improves the upgrade, with a large difference
+between no correct answers and a perfect round. The game only receives the finished score and reward tier;
 questions and answer keys stay in the platform.
+
+| Correct answers | Heal (% maximum life) | Reward tier | Scalable boon / Pom upgrade |
+| --- | --- | --- | --- |
+| 0 | 0% | Fractured | No boon or Pom; +1 maximum life only |
+| 1 | 8% | Common | Level 1 / +1 level |
+| 2 | 16% | Uncommon | Level 2 / +2 levels |
+| 3 | 24% | Rare | Level 3 / +3 levels |
+| 4 | 32% | Epic | Level 5 / +5 levels |
+| 5 | 40% | Heroic | Level 8 / +8 levels |
+
+Unique boons keep their authored mechanics and add 5 maximum life per reward
+rank (5/10/15/25/40 at 1–5 correct). With no scalable Pom target, the consolation
+is 1/5/10/20/35/60 maximum life at 0–5 correct. Maximum-life bonuses do not heal;
+healing remains the percentage earned by correct answers.
+
+Heart gates grant 1/10/18/25/40/60 maximum life and ash gates grant
+1/5/10/15/25/40 ashes at 0–5 correct. Shop boon and Pom upgrades use the same
+tier, while shop hearts grant 1/12/24/35/50/80 maximum life. Ordinary purchased
+healing and unrelated combat rewards keep their own rules.
 
 Selection uses the existing grade, skill mastery, quality and question-family
 policies, even during administrator previews. It shuffles suitable questions,
@@ -39,4 +58,4 @@ Run `node --test tools/hades-math-bank-tests.mjs tools/hades-learning-tests.mjs`
 and `node tools/hades-math-browser-tests.mjs` for bank/bridge and rendered Math
 checks. The browser check uses the production Math renderer and question dialog.
 
-Release bundle: **Hades 2.1.0**, Math **v1.81.0**. The generated game and shared bridge are verified against `hades-game.manifest.json` in CI. Common/Rare/Epic/Heroic grant level 1/2/3/4 to a scalable boon or add 1/2/3/4 Pom levels; unique utility effects keep their fixed strength.
+Release bundle: **Hades 2.1.1**, Math **v1.81.1**. The generated game and shared bridge are verified against `hades-game.manifest.json` in CI. Tests exercise all six scores, rendered reward summaries and duplicate-request protection.
