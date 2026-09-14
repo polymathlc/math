@@ -4788,6 +4788,7 @@ body.lore-reading { overflow: hidden; }
         </div>
       </div>
       <div class="nav-item" id="rpgHideToggle" style="display:none;"><span class="ico">🙈</span> Hide game</div>
+      <button type="button" class="nav-item admin-only" id="navHadesBeta" onclick="openHadesMathBeta()" style="display:none;"><span class="ico">🔥</span> Hades <span class="nav-beta">BETA</span></button>
       <div class="nav-section admin-only">Admin</div>
       <div class="nav-item admin-only" data-page="create"><span class="ico">➕</span> Create Question</div>
       <div class="nav-item admin-only" data-page="vetting" title="Questions read in by Rapid add / the paper import, waiting for you to check them before they go live"><span class="ico">📋</span> Vetting <span class="nav-count" id="navVettingCount" style="display:none;"></span></div>
@@ -6263,6 +6264,7 @@ body.lore-reading { overflow: hidden; }
 // under mathQuestions / mathMarking / mathGeneration / config.mathAdmin
 // so it never collides with the Science app's documents).
 // =====================================================================
+import { installHadesMathBeta } from "./hades-math-beta.js";
 import { mountInterfaceStudio } from "./interface-studio.mjs?v=2";
 import { createTcgMedia } from "./tcg-media.js";
 import { tcgSignature } from "./tcg-combat-identity.js";
@@ -9301,8 +9303,22 @@ function _authError(e) {
   return (e && e.message) ? e.message.replace("Firebase: ", "") : "Sign-in failed";
 }
 
+// Hades is an admin beta; its bank-only selection deliberately does not use
+// the TCG built-in fallback or the admin bypass in the ordinary game feed.
+const hadesMathBeta = installHadesMathBeta({
+  getUser: () => currentUser, getLevel: () => studentLevel, getBank: () => questionBank.map(q => ({ ...q, practiceQuality: _studentQualitySummary(q, true) })),
+  keysAvailable: () => _studentPrivateKeysLoaded, getSyllabus: _studentSyllabus,
+  isReleased: qReleased,
+  qualityOptions: q => ({ studentFlagged: _studentFlaggedQuestion(q) || flagNotifications.some(flag => String(flag.questionId) === String(q.id) && flag.status !== 'reviewed' && (!flag.questionSignature || flag.questionSignature === questionQualitySignature(q))),
+    failedImageUrls: Array.from(_studentFailedImages.get(String(q.id)) || []) }),
+  renderBlocks: q => renderQuestionBlocksHtml((q.blocks || []).filter(b => b && ['text', 'image', 'table', 'objectivesBox'].includes(b.type))),
+  renderOption: renderMathBlock, notify: message => showToast(message, 'error')
+});
+window.openHadesMathBeta = () => hadesMathBeta.open();
+
 let guestSignInTried = false;
 onAuthStateChanged(auth, async (user) => {
+  hadesMathBeta.close();
   _practiceViewEpoch++;
   if (user) { await enterApp(user); }
   else {
@@ -9623,6 +9639,7 @@ async function notifyQuestionSubscribers(q) {
 // NAVIGATION
 // =====================================================================
 function navigateTo(page) {
+  hadesMathBeta.close();
   vetPrintPeekHide();
   _practiceViewEpoch++;
   // My Worksheets is deliberately NOT on this list: a student's own saved
@@ -31173,7 +31190,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.80.0 · 2026-09-14";
+const APP_VERSION = "v1.81.0 · 2026-09-14";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -40122,6 +40139,7 @@ function tcgModesHtml(s) {
   return '<div class="tcg-section-note">New here? The <b>📘 How to Play</b> tab explains every mechanic in the game.</div>'
     + '<div class="tcg-section-note">Five ways to play with the units you have collected. Every mode uses your own cards and <b>your real card stats</b> — so both progression tracks count everywhere: <b>🎓 training levels</b> from answering maths questions, and <b>⟡ merge levels</b> from repeat copies merging in by themselves.</div>'
     + '<div class="tcg-modes">'
+    + (_isAdmin() ? '<div class="tcg-mode-card"><div class="tcg-mode-icon">🔥</div><div class="tcg-mode-main"><h4>Hades <span class="tcg-mode-tag">BETA · action adventure</span></h4><p>Intricate elemental combat, with five fresh Math bank questions between chambers. Correct answers restore life and raise your next boon tier.</p><div class="tcg-mode-meta">Admin preview · Choose the school level · Student results stay separate</div></div><div class="tcg-mode-go"><button type="button" class="btn btn-primary" onclick="openHadesMathBeta()">Play beta</button></div></div>' : '')
     + mode('manafront-siege', '🌳', 'Manafront Siege', 'NEW · lane defence',
         'Wave after wave of Hunger-spawn marches on the Worldroot Core — <b>slowly</b>: a unit takes about ' + EMS_WALK_SECONDS + ' seconds to cross the whole field, so there is always time to think. Place your cards on the field to summon them as defenders — and answer maths questions to generate the mana that pays for them. Mana trickles in slowly on its own, but answering is worth far more, and <b>every wave you clear opens a ' + EMS_ROUND_SIZE + '-question mana round with the battle paused and no timer</b>. Every correct answer also <b>🎓 trains the units you have on the field</b>.',
         '🃏 ' + owned + ' unit' + (owned === 1 ? '' : 's') + ' summonable · 🏅 best: wave <b>' + (siege.best | 0) + '</b> · ⚔️ ' + (siege.runs | 0) + ' run' + ((siege.runs | 0) === 1 ? '' : 's'),
