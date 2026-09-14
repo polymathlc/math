@@ -4789,6 +4789,7 @@ body.lore-reading { overflow: hidden; }
       </div>
       <div class="nav-item" id="rpgHideToggle" style="display:none;"><span class="ico">🙈</span> Hide game</div>
       <button type="button" class="nav-item" id="navHadesBeta" onclick="openHadesMathBeta()"><span class="ico">🔥</span> Hades <span class="nav-beta">BETA</span></button>
+      <button type="button" class="nav-item" id="navPirateRift" onclick="openPirateRift()" title="One Piece: Pirate Rift — Luffy, Zoro, Whitebeard and Shanks"><span class="ico">🏴‍☠️</span> Pirate Rift <span class="nav-beta">BETA</span></button>
       <div class="nav-section admin-only">Admin</div>
       <div class="nav-item admin-only" data-page="create"><span class="ico">➕</span> Create Question</div>
       <div class="nav-item admin-only" data-page="vetting" title="Questions read in by Rapid add / the paper import, waiting for you to check them before they go live"><span class="ico">📋</span> Vetting <span class="nav-count" id="navVettingCount" style="display:none;"></span></div>
@@ -6265,6 +6266,7 @@ body.lore-reading { overflow: hidden; }
 // so it never collides with the Science app's documents).
 // =====================================================================
 import { installHadesMathBeta } from "./hades-math-beta.js?v=2.2.1";
+import { installPirateRiftPortal } from "./pirate-rift-portal.js?v=1.0.0";
 import { mountInterfaceStudio } from "./interface-studio.mjs?v=2";
 import { createTcgMedia } from "./tcg-media.js";
 import { tcgSignature } from "./tcg-combat-identity.js";
@@ -8874,6 +8876,7 @@ function renderStudentLevel() {
 }
 async function saveStudentLevel(lv) {
   hadesMathBeta.close();
+  pirateRiftPortal.close();
   lv = STUDENT_LEVELS.indexOf(lv) >= 0 ? lv : "";
   studentLevel = lv;
   // The built-in pool is cached against the cap, so the next question a game
@@ -9304,6 +9307,13 @@ function _authError(e) {
   return (e && e.message) ? e.message.replace("Firebase: ", "") : "Sign-in failed";
 }
 
+// Pirate Rift keeps only local game records for the active account and level.
+const pirateRiftPortal = installPirateRiftPortal({
+  subject: 'math', getUser: () => currentUser, getLevel: () => studentLevel,
+  notify: message => showToast(message, 'error'), beforeOpen: () => hadesMathBeta.close()
+});
+window.openPirateRift = () => pirateRiftPortal.open();
+
 // Hades beta uses the released bank, profile level and authenticated MCQ marking.
 const hadesMathBeta = installHadesMathBeta({
   getUser: () => currentUser, getLevel: () => studentLevel, getBank: () => questionBank.map(q => ({ ...q, practiceQuality: _studentQualitySummary(q, true) })),
@@ -9323,11 +9333,12 @@ const hadesMathBeta = installHadesMathBeta({
   renderBlocks: q => renderQuestionBlocksHtml((q.blocks || []).filter(b => b && ['text', 'image', 'table', 'objectivesBox'].includes(b.type))),
   renderOption: renderMathBlock, notify: message => showToast(message, 'error')
 });
-window.openHadesMathBeta = () => hadesMathBeta.open();
+window.openHadesMathBeta = () => { pirateRiftPortal.close(); return hadesMathBeta.open(); };
 
 let guestSignInTried = false;
 onAuthStateChanged(auth, async (user) => {
   hadesMathBeta.close();
+  pirateRiftPortal.close();
   _practiceViewEpoch++;
   if (user) { await enterApp(user); }
   else {
@@ -9650,6 +9661,7 @@ async function notifyQuestionSubscribers(q) {
 function navigateTo(page) {
   vetPrintPeekHide();
   hadesMathBeta.close();
+  pirateRiftPortal.close();
   _practiceViewEpoch++;
   // My Worksheets is deliberately NOT on this list: a student's own saved
   // worksheets are their own documents, and reprinting one is the whole point.
@@ -40148,6 +40160,7 @@ function tcgModesHtml(s) {
   return '<div class="tcg-section-note">New here? The <b>📘 How to Play</b> tab explains every mechanic in the game.</div>'
     + '<div class="tcg-section-note">Five ways to play with the units you have collected. Every mode uses your own cards and <b>your real card stats</b> — so both progression tracks count everywhere: <b>🎓 training levels</b> from answering maths questions, and <b>⟡ merge levels</b> from repeat copies merging in by themselves.</div>'
     + '<div class="tcg-modes">'
+    + '<div class="tcg-mode-card"><div class="tcg-mode-icon">🏴‍☠️</div><div class="tcg-mode-main"><h4>One Piece: Pirate Rift <span class="tcg-mode-tag">BETA · action RPG</span></h4><p>Choose Luffy, Zoro, Whitebeard or Shanks. Battle through an isometric pirate dungeon, master signature abilities and hunt legendary loot.</p><div class="tcg-mode-meta">Four playable legends · Three acts · Boss battles · Free play</div></div><div class="tcg-mode-go"><button type="button" class="btn btn-primary" onclick="openPirateRift()">Set sail</button></div></div>'
     + ('<div class="tcg-mode-card"><div class="tcg-mode-icon">🔥</div><div class="tcg-mode-main"><h4>Hades <span class="tcg-mode-tag">BETA · action adventure</span></h4><p>Intricate elemental combat, with five fresh Math bank questions between chambers. Correct answers restore life and raise your next boon tier.</p><div class="tcg-mode-meta">Student beta · Questions at your school level · Earn stronger divine boons</div></div><div class="tcg-mode-go"><button type="button" class="btn btn-primary" onclick="openHadesMathBeta()">Play beta</button></div></div>')
     + mode('manafront-siege', '🌳', 'Manafront Siege', 'NEW · lane defence',
         'Wave after wave of Hunger-spawn marches on the Worldroot Core — <b>slowly</b>: a unit takes about ' + EMS_WALK_SECONDS + ' seconds to cross the whole field, so there is always time to think. Place your cards on the field to summon them as defenders — and answer maths questions to generate the mana that pays for them. Mana trickles in slowly on its own, but answering is worth far more, and <b>every wave you clear opens a ' + EMS_ROUND_SIZE + '-question mana round with the battle paused and no timer</b>. Every correct answer also <b>🎓 trains the units you have on the field</b>.',
