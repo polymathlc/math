@@ -4788,7 +4788,7 @@ body.lore-reading { overflow: hidden; }
         </div>
       </div>
       <div class="nav-item" id="rpgHideToggle" style="display:none;"><span class="ico">🙈</span> Hide game</div>
-      <button type="button" class="nav-item admin-only" id="navHadesBeta" onclick="openHadesMathBeta()" style="display:none;"><span class="ico">🔥</span> Hades <span class="nav-beta">BETA</span></button>
+      <button type="button" class="nav-item" id="navHadesBeta" onclick="openHadesMathBeta()"><span class="ico">🔥</span> Hades <span class="nav-beta">BETA</span></button>
       <div class="nav-section admin-only">Admin</div>
       <div class="nav-item admin-only" data-page="create"><span class="ico">➕</span> Create Question</div>
       <div class="nav-item admin-only" data-page="vetting" title="Questions read in by Rapid add / the paper import, waiting for you to check them before they go live"><span class="ico">📋</span> Vetting <span class="nav-count" id="navVettingCount" style="display:none;"></span></div>
@@ -6264,7 +6264,7 @@ body.lore-reading { overflow: hidden; }
 // under mathQuestions / mathMarking / mathGeneration / config.mathAdmin
 // so it never collides with the Science app's documents).
 // =====================================================================
-import { installHadesMathBeta } from "./hades-math-beta.js?v=2.1.2";
+import { installHadesMathBeta } from "./hades-math-beta.js?v=2.2.0";
 import { mountInterfaceStudio } from "./interface-studio.mjs?v=2";
 import { createTcgMedia } from "./tcg-media.js";
 import { tcgSignature } from "./tcg-combat-identity.js";
@@ -8873,6 +8873,7 @@ function renderStudentLevel() {
     : "Choose My level before starting practice or a question game.";
 }
 async function saveStudentLevel(lv) {
+  hadesMathBeta.close();
   lv = STUDENT_LEVELS.indexOf(lv) >= 0 ? lv : "";
   studentLevel = lv;
   // The built-in pool is cached against the cap, so the next question a game
@@ -9303,11 +9304,19 @@ function _authError(e) {
   return (e && e.message) ? e.message.replace("Firebase: ", "") : "Sign-in failed";
 }
 
-// Hades is an admin beta; its bank-only selection deliberately does not use
-// the TCG built-in fallback or the admin bypass in the ordinary game feed.
+// Hades beta uses the released bank, profile level and authenticated MCQ marking.
 const hadesMathBeta = installHadesMathBeta({
   getUser: () => currentUser, getLevel: () => studentLevel, getBank: () => questionBank.map(q => ({ ...q, practiceQuality: _studentQualitySummary(q, true) })),
   keysAvailable: () => _studentPrivateKeysLoaded, getSyllabus: _studentSyllabus,
+  getProgress: () => studentProgress, getProfile: () => studentLearningProfile,
+  getServed: _tcgServedLoad, markShown: q => _tcgServedMark(q.id),
+  gradeQuestion: async ({question,choice}) => {
+    const uid = currentUser?.uid, level = studentLevel;
+    const out = (await markAttemptCall({source:'bank',questionId:question.id,selectedOption:choice,practiceMode:true})).data || {};
+    if (currentUser?.uid !== uid || studentLevel !== level) throw new Error('Learning profile changed.');
+    if (!Number.isInteger(out.correctOption) || !['correct','incorrect'].includes(out.verdict?.verdict)) throw new Error('Marking is unavailable.');
+    return {correct:out.verdict.verdict === 'correct',answer:out.correctOption,explainHtml:escapeHtml(out.verdict.feedback || '')};
+  },
   isReleased: qReleased,
   qualityOptions: q => ({ studentFlagged: _studentFlaggedQuestion(q) || flagNotifications.some(flag => String(flag.questionId) === String(q.id) && flag.status !== 'reviewed' && (!flag.questionSignature || flag.questionSignature === questionQualitySignature(q))),
     failedImageUrls: Array.from(_studentFailedImages.get(String(q.id)) || []) }),
@@ -40139,7 +40148,7 @@ function tcgModesHtml(s) {
   return '<div class="tcg-section-note">New here? The <b>📘 How to Play</b> tab explains every mechanic in the game.</div>'
     + '<div class="tcg-section-note">Five ways to play with the units you have collected. Every mode uses your own cards and <b>your real card stats</b> — so both progression tracks count everywhere: <b>🎓 training levels</b> from answering maths questions, and <b>⟡ merge levels</b> from repeat copies merging in by themselves.</div>'
     + '<div class="tcg-modes">'
-    + (_isAdmin() ? '<div class="tcg-mode-card"><div class="tcg-mode-icon">🔥</div><div class="tcg-mode-main"><h4>Hades <span class="tcg-mode-tag">BETA · action adventure</span></h4><p>Intricate elemental combat, with five fresh Math bank questions between chambers. Correct answers restore life and raise your next boon tier.</p><div class="tcg-mode-meta">Admin preview · Choose the school level · Student results stay separate</div></div><div class="tcg-mode-go"><button type="button" class="btn btn-primary" onclick="openHadesMathBeta()">Play beta</button></div></div>' : '')
+    + ('<div class="tcg-mode-card"><div class="tcg-mode-icon">🔥</div><div class="tcg-mode-main"><h4>Hades <span class="tcg-mode-tag">BETA · action adventure</span></h4><p>Intricate elemental combat, with five fresh Math bank questions between chambers. Correct answers restore life and raise your next boon tier.</p><div class="tcg-mode-meta">Student beta · Questions at your school level · Earn stronger divine boons</div></div><div class="tcg-mode-go"><button type="button" class="btn btn-primary" onclick="openHadesMathBeta()">Play beta</button></div></div>')
     + mode('manafront-siege', '🌳', 'Manafront Siege', 'NEW · lane defence',
         'Wave after wave of Hunger-spawn marches on the Worldroot Core — <b>slowly</b>: a unit takes about ' + EMS_WALK_SECONDS + ' seconds to cross the whole field, so there is always time to think. Place your cards on the field to summon them as defenders — and answer maths questions to generate the mana that pays for them. Mana trickles in slowly on its own, but answering is worth far more, and <b>every wave you clear opens a ' + EMS_ROUND_SIZE + '-question mana round with the battle paused and no timer</b>. Every correct answer also <b>🎓 trains the units you have on the field</b>.',
         '🃏 ' + owned + ' unit' + (owned === 1 ? '' : 's') + ' summonable · 🏅 best: wave <b>' + (siege.best | 0) + '</b> · ⚔️ ' + (siege.runs | 0) + ' run' + ((siege.runs | 0) === 1 ? '' : 's'),

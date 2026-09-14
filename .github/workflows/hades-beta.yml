@@ -16,7 +16,7 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24'
-      - run: node --test tools/hades-math-bank-tests.mjs tools/hades-learning-tests.mjs
+      - run: node --test tools/hades-math-bank-tests.mjs tools/hades-learning-tests.mjs tools/hades-remote-grading-tests.mjs
       - name: Verify published game and bridge
         run: node tools/hades-artifact-check.mjs
       - name: Install isolated browser runtime
@@ -30,6 +30,7 @@ jobs:
         run: |
           node tools/hades-learning-browser.mjs
           node tools/hades-math-browser-tests.mjs
+          node tools/hades-display-browser.mjs
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         if: always()
         with:
