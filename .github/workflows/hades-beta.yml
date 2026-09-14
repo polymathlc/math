@@ -1,10 +1,10 @@
 name: Hades Math beta checks
 on:
   pull_request:
-    paths: ['hades-*', 'index.html', 'tools/hades-*', '.github/workflows/hades-beta.yml']
+    paths: ['hades-*', 'docs/hades-beta.md', 'index.html', 'tools/hades-*', '.github/workflows/hades-beta.yml']
   push:
     branches: [main]
-    paths: ['hades-*', 'index.html', 'tools/hades-*', '.github/workflows/hades-beta.yml']
+    paths: ['hades-*', 'docs/hades-beta.md', 'index.html', 'tools/hades-*', '.github/workflows/hades-beta.yml']
 permissions:
   contents: read
 jobs:
@@ -31,6 +31,7 @@ jobs:
           node tools/hades-learning-browser.mjs
           node tools/hades-math-browser-tests.mjs
           node tools/hades-display-browser.mjs
+          node tools/hades-cursor-browser.mjs
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         if: always()
         with:
