@@ -6264,7 +6264,7 @@ body.lore-reading { overflow: hidden; }
 // under mathQuestions / mathMarking / mathGeneration / config.mathAdmin
 // so it never collides with the Science app's documents).
 // =====================================================================
-import { installHadesMathBeta } from "./hades-math-beta.js";
+import { installHadesMathBeta } from "./hades-math-beta.js?v=2.1.1";
 import { mountInterfaceStudio } from "./interface-studio.mjs?v=2";
 import { createTcgMedia } from "./tcg-media.js";
 import { tcgSignature } from "./tcg-combat-identity.js";
@@ -31190,7 +31190,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.81.0 · 2026-09-14";
+const APP_VERSION = "v1.81.1 · 2026-09-14";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
