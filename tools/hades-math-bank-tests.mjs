@@ -78,6 +78,6 @@ test('the shipping integration gates navigation and gameplay independently from 
   assert.match(html, /class="nav-item admin-only" id="navHadesBeta"/);
   assert.match(wrapper, /getUser\(\)\?\.role === 'admin' && !!env.keysAvailable\(\)/);
   assert.match(html, /onAuthStateChanged\(auth, async \(user\) => \{\s+hadesMathBeta.close\(\)/);
-  assert.match(html, /function navigateTo\(page\) \{\s+hadesMathBeta.close\(\)/);
+  assert.match(html, /function navigateTo\(page\) \{\s+vetPrintPeekHide\(\);\s+hadesMathBeta.close\(\)/);
   assert.doesNotMatch(wrapper, /TCG_QUIZ|_tcgQuizPool|fetch\(|httpsCallable|rpgAwardGameQuestion/);
 });
