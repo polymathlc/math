@@ -51,8 +51,9 @@ async function setup({ questions, manual = false, progress = {}, level = 'P4', p
   await page.setContent(`<html><head><style>${css}</style></head><body><aside id="sidebar">${levelMarkup}</aside><main>${markup}</main></body></html>`);
   await page.addScriptTag({ content: policies + '\n' + `
     const hadesMathBeta = { close() {} };
-    let pirateRiftCloses = 0;
+    let pirateRiftCloses = 0, grandLineCloses = 0;
     const pirateRiftPortal = { close() { pirateRiftCloses++; } };
+    const grandLinePortal = { close() { grandLineCloses++; } };
     const $ = id => document.getElementById(id);
     let currentUser = { uid: 'browser-student', role: 'student' };
     let questionBank = ${JSON.stringify(questions)}, qIndex = 0, studentProgress = ${JSON.stringify(progress)};
@@ -105,7 +106,7 @@ async function setup({ questions, manual = false, progress = {}, level = 'P4', p
     $('prevBtn').addEventListener('click', () => changeQuestion(-1));
     $('nextBtn').addEventListener('click', () => changeQuestion(1));
     window.practiceFixture = {
-      state: () => ({ id: questionBank[qIndex]?.id, level: studentLevel, calls: markerCalls.length, confirmations, visibleResults, exhausted: _practiceExhausted, manual: _practiceManual, notices, pirateRiftCloses }),
+      state: () => ({ id: questionBank[qIndex]?.id, level: studentLevel, calls: markerCalls.length, confirmations, visibleResults, exhausted: _practiceExhausted, manual: _practiceManual, notices, pirateRiftCloses, grandLineCloses }),
       chooseQuestion(id) { goPracticeQuestion(questionBank.find(q => q.id === id)); },
       changeLevel: saveStudentLevel,
       candidates(manual = false) { return _studentFeedCandidates(questionBank, { manual }).questions.map(q => q.id); },
@@ -146,6 +147,7 @@ try {
   await page.locator('#studentLevelSelect').selectOption('P4');
   assert.equal((await state()).level, 'P4');
   assert.equal((await state()).pirateRiftCloses, 1, 'Changing school level closes any Pirate Rift expedition');
+  assert.equal((await state()).grandLineCloses,1,'school level change closes Grand Line');
   assert.equal((await state()).id, 'p1');
   assert.deepEqual(await page.evaluate(() => window.practiceFixture.candidates()), ['p1', 'c1']);
   await page.evaluate(() => window.practiceFixture.chooseQuestion('p6'));

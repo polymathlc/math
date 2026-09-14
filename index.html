@@ -4790,6 +4790,7 @@ body.lore-reading { overflow: hidden; }
       <div class="nav-item" id="rpgHideToggle" style="display:none;"><span class="ico">🙈</span> Hide game</div>
       <button type="button" class="nav-item" id="navHadesBeta" onclick="openHadesMathBeta()"><span class="ico">🔥</span> Hades <span class="nav-beta">BETA</span></button>
       <button type="button" class="nav-item" id="navPirateRift" onclick="openPirateRift()" title="One Piece: Pirate Rift — Luffy, Zoro, Whitebeard and Shanks"><span class="ico">🏴‍☠️</span> Pirate Rift <span class="nav-beta">BETA</span></button>
+      <button type="button" class="nav-item" id="navGrandLine" onclick="openGrandLine()" title="One Piece TCG — three Math questions after every battle round"><span class="ico">🃏</span> Grand Line Chronicles <span class="nav-beta">TCG</span></button>
       <div class="nav-section admin-only">Admin</div>
       <div class="nav-item admin-only" data-page="create"><span class="ico">➕</span> Create Question</div>
       <div class="nav-item admin-only" data-page="vetting" title="Questions read in by Rapid add / the paper import, waiting for you to check them before they go live"><span class="ico">📋</span> Vetting <span class="nav-count" id="navVettingCount" style="display:none;"></span></div>
@@ -6267,6 +6268,9 @@ body.lore-reading { overflow: hidden; }
 // =====================================================================
 import { installHadesMathBeta } from "./hades-math-beta.js?v=2.2.1";
 import { installPirateRiftPortal } from "./pirate-rift-portal.js?v=1.0.0";
+import { installGrandLinePortal } from "./grand-line-portal.js?v=1.0.0";
+import { createGrandLineMathAdapter } from "./grand-line-math-adapter.js?v=1.0.0";
+import { createGrandLineEconomy, createGrandLineRpgCommit, createGrandLineRpgSaveGate } from './grand-line-economy.js?v=1.0.0';
 import { mountInterfaceStudio } from "./interface-studio.mjs?v=2";
 import { createTcgMedia } from "./tcg-media.js";
 import { tcgSignature } from "./tcg-combat-identity.js";
@@ -8877,6 +8881,7 @@ function renderStudentLevel() {
 async function saveStudentLevel(lv) {
   hadesMathBeta.close();
   pirateRiftPortal.close();
+  grandLinePortal.close();
   lv = STUDENT_LEVELS.indexOf(lv) >= 0 ? lv : "";
   studentLevel = lv;
   // The built-in pool is cached against the cap, so the next question a game
@@ -9310,9 +9315,40 @@ function _authError(e) {
 // Pirate Rift keeps only local game records for the active account and level.
 const pirateRiftPortal = installPirateRiftPortal({
   subject: 'math', getUser: () => currentUser, getLevel: () => studentLevel,
-  notify: message => showToast(message, 'error'), beforeOpen: () => hadesMathBeta.close()
+  notify: message => showToast(message, 'error'), beforeOpen: () => { grandLinePortal.close(); hadesMathBeta.close(); }
 });
 window.openPirateRift = () => pirateRiftPortal.open();
+const grandLineRpgSaveGate = createGrandLineRpgSaveGate({getUser:()=>currentUser,flush:()=>rpgSave()});
+const grandLinePortal = installGrandLinePortal({
+  ...createGrandLineEconomy({
+    getState:()=>rpgState,getPacks:()=>TCG_PACKS,isCurrent:ctx=>grandLinePortal.isCurrent(ctx),
+    commit:createGrandLineRpgCommit({saveGate:grandLineRpgSaveGate,getUser:()=>currentUser,getState:()=>rpgState,setState:state=>{rpgState=state;},
+      isCurrent:ctx=>grandLinePortal.isCurrent(ctx),render:()=>rpgRenderSide(),
+      writeState:(state,uid)=>RPG_STORAGE_MODE==='firestore'
+        ?setDoc(doc(db,'users',uid,'settings','mathRpg'),state)
+        :Promise.resolve(localStorage.setItem('mathQuestRpg:'+uid,JSON.stringify(state)))})
+  }),
+  subject:'Math',getUser:()=>currentUser,getLevel:()=>studentLevel,levels:()=>STUDENT_LEVELS,isLevel:level=>STUDENT_LEVELS.includes(level),
+  beforeOpen:()=>{pirateRiftPortal.close();hadesMathBeta.close();},openRift:()=>pirateRiftPortal.open(),
+  getRiftFrame:()=>document.querySelector('.pirate-rift-portal iframe'),notify:message=>showToast(message,'error'),
+  ...createGrandLineMathAdapter({
+    awardPoints:rpgAwardGameQuestion,
+    getBank:()=>questionBank.map(q=>({...q,practiceQuality:_studentQualitySummary(q,true)})),
+    getProgress:()=>studentProgress,getProfile:()=>studentLearningProfile,getServed:_tcgServedLoad,markShown:q=>_tcgServedMark(q.id),
+    getSyllabus:_studentSyllabus,isReleased:qReleased,
+    qualityOptions:q=>({studentFlagged:_studentFlaggedQuestion(q)||flagNotifications.some(flag=>String(flag.questionId)===String(q.id)&&flag.status!=='reviewed'&&(!flag.questionSignature||flag.questionSignature===questionQualitySignature(q))),failedImageUrls:Array.from(_studentFailedImages.get(String(q.id))||[])}),
+    renderBlocks:q=>renderQuestionBlocksHtml((q.blocks||[]).filter(b=>b&&['text','image','table','objectivesBox'].includes(b.type))),renderOption:renderMathBlock,
+    gradeQuestion:async({question,choice},ctx)=>{
+      const uid=currentUser?.uid,level=studentLevel;
+      if(!uid||currentUser.role!=='student'||level!==ctx.level)throw new Error('Learning profile changed.');
+      const out=(await markAttemptCall({source:'bank',questionId:question.id,selectedOption:choice,practiceMode:true})).data||{};
+      if(currentUser?.uid!==uid||currentUser.role!=='student'||studentLevel!==level)throw new Error('Learning profile changed.');
+      if(!Number.isInteger(out.correctOption)||!['correct','incorrect'].includes(out.verdict?.verdict))throw new Error('Marking is unavailable.');
+      return {correct:out.verdict.verdict==='correct',answer:out.correctOption,explainHtml:escapeHtml(out.verdict.feedback||'')};
+    }
+  })
+});
+window.openGrandLine=()=>grandLinePortal.open();
 
 // Hades beta uses the released bank, profile level and authenticated MCQ marking.
 const hadesMathBeta = installHadesMathBeta({
@@ -9333,12 +9369,13 @@ const hadesMathBeta = installHadesMathBeta({
   renderBlocks: q => renderQuestionBlocksHtml((q.blocks || []).filter(b => b && ['text', 'image', 'table', 'objectivesBox'].includes(b.type))),
   renderOption: renderMathBlock, notify: message => showToast(message, 'error')
 });
-window.openHadesMathBeta = () => { pirateRiftPortal.close(); return hadesMathBeta.open(); };
+window.openHadesMathBeta = () => { pirateRiftPortal.close(); grandLinePortal.close(); return hadesMathBeta.open(); };
 
 let guestSignInTried = false;
 onAuthStateChanged(auth, async (user) => {
   hadesMathBeta.close();
   pirateRiftPortal.close();
+  grandLinePortal.close();
   _practiceViewEpoch++;
   if (user) { await enterApp(user); }
   else {
@@ -9662,6 +9699,7 @@ function navigateTo(page) {
   vetPrintPeekHide();
   hadesMathBeta.close();
   pirateRiftPortal.close();
+  grandLinePortal.close();
   _practiceViewEpoch++;
   // My Worksheets is deliberately NOT on this list: a student's own saved
   // worksheets are their own documents, and reprinting one is the whole point.
@@ -28105,6 +28143,7 @@ function rpgHydrate(saved) {
 }
 function rpgSave() {
   if (!rpgState || !currentUser) return;
+  if (grandLineRpgSaveGate.defer()) return;
   rpgState.updatedAt = new Date().toISOString();
   if (RPG_STORAGE_MODE === "firestore") {
     setDoc(doc(db, "users", currentUser.uid, "settings", "mathRpg"), rpgState)
@@ -40160,6 +40199,7 @@ function tcgModesHtml(s) {
   return '<div class="tcg-section-note">New here? The <b>📘 How to Play</b> tab explains every mechanic in the game.</div>'
     + '<div class="tcg-section-note">Five ways to play with the units you have collected. Every mode uses your own cards and <b>your real card stats</b> — so both progression tracks count everywhere: <b>🎓 training levels</b> from answering maths questions, and <b>⟡ merge levels</b> from repeat copies merging in by themselves.</div>'
     + '<div class="tcg-modes">'
+    + '<div class="tcg-mode-card"><div class="tcg-mode-icon">🃏</div><div class="tcg-mode-main"><h4>Grand Line Chronicles <span class="tcg-mode-tag">ONE PIECE TCG</span></h4><p>Collect 50 One Piece characters, build a five-card crew and battle across the Grand Line. Answer three Math questions after each full battle round.</p><div class="tcg-mode-meta">Buy one-character packs with your reward points · Learning follows your school level</div></div><div class="tcg-mode-go"><button type="button" class="btn btn-primary" onclick="openGrandLine()">Build your crew</button></div></div>'
     + '<div class="tcg-mode-card"><div class="tcg-mode-icon">🏴‍☠️</div><div class="tcg-mode-main"><h4>One Piece: Pirate Rift <span class="tcg-mode-tag">BETA · action RPG</span></h4><p>Choose Luffy, Zoro, Whitebeard or Shanks. Battle through an isometric pirate dungeon, master signature abilities and hunt legendary loot.</p><div class="tcg-mode-meta">Four playable legends · Three acts · Boss battles · Free play</div></div><div class="tcg-mode-go"><button type="button" class="btn btn-primary" onclick="openPirateRift()">Set sail</button></div></div>'
     + ('<div class="tcg-mode-card"><div class="tcg-mode-icon">🔥</div><div class="tcg-mode-main"><h4>Hades <span class="tcg-mode-tag">BETA · action adventure</span></h4><p>Intricate elemental combat, with five fresh Math bank questions between chambers. Correct answers restore life and raise your next boon tier.</p><div class="tcg-mode-meta">Student beta · Questions at your school level · Earn stronger divine boons</div></div><div class="tcg-mode-go"><button type="button" class="btn btn-primary" onclick="openHadesMathBeta()">Play beta</button></div></div>')
     + mode('manafront-siege', '🌳', 'Manafront Siege', 'NEW · lane defence',
