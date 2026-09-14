@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "assets" / "aetherfall" / "source"
 OUT = ROOT / "assets" / "aetherfall"
 SCENE_SOURCE = SOURCE / "card-scenes"
+CARD_SIZE = (480, 384)
 
 SHEETS = [
     ("roster-01.png", 1, 4, 4),
@@ -221,31 +222,32 @@ def _expanded_cell(
     return _keep_core_component(expanded, core, threshold=40)
 
 
-def _story_backdrop(number: int, element: str, size: int = 384) -> Image.Image:
+def _story_backdrop(number: int, element: str, size: tuple[int, int] = CARD_SIZE) -> Image.Image:
     """Select a quiet lore location and keep it subordinate to the unit."""
+    width, height = size
     library = AETHARI_SCENES if number <= 51 else MANA_SCENES
     choices = library[element]
     filename = choices[(number - 1) % len(choices)]
     scene = Image.open(SCENE_SOURCE / filename).convert("RGB")
-    scene = ImageOps.fit(scene, (size, size), method=Image.Resampling.LANCZOS)
+    scene = ImageOps.fit(scene, size, method=Image.Resampling.LANCZOS)
     scene = scene.filter(ImageFilter.GaussianBlur(0.45)).convert("RGBA")
 
     # A restrained vignette and a low-opacity elemental halo keep pale and dark
     # silhouettes legible without turning the location into an effects plate.
-    shade = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    shade = Image.new("RGBA", size, (0, 0, 0, 0))
     shade_px = shade.load()
-    for y in range(size):
-        for x in range(size):
-            nx = abs((x / max(1, size - 1)) - 0.5) * 2
-            ny = abs((y / max(1, size - 1)) - 0.48) * 1.6
+    for y in range(height):
+        for x in range(width):
+            nx = abs((x / max(1, width - 1)) - 0.5) * 2
+            ny = abs((y / max(1, height - 1)) - 0.48) * 1.6
             alpha = round(min(46, max(0, (max(nx, ny) - 0.46) * 62)))
             shade_px[x, y] = (4, 7, 13, alpha)
     scene = Image.alpha_composite(scene, shade)
 
     glow = PALETTES[element][2]
-    halo = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    halo = Image.new("RGBA", size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(halo)
-    draw.ellipse((68, 34, size - 68, size - 18), fill=(*glow, 35))
+    draw.ellipse((round(width * 0.18), 34, round(width * 0.82), height - 18), fill=(*glow, 35))
     halo = halo.filter(ImageFilter.GaussianBlur(48))
     return Image.alpha_composite(scene, halo)
 
@@ -280,11 +282,12 @@ def build_roster(write_avatars: bool = True) -> None:
 
                 card_avatar = avatar if write_avatars else _fit_subject(isolated_source)
                 card = _story_backdrop(number, ELEMENTS[number - 1])
-                shadow = Image.new("RGBA", card.size, (0, 0, 0, 0))
+                subject_x = (card.width - card_avatar.width) // 2
+                shadow = Image.new("RGBA", card_avatar.size, (0, 0, 0, 0))
                 a = card_avatar.getchannel("A").filter(ImageFilter.GaussianBlur(10))
                 shadow.putalpha(a.point(lambda v: round(v * 0.38)))
-                card.alpha_composite(shadow, (4, 10))
-                card.alpha_composite(card_avatar)
+                card.alpha_composite(shadow, (subject_x + 4, 10))
+                card.alpha_composite(card_avatar, (subject_x, 0))
                 card.convert("RGB").save(cards / f"{stem}.webp", "WEBP", quality=90, method=6)
                 made += 1
     if made != 101:
@@ -300,8 +303,16 @@ def build_apex_cards() -> None:
     }
     for card_id, filename in apex.items():
         art = Image.open(SOURCE / filename).convert("RGB")
-        art = ImageOps.fit(art, (512, 512), method=Image.Resampling.LANCZOS, centering=(0.5, 0.46))
-        art.save(cards / f"{card_id}.webp", "WEBP", quality=92, method=6)
+        # Apex paintings can be portrait or square. Fill the card window with a
+        # quiet blurred extension, then contain the original painting so no
+        # head, feet, wing, or weapon is sacrificed to the 5:4 card ratio.
+        framed = ImageOps.fit(art, CARD_SIZE, method=Image.Resampling.LANCZOS, centering=(0.5, 0.46))
+        framed = framed.filter(ImageFilter.GaussianBlur(18)).convert("RGBA")
+        framed = Image.alpha_composite(framed, Image.new("RGBA", CARD_SIZE, (7, 10, 18, 72)))
+        foreground = ImageOps.contain(art, CARD_SIZE, method=Image.Resampling.LANCZOS).convert("RGBA")
+        position = ((CARD_SIZE[0] - foreground.width) // 2, (CARD_SIZE[1] - foreground.height) // 2)
+        framed.alpha_composite(foreground, position)
+        framed.convert("RGB").save(cards / f"{card_id}.webp", "WEBP", quality=92, method=6)
 
 
 def build_modes() -> None:

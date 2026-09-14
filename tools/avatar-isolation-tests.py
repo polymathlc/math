@@ -10,6 +10,7 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 AVATARS = ROOT / "assets" / "aetherfall" / "avatars"
+CARDS = ROOT / "assets" / "aetherfall" / "cards"
 SLICER_PATH = ROOT / "tools" / "slice-aetherfall-assets.py"
 
 sys.dont_write_bytecode = True
@@ -52,6 +53,11 @@ def components(alpha: Image.Image, threshold: int = 72) -> list[tuple[int, tuple
 
 files = sorted(AVATARS.glob("c*.webp"))
 assert len(files) == 101, f"Expected 101 avatars, found {len(files)}"
+card_files = sorted(CARDS.glob("c*.webp"))
+assert len(card_files) == 101, f"Expected 101 cards, found {len(card_files)}"
+for path in card_files:
+    card_art = Image.open(path)
+    assert card_art.size == (480, 384), f"{path.name}: card art must be full-frame 5:4, got {card_art.size}"
 edge_regressions = {"c055.webp": "top", "c075.webp": "bottom"}
 
 for path in files:
