@@ -6268,9 +6268,9 @@ body.lore-reading { overflow: hidden; }
 // =====================================================================
 import { installHadesMathBeta } from "./hades-math-beta.js?v=2.2.1";
 import { installPirateRiftPortal } from "./pirate-rift-portal.js?v=1.0.0";
-import { installGrandLinePortal } from "./grand-line-portal.js?v=1.0.0";
-import { createGrandLineMathAdapter } from "./grand-line-math-adapter.js?v=1.0.0";
-import { createGrandLineEconomy, createGrandLineRpgCommit, createGrandLineRpgSaveGate } from './grand-line-economy.js?v=1.0.0';
+import { installGrandLinePortal } from "./grand-line-portal.js?v=1.1.0";
+import { createGrandLineMathAdapter } from "./grand-line-math-adapter.js?v=1.1.0";
+import { createGrandLineEconomy, createGrandLineRpgCommit, createGrandLineRpgSaveGate } from './grand-line-economy.js?v=1.1.0';
 import { mountInterfaceStudio } from "./interface-studio.mjs?v=2";
 import { createTcgMedia } from "./tcg-media.js";
 import { tcgSignature } from "./tcg-combat-identity.js";
@@ -40199,7 +40199,7 @@ function tcgModesHtml(s) {
   return '<div class="tcg-section-note">New here? The <b>📘 How to Play</b> tab explains every mechanic in the game.</div>'
     + '<div class="tcg-section-note">Five ways to play with the units you have collected. Every mode uses your own cards and <b>your real card stats</b> — so both progression tracks count everywhere: <b>🎓 training levels</b> from answering maths questions, and <b>⟡ merge levels</b> from repeat copies merging in by themselves.</div>'
     + '<div class="tcg-modes">'
-    + '<div class="tcg-mode-card"><div class="tcg-mode-icon">🃏</div><div class="tcg-mode-main"><h4>Grand Line Chronicles <span class="tcg-mode-tag">ONE PIECE TCG</span></h4><p>Collect 50 One Piece characters, build a five-card crew and battle across the Grand Line. Answer three Math questions after each full battle round.</p><div class="tcg-mode-meta">Buy one-character packs with your reward points · Learning follows your school level</div></div><div class="tcg-mode-go"><button type="button" class="btn btn-primary" onclick="openGrandLine()">Build your crew</button></div></div>'
+    + '<div class="tcg-mode-card"><div class="tcg-mode-icon">🃏</div><div class="tcg-mode-main"><h4>Grand Line Chronicles <span class="tcg-mode-tag">ONE PIECE TCG</span></h4><p>Collect 50 One Piece characters, build a five-card crew and enable idle battles across the Grand Line. Answer three Math questions after each full battle round.</p><div class="tcg-mode-meta">Buy one-character packs with your reward points · Learning follows your school level</div></div><div class="tcg-mode-go"><button type="button" class="btn btn-primary" onclick="openGrandLine()">Build your crew</button></div></div>'
     + '<div class="tcg-mode-card"><div class="tcg-mode-icon">🏴‍☠️</div><div class="tcg-mode-main"><h4>One Piece: Pirate Rift <span class="tcg-mode-tag">BETA · action RPG</span></h4><p>Choose Luffy, Zoro, Whitebeard or Shanks. Battle through an isometric pirate dungeon, master signature abilities and hunt legendary loot.</p><div class="tcg-mode-meta">Four playable legends · Three acts · Boss battles · Free play</div></div><div class="tcg-mode-go"><button type="button" class="btn btn-primary" onclick="openPirateRift()">Set sail</button></div></div>'
     + ('<div class="tcg-mode-card"><div class="tcg-mode-icon">🔥</div><div class="tcg-mode-main"><h4>Hades <span class="tcg-mode-tag">BETA · action adventure</span></h4><p>Intricate elemental combat, with five fresh Math bank questions between chambers. Correct answers restore life and raise your next boon tier.</p><div class="tcg-mode-meta">Student beta · Questions at your school level · Earn stronger divine boons</div></div><div class="tcg-mode-go"><button type="button" class="btn btn-primary" onclick="openHadesMathBeta()">Play beta</button></div></div>')
     + mode('manafront-siege', '🌳', 'Manafront Siege', 'NEW · lane defence',
