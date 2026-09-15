@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { HISTORY_RULE, addHistoryRule, historyRuleTests, publishHistoryRule } from './student-question-history-rules.mjs';
+import { HISTORY_RULE, addHistoryRule, historyRuleTests, legacyRuleTests, publishHistoryRule } from './student-question-history-rules.mjs';
 
 const source = `rules_version = '2';
 service cloud.firestore {
@@ -41,7 +41,7 @@ function service({ invalid = false, changed = false, current = source } = {}) {
         : changed && releaseReads > 1 ? 'projects/mathgen--app/rulesets/concurrent' : 'projects/mathgen--app/rulesets/original' };
     }
     if (path.endsWith('/rulesets/original')) return { source: { files: [{ name: 'production.rules', content: current }] } };
-    if (path.endsWith(':test')) return { testResults: historyRuleTests().map(() => ({ state: invalid ? 'FAILURE' : 'SUCCESS' })) };
+    if (path.endsWith(':test')) return { testResults: options.body.testSuite.testCases.map(() => ({ state: invalid ? 'FAILURE' : 'SUCCESS' })) };
     if (path.endsWith('/rulesets')) return { name: 'projects/mathgen--app/rulesets/new' };
     throw new Error(`Unexpected call ${path}`);
   };
@@ -75,4 +75,11 @@ test('already deployed rule is validated without another deployment', async () =
   const result = await publishHistoryRule({ request: api.request, deploy: true });
   assert.equal(result.deployed, true); assert.equal(result.changed, false);
   assert.equal(api.calls.some(call => call.method === 'PATCH'), false);
+});
+test('live starter permission receives legacy-path preservation checks', async () => {
+  const current = source.replace('match /science/{id} { allow read: if request.auth != null; }',
+    'match /{document=**} { allow read, write: if true; }');
+  const api = service({ current });
+  const result = await publishHistoryRule({ request: api.request });
+  assert.equal(result.validated, historyRuleTests().length + legacyRuleTests().length);
 });

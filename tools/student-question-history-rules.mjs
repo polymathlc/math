@@ -7,7 +7,9 @@ import { pathToFileURL } from 'node:url';
 export const HISTORY_RULE = `
     // BEGIN permanent-student-question-history-v1
     function isPermanentStudentHistoryPath() {
-      return request.path.size() >= 6 && request.path[3] == 'users'
+      return request.path[3] == 'users'
+        && request.path != /databases/$(request.path[1])/documents/users
+        && request.path != /databases/$(request.path[1])/documents/users/$(request.path[4])
         && request.path[5] == 'questionHistory';
     }
     match /users/{historyUid}/questionHistory/{historyScope}/entries/{historyMarker} {
@@ -71,6 +73,19 @@ export function historyRuleTests() {
     make('create', 'history-test-owner', 'DENY', { ...data, at: -1 })];
 }
 
+export function legacyRuleTests() {
+  // These synthetic reads/writes are evaluated by the rules test API only;
+  // they never read or modify actual student documents.
+  const roots = ['users', 'users/history-test-owner', 'users/history-test-owner/settings/profile',
+    'users/history-test-owner/mathQuestionProgress/q', 'questionAttempts/q', 'questions/q',
+    'scienceQuestions/q', 'scanPapers/q'];
+  return roots.flatMap(root => ['get', 'list', 'create', 'update', 'delete'].map(method => ({
+    expectation: 'ALLOW', request: { path: '/databases/(default)/documents/' + root, method,
+      auth: null, ...(method === 'create' || method === 'update' ? { resource: { data: { test: true } } } : {}) },
+    ...(method !== 'create' ? { resource: { data: { test: true } } } : {})
+  })));
+}
+
 export async function publishHistoryRule({ request, project = 'mathgen--app', deploy = false }) {
   if (project !== 'mathgen--app') throw new Error('Unexpected shared Firebase project.');
   const releasePath = `projects/${project}/releases/cloud.firestore`;
@@ -81,6 +96,7 @@ export async function publishHistoryRule({ request, project = 'mathgen--app', de
   const content = addHistoryRule(originals[0].content);
   const source = { files: [{ name: originals[0].name, content }] };
   const testCases = historyRuleTests();
+  if (content.includes('allow read, write: if !isPermanentStudentHistoryPath()')) testCases.push(...legacyRuleTests());
   const validation = await request(`projects/${project}:test`, { method: 'POST', body: { source, testSuite: { testCases } } });
   const errors = (validation.issues || []).filter(issue => issue.severity === 'ERROR');
   if (errors.length || validation.testResults?.length !== testCases.length
