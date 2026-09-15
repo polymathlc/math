@@ -79,7 +79,7 @@ test('student beta navigation retains auth, grade and private-answer safeguards'
   assert.match(wrapper, /env.getUser\(\)\?\.role === 'student'/);
   assert.match(wrapper, /select.disabled = true/);
   assert.match(html, /markAttemptCall\(\{source:'bank'/);
-  assert.match(html, /onAuthStateChanged\(auth, async \(user\) => \{\s+hadesMathBeta.close\(\)/);
+  assert.match(html, /onAuthStateChanged\(auth, async \(user\) => \{[\s\S]*?studentQuestionHistory.close\(\)[\s\S]*?hadesMathBeta.close\(\)/);
   assert.match(html, /function navigateTo\(page\) \{\s+vetPrintPeekHide\(\);\s+hadesMathBeta.close\(\)/);
   assert.doesNotMatch(wrapper, /TCG_QUIZ|_tcgQuizPool|fetch\(|httpsCallable|rpgAwardGameQuestion/);
 });

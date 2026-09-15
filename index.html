@@ -6266,23 +6266,24 @@ body.lore-reading { overflow: hidden; }
 // under mathQuestions / mathMarking / mathGeneration / config.mathAdmin
 // so it never collides with the Science app's documents).
 // =====================================================================
-import { installHadesMathBeta } from "./hades-math-beta.js?v=2.2.1";
-import { installPirateRiftPortal } from "./pirate-rift-portal.js?v=1.0.0";
+import { installHadesMathBeta } from "./hades-math-beta.js?v=2.2.1&history=1";
+import { installPirateRiftPortal, pirateRiftScope } from "./pirate-rift-portal.js?v=1.0.0";
 import { installGrandLinePortal } from "./grand-line-portal.js?v=3.4.0";
-import { createGrandLineMathAdapter } from "./grand-line-math-adapter.js?v=3.4.0";
+import { createGrandLineMathAdapter } from "./grand-line-math-adapter.js?v=3.4.0&history=1";
 import { createGrandLineEconomy, createGrandLineRpgCommit, createGrandLineRpgSaveGate } from './grand-line-economy.js?v=3.4.0';
 import { mountInterfaceStudio } from "./interface-studio.mjs?v=2";
 import { createTcgMedia } from "./tcg-media.js";
 import { tcgSignature } from "./tcg-combat-identity.js";
 import { resolveTcgSignature, createTcgEffects } from "./tcg-combat-runtime.js";
-import { PRACTICE_FAMILY_COOLDOWN_MS, buildPracticeCatalog, createPracticeRun, recordPracticeServed, planPracticeQuestions } from "./practice-variety.js";
+import { PRACTICE_FAMILY_COOLDOWN_MS, practiceContentKey, buildPracticeCatalog, createPracticeRun, recordPracticeServed, planPracticeQuestions } from "./practice-variety.js";
+import { createStudentQuestionHistory } from "./student-question-history.js?v=1";
 import { buildPracticeMasteryContext, evaluatePracticeFit, practiceQuestionLevel, parsePracticeLevel } from "./practice-mastery.js";
 import { evaluateQuestionQuality, buildQuestionQualitySummary, questionQualitySignature, questionHasUnresolvedStudentFlag } from "./practice-quality.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
   updateProfile, GoogleAuthProvider, signInWithPopup, signOut, signInAnonymously, browserPopupRedirectResolver }
   from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, collection, getDocs, deleteDoc, deleteField, addDoc, increment, query, where, orderBy, limit, onSnapshot }
+import { getFirestore, doc, getDoc, setDoc, collection, getDocs, deleteDoc, deleteField, addDoc, increment, query, where, orderBy, limit, onSnapshot, runTransaction }
   from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app-check.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-functions.js";
@@ -7847,6 +7848,71 @@ function hideRatingTip() { const t = $("ratingTip"); if (t) t.hidden = true; }
   document.addEventListener("touchstart", e => { if (!hit(e)) hideRatingTip(); }, { passive: true });
 })();
 // ---- Student question feeding: grade, mastery and deterministic quality ----
+function _studentHistoryReady() {
+  return canManageQuestions() || !!currentUser?.uid && !_studentHistoryError && studentQuestionHistory.isReady({ uid: currentUser.uid, profile: '' });
+}
+async function _studentHistoryEnsure() {
+  if (canManageQuestions()) return true;
+  const uid = currentUser?.uid;
+  if (!uid) return false;
+  if (_studentHistoryLoading) await _studentHistoryLoading;
+  return currentUser?.uid === uid && _studentHistoryReady();
+}
+function _studentHistoryEntry(question, at = Date.now()) {
+  const source = question?.source && typeof question.source === 'object' ? question.source
+    : question?.feedSource && typeof question.feedSource === 'object' ? question.feedSource
+    : question?.blocks ? question : _studentGameSource(question) || question;
+  return { id: String(question?.id || question?.qid || source?.id || ''), contentKey: practiceContentKey(source), at };
+}
+async function _studentHistoryClaim(questions, allowSeen = false) {
+  if (canManageQuestions()) return true;
+  const uid = currentUser?.uid;
+  if (!await _studentHistoryEnsure()) return false;
+  if (!uid || currentUser?.uid !== uid) return false;
+  const ok = await studentQuestionHistory.claimMany(questions.map(q => _studentHistoryEntry(q)), { allowSeen });
+  return ok && currentUser?.uid === uid;
+}
+function _studentHistorySeen(question) {
+  if (canManageQuestions()) return false;
+  const entry = _studentHistoryEntry(question);
+  return studentQuestionHistory.has(entry.id, entry.contentKey);
+}
+async function _studentHistoryLoad(uid) {
+  _studentHistoryError = false;
+  const bank = questionBank.concat(_studentBuiltInSources()), byId = new Map(bank.map(q => [String(q.id), q]));
+  const entries = new Map();
+  const stamp = value => typeof value === 'number' ? value : value?.toMillis?.() || (Number(value?.seconds) * 1000) || Date.parse(value) || 1;
+  const add = (id, at) => {
+    if (!id) return;
+    id = String(id); const previous = entries.get(id);
+    entries.set(id, { id, at: Math.max(previous?.at || 0, stamp(at)), contentKey: practiceContentKey(byId.get(id)) });
+  };
+  const map = (rows, field = '') => Object.entries(rows || {}).forEach(([id, value]) => add(id, field ? value?.[field] : value));
+  const read = key => { try { return JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch { return {}; } };
+  map(read('tcgTrainServed_' + uid)); map(read('gameQSeen_' + uid)); map(read('mqGameAttempts_' + uid), 'at');
+  for (const level of ['P1', 'P2', 'P3', 'P4', 'P5', 'P6']) {
+    const hades = read('mathHadesBetaV1:' + uid + ':hades-student:' + level);
+    map(hades.shown); map(hades.progress, 'lastAttemptAt');
+    const identity = JSON.stringify(['Math', JSON.stringify([uid, 'student', '', level]), level, 'student']);
+    const grandLine = read('grandLineMathV1:' + pirateRiftScope(identity));
+    map(grandLine.shown); map(grandLine.progress, 'lastAttemptAt');
+  }
+  // Read complete owner histories. A failed migration read must not masquerade
+  // as a new student and reissue an old question.
+  const snapshots = await Promise.all([
+    getDocs(collection(db, 'users', uid, 'mathQuestionProgress')),
+    getDocs(collection(db, 'users', uid, 'mathPerformanceAttempts')),
+    getDocs(query(collection(db, ATTEMPTS_COL), where('uid', '==', uid))),
+    getDocs(query(collection(db, ATTEMPTS_COL_LEGACY), where('uid', '==', uid)))
+  ]);
+  if (snapshots.some(snapshot => snapshot.metadata?.fromCache)) throw new Error('Connect to sync your complete question history.');
+  snapshots.forEach((snapshot, index) => snapshot.forEach(doc => {
+    const row = doc.data(), id = row.questionId;
+    if (id && (index !== 3 || byId.has(String(id)))) add(id, row.lastAttemptAt || row.createdAt || row.timestamp);
+  }));
+  if (currentUser?.uid !== uid || currentUser.role !== 'student') return false;
+  return studentQuestionHistory.open({ uid, profile: '' }, Array.from(entries.values()));
+}
 function _studentSyllabus() { try { return SYL_LO_BY_ID; } catch (_) { return {}; } }
 function _studentFeedInvalidate() { _studentFeedRevision++; _studentFeedContextCache = null; }
 function _studentGameSource(row) {
@@ -7906,10 +7972,12 @@ function _studentFlaggedQuestion(q) {
 }
 function _studentFeedCandidates(candidates, options = {}) {
   if (canManageQuestions()) return { questions: candidates.filter(Boolean), skipped: 0, reasons: [] };
+  if (!options.manual && !_studentHistoryReady()) return { questions: [], skipped: candidates.length, reasons: ['history-unavailable'] };
   const context = options.context || _studentFeedContext();
   const rows = [], reasons = [];
   (candidates || []).forEach((q, order) => {
     if (!q) return;
+    if (!options.manual && !options.includeSeen && _studentHistorySeen(q)) { reasons.push('served'); return; }
     const fit = evaluatePracticeFit(q, { context, levelOnly: !!options.manual });
     const quality = evaluateQuestionQuality(q, { studentFlagged: _studentFlaggedQuestion(q),
       failedImageUrls: Array.from(_studentFailedImages.get(String(q.id)) || []) });
@@ -7923,12 +7991,15 @@ function _studentFeedCandidates(candidates, options = {}) {
     reviewCount: rows.filter(row => row.quality.tier === 'suspect').length };
 }
 function _studentQuestionAllowed(q, manual = _practiceManual) {
-  return !!q && (canManageQuestions() || _studentFeedCandidates([q], { manual }).questions.length > 0);
+  return !!q && (canManageQuestions() || _studentFeedCandidates([q], { manual, includeSeen: true }).questions.length > 0);
 }
 function _studentFeedMessage() {
+  if (!_studentHistoryReady()) return _studentHistoryError
+    ? 'Your question history could not sync. Check your connection and retry before starting fresh questions.'
+    : 'Your question history is syncing. Fresh questions will be ready when it finishes.';
   return !parsePracticeLevel(studentLevel).known
     ? 'Choose My level first so questions stay within your school level.'
-    : 'No suitable questions are ready here. Try another worksheet or return after your teacher has checked the questions.';
+    : 'You have seen every suitable question available here. Try another topic or wait for new questions. You can deliberately revisit a question from a worksheet or your history.';
 }
 function _studentChooseLevel() {
   $("sidebar").classList.add("open");
@@ -7968,11 +8039,11 @@ function _studentBindQuestionImages(q) {
   });
 }
 function _studentVarietyRun() {
-  const uid = String(currentUser && currentUser.uid || ''), now = Date.now();
+  const uid = String(currentUser && currentUser.uid || '');
   const served = new Map();
   if (_practiceRun.uid === uid) _practiceRun.served.forEach(item => served.set(item.id, item.at));
   Object.entries(_tcgServedLoad()).forEach(([id, at]) => {
-    if (Number(at) > 0 && now - Number(at) < PRACTICE_FAMILY_COOLDOWN_MS) served.set(id, Math.max(served.get(id) || 0, Number(at)));
+    if (Number(at) > 0) served.set(id, Math.max(served.get(id) || 0, Number(at)));
   });
   return { uid, served: Array.from(served, ([id, at]) => ({ id, at })) };
 }
@@ -7992,24 +8063,29 @@ function _studentGameRows(rows, manual = false) {
   const byId = new Map(rows.map((row, i) => [String(sources[i] && sources[i].id), row]));
   return eligible.map(q => byId.get(String(q.id))).filter(Boolean);
 }
-function _studentNextGameQuestion(run, field = 'poolI') {
+async function _studentNextGameQuestion(run, field = 'poolI') {
   if (!run || !Array.isArray(run.pool)) return null;
   const uid = String(currentUser && currentUser.uid || '');
   if (run.feedUid && run.feedUid !== uid) return null;
+  if (run.feedBusy) return null;
   run.feedUid = uid;
+  run.feedBusy = true;
+  try {
+  if (!await _studentHistoryEnsure()) return null;
+  if (String(currentUser?.uid || '') !== uid) return null;
   if (run.feedLevel && run.feedLevel !== studentLevel) { run.pool = _tcgQuizPool(); run[field] = 0; }
   run.feedLevel = studentLevel;
-  const eligible = _studentGameRows(run.pool);
-  const ids = new Set(eligible.map(q => String(q.id || q.qid)));
-  const seen = _tcgServedLoad(), now = Date.now();
   for (let step = 0; step < run.pool.length; step++) {
+    const ids = new Set(_studentGameRows(run.pool).map(q => String(q.id || q.qid)));
     const index = (Number(run[field]) || 0) % run.pool.length;
     run[field] = index + 1;
     const q = run.pool[index], id = String(q && (q.id || q.qid) || '');
-    if (!id || !ids.has(id) || (seen[id] && now - Number(seen[id]) < PRACTICE_FAMILY_COOLDOWN_MS)) continue;
-    return q;
+    if (!id || !ids.has(id)) continue;
+    if (await _studentHistoryClaim([q]) && currentUser?.uid === uid && run.feedLevel === studentLevel) return q;
   }
   return null;
+  } catch (error) { if (currentUser?.uid === uid) _studentHistoryError = true; console.warn('Question history unavailable', error); return null; }
+  finally { run.feedBusy = false; }
 }
 function _studentQualitySummary(q, includeFlags = false) {
   if (!_studentPrivateKeysLoaded && q.practiceQuality
@@ -8043,16 +8119,17 @@ async function _studentPublishQualitySummaries(questions = questionBank) {
 }
 
 // ---- Automatic practice: space repeated stories and completed questions ----
-function _practiceSetMode(manual = false) {
+function _practiceSetMode(manual = false, questions = questionBank) {
   const uid = String(currentUser && currentUser.uid || "");
   if (_practiceRun.uid !== uid) _practiceRun = createPracticeRun(uid);
   _practiceManual = manual;
+  _practiceManualIds = manual ? new Set(questions.map(q => String(q.id))) : null;
   _practiceExhausted = false;
   if (manual) { videoOnlyFilter = false; stopAiPractice(); }
 }
 function _practiceRestartIfRested() {
-  const last = _practiceRun.served.reduce((at, item) => Math.max(at, item.at), 0);
-  if (last && Date.now() - last >= PRACTICE_FAMILY_COOLDOWN_MS) _practiceRun = createPracticeRun(_practiceRun.uid);
+  // Returning later may release a related numerical variant, never an exact
+  // question already shown. Account history is permanent across restarts.
 }
 function _practiceCatalog() {
   // Reordering/splicing existing records does not change their families.
@@ -8064,7 +8141,9 @@ function _practiceCatalog() {
   return _practiceCatalogValue;
 }
 function _practicePlan(candidates, extra = {}) {
-  const feed = _studentFeedCandidates(candidates, { manual: extra.manual ?? _practiceManual });
+  const manual = extra.manual ?? _practiceManual;
+  const scoped = manual && _practiceManualIds ? candidates.filter(q => _practiceManualIds.has(String(q.id))) : candidates;
+  const feed = _studentFeedCandidates(scoped, { manual });
   _practiceEmptyReason = !feed.questions.length && feed.reasons.length
     ? feed.reasons.includes('student-level-required') ? 'level' : 'fit' : 'round';
   return planPracticeQuestions(feed.questions, { bank: questionBank, catalog: canManageQuestions() ? _practiceCatalog() : _studentFeedContextCache.catalog,
@@ -8079,25 +8158,33 @@ function _practiceAdaptiveCandidates(q, candidates) {
   if (!_practiceAutomatic()) return [];
   return _practicePlan(candidates, { excludeIds: [q.id], excludeFamilyIds: [q.id] }).questions;
 }
-function _practiceFindMore() {
+async function _practiceFindMore() {
+  if (currentUser?.role === 'student' && !_studentHistoryReady()) {
+    const uid = currentUser.uid;
+    _studentHistoryLoading = _studentHistoryLoad(uid).catch(error => { if (currentUser?.uid === uid) _studentHistoryError = true; console.warn('Question history retry failed', error); return false; });
+    await _studentHistoryLoading;
+    if (currentUser?.uid !== uid) return;
+  }
   _practiceSetMode(false); _practiceRestartIfRested(); stopAiPractice();
   prioritizeReviewQuestions(); renderQuestion();
 }
 function _practiceRenderFinished() {
+  _practiceHistoryPending = false;
   $("questionCard").classList.add("practice-round-complete");
   $("qMeta").style.display = "none";
   $("flagQuestionBtn").disabled = true;
   const needsLevel = !canManageQuestions() && !parsePracticeLevel(studentLevel).known;
-  const heading = needsLevel ? 'Choose My level to begin' : _practiceEmptyReason === 'fit'
+  const syncing = !_studentHistoryReady();
+  const heading = syncing ? 'Sync your question history' : needsLevel ? 'Choose My level to begin' : _practiceEmptyReason === 'fit'
     ? 'No suitable questions are ready here' : 'You have reached the end of this practice round';
-  const note = needsLevel ? 'Tell us your school level first. Practice will stay at that level or below and adapt to each skill as you learn.'
+  const note = syncing ? _studentFeedMessage() : needsLevel ? 'Tell us your school level first. Practice will stay at that level or below and adapt to each skill as you learn.'
     : _practiceEmptyReason === 'fit' ? 'Try another worksheet or return after your teacher has checked and levelled the questions.'
-    : 'Questions you just saw are taking a break. Choose another worksheet, or come back later for fresh practice and scheduled reviews.';
+    : 'You have seen every suitable question available here. Try another topic or wait for new questions. To revise, deliberately choose a question from a worksheet or your history.';
   $("qBody").innerHTML = '<div class="empty-note" style="max-width:620px;margin:24px auto;padding:28px;line-height:1.65;">' +
     '<h3 style="margin:0 0 12px;">' + heading + '</h3>' +
     '<p style="margin:0 0 20px;">' + note + '</p>' +
-    '<button type="button" class="btn btn-primary" id="practiceFindMoreBtn">' + (needsLevel ? 'Choose My level' : 'Find available questions') + '</button></div>';
-  $("practiceFindMoreBtn").addEventListener("click", needsLevel ? _studentChooseLevel : _practiceFindMore);
+    '<button type="button" class="btn btn-primary" id="practiceFindMoreBtn">' + (syncing ? 'Retry history sync' : needsLevel ? 'Choose My level' : 'Find available questions') + '</button></div>';
+  $("practiceFindMoreBtn").addEventListener("click", !syncing && needsLevel ? _studentChooseLevel : _practiceFindMore);
   $("finalAnswer").value = ""; $("typedWorking").value = "";
   renderMcqArea(null); applyAnnotationMode(null); clearSolutionPhoto({ silent: true });
   strokes = []; redoStack = []; current = null; clearTextBoxes(); redraw();
@@ -8836,6 +8923,7 @@ async function loadStudentLearningState(uid) {
   studentLearningProfile = learningProfileDefaults();
   try {
     const snap = await getDocs(collection(db, "users", uid, "mathQuestionProgress"));
+    if (currentUser?.uid !== uid) return;
     snap.forEach(d => {
       const data = d.data();
       if (data && data.questionId) studentProgress[data.questionId] = data;
@@ -8843,6 +8931,7 @@ async function loadStudentLearningState(uid) {
   } catch (e) { console.warn("progress load", e); }
   try {
     const s = await getDoc(doc(db, "users", uid, "settings", "mathLearningProfile"));
+    if (currentUser?.uid !== uid) return;
     if (s.exists()) studentLearningProfile = Object.assign(learningProfileDefaults(), s.data());
   } catch (e) { console.warn("learning profile load", e); }
   renderLearningProfile();
@@ -9127,7 +9216,7 @@ async function generateWeaknessPractice() {
     await setDoc(doc(db, "users", currentUser.uid, "generatedPracticeQuestions", q.id), q);
     studentGeneratedQuestions.unshift(q);
     questionBank.unshift(q);
-    _practiceSetMode(true);
+    _practiceSetMode(true, [q]);
     qIndex = 0;
     renderQuestion();
     toast("Weakness practice question generated", "success");
@@ -9252,15 +9341,18 @@ let videoOnlyFilter = false;     // student filter: only show questions that hav
 let aiPracticeStats = { review: 0, growth: 0, total: 0 };
 let aiPracticeQueue = [];        // the focused growth-zone set (also what Print uses)
 let lastEloChange = null;
-// Automatic question rotation is private to this student and this tab.
+// Family spacing stays in memory; permanent account history is shared by every mode.
 let _practiceRun = createPracticeRun("");
-let _practiceManual = false, _practiceExhausted = false;
+let _practiceManual = false, _practiceExhausted = false, _practiceManualIds = null;
 let _practiceEmptyReason = "round", _studentFeedRevision = 0, _studentFeedContextCache = null;
 let _studentGameSourceCache = null, _studentAdminFlagsLoaded = false, _studentPrivateKeysLoaded = false;
 const _studentFailedImages = new Map();
 let _practiceCatalogBank = null, _practiceCatalogLength = -1, _practiceCatalogValue = null;
 // Page-memory only: a completed answer is not another attempt until revised.
 let _practiceViewEpoch = 0, _practiceMarkBusy = null, _practiceMcqRevising = false;
+let _practicePresentation = null, _practiceHistoryPending = false, _studentHistoryLoading = null, _studentHistoryError = false, _studentAuthEpoch = 0;
+const studentQuestionHistory = createStudentQuestionHistory({ db, doc, collection, getDocs, onSnapshot, runTransaction,
+  subject: 'math', onChange: _studentFeedInvalidate, onError: () => { _studentHistoryError = true; _studentFeedInvalidate(); } });
 const _practiceMarkedSignatures = new Map();
 let _practicePhotoSignature = { url: null, hash: "" };
 let flagNotifications = [];
@@ -9334,7 +9426,9 @@ const grandLinePortal = installGrandLinePortal({
   ...createGrandLineMathAdapter({
     awardPoints:rpgAwardGameQuestion,
     getBank:()=>questionBank.map(q=>({...q,practiceQuality:_studentQualitySummary(q,true)})),
-    getProgress:()=>studentProgress,getProfile:()=>studentLearningProfile,getServed:_tcgServedLoad,markShown:q=>_tcgServedMark(q.id),
+    getProgress:()=>studentProgress,getProfile:()=>studentLearningProfile,getServed:_tcgServedLoad,
+    historyReady:_studentHistoryEnsure,claimQuestions:_studentHistoryClaim,hasSeen:_studentHistorySeen,isCurrent:ctx=>grandLinePortal.isCurrent(ctx),
+    markShown:q=>_tcgServedMark(q.id),
     getSyllabus:_studentSyllabus,isReleased:qReleased,
     qualityOptions:q=>({studentFlagged:_studentFlaggedQuestion(q)||flagNotifications.some(flag=>String(flag.questionId)===String(q.id)&&flag.status!=='reviewed'&&(!flag.questionSignature||flag.questionSignature===questionQualitySignature(q))),failedImageUrls:Array.from(_studentFailedImages.get(String(q.id))||[])}),
     renderBlocks:q=>renderQuestionBlocksHtml((q.blocks||[]).filter(b=>b&&['text','image','table','objectivesBox'].includes(b.type))),renderOption:renderMathBlock,
@@ -9356,6 +9450,7 @@ const hadesMathBeta = installHadesMathBeta({
   keysAvailable: () => _studentPrivateKeysLoaded, getSyllabus: _studentSyllabus,
   getProgress: () => studentProgress, getProfile: () => studentLearningProfile,
   getServed: _tcgServedLoad, markShown: q => _tcgServedMark(q.id),
+  historyReady: _studentHistoryEnsure, claimQuestions: _studentHistoryClaim, hasSeen: _studentHistorySeen,
   gradeQuestion: async ({question,choice}) => {
     const uid = currentUser?.uid, level = studentLevel;
     const out = (await markAttemptCall({source:'bank',questionId:question.id,selectedOption:choice,practiceMode:true})).data || {};
@@ -9373,11 +9468,14 @@ window.openHadesMathBeta = () => { pirateRiftPortal.close(); grandLinePortal.clo
 
 let guestSignInTried = false;
 onAuthStateChanged(auth, async (user) => {
+  const authEpoch = ++_studentAuthEpoch;
+  studentQuestionHistory.close(); _studentHistoryLoading = null; _practicePresentation = null;
+  currentUser = null;
   hadesMathBeta.close();
   pirateRiftPortal.close();
   grandLinePortal.close();
   _practiceViewEpoch++;
-  if (user) { await enterApp(user); }
+  if (user) { await enterApp(user, authEpoch); }
   else {
     currentUser = null;
     interfaceStudio?.setUser(null);
@@ -9404,7 +9502,7 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 let clientAdminFallback = false;
-async function enterApp(user) {
+async function enterApp(user, authEpoch = _studentAuthEpoch) {
   // The real admin role is the `admin` custom claim — that's what Firestore
   // rules and the backend trust. ADMIN_EMAILS only decides who may ASK the
   // grantAdminRole function for the claim (it re-checks its own list).
@@ -9425,7 +9523,10 @@ async function enterApp(user) {
     if (!isAdmin) { isAdmin = true; clientAdminFallback = true; console.info("Using client-side admin for allow-listed email (grantAdminRole unavailable)."); }
   }
   const isGuest = !!user.isAnonymous;
+  if (authEpoch !== _studentAuthEpoch) return;
   currentUser = { uid: user.uid, email: user.email, name: user.displayName || (user.email || "").split("@")[0] || (isGuest ? "Guest" : "Student"), role: isAdmin ? "admin" : "student", isGuest };
+  studentProgress = {}; studentLearningProfile = learningProfileDefaults(); studentLevel = '';
+  _practiceRun = createPracticeRun(user.uid); _practicePresentation = null; _studentFeedInvalidate();
 
   syncInterfaceStudio();
   $("authScreen").style.display = "none";
@@ -9464,7 +9565,14 @@ async function enterApp(user) {
     if (adminUid) await loadQuestionGraph(adminUid);
     if (!questionBank.length) questionBank = STARTER_QUESTIONS.slice();
     await loadStudentLearningState(user.uid);
+    if (authEpoch !== _studentAuthEpoch) return;
     loadStudentLevel();
+    _studentHistoryLoading = _studentHistoryLoad(user.uid).catch(error => {
+      if (authEpoch === _studentAuthEpoch) _studentHistoryError = true;
+      console.warn('Question history sync failed', error); return false;
+    });
+    await _studentHistoryLoading;
+    if (authEpoch !== _studentAuthEpoch) return;
     // Guests (anonymous QR visitors) aren't tracked as real students, so they
     // don't write to the roster, login log or leaderboard.
     if (!currentUser.isGuest) { saveStudentRosterSummary(); recordLoginEvent(); }
@@ -20830,7 +20938,7 @@ function wireShareAdminSection(q) {
 }
 function goPracticeQuestion(q) {
   if (!_studentGateDirect(q)) return;
-  _practiceSetMode(true);
+  _practiceSetMode(true, [q]);
   const i = questionBank.findIndex(x => x.id === q.id);
   if (i >= 0) qIndex = i;
   navigateTo("practice");
@@ -25084,7 +25192,7 @@ function practiseWorksheet(id) {
     return;
   }
   if (shutIds.length) toast(wsLockNote(shutIds) + ` — practising the other ${questions.length}.`, "");
-  _practiceSetMode(true);
+  _practiceSetMode(true, questions);
   const rest = questionBank.filter(q => !ws.questionIds.includes(q.id));
   questionBank = questions.concat(rest);
   qIndex = 0;
@@ -25095,7 +25203,7 @@ function practiseWorksheet(id) {
 function practiseCurrentWorksheet() {
   const questions = _studentManualQuestions(wsSelectedQuestions());
   if (!questions.length) { toast("Select some questions first", "error"); return; }
-  _practiceSetMode(true);
+  _practiceSetMode(true, questions);
   const ids = new Set(questions.map(q => q.id));
   questionBank = questions.concat(questionBank.filter(q => !ids.has(q.id)));
   qIndex = 0;
@@ -25462,7 +25570,7 @@ function showHint(text) {
 // The student-readable doc carries a `hasVideoExplanation` flag (set in
 // splitQuestionDoc); admins also have the URL itself merged in.
 function questionHasVideo(q) { return !!(q && (q.videoExplanationUrl || q.hasVideoExplanation)); }
-function passesVideoFilter(q) { return _studentQuestionAllowed(q) && (!videoOnlyFilter || questionHasVideo(q)); }
+function passesVideoFilter(q) { return !!q && (!_practiceManual || !_practiceManualIds || _practiceManualIds.has(String(q.id))) && _studentQuestionAllowed(q) && (!videoOnlyFilter || questionHasVideo(q)); }
 function visiblePracticeIndices() {
   const out = [];
   questionBank.forEach((q, i) => { if (passesVideoFilter(q)) out.push(i); });
@@ -25585,13 +25693,67 @@ function showMcqResult(selectedIdx, correctIdx) {
   });
 }
 function renderQuestion() {
-  _practiceViewEpoch++;
+  const epoch = ++_practiceViewEpoch;
+  if (currentUser?.role !== 'student') return _renderQuestionReady();
+  _practiceHistoryPending = true;
+  return _renderStudentQuestion(epoch, currentUser.uid);
+}
+async function _renderStudentQuestion(epoch, uid) {
+  const current = () => epoch === _practiceViewEpoch && currentUser?.uid === uid;
+  try {
+    if (!_studentHistoryReady()) {
+      $("qBody").textContent = 'Syncing your question history…';
+      $("submitBtn").disabled = true; $("nextBtn").disabled = true; renderMcqArea(null);
+      if (!await _studentHistoryEnsure()) {
+        if (current()) { _practiceExhausted = true; _practiceRenderFinished(); }
+        return;
+      }
+    }
+    if (!current()) return;
+    if (_practiceExhausted) return _renderQuestionReady();
+    for (let attempt = 0; attempt <= questionBank.length; attempt++) {
+      let q = questionBank[qIndex];
+      const existing = _practicePresentation;
+      const same = existing?.uid === uid && existing.q === q;
+      if (!q || !passesVideoFilter(q) || (!_practiceManual && !same && _studentHistorySeen(q))) {
+        q = _practicePlan(questionBank).questions.find(item => !videoOnlyFilter || questionHasVideo(item));
+        if (!q) { _practiceExhausted = true; return _renderQuestionReady(); }
+        qIndex = questionBank.indexOf(q);
+      }
+      let presentation = _practicePresentation;
+      if (presentation?.uid !== uid || presentation.q !== q) {
+        presentation = { uid, q, ready: false, promise: _studentHistoryClaim([q], _practiceManual) };
+        _practicePresentation = presentation;
+      }
+      if (!presentation.ready) {
+        $("qBody").textContent = 'Preparing your next question…';
+        $("submitBtn").disabled = true; $("nextBtn").disabled = true; renderMcqArea(null);
+        const claimed = await presentation.promise;
+        if (!current()) return;
+        if (!claimed) {
+          _practicePresentation = null;
+          if (!_studentHistoryReady()) { _practiceExhausted = true; return _practiceRenderFinished(); }
+          continue;
+        }
+        presentation.ready = true;
+      }
+      return _renderQuestionReady();
+    }
+    _practiceExhausted = true; _practiceRenderFinished();
+  } catch (error) {
+    if (!current()) return;
+    _studentHistoryError = true; _practicePresentation = null; _practiceExhausted = true;
+    console.warn('Question history reservation failed', error); _practiceRenderFinished();
+  }
+}
+function _renderQuestionReady() {
+  _practiceHistoryPending = false;
   _practiceMcqRevising = false;
   $("questionCard").classList.remove("practice-round-complete");
   renderLearningProfile();
   renderVideoOnlyBtn();
   if (currentUser && currentUser.role === "student" && !_practiceExhausted && !_studentQuestionAllowed(questionBank[qIndex])) {
-    const next = (_practiceManual ? _studentFeedCandidates(questionBank, { manual: true }) : _practicePlan(questionBank)).questions.find(q => !videoOnlyFilter || questionHasVideo(q));
+    const next = _practicePlan(questionBank).questions.find(q => !videoOnlyFilter || questionHasVideo(q));
     if (next) qIndex = questionBank.findIndex(q => q.id === next.id);
     else { _practiceExhausted = true; _practiceEmptyReason = !parsePracticeLevel(studentLevel).known ? 'level' : 'fit'; }
   }
@@ -26878,6 +27040,7 @@ function _practiceRequestCurrent(request) {
     && questionBank[qIndex] === request.q && $("page-practice").classList.contains("active"));
 }
 function _practiceRefreshSubmit() {
+  if (_practiceHistoryPending) { $("submitBtn").disabled = true; $("submitLabel").textContent = 'Preparing a fresh question…'; return; }
   const currentQuestion = questionBank[qIndex];
   if (currentUser && currentUser.role === 'student' && currentQuestion && !_studentQuestionAllowed(currentQuestion, true)) {
     const btn = $("submitBtn"), label = $("submitLabel");
@@ -26929,7 +27092,7 @@ $("reviseMcqBtn").addEventListener("click", () => {
 
 $("submitBtn").addEventListener("click", async () => {
   // Acquire the lock BEFORE worksheet export can yield to another tap.
-  if (_practiceMarkBusy) return;
+  if (_practiceMarkBusy || _practiceHistoryPending) return;
   if (!currentUser) { toast("Sign in to submit work for marking", "error"); return; }
   if (!questionBank[qIndex] || (currentUser.role === "student" && _practiceExhausted) || !_studentQuestionAllowed(questionBank[qIndex], true)) return;
   const q = questionBank[qIndex];
@@ -31250,7 +31413,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.86.0 · 2026-09-15";
+const APP_VERSION = "v1.87.0 · 2026-09-15";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -32249,29 +32412,20 @@ function tcgOpenFreePack() {
   try { rpgRenderSide(); } catch (_) {}
 }
 
-// ---- No-repeat rotation for game questions (invisible to students) ----
-// A per-student localStorage map stamps every question a game mode serves with
-// the time it was last shown. Games receive never-served questions first; when
-// those run low the payload is topped up with the least-recently-served ones,
-// so a run always has variety and nothing comes back until everything else has
-// had a turn. The map is never bulk-reset — recency alone decides.
+// ---- Shared permanent question history for game questions ----
+// Old keys remain migration inputs. Student selection reads the account ledger
+// and never tops up an exhausted pool with previously shown questions.
 function _gqKey() { return 'gameQSeen_' + ((currentUser && currentUser.uid) || 'guest'); }
-function _gqLoad() { try { return JSON.parse(localStorage.getItem(_gqKey())) || {}; } catch (e) { return {}; } }
+function _gqLoad() { return _tcgServedLoad(); }
 function _gqSave(m) { try { localStorage.setItem(_gqKey(), JSON.stringify(m)); } catch (e) {} }
-// A built-in question is not a bank question, so its id must never enter the
-// shared rotation the bank's own questions are drawn from — `tcgq:<n>` is the
-// Aetherfall maths pool, which keeps its own rotation in tcgTrainServed_*.
+// Keep the historical bank-attempt mirror separate from built-in questions.
+// Both kinds are already protected by the shared account exposure ledger.
 function _gqRealId(id) { return !!id && !/^(b\d+|builtin_\d+|tcgq:\d+)$/.test(String(id)); }
 function _gqMark(id) { if (!_gqRealId(id)) return; const m = _gqLoad(); m[id] = Date.now(); _gqSave(m); }
 function _gqFilterPool(pool) {
-  if (!Array.isArray(pool) || pool.length < 2) return pool;
+  if (!Array.isArray(pool) || !_studentHistoryReady()) return [];
   const m = _gqLoad();
-  const unseen = [], seenQs = [];
-  for (const q of pool) { if (q) (m[q.id] ? seenQs : unseen).push(q); }
-  const floor = Math.min(pool.length, Math.max(12, Math.min(30, Math.ceil(pool.length / 3))));
-  if (unseen.length >= floor) return unseen;
-  seenQs.sort((a, b) => (m[a.id] || 0) - (m[b.id] || 0));
-  return unseen.concat(seenQs.slice(0, floor - unseen.length));
+  return pool.filter(q => q && !m[q.id] && !_studentHistorySeen(q));
 }
 
 // ---- Leaderboard: the game boards ----------------------------------------
@@ -39465,13 +39619,19 @@ function _tcgBuiltInQuestions() {
 // and the arena back down to those dozen on repeat.
 function _tcgQuizPool() { return _studentGameRows(_tcgBankQuestions().concat(_tcgBuiltInQuestions())); }
 function _tcgShuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
-// Persistent per-student trainer rotation: every question served in Unit
-// Cards training is stamped, and the pool is ordered least-recently-served
-// first — so closing/reopening the trainer (or switching units) no longer
-// reshuffles recently-answered questions straight back in.
+// The trainer, battles and normal practice read the same permanent account
+// history. Legacy local keys are migration mirrors, not a separate rotation.
 function _tcgServedKey() { return 'tcgTrainServed_' + ((currentUser && currentUser.uid) || 'guest'); }
-function _tcgServedLoad() { try { return JSON.parse(localStorage.getItem(_tcgServedKey())) || {}; } catch (e) { return {}; } }
-function _tcgServedMark(id) { if (!id) return; try { const m = _tcgServedLoad(); m[id] = Date.now(); localStorage.setItem(_tcgServedKey(), JSON.stringify(m)); } catch (e) {} }
+function _tcgServedLoad() {
+  if (currentUser?.role === 'student') return _studentHistoryReady() ? studentQuestionHistory.snapshot().seen : {};
+  try { return JSON.parse(localStorage.getItem(_tcgServedKey())) || {}; } catch { return {}; }
+}
+function _tcgServedMark(id) {
+  if (!id) return;
+  // Actual student feeds reserve in the cloud before display. This legacy mirror
+  // remains for migration and isolated administrator preview, never selection.
+  try { const m = JSON.parse(localStorage.getItem(_tcgServedKey()) || '{}'); m[id] = Date.now(); localStorage.setItem(_tcgServedKey(), JSON.stringify(m)); } catch {}
+}
 let _tcgQuiz = null;
 function tcgTrainCard(id) {
   const s = tcgState();
@@ -39507,8 +39667,9 @@ function _tcgQuizStatus(flash) {
         + '<span class="tcg-quiz-count">' + prog + ' / ' + TCG_LVL_STEP + ' to Lv ' + (level + 1) + '</span>');
   if (flash) { st.classList.remove('flash'); void st.offsetWidth; st.classList.add('flash'); }
 }
-function _tcgQuizRender() {
+async function _tcgQuizRender() {
   const body = document.getElementById('tcgqBody'); if (!body || !_tcgQuiz) return;
+  const run = _tcgQuiz; if (run.feedBusy) return;
   const level = tcgLevel(_tcgQuiz.id);
   if (level >= TCG_LVL_MAX) {
     body.innerHTML = '<div class="tcg-quiz-done">🌟 <b>' + escapeHtml(tcgShortName(TCG_BY_ID[_tcgQuiz.id])) + '</b> is fully trained to Level ' + TCG_LVL_MAX + ' — max stats and skill!'
@@ -39517,7 +39678,9 @@ function _tcgQuizRender() {
   }
   _tcgQuiz.answered = false;
   _tcgQuiz.at = performance.now();   // clocked so the shared anti-rush gate applies here too
-  const q = _studentNextGameQuestion(_tcgQuiz, 'i');
+  body.textContent = 'Preparing a fresh question…';
+  const q = await _studentNextGameQuestion(run, 'i');
+  if (_tcgQuiz !== run || !body.isConnected || run.feedUid !== currentUser?.uid) return;
   if (!q) { _tcgQuiz.cur = null; _tcgQuiz.answered = true; body.innerHTML = '<div class="tcg-quiz-done">' + escapeHtml(_studentFeedMessage()) + '</div>'; return; }
   _tcgQuiz.cur = q;
   if (q && q.id) _tcgServedMark(q.id);
@@ -43267,12 +43430,14 @@ function duelTap(e) {
 // like every other mode — it TRAINS the units standing on your board.
 // rpgAwardGameQuestion is the ONLY points path; it already handles the wallet,
 // the energy bar, the rushed-answer guard and the save.
-function duelOpenQuiz() {
+async function duelOpenQuiz() {
   const r = duelRun; if (!r || r.over || r.busy || r.whose !== 'P' || r.insightUsed) return;
+  if (r.feedBusy) return;
   if (r.quiz) return;                                     // one panel, never two
   const stale = document.getElementById('duelQuiz'); if (stale) stale.remove();
   if (!r.pool.length) { showToast('No questions available yet', 'error'); return; }
-  const q = _studentNextGameQuestion(r);
+  const q = await _studentNextGameQuestion(r);
+  if (duelRun !== r || r.feedUid !== currentUser?.uid || r.over || r.whose !== 'P' || r.insightUsed) return;
   if (!q) { showToast(_studentFeedMessage(), ""); return; }
   if (q && q.id) _tcgServedMark(q.id);
   r.quiz = { q, at: (typeof performance !== 'undefined' ? performance.now() : Date.now()), answered: false };
@@ -44670,9 +44835,12 @@ function emsCloseQuiz() {
   // has the game manually paused anyway.
   if (wasRound && emsRun && !emsRun.paused && !emsRun.over) emsBanner('▶ Battle resumed!', 1400);
 }
-function emsNextQuestion() {
+async function emsNextQuestion() {
   const r = emsRun; if (!r) return;
-  const q = _studentNextGameQuestion(r);
+  if (r.feedBusy) return;
+  const pending = document.getElementById('emsQuizBody'); if (pending) pending.textContent = 'Preparing a fresh question…';
+  const q = await _studentNextGameQuestion(r);
+  if (emsRun !== r || r.feedUid !== currentUser?.uid || !pending?.isConnected) return;
   if (!q) { emsCloseQuiz(); showToast(_studentFeedMessage(), ""); return; }
   r.quiz = { q: q, at: performance.now(), answered: false };
   if (q && q.id) _tcgServedMark(q.id);
@@ -46356,9 +46524,12 @@ function elgCloseQuiz() {
   const b = document.getElementById('elgQuiz'); if (b) b.remove();
   if (r) { r.quiz = null; if (!document.getElementById('elgTree')) r.qPause = false; }
 }
-function elgNextQuestion() {
+async function elgNextQuestion() {
   const r = elgRun; if (!r) return;
-  const q = _studentNextGameQuestion(r);
+  if (r.feedBusy) return;
+  const pending = document.getElementById('elgQuiz'); if (pending) pending.textContent = 'Preparing a fresh question…';
+  const q = await _studentNextGameQuestion(r);
+  if (elgRun !== r || r.feedUid !== currentUser?.uid || !pending?.isConnected) return;
   if (!q) { elgCloseQuiz(); showToast(_studentFeedMessage(), ""); return; }
   r.quiz = { q, at: performance.now(), answered: false };
   if (q && q.id) _tcgServedMark(q.id);
@@ -49271,14 +49442,14 @@ function sylOpenQuestion(id) {
 function sylPractiseLo(loId) {
   const qs = sylBuildIndex()[loId] || [];
   if (!qs.length) { toast("Nothing to practise here yet", "error"); return; }
-  sylPractise(qs);
+  sylPractise(qs, false);
 }
 // Put these questions at the front of the practice queue — the same move the
 // worksheet's ✍️ Practise button makes, so there is one practice entry point.
-function sylPractise(qs) {
-  qs = _studentManualQuestions(qs);
+function sylPractise(qs, manual = true) {
+  qs = manual ? _studentManualQuestions(qs) : _studentFeedCandidates(qs).questions;
   if (!qs.length) return;
-  _practiceSetMode(true);
+  _practiceSetMode(manual, qs);
   const ids = new Set(qs.map(q => q.id));
   questionBank = qs.concat(questionBank.filter(q => !ids.has(q.id)));
   qIndex = 0;
@@ -49863,7 +50034,7 @@ async function dgPrintDraft(autoPrint) {
 function dgPractiseDraft() {
   const questions = _studentManualQuestions(dgDraftQuestions());
   if (!questions.length) { toast("Pick some questions first", "error"); return; }
-  _practiceSetMode(true);
+  _practiceSetMode(true, questions);
   const ids = new Set(questions.map(q => q.id));
   questionBank = questions.concat(questionBank.filter(q => !ids.has(q.id)));
   qIndex = 0;

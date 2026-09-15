@@ -12,14 +12,14 @@ const renderer = cut('const escapeHtml =', 'const CLUE_TOPIC_WORDS =') + cut('co
 const fixture = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><button id="open">Open beta</button><script type="module">
 import {installHadesMathBeta} from '/hades-math-beta.js';
 ${renderer}
-window.user={uid:'browser-admin',role:'admin'};window.keysLoaded=true;window.notices=[];window.studentLevel='';window.markCalls=0;
+window.user={uid:'browser-admin',role:'admin'};window.keysLoaded=true;window.notices=[];window.studentLevel='';window.markCalls=0;window.cloudSeen={};window.historyReadyFlag=false;
 const names=['Orchid garden','Harbour voyage','Maple trees','Lantern festival','Amber staircase','Emerald mosaic','Saffron kitchen','Crystal palace','Willow park','Copper necklace','Silver orchard','Coral reef'];
 const bank=names.map((title,i)=>({id:'bank-'+i,title,level:'P6',topic:'Fractions',blocks:[
 {type:'text',content:'Find 1/2 + '+(i+1)+'/4. Compare x^2 and sqrt(9).\\n(a) Use the labelled diagram.'},
 {type:'image',url:new URL('/diagram.svg',location.href).href},
 {type:'table',caption:'Lengths',header:true,rows:[['Label','Length'],['A','1/2 m'],['B','3/4 m']]}],
 options:[i+3,i+2,i+4,i+5].map(value=>value+'/4'),correctOption:0,markingGuide:'Use a common denominator.'}));
-window.app=installHadesMathBeta({getUser:()=>user,getLevel:()=>studentLevel,getBank:()=>user.role==='student'?bank.map(({correctOption,markingGuide,...q})=>q):bank,gradeQuestion:async ({choice})=>{markCalls++;return {correct:choice===0,answer:0,explainHtml:'Checked by the marker.'};},keysAvailable:()=>keysLoaded,getSyllabus:()=>({}),isReleased:()=>true,qualityOptions:()=>({}),renderBlocks:q=>renderQuestionBlocksHtml(q.blocks),renderOption:renderMathBlock,notify:m=>notices.push(m)});
+window.app=installHadesMathBeta({getUser:()=>user,getLevel:()=>studentLevel,getBank:()=>user.role==='student'?bank.map(({correctOption,markingGuide,...q})=>q):bank,gradeQuestion:async ({choice})=>{markCalls++;return {correct:choice===0,answer:0,explainHtml:'Checked by the marker.'};},keysAvailable:()=>keysLoaded,getSyllabus:()=>({}),isReleased:()=>true,qualityOptions:()=>({}),renderBlocks:q=>renderQuestionBlocksHtml(q.blocks),renderOption:renderMathBlock,notify:m=>notices.push(m),historyReady:async()=>historyReadyFlag,getServed:()=>cloudSeen,hasSeen:q=>!!cloudSeen[q.id],claimQuestions:async rows=>{if(rows.some(q=>cloudSeen[q.id]))return false;rows.forEach(q=>cloudSeen[q.id]=Date.now());return true;}});
 document.getElementById('open').onclick=()=>app.open();window.ready=true;
 </script></body></html>`;
 const server = http.createServer((req, res) => {
@@ -94,8 +94,12 @@ try {
   await page.getByRole('button',{name:'Play Hades',exact:true}).click();
   await page.waitForFunction(() => !!document.querySelector('.hades-math-stage iframe')?.contentWindow?.send);
   frame = page.frames().find(item => item.url().includes('/hades-game.html'));
+  assert.deepEqual(await page.evaluate(()=>app.getQuestions()),[], 'No student questions appear before account history is ready');
+  assert.equal(await page.evaluate(()=>Object.keys(cloudSeen).length),0, 'Admin preview never enters student account history');
+  await page.evaluate(()=>historyReadyFlag=true);
   const studentRows=await page.evaluate(()=>app.getQuestions());
   assert.equal(studentRows.length,5);assert.ok(studentRows.every(q=>q.grading==='remote' && q.answer===null));
+  assert.equal(await page.evaluate(()=>Object.keys(cloudSeen).length),5, 'The whole five-question round is committed before delivery');
   await frame.evaluate(()=>send({type:'HADES_HELLO',requestId:'student'}));
   await frame.waitForFunction(()=>messages.at(-1)?.type==='HADES_READY');
   const studentSession=await frame.evaluate(()=>messages.at(-1).sessionId);
@@ -110,6 +114,8 @@ try {
   assert.equal(await page.evaluate(()=>markCalls),5);
   assert.equal(await frame.evaluate(()=>messages.at(-1).healPercent),40);
   assert.equal(await frame.evaluate(()=>JSON.stringify(messages).includes('correctOption')),false);
+  assert.equal(await page.evaluate(()=>Object.keys(cloudSeen).length),10, 'A new round skips every question reserved in the previous request');
+  assert.deepEqual(await page.evaluate(()=>app.getQuestions()),[], 'The final two unseen questions cannot be padded with repeated work');
   await page.getByRole('button',{name:'Exit fullscreen',exact:true}).click();
   await page.evaluate(()=>studentLevel='P4');
   assert.deepEqual(await page.evaluate(()=>app.getQuestions()),[]);

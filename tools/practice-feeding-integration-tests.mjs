@@ -6,6 +6,8 @@ import * as mastery from '../practice-mastery.js';
 import * as quality from '../practice-quality.js';
 import * as variety from '../practice-variety.js';
 import { signature as mathImportSignature } from '../rapid-import/functions/core.js';
+import { createStudentQuestionHistory } from '../student-question-history.js';
+import { pirateRiftScope } from '../pirate-rift-portal.js';
 
 // Execute the shipping integration helpers with real policies. Only browser,
 // Firebase and the existing explicit generation service are boundary stubs.
@@ -31,10 +33,13 @@ function fixture(bank = [question('a')], options = {}) {
   const c = vm.createContext({ ...mastery, ...quality, ...variety, mathImportSignature, Date, Map, Set,
     console: { warn: noop, error: noop }, currentUser: { uid: 'alice', role: 'student' },
     questionBank: bank, studentProgress: {}, studentLearningProfile: {}, studentLevel: 'P4',
-    qIndex: 0, _practiceManual: false, _practiceExhausted: false, videoOnlyFilter: false,
+    qIndex: 0, _practiceManual: false, _practiceManualIds: null, _practiceExhausted: false, videoOnlyFilter: false,
     _practiceEmptyReason: 'round', _practiceRun: variety.createPracticeRun('alice'),
     _practiceCatalogBank: null, _practiceCatalogLength: -1, _practiceCatalogValue: null,
     _studentFeedRevision: 0, _studentFeedContextCache: null, _studentGameSourceCache: null,
+    _studentHistoryError: false, _studentHistoryLoading: null,
+    studentQuestionHistory: { isReady: () => true, has: id => !!served[id],
+      claimMany: async entries => { if (entries.some(entry => served[entry.id])) return false; entries.forEach(entry => { served[entry.id] = Date.now(); }); return true; } },
     _studentFailedImages: new Map(), _studentPrivateKeysLoaded: true, _studentAdminFlagsLoaded: false,
     flagNotifications: [], TCG_QUIZ: [], SYL_LO_BY_ID: {
       'P4.N.1.1': { level: 'P4', sub: 'Fractions', topic: 'Adding fractions' },
@@ -57,8 +62,8 @@ function fixture(bank = [question('a')], options = {}) {
     studentGeneratedQuestions: [], ...options
   });
   c._tcgQuizPool = () => c._studentGameRows(c.questionBank.map(row));
-  vm.runInContext(cut('function _studentSyllabus()', '// ---- Automatic practice:')
-    + cut('function _practiceSetMode(', 'function _practiceFindMore(')
+  vm.runInContext(cut('function _studentHistoryReady()', '// ---- Automatic practice:')
+    + cut('function _practiceSetMode(', 'async function _practiceFindMore(')
     + cut('function splitQuestionDoc(', 'async function loadBank(')
     + cut('async function saveQuestionDoc(', 'async function deleteQuestionDoc(')
     + cut('async function loadFlagNotifications()', 'function renderFlagInbox(')
@@ -146,14 +151,14 @@ test('built-in game content identity suppresses an independently imported Practi
   assert.deepEqual(ids(c._practicePlan(c.questionBank).questions), ['fresh']);
 });
 
-test('cached live game runs revalidate level and stop on an account change', () => {
+test('cached live game runs revalidate level and stop on an account change', async () => {
   const bank = [question('p4'), question('p6', { level: 'P6' })];
   const { c } = fixture(bank);
   const run = { pool: bank.map(row), poolI: 0, feedLevel: 'P6', feedUid: 'alice' };
-  assert.equal(c._studentNextGameQuestion(run).id, 'p4');
+  assert.equal((await c._studentNextGameQuestion(run)).id, 'p4');
   assert.deepEqual(ids(run.pool), ['p4']);
   c.currentUser = { uid: 'bob', role: 'student' };
-  assert.equal(c._studentNextGameQuestion(run), null);
+  assert.equal(await c._studentNextGameQuestion(run), null);
   for (const pattern of [/_tcgQuiz = \{[^\n]+feedLevel: studentLevel/, /duelRun = \{\n\s+feedLevel: studentLevel/,
     /emsRun.feedLevel = studentLevel/, /elgRun.feedLevel = studentLevel/]) assert.match(html, pattern);
 });
@@ -265,4 +270,118 @@ test('ordinary and game selection use no AI requests or writes', () => {
   c._practicePlan(c.questionBank); c._studentGameRows(c.questionBank.map(row));
   c._studentManualQuestions(c.questionBank); c._studentGateDirect(c.questionBank[0]);
   assert.equal(writes.length, 0);
+});
+
+// The production host helpers above now run against the real cloud ledger.
+// Firebase is the boundary substitute; all selection and reservation code ships.
+function historyCloud() {
+  const data = new Map(), listeners = [], db = {};
+  const snapshot = path => ({ metadata: { fromCache: false }, forEach(fn) {
+    for (const [key, value] of data) if (key.startsWith(path + '/') && !key.slice(path.length + 1).includes('/')) fn({ data: () => structuredClone(value) });
+  } });
+  let queue = Promise.resolve();
+  const api = { db, collection: (_db, ...parts) => parts.join('/'), doc: (path, id) => path + '/' + id,
+    getDocs: async path => snapshot(path), onSnapshot(path, next) { const listener = { path, next }; listeners.push(listener); return () => { const i = listeners.indexOf(listener); if (i >= 0) listeners.splice(i, 1); }; },
+    runTransaction: (_db, fn) => { const result = queue.then(async () => {
+      const writes = [];
+      const answer = await fn({ get: async path => ({ exists: () => data.has(path), data: () => structuredClone(data.get(path)) }), set: (path, value) => writes.push([path, value]) });
+      writes.forEach(([path, value]) => data.set(path, structuredClone(value)));
+      listeners.forEach(listener => listener.next(snapshot(listener.path))); return answer;
+    }); queue = result.catch(() => {}); return result; }
+  };
+  return { data, create: () => createStudentQuestionHistory({ ...api, subject: 'math' }) };
+}
+async function withHistory(cloud, bank, uid = 'alice', legacy = []) {
+  const f = fixture(bank, { currentUser: { uid, role: 'student' } });
+  f.c.studentQuestionHistory = cloud.create();
+  f.c._tcgServedLoad = () => f.c.studentQuestionHistory.snapshot().seen;
+  await f.c.studentQuestionHistory.open({ uid, profile: '' }, legacy);
+  return f;
+}
+
+test('actual account history survives a new browser and excludes exact copies across Practice and every game queue', async () => {
+  const cloud = historyCloud(), first = question('first', { source: 'scan' }), bank = [first, question('copy', { blocks: first.blocks }), question('next')];
+  const a = await withHistory(cloud, bank);
+  assert.equal(await a.c._studentHistoryClaim([first]), true, 'Practice reserves before display');
+  a.c.studentQuestionHistory.close();
+  const remaining = bank.slice(1), b = await withHistory(cloud, remaining);
+  assert.deepEqual(ids(b.c._practicePlan(remaining).questions), ['next'], 'The original scan may have been deleted; its content identity still excludes the copy');
+  assert.deepEqual(ids(b.c._studentGameRows(remaining.map(row))), ['next']);
+  assert.equal((await b.c._studentNextGameQuestion({ pool: remaining.map(row) })).id, 'next');
+  assert.equal(await b.c._studentNextGameQuestion({ pool: remaining.map(row) }), null, 'Starting another game never refills from seen questions');
+  const other = await withHistory(cloud, bank, 'bob');
+  assert.equal(await other.c._studentHistoryClaim([first]), true, 'Another student has an independent history');
+});
+
+test('month-old history remains excluded and manual revision records new exposures without reopening automatic repeats', async () => {
+  const cloud = historyCloud(), old = question('old'), fresh = question('fresh');
+  const { c } = await withHistory(cloud, [old, fresh], 'alice', [{ id: old.id, contentKey: variety.practiceContentKey(old), at: Date.now() - 45 * 86400000 }]);
+  c._practiceRestartIfRested();
+  assert.deepEqual(ids(c._practicePlan([old, fresh]).questions), ['fresh']);
+  assert.equal(await c._studentHistoryClaim([old], true), true, 'A deliberate revision remains possible');
+  c._practiceSetMode(true, [old]);
+  assert.deepEqual(ids(c._practicePlan([old, fresh]).questions), ['old'], 'Revision permission stays inside the selected worksheet or question');
+  c._practiceSetMode(false);
+  assert.equal(await c._studentHistoryClaim([fresh], true), true, 'A new worksheet question enters the same permanent history');
+  assert.equal(c._practicePlan([old, fresh]).questions.length, 0);
+});
+
+test('simultaneous game queues claim different questions and rapid calls cannot advance the same run twice', async () => {
+  const cloud = historyCloud(), bank = [question('a'), question('b'), question('c')];
+  const a = await withHistory(cloud, bank), b = await withHistory(cloud, bank);
+  const run = { pool: bank.map(row) };
+  const [one, duplicate, two] = await Promise.all([a.c._studentNextGameQuestion(run), a.c._studentNextGameQuestion(run), b.c._studentNextGameQuestion({ pool: bank.map(row) })]);
+  assert.equal(duplicate, null); assert.ok(one && two); assert.notEqual(one.id, two.id);
+});
+
+test('migration unions every local and cloud mode without migrating another account or preview', async () => {
+  const bank = Array.from({ length: 8 }, (_, i) => question('q' + i)), f = fixture(bank), entries = [];
+  f.c.pirateRiftScope = pirateRiftScope;
+  f.c.ATTEMPTS_COL = 'mathQuestionAttempts'; f.c.ATTEMPTS_COL_LEGACY = 'questionAttempts';
+  f.c.where = (field, _operator, value) => ({ field, value }); f.c.query = (path, condition) => ({ path, condition });
+  f.c.studentQuestionHistory.open = async (identity, rows) => { assert.equal(identity.uid, 'alice'); entries.push(...rows); return true; };
+  f.storage.set('tcgTrainServed_alice', JSON.stringify({ q0: 100 }));
+  f.storage.set('gameQSeen_alice', JSON.stringify({ q1: 110 }));
+  f.storage.set('mqGameAttempts_alice', JSON.stringify({ q2: { at: 120 } }));
+  f.storage.set('tcgTrainServed_bob', JSON.stringify({ other: 100 }));
+  f.storage.set('mathHadesBetaV1:alice:hades-student:P4', JSON.stringify({ shown: { q3: 130 } }));
+  f.storage.set('mathHadesBetaV1:alice:hades-preview:P4', JSON.stringify({ shown: { preview: 130 } }));
+  const identity = JSON.stringify(['Math', JSON.stringify(['alice', 'student', '', 'P4']), 'P4', 'student']);
+  f.storage.set('grandLineMathV1:' + pirateRiftScope(identity), JSON.stringify({ shown: { q4: 140 } }));
+  const reads = [];
+  f.c.getDocs = async ref => {
+    const path = ref.path || ref; reads.push(path);
+    if (ref.condition) assert.equal(ref.condition.value, 'alice');
+    const rows = path.endsWith('mathQuestionProgress') ? [{ questionId: 'q5', lastAttemptAt: '2025-01-01' }]
+      : path.endsWith('mathPerformanceAttempts') ? [{ questionId: 'q6', createdAt: '2025-01-02' }]
+      : path === 'mathQuestionAttempts' ? [{ questionId: 'q7', timestamp: { seconds: 100 } }]
+      : [{ questionId: 'q0', timestamp: { seconds: 200 } }, { questionId: 'science-only', timestamp: { seconds: 200 } }];
+    return { metadata: { fromCache: false }, forEach: fn => rows.forEach(data => fn({ data: () => data })) };
+  };
+  assert.equal(await f.c._studentHistoryLoad('alice'), true);
+  assert.equal(reads.length, 4); assert.deepEqual(entries.map(entry => entry.id).sort(), bank.map(q => q.id));
+  assert.ok(entries.every(entry => entry.contentKey === variety.practiceContentKey(bank.find(q => q.id === entry.id))));
+  assert.equal(entries.find(entry => entry.id === 'q0').at, 200000);
+});
+
+test('cached or failed migration cannot make a student appear new, and account changes cancel the migration', async () => {
+  const { c } = fixture([question('a')]); let opens = 0;
+  Object.assign(c, { pirateRiftScope, ATTEMPTS_COL: 'mathQuestionAttempts', ATTEMPTS_COL_LEGACY: 'questionAttempts', where: () => '', query: path => path });
+  c.studentQuestionHistory.open = async () => { opens++; return true; };
+  c.getDocs = async () => ({ metadata: { fromCache: true }, forEach() {} });
+  await assert.rejects(c._studentHistoryLoad('alice'), /complete question history/); assert.equal(opens, 0);
+  c.getDocs = async () => { throw Error('offline'); };
+  await assert.rejects(c._studentHistoryLoad('alice'), /offline/); assert.equal(opens, 0);
+  c.getDocs = async () => { c.currentUser = { uid: 'bob', role: 'student' }; return { forEach() {} }; };
+  assert.equal(await c._studentHistoryLoad('alice'), false); assert.equal(opens, 0);
+});
+
+test('a previous account late reservation failure cannot poison the next student history', async () => {
+  const { c } = fixture([question('a')]); let reject;
+  c.studentQuestionHistory.claimMany = () => new Promise((_resolve, no) => { reject = no; });
+  const pending = c._studentNextGameQuestion({ pool: c.questionBank.map(row) });
+  await new Promise(resolve => setImmediate(resolve)); assert.equal(typeof reject, 'function');
+  c.currentUser = { uid: 'bob', role: 'student' };
+  reject(Error('Old account disconnected'));
+  assert.equal(await pending, null); assert.equal(c._studentHistoryError, false);
 });

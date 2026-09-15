@@ -1,10 +1,10 @@
 name: Practice variety and submission checks
 on:
   pull_request:
-    paths: ['index.html', 'practice-*.js', 'tools/practice-*.mjs', '.github/workflows/practice-flow.yml']
+    paths: ['index.html', 'practice-*.js', 'student-question-history.js', 'tools/practice-*.mjs', 'tools/student-question-history-tests.mjs', '.github/workflows/practice-flow.yml']
   push:
     branches: [main]
-    paths: ['index.html', 'practice-*.js', 'tools/practice-*.mjs', '.github/workflows/practice-flow.yml']
+    paths: ['index.html', 'practice-*.js', 'student-question-history.js', 'tools/practice-*.mjs', 'tools/student-question-history-tests.mjs', '.github/workflows/practice-flow.yml']
 permissions:
   contents: read
 jobs:
@@ -17,6 +17,8 @@ jobs:
           node-version: '22'
       - name: Check level, mastery, quality, variety and safe marking
         run: node --test tools/practice-mastery-tests.mjs tools/practice-quality-tests.mjs tools/practice-feeding-integration-tests.mjs tools/practice-identity-tests.mjs tools/practice-variety-tests.mjs tools/practice-submission-tests.mjs
+      - name: Check permanent account history and competing devices
+        run: node tools/student-question-history-tests.mjs
       - name: Check existing question and student history behavior
         run: |
           node tools/duplicate-warning-tests.mjs

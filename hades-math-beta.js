@@ -36,9 +36,8 @@ export function installHadesMathBeta(env) {
     state = { shown: merge('shown', value => Number(value) || 0),
       progress: merge('progress', value => Date.parse(value?.lastAttemptAt) || 0),
       attempts: merge('attempts', value => Number(value) || 0) };
-    // A complete day's rotation survives close/reopen, while storage remains bounded.
+    // Permanent shown history is never expired; replay receipts remain bounded.
     const cutoff = Date.now() - 86400000;
-    state.shown = Object.fromEntries(Object.entries(state.shown).filter(([, at]) => Number(at) > cutoff).slice(-2500));
     state.progress = Object.fromEntries(Object.entries(state.progress).slice(-2500));
     state.attempts = Object.fromEntries(Object.entries(state.attempts).filter(([, at]) => Number(at) > cutoff).slice(-2500));
     memory.set(key, state);
@@ -50,10 +49,10 @@ export function installHadesMathBeta(env) {
     overlay?.remove(); overlay = null; grade = ''; state = null;
     if (priorFocus?.isConnected) priorFocus.focus(); priorFocus = null;
   }
-  function questions() {
+  function selectQuestions() {
     if (!allowed() || !grade || !state || (!admin() && grade !== env.getLevel())) return [];
     const bank = env.getBank();
-    const unavailable = bank.filter(q => unavailableContent.get(String(q.id)) === questionQualitySignature(q)).map(q => String(q.id));
+    const unavailable = bank.filter(q => (!admin() && env.hasSeen?.(q)) || unavailableContent.get(String(q.id)) === questionQualitySignature(q)).map(q => String(q.id));
     return selectHadesMathBankRound({ bank, level: grade,
       progress: admin() ? state.progress : { ...(env.getProgress?.() || {}), ...state.progress }, profile: admin() ? {} : env.getProfile?.() || {}, uid: identity(), served: { ...(admin() ? {} : env.getServed?.() || {}), ...state.shown }, remote: !admin(),
       excludedIds: [...failedImages.keys(), ...unavailable], syllabusById: env.getSyllabus(), isReleased: env.isReleased,
@@ -61,6 +60,18 @@ export function installHadesMathBeta(env) {
         failedImageUrls: [...(base.failedImageUrls || []), ...(failedImages.get(String(q.id)) || [])] }; },
       renderBlocks: env.renderBlocks, renderOption: env.renderOption });
   }
+  async function claimQuestions() {
+    const profile = identity();
+    if (!profile || !await env.historyReady()) return [];
+    for (let retry = 0; retry < 4; retry++) {
+      if (identity() !== profile || !state) return [];
+      const rows = selectQuestions();
+      if (rows.length !== 5) return [];
+      if (await env.claimQuestions(rows)) return identity() === profile && state ? rows : [];
+    }
+    return [];
+  }
+  function questions() { return !admin() && env.claimQuestions ? claimQuestions() : selectQuestions(); }
   function start(select, stage) {
     if (!allowed()) { close(); return; }
     if (!admin()) select.value = env.getLevel();
