@@ -6268,9 +6268,9 @@ body.lore-reading { overflow: hidden; }
 // =====================================================================
 import { installHadesMathBeta } from "./hades-math-beta.js?v=2.2.1&history=1";
 import { installPirateRiftPortal, pirateRiftScope } from "./pirate-rift-portal.js?v=1.0.0";
-import { installGrandLinePortal } from "./grand-line-portal.js?v=3.4.0";
-import { createGrandLineMathAdapter } from "./grand-line-math-adapter.js?v=3.4.0&history=1";
-import { createGrandLineEconomy, createGrandLineRpgCommit, createGrandLineRpgSaveGate } from './grand-line-economy.js?v=3.4.0';
+import { installGrandLinePortal } from "./grand-line-portal.js?v=3.5.0";
+import { createGrandLineMathAdapter } from "./grand-line-math-adapter.js?v=3.5.0&history=1";
+import { createGrandLineEconomy, createGrandLineRpgCommit, createGrandLineRpgSaveGate } from './grand-line-economy.js?v=3.5.0';
 import { mountInterfaceStudio } from "./interface-studio.mjs?v=2";
 import { createTcgMedia } from "./tcg-media.js";
 import { tcgSignature } from "./tcg-combat-identity.js";
@@ -31413,7 +31413,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.87.0 · 2026-09-15";
+const APP_VERSION = "v1.88.0 · 2026-09-15";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -40362,7 +40362,7 @@ function tcgModesHtml(s) {
   return '<div class="tcg-section-note">New here? The <b>📘 How to Play</b> tab explains every mechanic in the game.</div>'
     + '<div class="tcg-section-note">Five ways to play with the units you have collected. Every mode uses your own cards and <b>your real card stats</b> — so both progression tracks count everywhere: <b>🎓 training levels</b> from answering maths questions, and <b>⟡ merge levels</b> from repeat copies merging in by themselves.</div>'
     + '<div class="tcg-modes">'
-    + '<div class="tcg-mode-card"><div class="tcg-mode-icon">🃏</div><div class="tcg-mode-main"><h4>Crew Defense <span class="tcg-mode-tag">ONE PIECE TCG</span></h4><p>Collect 50 One Piece characters. Summon any unlocked character across ten positions. Counter swarms with line, splash and area attacks, then train individual defenders. Answer three Math questions after every wave.</p><div class="tcg-mode-meta">Buy one-character packs with your reward points · Learning follows your school level</div></div><div class="tcg-mode-go"><button type="button" class="btn btn-primary" onclick="openGrandLine()">Arrange your defenders</button></div></div>'
+    + '<div class="tcg-mode-card"><div class="tcg-mode-icon">🃏</div><div class="tcg-mode-main"><h4>Crew Defense <span class="tcg-mode-tag">ONE PIECE TCG</span></h4><p>Collect 100 One Piece characters and deploy a crew of seven. Build chokepoints against waves from one, two or three entrances. Counter swarms with line, splash and area attacks, then train individual defenders. Answer three Math questions after every wave.</p><div class="tcg-mode-meta">Buy one-character packs with your reward points · Learning follows your school level</div></div><div class="tcg-mode-go"><button type="button" class="btn btn-primary" onclick="openGrandLine()">Arrange your defenders</button></div></div>'
     + '<div class="tcg-mode-card"><div class="tcg-mode-icon">🏴‍☠️</div><div class="tcg-mode-main"><h4>One Piece: Pirate Rift <span class="tcg-mode-tag">BETA · action RPG</span></h4><p>Choose Luffy, Zoro, Whitebeard or Shanks. Battle through an isometric pirate dungeon, master signature abilities and hunt legendary loot.</p><div class="tcg-mode-meta">Four playable legends · Three acts · Boss battles · Free play</div></div><div class="tcg-mode-go"><button type="button" class="btn btn-primary" onclick="openPirateRift()">Set sail</button></div></div>'
     + ('<div class="tcg-mode-card"><div class="tcg-mode-icon">🔥</div><div class="tcg-mode-main"><h4>Hades <span class="tcg-mode-tag">BETA · action adventure</span></h4><p>Intricate elemental combat, with five fresh Math bank questions between chambers. Correct answers restore life and raise your next boon tier.</p><div class="tcg-mode-meta">Student beta · Questions at your school level · Earn stronger divine boons</div></div><div class="tcg-mode-go"><button type="button" class="btn btn-primary" onclick="openHadesMathBeta()">Play beta</button></div></div>')
     + mode('manafront-siege', '🌳', 'Manafront Siege', 'NEW · lane defence',
