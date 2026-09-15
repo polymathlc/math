@@ -28,8 +28,10 @@ pending work and clears the local view.
 The tracked `firestore.rules` is an incomplete shared-project template. **Do not
 deploy it.** The `Permanent student question history` workflow retrieves the
 current live rules, adds only the owner-scoped immutable history collection,
-verifies the previous rules are otherwise byte-for-byte unchanged, and runs 12
-server-side permission tests. Feature-branch runs validate only; main runs
+verifies the previous rules are otherwise byte-for-byte unchanged, and runs
+server-side permission tests. The existing starter blanket permission, when
+present, is narrowed only to exclude the new question-history namespace; other
+existing paths retain their previous permissions. Feature-branch runs validate only; main runs
 compile and publish the additive update, checking the active release again to
 avoid replacing a concurrent rules change. Math, Science and Scan permissions
 are preserved. The existing Firebase service-account Actions credential is

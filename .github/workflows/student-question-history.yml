@@ -4,7 +4,7 @@ on:
   pull_request:
     paths: ['student-question-history.js', 'tools/student-question-history*', '.github/workflows/student-question-history.yml']
   push:
-    branches: [main, codex/student-question-history-20260915]
+    branches: [main, 'codex/**']
     paths: ['student-question-history.js', 'tools/student-question-history*', '.github/workflows/student-question-history.yml']
   workflow_dispatch: {}
 

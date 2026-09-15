@@ -6,6 +6,10 @@ import { pathToFileURL } from 'node:url';
 
 export const HISTORY_RULE = `
     // BEGIN permanent-student-question-history-v1
+    function isPermanentStudentHistoryPath() {
+      return request.path.size() >= 6 && request.path[3] == 'users'
+        && request.path[5] == 'questionHistory';
+    }
     match /users/{historyUid}/questionHistory/{historyScope}/entries/{historyMarker} {
       allow read: if request.auth != null && request.auth.uid == historyUid;
       allow create: if request.auth != null && request.auth.uid == historyUid
@@ -34,8 +38,19 @@ export function addHistoryRule(source) {
   if (matches.length !== 1 || !/service\s+cloud\.firestore\s*\{/.test(source))
     throw new Error('Unrecognized production Firestore scope; no rules changed.');
   const index = matches[0].index + matches[0][0].length;
-  const updated = source.slice(0, index) + HISTORY_RULE + source.slice(index);
-  if (updated.replace(HISTORY_RULE, '') !== source) throw new Error('Existing rules changed unexpectedly.');
+  let updated = source.slice(0, index) + HISTORY_RULE + source.slice(index);
+  // The live project may use the starter blanket permission. Firestore ORs
+  // matching allows, so it must exclude ONLY this new namespace. Every existing
+  // collection retains exactly the same behavior, including nested users data.
+  const replacements = [];
+  const blanket = /(match\s+\/\{\w+=\*\*\}\s*\{\s*allow\s+(?:read\s*,\s*write|write\s*,\s*read)\s*:\s*if\s+)true(\s*;\s*\})/g;
+  updated = updated.replace(blanket, (whole, before, after) => {
+    const replacement = before + '!isPermanentStudentHistoryPath()' + after;
+    replacements.push([replacement, whole]); return replacement;
+  });
+  let restored = updated.replace(HISTORY_RULE, '');
+  for (const [replacement, original] of replacements) restored = restored.replace(replacement, original);
+  if (restored !== source) throw new Error('Existing rules changed unexpectedly.');
   return updated;
 }
 

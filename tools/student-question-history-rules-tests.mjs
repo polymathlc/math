@@ -22,6 +22,14 @@ test('refuses ambiguous, missing or previously changed history scopes', () => {
   assert.throws(() => addHistoryRule(source.replace('match /science/{id}', 'match /questionHistory/{id}')));
   assert.throws(() => addHistoryRule(source + '// permanent-student-question-history-v1'));
 });
+test('starter blanket rules exclude only the new permanent-history namespace', () => {
+  const starter = source.replace('match /science/{id} { allow read: if request.auth != null; }',
+    'match /{document=**} { allow read, write: if true; }');
+  const updated = addHistoryRule(starter);
+  assert.match(updated, /allow read, write: if !isPermanentStudentHistoryPath\(\);/);
+  assert.equal(updated.replace(HISTORY_RULE, '').replace('!isPermanentStudentHistoryPath()', 'true'), starter);
+  assert.equal(addHistoryRule(updated), updated);
+});
 function service({ invalid = false, changed = false, current = source } = {}) {
   const calls = []; let releaseReads = 0, published = false;
   const request = async (path, options = {}) => {
