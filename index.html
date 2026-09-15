@@ -6268,9 +6268,9 @@ body.lore-reading { overflow: hidden; }
 // =====================================================================
 import { installHadesMathBeta } from "./hades-math-beta.js?v=2.2.1";
 import { installPirateRiftPortal } from "./pirate-rift-portal.js?v=1.0.0";
-import { installGrandLinePortal } from "./grand-line-portal.js?v=2.1.0";
-import { createGrandLineMathAdapter } from "./grand-line-math-adapter.js?v=2.1.0";
-import { createGrandLineEconomy, createGrandLineRpgCommit, createGrandLineRpgSaveGate } from './grand-line-economy.js?v=2.1.0';
+import { installGrandLinePortal } from "./grand-line-portal.js?v=3.0.0";
+import { createGrandLineMathAdapter } from "./grand-line-math-adapter.js?v=3.0.0";
+import { createGrandLineEconomy, createGrandLineRpgCommit, createGrandLineRpgSaveGate } from './grand-line-economy.js?v=3.0.0';
 import { mountInterfaceStudio } from "./interface-studio.mjs?v=2";
 import { createTcgMedia } from "./tcg-media.js";
 import { tcgSignature } from "./tcg-combat-identity.js";
@@ -9328,7 +9328,7 @@ const grandLinePortal = installGrandLinePortal({
         ?setDoc(doc(db,'users',uid,'settings','mathRpg'),state)
         :Promise.resolve(localStorage.setItem('mathQuestRpg:'+uid,JSON.stringify(state)))})
   }),
-  subject:'Math',getUser:()=>currentUser,getLevel:()=>studentLevel,levels:()=>STUDENT_LEVELS,isLevel:level=>STUDENT_LEVELS.includes(level),
+  subject:'Math',getUser:()=>currentUser,getLevel:()=>studentLevel,getPreviewLevel:()=>STUDENT_LEVELS.at(-1),isLevel:level=>STUDENT_LEVELS.includes(level),
   beforeOpen:()=>{pirateRiftPortal.close();hadesMathBeta.close();},openRift:()=>pirateRiftPortal.open(),
   getRiftFrame:()=>document.querySelector('.pirate-rift-portal iframe'),notify:message=>showToast(message,'error'),
   ...createGrandLineMathAdapter({
@@ -31250,7 +31250,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.81.3 · 2026-09-15";
+const APP_VERSION = "v1.82.0 · 2026-09-15";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
