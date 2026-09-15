@@ -57,3 +57,23 @@ test('unavailable diagrams are excluded until authored question content changes'
   const f = adapterFixture(), row = f.adapter.getQuestions(f.ctx)[0]; f.adapter.onQuestionUnavailable(row);
   assert.ok(f.adapter.getQuestions(f.ctx).every(q => q.id !== row.id));
 });
+
+test('student rounds await account history and atomically reserve a fresh replacement after another tab wins', async () => {
+  const f = adapterFixture(); let ready = false, claims = 0, conflicted = [];
+  f.env.historyReady = async () => ready;
+  f.env.hasSeen = q => !!f.served[q.id];
+  f.env.isCurrent = () => true;
+  f.env.claimQuestions = async rows => {
+    claims++;
+    if (claims === 1) { conflicted = rows.map(q => q.id); rows.forEach(q => { f.served[q.id] = Date.now(); }); return false; }
+    rows.forEach(q => { f.served[q.id] = Date.now(); }); return true;
+  };
+  const adapter = createGrandLineMathAdapter(f.env);
+  assert.deepEqual(await adapter.getQuestions(f.ctx), []); assert.equal(claims, 0);
+  ready = true;
+  const rows = await adapter.getQuestions(f.ctx);
+  assert.equal(rows.length, 3); assert.equal(claims, 2);
+  assert.ok(rows.every(q => !conflicted.includes(q.id) && f.served[q.id]));
+  f.env.isCurrent = () => false;
+  assert.deepEqual(await adapter.getQuestions(f.ctx), []); assert.equal(claims, 2);
+});

@@ -30,7 +30,11 @@ test('both sidebar and game hub launch the new adventure while Hades remains ava
 });
 
 test('authentication, navigation and learner changes dispose or invalidate the active frame', () => {
-  assert.match(app, /onAuthStateChanged\(auth, (?:async )?\(user\) => \{\s*(?:hadesMathBeta.close\(\);\s*)?pirateRiftPortal\.close\(\)/);
+  const authStart = app.search(/onAuthStateChanged\(auth, (?:async )?\(user\) => \{/);
+  const authBranch = app.indexOf('if (user)', authStart);
+  assert.ok(authStart >= 0 && authBranch > authStart);
+  assert.match(app.slice(authStart, authBranch), /pirateRiftPortal\.close\(\)/,
+    'the adventure closes before either account branch, alongside history cleanup');
   assert.match(app, /function navigateTo\(page\) \{\s*vetPrintPeekHide\(\);\s*(?:hadesMathBeta.close\(\);\s*)?pirateRiftPortal\.close\(\)/);
   if (science) {
     assert.match(app, /function configureSidebarForRole\(role\) \{\s*pirateRiftPortal\.close\(\)/);

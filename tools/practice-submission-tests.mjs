@@ -41,7 +41,7 @@ function fixture({ mcq = false } = {}) {
     console: { warn() {}, error() {} }, $: element, currentUser: { uid: 'student1', role: 'student' },
     questionBank: [q, second], qIndex: 0, strokes: [], current: null, textBoxes: [], canvasCssW: 800, canvasCssH: 600,
     solutionPhotoDataUrl: '', mcqSelected: mcq ? 0 : null, aiPracticeActive: false, lastEloChange: null,
-    _practiceViewEpoch: 0, _practiceMarkBusy: null, _practiceMcqRevising: false,
+    _practiceViewEpoch: 0, _practiceMarkBusy: null, _practiceMcqRevising: false, _practiceHistoryPending: false,
     _practiceExhausted: false, _practiceAutomatic: () => false,
     _practiceManual: false, studentLevel: 'P4', studentProgress: {}, studentLearningProfile: {},
     _studentFeedRevision: 0, _studentFeedContextCache: null, _studentGameSourceCache: null,

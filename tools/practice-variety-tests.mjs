@@ -200,12 +200,14 @@ function navigationFixture(bank, progress = {}) {
   };
   const c = vm.createContext({
     ...mastery, ...quality,
-    Date, Set, Map, PRACTICE_FAMILY_COOLDOWN_MS, buildPracticeCatalog, createPracticeRun,
+    Date, Set, Map, PRACTICE_FAMILY_COOLDOWN_MS, practiceContentKey, buildPracticeCatalog, createPracticeRun,
     recordPracticeServed, planPracticeQuestions, currentUser: { uid: 'student-a', role: 'student' },
     questionBank: bank.slice(), studentProgress: progress, studentLearningProfile: {}, qIndex: 0,
-    _practiceRun: createPracticeRun('student-a'), _practiceManual: false, _practiceExhausted: false,
+    _practiceRun: createPracticeRun('student-a'), _practiceManual: false, _practiceManualIds: null, _practiceExhausted: false,
     _practiceCatalogBank: null, _practiceCatalogLength: -1, _practiceCatalogValue: null,
-    _practiceViewEpoch: 0, _practiceMcqRevising: false,
+    _practiceViewEpoch: 0, _practiceMcqRevising: false, _practicePresentation: null, _practiceHistoryPending: false,
+    _studentHistoryError: false, _studentHistoryLoading: null,
+    studentQuestionHistory: { isReady: () => true, has: () => false, claimMany: async () => true },
     studentLevel: 'P4', _practiceEmptyReason: 'round',
     _studentFeedRevision: 0, _studentFeedContextCache: null, _studentGameSourceCache: null,
     _studentFailedImages: new Map(), canManageQuestions: () => c.currentUser?.role === 'admin',
@@ -227,7 +229,7 @@ function navigationFixture(bank, progress = {}) {
     resetAskAi: noop, rpgQuestionChanged: noop, _practiceRefreshSubmit: noop, _practiceCurrentAnswerMarked: () => true,
     stopAiPractice: () => { c.aiPracticeActive = false; }, graphPrereqsOf: () => [], graphEasierVersionsOf: () => []
   });
-  const code = cut('function _studentSyllabus()', '// ---- Automatic practice:')
+  const code = cut('function _studentHistoryReady()', '// ---- Automatic practice:')
     + cut('function _practiceSetMode(', 'function updateDifficultyChip(')
     + cut('function questionWrongBefore(', 'const AI_PRACTICE_SET_MAX')
     + cut('const AI_PRACTICE_SET_MAX', 'function renderAiPracticeBar(')
@@ -239,64 +241,64 @@ function navigationFixture(bank, progress = {}) {
   return { c, el };
 }
 
-test('real ordinary Next skips a Peggy cluster, then shows the explicit end of the round', () => {
+test('real ordinary Next skips a Peggy cluster, then shows the explicit end of the round', async () => {
   const bank = Array.from({ length: 10 }, (_, i) => q(`p${i}`, `Save ${i + 10} dollars.`, { title: "Peggy's Savings" }))
     .concat(q('other', 'Find the perimeter of a square.'));
   const { c, el } = navigationFixture(bank);
-  c.prioritizeReviewQuestions(); c.renderQuestion();
+  c.prioritizeReviewQuestions(); await c.renderQuestion();
   assert.equal(c.questionBank[c.qIndex].id, 'p0');
-  c.changeQuestion(1);
+  c.changeQuestion(1); await c.renderQuestion();
   assert.equal(c.questionBank[c.qIndex].id, 'other');
-  c.changeQuestion(1);
+  c.changeQuestion(1); await c.renderQuestion();
   assert.equal(c._practiceExhausted, true);
   assert.match(el('qBody').innerHTML, /end of this practice round/);
   assert.equal(el('submitBtn').disabled, true);
   assert.equal(c.questionBank.length, bank.length);
 });
 
-test('real AI set skips recently completed questions and includes one per unlinked story family', () => {
+test('real AI set skips recently completed questions and includes one per unlinked story family', async () => {
   const bank = [q('done', 'Save 10 dollars.', { title: "Peggy's Savings" }),
     q('sibling', 'Save 20 dollars.', { title: "Peggy's Savings" }), q('fresh'), q('fresh2')];
   const progress = { done: { wrongCount: 9, lastAttemptAt: new Date().toISOString(), nextReviewAt: iso(Date.now() + 7200000) } };
   const { c } = navigationFixture(bank, progress);
-  c.startAiPractice();
+  c.startAiPractice(); await c.renderQuestion();
   assert.deepEqual(Array.from(c.aiPracticeQueue, item => item.id), ['fresh', 'fresh2']);
   assert.equal(c.questionBank.length, bank.length);
 });
 
-test('real manual worksheet Next keeps B before overdue C', () => {
+test('real manual worksheet Next keeps B before overdue C', async () => {
   const bank = [q('a'), q('b'), q('c')];
   const { c } = navigationFixture(bank, { c: { nextReviewAt: iso(Date.now() - 3600000) } });
-  c._practiceSetMode(true); c.renderQuestion(); c.changeQuestion(1);
+  c._practiceSetMode(true); await c.renderQuestion(); c.changeQuestion(1); await c.renderQuestion();
   assert.equal(c.questionBank[c.qIndex].id, 'b');
   assert.equal(c._practiceExhausted, false);
   assert.deepEqual(Array.from(c.questionBank, item => item.id), ['a', 'b', 'c']);
 });
 
-test('real reload prioritization moves a fresh question ahead of mastered history', () => {
+test('real reload prioritization moves a fresh question ahead of mastered history', async () => {
   const bank = [q('peggy'), q('fresh')];
   const progress = { peggy: { wrongCount: 10, correctStreak: 4, lastVerdict: 'correct',
     lastAttemptAt: new Date().toISOString(), nextReviewAt: iso(Date.now() + 86400000) } };
   const { c } = navigationFixture(bank, progress);
-  c.prioritizeReviewQuestions(); c.renderQuestion();
+  c.prioritizeReviewQuestions(); await c.renderQuestion();
   assert.equal(c.questionBank[c.qIndex].id, 'fresh');
 });
 
-test('real prerequisite selection cannot loop A to B to A or escape video-only mode', () => {
+test('real prerequisite selection cannot loop A to B to A or escape video-only mode', async () => {
   const bank = [q('a', 'Compute 12.', { hasVideoExplanation: true }), q('b', 'Compute 13.', { hasVideoExplanation: true }), q('no-video')];
   const { c } = navigationFixture(bank);
   c.videoOnlyFilter = true;
   c.graphPrereqsOf = id => id === 'a' ? ['b', 'no-video'] : ['a', 'no-video'];
-  c.renderQuestion();
+  await c.renderQuestion();
   assert.equal(c.graphBestPrerequisiteToServe(bank[0]).id, 'b');
-  c.qIndex = 1; c.renderQuestion();
+  c.qIndex = 1; await c.renderQuestion();
   assert.equal(c.graphBestPrerequisiteToServe(bank[1]), null);
 });
 
-test('real direct manual mode clears exhaustion, video-only and inherited AI mode', () => {
+test('real direct manual mode clears exhaustion, video-only and inherited AI mode', async () => {
   const { c } = navigationFixture([q('a')]);
   c._practiceExhausted = true; c.videoOnlyFilter = true; c.aiPracticeActive = true;
-  c._practiceSetMode(true); c.renderQuestion();
+  c._practiceSetMode(true); await c.renderQuestion();
   assert.equal(c._practiceExhausted, false); assert.equal(c.videoOnlyFilter, false); assert.equal(c.aiPracticeActive, false);
   assert.equal(c._practiceRun.served.length, 0, 'explicit retries do not corrupt automatic serving history');
 });

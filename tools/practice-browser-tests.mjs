@@ -63,14 +63,21 @@ async function setup({ questions, manual = false, progress = {}, level = 'P4', p
     let _studentGameSourceCache = null, _studentAdminFlagsLoaded = false, _studentPrivateKeysLoaded = false;
     const _studentFailedImages = new Map(), flagNotifications = [];
     let videoOnlyFilter = false, aiPracticeActive = false, lastEloChange = null, mcqSelected = null;
-    let _practiceRun = createPracticeRun(currentUser.uid), _practiceManual = ${manual}, _practiceExhausted = false;
+    let _practiceRun = createPracticeRun(currentUser.uid), _practiceManual = ${manual}, _practiceManualIds = null, _practiceExhausted = false;
     let _practiceCatalogBank = null, _practiceCatalogLength = -1, _practiceCatalogValue = null;
-    let _practiceViewEpoch = 0, _practiceMarkBusy = null, _practiceMcqRevising = false;
+    let _practiceViewEpoch = 0, _practiceMarkBusy = null, _practiceMcqRevising = false, _practicePresentation = null, _practiceHistoryPending = false;
+    let _studentHistoryLoading = null, _studentHistoryError = false;
     const _practiceMarkedSignatures = new Map();
     let _practicePhotoSignature = { url: null, hash: '' };
     let strokes = [], redoStack = [], current = null, textBoxes = [], solutionPhotoDataUrl = '', canvasCssW = 800, canvasCssH = 680;
     const markerCalls = [], visibleResults = [], confirmations = [], notices = [], writes = [];
     const storage = new Map(), servedGames = {};
+    const shownContent = new Set();
+    const studentQuestionHistory = { isReady: () => true, has: (id, content) => !!servedGames[id] || shownContent.has(content),
+      claimMany: async (entries, options) => {
+        if (!options?.allowSeen && entries.some(entry => servedGames[entry.id] || shownContent.has(entry.contentKey))) return false;
+        entries.forEach(entry => { servedGames[entry.id] = Date.now(); if (entry.contentKey) shownContent.add(entry.contentKey); }); return true;
+      } };
     const localStorage = { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, value) };
     const canManageQuestions = () => currentUser?.role === 'admin', _isAdmin = canManageQuestions;
     const qReleased = q => q.releaseOn !== 'future', tcgQuizLevel = q => q.level || '';
@@ -112,15 +119,17 @@ async function setup({ questions, manual = false, progress = {}, level = 'P4', p
       candidates(manual = false) { return _studentFeedCandidates(questionBank, { manual }).questions.map(q => q.id); },
       staleView(id) { qIndex = questionBank.findIndex(q => q.id === id); _practiceExhausted = false; renderQuestion(); },
       gameRun() { return { pool: questionBank.map(q => ({ id: q.id, feedSource: q })), poolI: 0, feedLevel: studentLevel, feedUid: currentUser.uid }; },
-      gameNext(run) { const q = _studentNextGameQuestion(run); if (q) servedGames[q.id] = Date.now(); return q?.id || null; },
+      async gameNext(run) { const q = await _studentNextGameQuestion(run); return q?.id || null; },
+      async gameBatch(run, count = 5) { const result = []; for (let i = 0; i < count; i++) result.push(await this.gameNext(run)); return result; },
       gate(kind) { let release; const promise = new Promise(resolve => { release = resolve; }); const gate = { promise, release }; if (kind === 'mark') markGate = gate; else captureGate = gate; },
       release(kind) { if (kind === 'mark') { markGate.release(); markGate = null; } else { captureGate.release('data:image/png;base64,synthetic'); captureGate = null; } }
     };
     $('studentLevelSelect').addEventListener('change', event => saveStudentLevel(event.target.value));
     renderStudentLevel();
     if (!${manual}) prioritizeReviewQuestions();
-    renderQuestion();
+    window.practiceReady = renderQuestion();
   ` });
+  await page.evaluate(() => window.practiceReady);
 }
 async function state() { return page.evaluate(() => window.practiceFixture.state()); }
 async function screenshot(name) {
@@ -149,7 +158,7 @@ try {
   assert.equal((await state()).pirateRiftCloses, 1, 'Changing school level closes any Pirate Rift expedition');
   assert.equal((await state()).grandLineCloses,1,'school level change closes Grand Line');
   assert.equal((await state()).id, 'p1');
-  assert.deepEqual(await page.evaluate(() => window.practiceFixture.candidates()), ['p1', 'c1']);
+  assert.deepEqual(await page.evaluate(() => window.practiceFixture.candidates()), ['c1'], 'The displayed question is permanently reserved before it reaches the screen');
   await page.evaluate(() => window.practiceFixture.chooseQuestion('p6'));
   assert.equal((await state()).id, 'p1', 'A direct question link cannot bypass the school level');
   await screenshot('practice-level-matched');
@@ -167,7 +176,7 @@ try {
   await page.evaluate(() => { window.cachedGameRun = window.practiceFixture.gameRun(); });
   await page.locator('#studentLevelSelect').selectOption('P4');
   assert.equal((await state()).id, 'p1', 'Changing level replaces an unsuitable Practice question immediately');
-  const gameIds = await page.evaluate(() => Array.from({ length: 5 }, () => window.practiceFixture.gameNext(window.cachedGameRun)));
+  const gameIds = await page.evaluate(() => window.practiceFixture.gameBatch(window.cachedGameRun));
   assert.deepEqual(gameIds.filter(Boolean).sort(), ['c1'], 'Cached games recheck the level and cannot repeat the question just shown in Practice');
   assert.equal(gameIds.at(-1), null);
   console.log('PASS browser: level changes recheck Practice and a cached game pool; exhausted games stop');
@@ -177,7 +186,7 @@ try {
   await setup({ questions: [introduction, peggy, variant, copy, colin] });
   const distinctGameIds = await page.evaluate(() => {
     const run = window.practiceFixture.gameRun();
-    return Array.from({ length: 5 }, () => window.practiceFixture.gameNext(run));
+    return window.practiceFixture.gameBatch(run);
   });
   assert.deepEqual(distinctGameIds.filter(Boolean), ['p1', 'c1'], 'Games space numerical variants and renamed exact copies, including Practice history');
   await setup({ questions: [introduction, peggy, variant, copy, colin], progress: {
@@ -185,7 +194,7 @@ try {
   } });
   const dueGameIds = await page.evaluate(() => {
     const run = window.practiceFixture.gameRun();
-    return Array.from({ length: 5 }, () => window.practiceFixture.gameNext(run));
+    return window.practiceFixture.gameBatch(run);
   });
   assert.deepEqual(dueGameIds.filter(Boolean), ['c1'], 'Games honour saved review dates and recent related-question cooldowns');
   console.log('PASS browser: automatic games share Practice family, exact-copy and saved-review scheduling');
@@ -195,7 +204,7 @@ try {
   const hard = { ...makeQuestion('hard', 'An advanced challenge', 9), difficulty: 2200 };
   await setup({ questions: [p6, suspect, broken, hard, peggy] });
   assert.equal((await state()).id, 'p1');
-  assert.deepEqual(await page.evaluate(() => window.practiceFixture.candidates()), ['p1'], 'Only a sound question within the skill target is automatically fed');
+  assert.deepEqual(await page.evaluate(() => window.practiceFixture.candidates()), [], 'The only sound question is already displayed and cannot be selected again');
   await setup({ questions: [p6, suspect, broken, hard] });
   assert.equal((await state()).exhausted, true);
   assert.match(await page.locator('#qBody').innerText(), /No suitable questions are ready/);

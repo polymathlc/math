@@ -1,0 +1,48 @@
+name: Permanent student question history
+
+on:
+  pull_request:
+    paths: ['student-question-history.js', 'tools/student-question-history*', '.github/workflows/student-question-history.yml']
+  push:
+    branches: [main, 'codex/**']
+    paths: ['student-question-history.js', 'tools/student-question-history*', '.github/workflows/student-question-history.yml']
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: student-question-history-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  history-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node tools/student-question-history-tests.mjs
+      - run: node --test tools/student-question-history-rules-tests.mjs
+  shared-rules:
+    needs: history-tests
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: mathgen--app
+      - name: Validate additive rules against current shared production rules
+        if: github.ref != 'refs/heads/main'
+        run: node tools/student-question-history-rules.mjs
+      - name: Deploy verified additive history permissions
+        if: github.ref == 'refs/heads/main'
+        run: node tools/student-question-history-rules.mjs --deploy
