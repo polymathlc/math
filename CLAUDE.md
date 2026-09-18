@@ -1310,6 +1310,19 @@ card.
 - **Each question is saved as it is built**, not batched at the end: a failure
   on question 4 must not lose the three that already read perfectly.
 
+## 🧭 All the apps under one roof (v1.89.0)
+
+`POLYMATH_TOOLS` / `polymathToolFor` and the tools half of `subjectRenderMenu` (search
+`ALL THE APPS UNDER ONE ROOF`). The subject switcher lists 🔑 Ans Key and 📖 Study Buddy under
+*Your tools* — the same two blocks the Science portal (`polymathlc/cer`) carries byte for byte,
+and the six rows Ans Key and Study Buddy carry as one `POLYMATH_APPS`. Same keys, same RELATIVE
+urls, the folder is the REPO name (Science is `cer`, Study Buddy is `tutor`). The click handler
+that opens a tool's embedded page is the same text too; this app has no `#page-tutor` /
+`#page-anskey`, so the guard leaves the row the plain link it is. **Ship a change to the table to
+every app** — a menu that differs between two of them is a menu one has let drift. Run
+`node tools/subject-level-tests.mjs` after touching it: it still pins the four subjects and their
+urls, and `SUBJECT_APPS` must stay four — the tools are the OTHER table.
+
 ## The subject switcher — four apps, one student (v1.36.0)
 
 `SUBJECT_APPS` / `subject*` in the module, plus `#subjectSwitch` and the
