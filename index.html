@@ -100,6 +100,31 @@ a { color: var(--primary); }
 .sidebar-brand span { font-family: 'Space Mono', monospace; font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.5); }
 .sidebar-nav { padding: 14px 12px; flex: 1; overflow-y: auto; }
 .nav-section { font-family: 'Space Mono', monospace; font-size: 0.58rem; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.35); padding: 14px 10px 6px; }
+/* ── COLLAPSIBLE NAV GROUPS ── native <details> groups (Games, Questions, …) so
+   the menu reads as a few lines until one is opened. navGroups* below the
+   navigateTo function remembers which are open, opens the group holding the
+   active page, and hides a group whose every item this role cannot see
+   (`nav-group-empty`). Same block as the Science app — keep the two in step. */
+.nav-group { margin: 0 0 4px; }
+.nav-group-head { display: flex; align-items: center; gap: 11px; padding: 10px 12px; border-radius: var(--radius-md);
+  color: rgba(255,255,255,0.78); cursor: pointer; font-size: 0.92rem; font-weight: 600; list-style: none; user-select: none; transition: all var(--transition); }
+.nav-group-head::-webkit-details-marker { display: none; }
+.nav-group-head::marker { content: ''; }
+.nav-group-head:hover { background: rgba(255,255,255,0.07); color: #fff; }
+.nav-group-head:focus-visible { outline: 2px solid rgba(255,255,255,0.4); outline-offset: -2px; }
+.nav-group-head .ico { font-size: 1.05rem; width: 20px; text-align: center; }
+.nav-group-label { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-group-badge { margin-left: auto; background: rgba(255,255,255,0.15); padding: 1px 8px; border-radius: 10px; font-size: 0.72rem; font-family: 'Space Mono', monospace; }
+.nav-group-chev { width: 7px; height: 7px; flex-shrink: 0; margin: 0 4px 2px 6px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); opacity: 0.55; transition: transform 0.2s ease; }
+.nav-group[open] > .nav-group-head { color: #fff; }
+.nav-group[open] > .nav-group-head .nav-group-chev { transform: rotate(45deg); }
+.nav-group.has-active:not([open]) > .nav-group-head { color: #fff; }
+.nav-group.has-active:not([open]) > .nav-group-head .nav-group-label::after { content: ''; display: inline-block; width: 6px; height: 6px; margin-left: 8px; border-radius: 50%; background: var(--primary); vertical-align: middle; }
+.nav-group-body { padding: 2px 0 4px 8px; margin: 0 0 0 10px; border-left: 1px solid rgba(255,255,255,0.08); }
+.nav-group-body .nav-item { font-size: 0.88rem; }
+.nav-group.nav-group-empty { display: none !important; }
+.nav-group.nav-flat > .nav-group-head { display: none; }
+.nav-group.nav-flat > .nav-group-body { padding: 0; margin: 0; border: 0; }
 .nav-item {
   display: flex; align-items: center; gap: 11px; padding: 10px 12px; border-radius: var(--radius-md);
   color: rgba(255,255,255,0.75); cursor: pointer; font-size: 0.92rem; font-weight: 500; margin-bottom: 2px; transition: all var(--transition);
@@ -3490,6 +3515,8 @@ body.nova-protocol .sidebar {
 }
 body.nova-protocol .sidebar-brand { border-bottom-color: rgba(77,227,255,0.16); }
 body.nova-protocol .nav-section-label { color: rgba(77,227,255,0.55); }
+body.nova-protocol .nav-group-head { color: rgba(184,244,255,0.8); }
+body.nova-protocol .nav-group-body { border-left-color: rgba(77,227,255,0.2); }
 body.nova-protocol .nav-item:hover { background: rgba(77,227,255,0.10); color: #eafcff; }
 body.nova-protocol .nav-item.active { background: linear-gradient(135deg, var(--ro-gold-deep), #0a7fa3); color: #14161a; }
 body.nova-protocol .sidebar-footer { border-top-color: rgba(77,227,255,0.16); }
@@ -4762,50 +4789,75 @@ body.lore-reading { overflow: hidden; }
       <div class="nav-item active" data-page="practice"><span class="ico">✍️</span> Practice</div>
       <div class="nav-item" id="navAiMark"><span class="ico">📸</span> AI Marking</div>
       <div class="nav-item" data-page="syllabus" title="The MOE Primary Mathematics syllabus — every learning objective, and the questions filed under each one"><span class="ico">📐</span> Syllabus</div>
-      <div class="nav-section rpg-el" style="display:none;">Game</div>
-      <div class="nav-item rpg-el" data-page="character" style="display:none;"><span class="ico">🛡️</span> Character</div>
-      <div class="nav-item rpg-el" data-page="leaderboard" style="display:none;"><span class="ico">🏆</span> Leaderboard</div>
-      <div class="nav-item rpg-el" data-page="adventure" style="display:none;"><span class="ico">🏰</span> Dungeon</div>
-      <!-- Aetherfall TCG (beta) — admins always; students only once the admin presses Release.
-           For a STUDENT the whole wrap is moved up to sit directly under 🏛️ Community
-           (_tcgPlaceNavItem); this empty anchor is where it lives for an admin, and where
-           it is put back if the role changes. -->
-      <div id="navTcgHome"></div>
-      <div class="nav-tcg-wrap" id="navTcgWrap">
-        <div class="nav-item" id="navTcg" data-page="tcg" onclick="navigateTo('tcg')" style="display:none;" title="Aetherfall: Worlds Beyond — collect heroes from two worlds, build a team of 5 and fight through the Convergence.">
-          <span class="ico" id="navTcgIco">◉</span> Aetherfall <span class="nav-beta tcg-beta-badge">BETA</span>
+      <!-- COLLAPSIBLE GROUPS. Every group is a native <details>; navGroups* remembers which are open per account, opens the group holding the active page, and hides a group whose every item is hidden for this role. A nav item's own markup is unchanged — only where it sits. -->
+      <!-- 🎮 Games — every game behind ONE tab. The Aetherfall door (navTcgWrap) stays parked at navTcgHome for every role now; the group is what makes it findable. -->
+      <details class="nav-group" data-group="games">
+        <summary class="nav-group-head"><span class="ico">🎮</span> <span class="nav-group-label">Games</span><span class="badge nav-group-badge" style="display:none;">0</span><span class="nav-group-chev" aria-hidden="true"></span></summary>
+        <div class="nav-group-body">
+          <div class="nav-item rpg-el" data-page="character" style="display:none;"><span class="ico">🛡️</span> Character</div>
+          <div class="nav-item rpg-el" data-page="leaderboard" style="display:none;"><span class="ico">🏆</span> Leaderboard</div>
+          <div class="nav-item rpg-el" data-page="adventure" style="display:none;"><span class="ico">🏰</span> Dungeon</div>
+          <div id="navTcgHome"></div>
+          <div class="nav-tcg-wrap" id="navTcgWrap">
+            <div class="nav-item" id="navTcg" data-page="tcg" onclick="navigateTo('tcg')" style="display:none;" title="Aetherfall: Worlds Beyond — collect heroes from two worlds, build a team of 5 and fight through the Convergence.">
+              <span class="ico" id="navTcgIco">◉</span> Aetherfall <span class="nav-beta tcg-beta-badge">BETA</span>
+            </div>
+            <!-- Hover flyout: the game modes inside the Nexus, with 🎁 badges on
+                 the ones paying a voucher this month (tcgNavPrizeBadges). -->
+            <div class="nav-tcg-sub" id="navTcgSub" style="display:none;">
+              <button type="button" onclick="tcgNavMode('modes','ems')"><span class="ico">🌋</span> Manafront Siege <span class="nav-sub-prize" id="navPrizeSiege" style="display:none;"></span></button>
+              <button type="button" id="navModeLegends" style="display:none;" onclick="tcgNavMode('modes','elg')"><span class="ico">⚔️</span> Paragon Run <span class="nav-sub-prize" id="navPrizeLegends" style="display:none;"></span></button>
+              <!-- Convergence Duel — hidden until duelAccessAllowed() shows it (tcgNavPrizeBadges) -->
+              <button type="button" id="navModeDuel" style="display:none;" onclick="tcgNavMode('modes','duel')"><span class="ico">🎴</span> Convergence Duel <span class="nav-sub-prize" id="navPrizeDuel" style="display:none;"></span></button>
+              <button type="button" onclick="tcgNavMode('arena')"><span class="ico">🆚</span> Rift Arena</button>
+              <button type="button" onclick="tcgNavMode('dungeon')"><span class="ico">🏰</span> Fracture Depths</button>
+              <button type="button" onclick="tcgNavMode('packs')"><span class="ico">🎁</span> Booster Packs</button>
+            </div>
+          </div>
+          <button type="button" class="nav-item" id="navHadesBeta" onclick="openHadesMathBeta()"><span class="ico">🔥</span> Hades <span class="nav-beta">BETA</span></button>
+          <button type="button" class="nav-item" id="navPirateRift" onclick="openPirateRift()" title="One Piece: Pirate Rift — Luffy, Zoro, Whitebeard and Shanks"><span class="ico">🏴‍☠️</span> Pirate Rift <span class="nav-beta">BETA</span></button>
+          <button type="button" class="nav-item" id="navGrandLine" onclick="openGrandLine()" title="Crew Defense — protect your ship and answer three Math questions after every wave"><span class="ico">🃏</span> Crew Defense <span class="nav-beta">TCG</span></button>
+          <div class="nav-item" id="rpgHideToggle" style="display:none;"><span class="ico">🙈</span> Hide game</div>
         </div>
-        <!-- Hover flyout: the game modes inside the Nexus, with 🎁 badges on
-             the ones paying a voucher this month (tcgNavPrizeBadges). -->
-        <div class="nav-tcg-sub" id="navTcgSub" style="display:none;">
-          <button type="button" onclick="tcgNavMode('modes','ems')"><span class="ico">🌋</span> Manafront Siege <span class="nav-sub-prize" id="navPrizeSiege" style="display:none;"></span></button>
-          <button type="button" id="navModeLegends" style="display:none;" onclick="tcgNavMode('modes','elg')"><span class="ico">⚔️</span> Paragon Run <span class="nav-sub-prize" id="navPrizeLegends" style="display:none;"></span></button>
-          <!-- Convergence Duel — hidden until duelAccessAllowed() shows it (tcgNavPrizeBadges) -->
-          <button type="button" id="navModeDuel" style="display:none;" onclick="tcgNavMode('modes','duel')"><span class="ico">🎴</span> Convergence Duel <span class="nav-sub-prize" id="navPrizeDuel" style="display:none;"></span></button>
-          <button type="button" onclick="tcgNavMode('arena')"><span class="ico">🆚</span> Rift Arena</button>
-          <button type="button" onclick="tcgNavMode('dungeon')"><span class="ico">🏰</span> Fracture Depths</button>
-          <button type="button" onclick="tcgNavMode('packs')"><span class="ico">🎁</span> Booster Packs</button>
+      </details>
+      <!-- ✏️ Questions — everything about authoring and keeping the bank -->
+      <details class="nav-group admin-only" data-group="questions">
+        <summary class="nav-group-head"><span class="ico">✏️</span> <span class="nav-group-label">Questions</span><span class="badge nav-group-badge" style="display:none;">0</span><span class="nav-group-chev" aria-hidden="true"></span></summary>
+        <div class="nav-group-body">
+          <div class="nav-item admin-only" data-page="create"><span class="ico">➕</span> Create Question</div>
+          <div class="nav-item admin-only" data-page="vetting" title="Questions read in by Rapid add / the paper import, waiting for you to check them before they go live"><span class="ico">📋</span> Vetting <span class="nav-count" id="navVettingCount" style="display:none;"></span></div>
+          <div class="nav-item admin-only" data-page="bank"><span class="ico">📚</span> Question Bank</div>
+          <div class="nav-item admin-only" data-page="answerkeys" title="Photograph the worked answers you have written by hand — each one finds the question it answers and files itself as that question's answer key"><span class="ico">🔑</span> Answer Keys</div>
+          <div class="nav-item admin-only" data-page="bin" title="Questions you deleted, from the bank or from vetting. Restore one within 7 days — after that it is deleted forever"><span class="ico">🗑️</span> Bin <span class="nav-count" id="navBinCount" style="display:none;"></span></div>
+          <div class="nav-item admin-only" data-page="graph" title="Map prerequisite links between questions — the AI reads this when guiding practice"><span class="ico">🕸️</span> Dependency Board</div>
         </div>
-      </div>
-      <div class="nav-item" id="rpgHideToggle" style="display:none;"><span class="ico">🙈</span> Hide game</div>
-      <button type="button" class="nav-item" id="navHadesBeta" onclick="openHadesMathBeta()"><span class="ico">🔥</span> Hades <span class="nav-beta">BETA</span></button>
-      <button type="button" class="nav-item" id="navPirateRift" onclick="openPirateRift()" title="One Piece: Pirate Rift — Luffy, Zoro, Whitebeard and Shanks"><span class="ico">🏴‍☠️</span> Pirate Rift <span class="nav-beta">BETA</span></button>
-      <button type="button" class="nav-item" id="navGrandLine" onclick="openGrandLine()" title="Crew Defense — protect your ship and answer three Math questions after every wave"><span class="ico">🃏</span> Crew Defense <span class="nav-beta">TCG</span></button>
-      <div class="nav-section admin-only">Admin</div>
-      <div class="nav-item admin-only" data-page="create"><span class="ico">➕</span> Create Question</div>
-      <div class="nav-item admin-only" data-page="vetting" title="Questions read in by Rapid add / the paper import, waiting for you to check them before they go live"><span class="ico">📋</span> Vetting <span class="nav-count" id="navVettingCount" style="display:none;"></span></div>
-      <div class="nav-item admin-only" data-page="bank"><span class="ico">📚</span> Question Bank</div>
-      <div class="nav-item admin-only" data-page="answerkeys" title="Photograph the worked answers you have written by hand — each one finds the question it answers and files itself as that question's answer key"><span class="ico">🔑</span> Answer Keys</div>
-      <div class="nav-item admin-only" data-page="bin" title="Questions you deleted, from the bank or from vetting. Restore one within 7 days — after that it is deleted forever"><span class="ico">🗑️</span> Bin <span class="nav-count" id="navBinCount" style="display:none;"></span></div>
-      <div class="nav-item admin-only" data-page="graph" title="Map prerequisite links between questions — the AI reads this when guiding practice"><span class="ico">🕸️</span> Dependency Board</div>
-      <div class="nav-item admin-only" data-page="students"><span class="ico">🎓</span> Student Results</div>
-      <div class="nav-item admin-only" data-page="diagnostic" title="Build a test one learning objective at a time, print it, then read the class's score objective by objective"><span class="ico">🩺</span> Diagnostic</div>
-      <div class="nav-item admin-only" data-page="custompaper" title="Custom Paper — build a mock exam paper OR an ordinary worksheet from scratch. Paste the question screenshots in and they are read as one run. In paper mode they are sorted into Booklet A (multiple choice) and Booklet B (open-ended), numbered straight through and printed with a cover for each booklet; in worksheet mode they print as one numbered list on an ordinary worksheet. Everything sent to the bank is held back from students until you release it."><span class="ico">🗂️</span> Custom Paper</div>
-      <div class="nav-item admin-only" data-page="worksheet" title="Pick questions, add a cover, then print or save the worksheet"><span class="ico">📝</span> Create Worksheet</div>
-      <div class="nav-item" data-page="myworksheets" title="Your saved worksheets — reprint, practise or delete"><span class="ico">📄</span> My Worksheets</div>
-      <div class="nav-item admin-only" id="navAiEngine" title="Choose which AI powers the app — Gemini (default) or ChatGPT with your own OpenAI key. The choice is saved on this device."><span class="ico">🧠</span> AI Engine</div>
-      <div class="nav-item admin-only" id="navMarking"><span class="ico">⚖️</span> AI Marking Guide</div>
-      <div class="nav-item admin-only" id="navGen"><span class="ico">✨</span> AI Generation Guide</div>
+      </details>
+      <!-- 📄 Worksheets — the builders, the diagnostic test and a student's own saved sheets (a Custom Paper and a diagnostic ARE saved worksheets here) -->
+      <details class="nav-group" data-group="papers">
+        <summary class="nav-group-head"><span class="ico">📄</span> <span class="nav-group-label">Worksheets</span><span class="badge nav-group-badge" style="display:none;">0</span><span class="nav-group-chev" aria-hidden="true"></span></summary>
+        <div class="nav-group-body">
+          <div class="nav-item admin-only" data-page="worksheet" title="Pick questions, add a cover, then print or save the worksheet"><span class="ico">📝</span> Create Worksheet</div>
+          <div class="nav-item" data-page="myworksheets" title="Your saved worksheets — reprint, practise or delete"><span class="ico">📄</span> My Worksheets</div>
+          <div class="nav-item admin-only" data-page="custompaper" title="Custom Paper — build a mock exam paper OR an ordinary worksheet from scratch. Paste the question screenshots in and they are read as one run. In paper mode they are sorted into Booklet A (multiple choice) and Booklet B (open-ended), numbered straight through and printed with a cover for each booklet; in worksheet mode they print as one numbered list on an ordinary worksheet. Everything sent to the bank is held back from students until you release it."><span class="ico">🗂️</span> Custom Paper</div>
+          <div class="nav-item admin-only" data-page="diagnostic" title="Build a test one learning objective at a time, print it, then read the class's score objective by objective"><span class="ico">🩺</span> Diagnostic</div>
+        </div>
+      </details>
+      <!-- 👥 Students — the class's results -->
+      <details class="nav-group admin-only" data-group="students">
+        <summary class="nav-group-head"><span class="ico">👥</span> <span class="nav-group-label">Students</span><span class="badge nav-group-badge" style="display:none;">0</span><span class="nav-group-chev" aria-hidden="true"></span></summary>
+        <div class="nav-group-body">
+          <div class="nav-item admin-only" data-page="students"><span class="ico">🎓</span> Student Results</div>
+        </div>
+      </details>
+      <!-- ⚙️ AI & Settings — the engine chooser and the two AI guides -->
+      <details class="nav-group admin-only" data-group="tools">
+        <summary class="nav-group-head"><span class="ico">⚙️</span> <span class="nav-group-label">AI &amp; Settings</span><span class="badge nav-group-badge" style="display:none;">0</span><span class="nav-group-chev" aria-hidden="true"></span></summary>
+        <div class="nav-group-body">
+          <div class="nav-item admin-only" id="navAiEngine" title="Choose which AI powers the app — Gemini (default) or ChatGPT with your own OpenAI key. The choice is saved on this device."><span class="ico">🧠</span> AI Engine</div>
+          <div class="nav-item admin-only" id="navMarking"><span class="ico">⚖️</span> AI Marking Guide</div>
+          <div class="nav-item admin-only" id="navGen"><span class="ico">✨</span> AI Generation Guide</div>
+        </div>
+      </details>
     </nav>
     <div class="rpg-side rpg-el" id="rpgSide" style="display:none;" title="Open your character page">
       <div class="rpg-side-top"><span class="rpg-side-level" id="rpgSideLevel">Lv 1</span><span class="rpg-side-gold" id="rpgSideGold">🪙 0</span></div>
@@ -9535,6 +9587,9 @@ async function enterApp(user, authEpoch = _studentAuthEpoch) {
   $("userEmail").textContent = currentUser.email;
   document.querySelectorAll(".admin-only").forEach(el => el.style.display = isAdmin ? "" : "none");
   document.querySelectorAll(".student-only").forEach(el => el.style.display = isAdmin ? "none" : "");
+  // The groups come AFTER the role sweep: which groups are empty depends on
+  // which items exist for this account.
+  try { navGroupsRestore(); navGroupsWatch(); } catch (e) { console.warn("nav groups", e); }
   // Every signed-in path comes through enterApp, which is why the subject
   // switcher is turned on from this one place. It is shown to BOTH roles: a
   // pupil needs it to reach their other subjects, and a teacher moving between
@@ -9803,6 +9858,113 @@ async function notifyQuestionSubscribers(q) {
 // =====================================================================
 // NAVIGATION
 // =====================================================================
+// =====================================================================
+// COLLAPSIBLE NAV GROUPS (v1.89.0)
+//
+// The sidebar carried eight game items in a row and an "Admin" section of
+// fifteen. They live in a handful of native <details> groups now — 🎮 Games,
+// ✏️ Questions, 📄 Papers & Worksheets, 👥 Students, ⚙️ AI & Settings — so
+// the menu reads as a few lines until one is opened. Same block as the
+// Science app (`polymathlc/cer`), minus the bookmark band it has and this
+// app does not — keep the two in step.
+//
+// - A nav item's own markup, class and handler are UNCHANGED; only where it
+//   sits moved. Every role gate (`admin-only` / `student-only` / rpg-el /
+//   _navAllowed / tcgApplyNavVisibility) still acts on the ITEM.
+// - Which groups are open is remembered per account (`navGroups:{uid}`), and
+//   only an explicit click is saved: navigateTo opens the group around the
+//   page it lit up, but that is transient.
+// - A group whose every item is hidden for this role is hidden with it
+//   (`nav-group-empty`, a CLASS, so the inline display the role sweep writes
+//   on `admin-only` groups is never fought over).
+// - Late shows (rpgApplyVisibility once the hero resolves, the Aetherfall
+//   door, the vetting and bin counts) are caught by ONE MutationObserver on
+//   the sidebar, which ignores its own writes.
+// =====================================================================
+const NAV_GROUP_BADGE_SKIP = [];
+function _navGroupsKey() { return 'navGroups:' + ((currentUser && currentUser.uid) || 'anon'); }
+function _navGroupsLoad() {
+  try { const o = JSON.parse(localStorage.getItem(_navGroupsKey()) || '{}'); return (o && typeof o === 'object' && !Array.isArray(o)) ? o : {}; } catch (_) { return {}; }
+}
+function _navGroupsSave(o) { try { localStorage.setItem(_navGroupsKey(), JSON.stringify(o)); } catch (_) {} }
+function navGroupsAll() { return Array.from(document.querySelectorAll('.sidebar-nav details.nav-group')); }
+function _navOriginals() { return Array.from(document.querySelectorAll('.sidebar-nav .nav-item')); }
+function navGroupOf(el) { return (el && el.closest) ? el.closest('details.nav-group') : null; }
+function navGroupReveal(el) { const g = navGroupOf(el); if (g && !g.open) g.open = true; }
+function navGroupsRestore() {
+  const saved = _navGroupsLoad();
+  navGroupsAll().forEach(g => {
+    const id = g.dataset.group || '';
+    const known = Object.prototype.hasOwnProperty.call(saved, id);
+    g.open = known ? !!saved[id] : g.dataset.defaultOpen === '1';
+  });
+  navGroupReveal(_navOriginals().find(el => el.classList.contains('active')));
+  navGroupsSync();
+}
+let _navGroupsSyncing = false;
+function navGroupsSync() {
+  if (_navGroupsSyncing) return;
+  _navGroupsSyncing = true;
+  try {
+    const flat = (typeof _isEmployee === 'function') && _isEmployee();
+    navGroupsAll().forEach(g => {
+      const items = Array.from(g.querySelectorAll('.nav-item'));
+      const visible = items.filter(el => el.style.display !== 'none');
+      const empty = visible.length === 0;
+      if (g.classList.contains('nav-group-empty') !== empty) g.classList.toggle('nav-group-empty', empty);
+      if (g.classList.contains('nav-flat') !== flat) g.classList.toggle('nav-flat', flat);
+      if (flat && !g.open) g.open = true;
+      const hasActive = items.some(el => el.classList.contains('active'));
+      if (g.classList.contains('has-active') !== hasActive) g.classList.toggle('has-active', hasActive);
+      // The head carries the SUM of its visible items' counts (vetting, bin),
+      // so a collapsed group still says there is something inside it.
+      let n = 0;
+      visible.forEach(el => el.querySelectorAll('.nav-count, .badge').forEach(b => {
+        if (b.style.display === 'none' || NAV_GROUP_BADGE_SKIP.includes(b.id)) return;
+        const v = parseInt(String(b.textContent || '').replace(/[^0-9]/g, ''), 10);
+        if (v > 0) n += v;
+      }));
+      const badge = g.querySelector(':scope > summary .nav-group-badge');
+      if (badge) {
+        const txt = String(n);
+        if (badge.textContent !== txt) badge.textContent = txt;
+        const disp = n > 0 ? '' : 'none';
+        if (badge.style.display !== disp) badge.style.display = disp;
+      }
+    });
+  } finally { _navGroupsSyncing = false; }
+}
+function _navGroupsOwnMutation(rec) {
+  let node = rec.target;
+  if (node && node.nodeType === 3) node = node.parentNode;
+  if (!node || !node.closest) return false;
+  return !!(node.closest('summary.nav-group-head') || (node.matches && node.matches('details.nav-group')));
+}
+let _navGroupsWatching = false;
+let _navGroupsRaf = 0;
+function navGroupsWatch() {
+  if (_navGroupsWatching) return;
+  const nav = document.querySelector('.sidebar-nav');
+  if (!nav || typeof MutationObserver === 'undefined') return;
+  _navGroupsWatching = true;
+  // `toggle` does not bubble, so the recorder is bound in CAPTURE.
+  nav.addEventListener('toggle', ev => {
+    const g = ev.target;
+    if (!g || !g.matches || !g.matches('details.nav-group')) return;
+    if (g.classList.contains('nav-flat')) return;   // forced open, not chosen
+    const saved = _navGroupsLoad();
+    saved[g.dataset.group || ''] = !!g.open;
+    _navGroupsSave(saved);
+    navGroupsSync();
+  }, true);
+  const mo = new MutationObserver(records => {
+    if (_navGroupsSyncing) return;
+    if (!records.some(r => !_navGroupsOwnMutation(r))) return;
+    if (_navGroupsRaf) return;
+    _navGroupsRaf = requestAnimationFrame(() => { _navGroupsRaf = 0; navGroupsSync(); });
+  });
+  mo.observe(nav, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['style', 'class'] });
+}
 function navigateTo(page) {
   vetPrintPeekHide();
   hadesMathBeta.close();
@@ -9819,6 +9981,7 @@ function navigateTo(page) {
   document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
   const pageEl = $("page-" + page); if (pageEl) pageEl.classList.add("active");
   const nav = document.querySelector(`.nav-item[data-page="${page}"]`); if (nav) nav.classList.add("active");
+  try { navGroupReveal(nav); navGroupsSync(); } catch (_) {}   // …and its group opens around it
   if ((page === "character" || page === "leaderboard" || page === "adventure") && rpgGameHidden()) page = "practice";
   if (page !== "adventure") advAbandon();
   // Aetherfall swaps the app's white theme for chrome-on-deep-space across
@@ -31413,7 +31576,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.88.0 · 2026-09-15";
+const APP_VERSION = "v1.89.0 · 2026-09-18";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -33414,22 +33577,16 @@ function tcgApplyNavVisibility() {
   try { tcgApplyLogo(); } catch (_) {}   // the door wears the crest
   try { tcgNavPrizeBadges(); } catch (_) {}
 }
-// Where the Nexus's door sits in the sidebar. For a STUDENT it belongs
-// directly under 🏛️ Community, near the top, where they will actually find it
-// — not buried at the bottom of the Game section under five other games. For
-// an admin it stays where it has always been, among the game tools, which is
-// where they expect to go looking for it. `navTcgHome` is an empty anchor left
-// behind at the original position so the move can be undone (the role can
-// change under us — an admin previewing as a student and back again).
+// Where the Nexus's door sits in the sidebar. Until v1.89.0 a STUDENT's door
+// was moved up under ✍️ Practice's neighbours so it could be found at all;
+// every game now lives behind the ONE 🎮 Games group, which is the door a
+// student opens to find any of them — so the wrap stays parked at
+// `navTcgHome` for every role, inside that group.
 function _tcgPlaceNavItem() {
   const wrap = document.getElementById('navTcgWrap');
   const home = document.getElementById('navTcgHome');
-  const comm = document.querySelector('.nav-item[data-page="community"]');
   if (!wrap || !home) return;
-  const wantComm = !_isAdmin() && !!comm;
-  const parked = wrap.previousElementSibling === comm;
-  if (wantComm && !parked) comm.insertAdjacentElement('afterend', wrap);
-  else if (!wantComm && wrap.previousElementSibling !== home) home.insertAdjacentElement('afterend', wrap);
+  if (wrap.previousElementSibling !== home) home.insertAdjacentElement('afterend', wrap);
 }
 
 // ---- Release announcement ------------------------------------------

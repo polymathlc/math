@@ -2800,7 +2800,61 @@ PREVIEWS a question — resting on a bank tile, the 👁 exported hover in Vetti
   question somewhere.
 - Run **`node tools/preview-picture-size-tests.mjs`** after touching any of it.
 
+## 🗂 The sidebar is a handful of collapsible groups (v1.89.0)
+
+`navGroupsRestore` / `navGroupsSync` / `navGroupReveal` / `navGroupsWatch` /
+`_navOriginals` (in `index.html`, search `COLLAPSIBLE NAV GROUPS`, just above
+`navigateTo`), the `<details class="nav-group" data-group="…">` blocks in the
+sidebar and the `.nav-group*` CSS beside `.nav-item`. **`polymathlc/cer` carries
+the same block — ship a change to both.**
+
+Eight game items in a row and an "Admin" section of fifteen. Every item now
+sits inside ONE of a few native `<details>` groups — 🎮 **Games**,
+✏️ **Questions**, 📄 **Worksheets**, 👥 **Students**, ⚙️ **AI &
+Settings** — so the menu reads as a few lines until a group is opened.
+Practice, AI Marking and Syllabus stay top-level: they are where a pupil lands.
+
+- **A NAV ITEM'S OWN MARKUP DID NOT MOVE, ONLY ITS PLACE.** Every role gate
+  still acts on the ITEM — the `admin-only` sweep in `enterApp`, `rpg-el`,
+  `_navAllowed`, `tcgApplyNavVisibility` — and the harnesses that pin items by
+  their exact class strings still pass. A group is a wrapper the gates know
+  nothing about.
+- **A GROUP WHOSE EVERY ITEM IS HIDDEN IS HIDDEN WITH IT**, by the CLASS
+  `nav-group-empty` (with `!important`) and never by inline style: the role
+  sweep writes `display` on the `admin-only` groups themselves, and two
+  writers of one inline style fight. A pupil never sees an empty "Questions"
+  head.
+- **LATE SHOWS ARE CAUGHT BY ONE MutationObserver.** The hero doc resolves
+  after sign-in and `rpgApplyVisibility` turns the game items on then; the
+  Aetherfall door and the vetting / bin counts arrive later still. Hooking each
+  is how the next one is missed, so `navGroupsWatch` watches the sidebar and
+  re-syncs on the next frame — and **ignores its own writes**, or it answers
+  itself for ever.
+- **WHICH GROUPS ARE OPEN IS REMEMBERED PER ACCOUNT** (`navGroups:{uid}`), and
+  only an explicit click is saved. `navigateTo` opens the group around the page
+  it lit up, but that is transient — a deep link must not pin a group open.
+  Every group is closed by default.
+- **THE HEAD SUMS ITS VISIBLE ITEMS' COUNTS** (`.nav-count` and `.badge`) so a
+  collapsed Questions group still says twelve are waiting in Vetting.
+- **THE AETHERFALL DOOR STAYS INSIDE 🎮 GAMES FOR EVERY ROLE.**
+  `_tcgPlaceNavItem` used to move a student's door up the menu so it could be
+  found at all; the group is what makes it findable now, so the wrap is parked
+  at `#navTcgHome` and never moved out. Move it out again and it is the one
+  game outside the group.
+- **`toggle` does not bubble**, so the recorder is bound in CAPTURE on the nav.
+- Run **`node tools/nav-groups-tests.mjs`** after touching any of it.
+
 ## House rules
+- After touching **🗂 the collapsible sidebar groups** (`navGroupsRestore`,
+  `navGroupsSync`, `navGroupReveal`, `navGroupsWatch`, `_navOriginals`,
+  `_tcgPlaceNavItem`, the `<details class="nav-group">` blocks or the
+  `.nav-group*` CSS), run `node tools/nav-groups-tests.mjs`. Every failure is
+  silent and the sidebar still paints: a game left outside 🎮 Games is the mess
+  this was asked to end; hide an empty group by inline style and the role sweep
+  fights it; drop the reveal from `navigateTo` and the active page sits behind
+  a closed head; let the observer see its own writes and it re-syncs for ever;
+  and move the Aetherfall door back out of the group and it is the one game
+  outside it again.
 - After touching **🔍± the preview picture size** (`pvsFind`, `pvsBarHtml`, `pvsPaint`,
   `pvsStep`, `pvsPreviewStep`, `pvsFlush`, `pvsPreviewRun`, `pvsPreviewScriptHtml`, the `q`
   argument on `renderQuestionBlockHtml`, the four preview callers that pass it, the
