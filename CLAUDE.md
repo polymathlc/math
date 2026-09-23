@@ -2813,7 +2813,47 @@ PREVIEWS a question — resting on a bank tile, the 👁 exported hover in Vetti
   question somewhere.
 - Run **`node tools/preview-picture-size-tests.mjs`** after touching any of it.
 
+## 🟢 Why practice has nothing to serve — the empty screen names its real reason (v1.90.0)
+
+`practiceEmptyInfo` / `_practiceEmptyDetail` / `practiceEmptyCopy` /
+`_practiceStudentCatalog` / `_practiceMistakeQuestions` / `practiseMyMistakes` /
+`learningLabelIsSkill` (search `WHY PRACTICE HAS NOTHING TO SERVE`), and the
+`.sidebar-level` select override near the top of the stylesheet.
+
+A P6 pupil with 252 attempts was told *"No suitable questions are ready here —
+return after your teacher has checked and levelled the questions"*. Nothing was
+wrong with the bank: they had simply been served every question at their level.
+`_practicePlan` mapped EVERY non-level empty reason to `fit`, and
+`_renderQuestionReady` forced `fit` again, so a used-up bank read as a teacher's
+fault.
+
+- **The reason is COUNTED, never guessed.** Precedence syncing > level > video >
+  resting > seen > fit > round; `seen` gets its own heading and *Check for new
+  questions*, and only unlevelled / in-review questions ever mention the teacher.
+- **A NARROWED plan never reclassifies** (`excludeIds` / `excludeFamilyIds`,
+  arrays or Sets — Sets are normalised before the planner, which uses `.map`).
+  Both exhaustion paths run a plain `_practicePlan(questionBank)` first.
+- **🔁 Revise my mistakes** is offered on a used-up round, through the manual
+  feed filter directly — **never `_studentManualQuestions`, which TOASTS**, and
+  this runs on every paint.
+- **"No attempt made" is not a skill.** `learningLabelIsSkill` filters it where
+  profiles are READ and where they are WRITTEN, or the AI profile's "Current
+  focus" tells a pupil to work on nothing.
+- **The sidebar "My level" select was navy on navy**: arcade-ui.css's input rule
+  outweighs a class selector, so the override uses `#studentLevelSelect`. Never
+  edit arcade-ui.css for a per-app fix.
+- Run **`node --test tools/practice-empty-state-tests.mjs`** after touching any of it.
+
 ## House rules
+- After touching **🟢 the practice empty screen** (`practiceEmptyInfo`,
+  `practiceEmptyCopy`, `_practicePlan`'s narrowed check, the empty branch of
+  `_renderQuestionReady`, `_practiceMistakeQuestions`, `learningLabelIsSkill`, or
+  the `.sidebar-level` select override), run
+  `node --test tools/practice-empty-state-tests.mjs`. Every failure is silent:
+  force `fit` again and a pupil who has done everything is told their teacher
+  must fix the bank; let a narrowed probe reclassify and the reason flickers
+  mid-round; call `_studentManualQuestions` from the render and every paint
+  toasts; and drop the id override and the level picker is unreadable again.
 - After touching **🔍± the preview picture size** (`pvsFind`, `pvsBarHtml`, `pvsPaint`,
   `pvsStep`, `pvsPreviewStep`, `pvsFlush`, `pvsPreviewRun`, `pvsPreviewScriptHtml`, the `q`
   argument on `renderQuestionBlockHtml`, the four preview callers that pass it, the

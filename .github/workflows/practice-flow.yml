@@ -16,7 +16,7 @@ jobs:
         with:
           node-version: '22'
       - name: Check level, mastery, quality, variety and safe marking
-        run: node --test tools/practice-mastery-tests.mjs tools/practice-quality-tests.mjs tools/practice-feeding-integration-tests.mjs tools/practice-identity-tests.mjs tools/practice-variety-tests.mjs tools/practice-submission-tests.mjs
+        run: node --test tools/practice-mastery-tests.mjs tools/practice-quality-tests.mjs tools/practice-feeding-integration-tests.mjs tools/practice-identity-tests.mjs tools/practice-variety-tests.mjs tools/practice-submission-tests.mjs tools/practice-empty-state-tests.mjs
       - name: Check permanent account history and competing devices
         run: node tools/student-question-history-tests.mjs
       - name: Check existing question and student history behavior
