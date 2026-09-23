@@ -86,3 +86,25 @@ question-history suites.
 Browser checks cover choosing a level, the P4/P6 boundary, suitable-pool
 exhaustion, changed levels and the existing revise/next flow. Existing import,
 worksheet, history and interface checks must continue to pass.
+
+## Why practice has nothing to serve (v1.90.0)
+
+`practiceEmptyInfo` counts the reasons the feed (`_studentFeedCandidates`) and
+the planner (`planPracticeQuestions`) already return and names the ONE that
+emptied the round. Precedence: syncing > level > video filter > resting >
+seen > fit > round.
+
+- **`seen`** — the permanent history (`served`) holds every question at the
+  pupil's level. The screen says so ("You've practised every question that's
+  ready for you"), offers *Check for new questions*, and never tells the pupil
+  their teacher has to fix anything.
+- **`fit`** — questions exist but none fit; the breakdown names above-level,
+  stretch, too-easy, unlevelled and in-review counts. Only unlevelled or
+  in-review questions mention the teacher, because only those need them.
+- **Narrowed plans never reclassify.** An adaptive probe or forward step
+  (`excludeIds` / `excludeFamilyIds`) is not a statement about the whole round;
+  both exhaustion paths run a plain `_practicePlan(questionBank)` first.
+- **🔁 Revise my mistakes** is offered on a used-up round: questions answered
+  wrong before and not yet mastered, through the SAME manual feed filter (so the
+  level gate still holds), never through `_studentManualQuestions`, which toasts.
+- Run `node --test tools/practice-empty-state-tests.mjs`.

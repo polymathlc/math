@@ -116,6 +116,13 @@ a { color: var(--primary); }
 .sidebar-level label { display: block; margin-bottom: 8px; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255,255,255,0.55); }
 .sidebar-level select { width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.16);
   background: rgba(0,0,0,0.28); color: #fff; font-family: inherit; font-size: 0.84rem; cursor: pointer; }
+/* arcade-ui.css recolours EVERY select at specificity (0,6,2) to the navy
+   --text, which on this dark sidebar is navy on near-black: the pupil's own
+   level became unreadable and looked blank. An id outranks that without
+   editing the shared theme file. The options get their own colours because the
+   open dropdown is drawn by the OS on white, where white text vanishes too. */
+body.arcade-ui .sidebar-level :is(select, #studentLevelSelect) { color: #fff; background: rgba(0,0,0,0.28); border-color: rgba(255,255,255,0.16); }
+body.arcade-ui .sidebar-level :is(select, #studentLevelSelect) option { color: #172542; background: #fff; }
 .sidebar-level p { margin: 9px 0 0; font-size: 0.72rem; line-height: 1.5; color: rgba(255,255,255,0.5); }
 .logout-btn { width: 100%; padding: 9px; background: rgba(255,255,255,0.08); color: #fff; border: none; border-radius: var(--radius-md); cursor: pointer; font-family: inherit; font-size: 0.86rem; font-weight: 600; }
 .logout-btn:hover { background: rgba(255,255,255,0.16); }
@@ -7733,8 +7740,20 @@ function bumpLearningBucket(bucket, label, q, credit, points, possible, nowIso, 
   });
   bucket[label] = next;
 }
+// "No attempt made", "Blank", "Skipped" are what the marker writes when there
+// was nothing to mark — they are the ABSENCE of an answer, not a skill. Filed
+// as a weakness they became the pupil's "Current focus" and even the topic
+// ✨ Generate practice aimed at. They are kept out when a label is written
+// (weaknessLabelsFromResult) AND when one is read, because every profile
+// saved before this still carries them.
+const LEARNING_NON_SKILL_RE = /^\s*(?:no attempt|not attempted|no answer|no working|no response|blank|left blank|did not attempt|didn['’]t attempt|unanswered|skipped|not answered|n\/a)\b/i;
+function learningLabelIsSkill(label) {
+  const s = String(label == null ? "" : label).trim();
+  return !!s && !LEARNING_NON_SKILL_RE.test(s);
+}
 function topLearningEntries(map, limit = 4, sortDir = "desc") {
   return Object.entries(map || {})
+    .filter(([label]) => learningLabelIsSkill(label))
     .sort((a, b) => sortDir === "asc" ? ((a[1].score || 0) - (b[1].score || 0)) : ((b[1].score || 0) - (a[1].score || 0)))
     .slice(0, limit);
 }
@@ -8141,15 +8160,86 @@ function _practiceCatalog() {
   }
   return _practiceCatalogValue;
 }
+// ---- WHY PRACTICE HAS NOTHING TO SERVE (v1.90.0) ----
+// An empty practice screen used to say "No suitable questions are ready here —
+// return after your teacher has checked and levelled the questions" for EVERY
+// empty feed that was not a missing level. The commonest real reason by far is
+// the opposite: the pupil has already been served every levelled question at
+// their level (the permanent history, reason 'served'). Telling that pupil the
+// teacher has not levelled anything sends two people looking for a fault that
+// does not exist. So the reasons the feed and the planner already return are
+// COUNTED here, and the screen names the one that actually emptied the round.
+// Precedence: syncing > level > video filter > resting > seen > fit > round.
+// A narrowed call (excludeIds / excludeFamilyIds — the adaptive "what next"
+// probes and the forward step) is NOT a statement about the whole round and
+// must never reclassify it; only a plain plan does.
+var _practiceEmptyDetail = null;
+function practiceEmptyInfo(feedReasons = [], blocked = [], nextReviewAt = 0) {
+  const d = { served: 0, resting: 0, video: 0, unlevelled: 0, above: 0, stretch: 0, easy: 0, review: 0, other: 0,
+    nextReviewAt: Number(nextReviewAt) || 0 };
+  for (const r of (Array.isArray(feedReasons) ? feedReasons : [])) {
+    if (r === 'served') d.served++;
+    else if (r === 'question-level-unknown' || r === 'question-level-invalid') d.unlevelled++;
+    else if (r === 'above-student-level') d.above++;
+    else if (r === 'difficulty-too-high') d.stretch++;
+    else if (r === 'difficulty-too-low') d.easy++;
+    else if (r === 'question-review') d.review++;
+    else if (r !== 'history-unavailable' && r !== 'student-level-required') d.other++;
+  }
+  for (const b of (Array.isArray(blocked) ? blocked : [])) {
+    const r = b && b.reason;
+    if (r === 'filter') d.video++;
+    else if (r === 'review-not-due' || r === 'recent-family') d.resting++;
+    else if (r === 'served') d.served++;
+    else if (r) d.other++;
+  }
+  const set = new Set(Array.isArray(feedReasons) ? feedReasons : []);
+  let reason = 'round';
+  if (set.has('history-unavailable')) reason = 'syncing';
+  else if (set.has('student-level-required')) reason = 'level';
+  else if (d.video) reason = 'video';
+  else if (d.resting) reason = 'resting';
+  else if (d.served) reason = 'seen';
+  else if (d.unlevelled + d.above + d.stretch + d.easy + d.review) reason = 'fit';
+  return { reason, detail: d };
+}
+// The student catalogue lives on the feed-context cache, which is NULL for an
+// admin, after an invalidation, and on the history-unavailable early return —
+// reading `.catalog` off it there is a TypeError inside the one function every
+// practice screen calls. Rebuild it when it is missing; fall back to the
+// admin's own catalogue rather than throw.
+function _practiceStudentCatalog() {
+  if (canManageQuestions()) return _practiceCatalog();
+  if (!_studentFeedContextCache || !_studentFeedContextCache.catalog) {
+    try { if (typeof _studentFeedContext === 'function') _studentFeedContext(); } catch (e) { console.warn('practice context', e); }
+  }
+  return (_studentFeedContextCache && _studentFeedContextCache.catalog) || _practiceCatalog();
+}
 function _practicePlan(candidates, extra = {}) {
+  // The planner reads excludeIds / excludeFamilyIds with .map, so a Set handed
+  // in would throw inside it. Normalise to arrays once, here.
+  if (extra && (extra.excludeIds instanceof Set || extra.excludeFamilyIds instanceof Set)) {
+    extra = { ...extra };
+    if (extra.excludeIds instanceof Set) extra.excludeIds = [...extra.excludeIds];
+    if (extra.excludeFamilyIds instanceof Set) extra.excludeFamilyIds = [...extra.excludeFamilyIds];
+  }
   const manual = extra.manual ?? _practiceManual;
   const scoped = manual && _practiceManualIds ? candidates.filter(q => _practiceManualIds.has(String(q.id))) : candidates;
   const feed = _studentFeedCandidates(scoped, { manual });
-  _practiceEmptyReason = !feed.questions.length && feed.reasons.length
-    ? feed.reasons.includes('student-level-required') ? 'level' : 'fit' : 'round';
-  return planPracticeQuestions(feed.questions, { bank: questionBank, catalog: canManageQuestions() ? _practiceCatalog() : _studentFeedContextCache.catalog,
+  const plan = planPracticeQuestions(feed.questions, { bank: questionBank, catalog: _practiceStudentCatalog(),
     progress: studentProgress, run: _studentVarietyRun(), uid: currentUser && currentUser.uid,
     now: Date.now(), videoOnly: videoOnlyFilter, manual: _practiceManual, ...extra });
+  const narrowed = (Array.isArray(extra.excludeIds) && extra.excludeIds.length) ||
+    (Array.isArray(extra.excludeFamilyIds) && extra.excludeFamilyIds.length) ||
+    (extra.excludeIds instanceof Set && extra.excludeIds.size) || (extra.excludeFamilyIds instanceof Set && extra.excludeFamilyIds.size);
+  if (!narrowed) {
+    if (plan && plan.questions && plan.questions.length) { _practiceEmptyReason = 'round'; _practiceEmptyDetail = null; }
+    else {
+      const info = practiceEmptyInfo(feed.reasons, plan && plan.blocked, plan && plan.nextReviewAt);
+      _practiceEmptyReason = info.reason; _practiceEmptyDetail = info.detail;
+    }
+  }
+  return plan;
 }
 function _practiceAutomatic() { return !!currentUser && currentUser.role === "student" && !_practiceManual; }
 function _practiceNoteShown(q) {
@@ -8176,16 +8266,24 @@ function _practiceRenderFinished() {
   $("flagQuestionBtn").disabled = true;
   const needsLevel = !canManageQuestions() && !parsePracticeLevel(studentLevel).known;
   const syncing = !_studentHistoryReady();
-  const heading = syncing ? 'Sync your question history' : needsLevel ? 'Choose My level to begin' : _practiceEmptyReason === 'fit'
-    ? 'No suitable questions are ready here' : 'You have reached the end of this practice round';
-  const note = syncing ? _studentFeedMessage() : needsLevel ? 'Tell us your school level first. Practice will stay at that level or below and adapt to each skill as you learn.'
-    : _practiceEmptyReason === 'fit' ? 'Try another worksheet or return after your teacher has checked and levelled the questions.'
-    : 'You have seen every suitable question available here. Try another topic or wait for new questions. To revise, deliberately choose a question from a worksheet or your history.';
+  const why = practiceEmptyCopy(syncing ? 'syncing' : needsLevel ? 'level' : _practiceEmptyReason,
+    typeof _practiceEmptyDetail === 'undefined' ? null : _practiceEmptyDetail, Date.now());
+  const note = syncing ? _studentFeedMessage() : why.note;
+  const extras = [];
+  if (!syncing && !needsLevel && _practiceEmptyReason === 'video') extras.push('<button type="button" class="btn btn-secondary" id="practiceShowAllBtn">Show questions without videos too</button>');
+  const mistakes = !syncing && !needsLevel ? _practiceMistakeQuestions() : [];
+  if (mistakes.length) extras.push('<button type="button" class="btn btn-secondary" id="practiceReviseBtn">🔁 Revise my mistakes (' + mistakes.length + ')</button>');
   $("qBody").innerHTML = '<div class="empty-note" style="max-width:620px;margin:24px auto;padding:28px;line-height:1.65;">' +
-    '<h3 style="margin:0 0 12px;">' + heading + '</h3>' +
+    '<h3 style="margin:0 0 12px;">' + why.heading + '</h3>' +
     '<p style="margin:0 0 20px;">' + note + '</p>' +
-    '<button type="button" class="btn btn-primary" id="practiceFindMoreBtn">' + (syncing ? 'Retry history sync' : needsLevel ? 'Choose My level' : 'Find available questions') + '</button></div>';
+    '<div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;">' +
+    '<button type="button" class="btn btn-primary" id="practiceFindMoreBtn">' + (syncing ? 'Retry history sync' : why.button) + '</button>' +
+    extras.join('') + '</div></div>';
   $("practiceFindMoreBtn").addEventListener("click", !syncing && needsLevel ? _studentChooseLevel : _practiceFindMore);
+  const showAll = $("practiceShowAllBtn");
+  if (showAll) showAll.addEventListener("click", () => { if (typeof toggleVideoOnlyFilter === 'function') toggleVideoOnlyFilter(); });
+  const revise = $("practiceReviseBtn");
+  if (revise) revise.addEventListener("click", practiseMyMistakes);
   $("finalAnswer").value = ""; $("typedWorking").value = "";
   renderMcqArea(null); applyAnnotationMode(null); clearSolutionPhoto({ silent: true });
   strokes = []; redoStack = []; current = null; clearTextBoxes(); redraw();
@@ -8194,6 +8292,108 @@ function _practiceRenderFinished() {
   $("nextBtn").disabled = true;
 }
 
+// The words on the empty-practice screen, one set per reason, PURE so the
+// harness can read every one of them. `detail` is practiceEmptyInfo's count;
+// it may be null (a screen drawn before any plan ran) and every branch copes.
+function practiceEmptyCopy(reason, detail, now = Date.now()) {
+  const d = detail && typeof detail === 'object' ? detail : {};
+  const n = k => Math.max(0, Number(d[k]) || 0);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+  const plural = (k, one, many) => k + ' ' + (k === 1 ? one : many);
+  const when = t => {
+    const ms = Number(t) || 0;
+    if (!(ms > now)) return '';
+    const at = new Date(ms);
+    try {
+      return ms - now > 20 * 3600 * 1000
+        ? at.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' }) + ' at ' + at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+        : at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    } catch (e) { return at.toISOString().slice(11, 16); }
+  };
+  const round = { heading: 'You have reached the end of this practice round',
+    note: 'You have seen every suitable question available here. Try another topic or wait for new questions. To revise, deliberately choose a question from a worksheet or your history.',
+    button: 'Find available questions' };
+  if (reason === 'level') return { heading: 'Choose My level to begin',
+    note: 'Tell us your school level first. Practice will stay at that level or below and adapt to each skill as you learn.',
+    button: 'Choose My level' };
+  if (reason === 'syncing') return { heading: 'Sync your question history', note: '', button: 'Retry history sync' };
+  if (reason === 'seen') {
+    const done = n('served');
+    return { heading: 'You’ve practised every question that’s ready for you',
+      note: (done ? 'You have already been given all ' + plural(done, 'question', 'questions') + ' at your level. ' : '') +
+        'Each question is served to you automatically only once, so there is nothing new here right now — nothing needs fixing. ' +
+        'New questions appear here as your teacher adds them. To practise again, revise your mistakes or choose a question from a worksheet.',
+      button: 'Check for new questions' };
+  }
+  if (reason === 'resting') {
+    const t = when(d.nextReviewAt);
+    return { heading: round.heading,
+      note: 'The questions left here are resting so you do not see the same kind of question twice in a row' +
+        (t ? ' — the next one is ready at ' + esc(t) + '.' : '.') + ' Try another topic, or revise your mistakes in the meantime.',
+      button: round.button };
+  }
+  if (reason === 'video') return { heading: 'No questions with a video explanation are left here',
+    note: 'You are practising video-explained questions only, and every one of them has been used. Show the other questions too to keep going.',
+    button: round.button };
+  if (reason === 'fit') {
+    const parts = [];
+    if (n('above')) parts.push(n('above') + ' ' + (n('above') === 1 ? 'is' : 'are') + ' above your level');
+    if (n('stretch')) parts.push(n('stretch') + ' ' + (n('stretch') === 1 ? 'is' : 'are') + ' a big stretch for you right now');
+    if (n('easy')) parts.push(n('easy') + ' ' + (n('easy') === 1 ? 'is' : 'are') + ' well below what you already know');
+    if (n('unlevelled')) parts.push(n('unlevelled') + ' ' + (n('unlevelled') === 1 ? 'has' : 'have') + ' no level set yet');
+    if (n('review')) parts.push(n('review') + ' ' + (n('review') === 1 ? 'is' : 'are') + ' waiting for your teacher to check');
+    const teacher = n('unlevelled') + n('review') > 0;
+    return { heading: 'No suitable questions are ready here',
+      note: (parts.length ? 'Of the questions here, ' + parts.join(', ') + '. ' : '') +
+        (n('stretch') ? 'Practice grows with you — as you get more questions right, harder ones unlock. ' : '') +
+        (teacher ? 'Try another worksheet or return after your teacher has checked and levelled the questions.' : 'Try another topic or worksheet.'),
+      button: round.button };
+  }
+  return round;
+}
+// 🔁 A pupil who has used up the bank still has something worth doing: the
+// questions they got wrong. Revision is a DELIBERATE, manual set — the same
+// door a worksheet's ✍️ Practise uses — so the permanent "served once" rule is
+// not broken by it. Every question still goes through the manual feed filter,
+// so nothing above the pupil's level or held back can come back this way.
+var PRACTICE_REVISE_MAX = 12;
+function _practiceMistakeQuestions() {
+  if (canManageQuestions() || !parsePracticeLevel(studentLevel).known) return [];
+  if (typeof questionWrongBefore !== 'function' || typeof questionMastered !== 'function') return [];
+  const prog = studentProgress || {};
+  const due = typeof dueTime === 'function' ? dueTime : (() => 0);
+  const rows = (questionBank || []).filter(q => {
+    const p = q && prog[q.id];
+    return p && questionWrongBefore(p) && !questionMastered(p);
+  });
+  if (!rows.length) return [];
+  const now = Date.now();
+  rows.sort((a, b) => {
+    const pa = prog[a.id], pb = prog[b.id];
+    const da = due(pa) <= now ? 0 : 1, db = due(pb) <= now ? 0 : 1;
+    if (da !== db) return da - db;
+    const w = (pb.wrongCount || 0) - (pa.wrongCount || 0);
+    if (w) return w;
+    return (Number(new Date(pa.lastAttemptAt || 0)) || 0) - (Number(new Date(pb.lastAttemptAt || 0)) || 0);
+  });
+  // The manual feed filter, called directly: _studentManualQuestions TOASTS,
+  // and this runs on every paint of the empty screen, so a toast here would
+  // pop up each time the round-complete card was drawn.
+  let ok = [];
+  try { ok = _studentFeedCandidates(rows, { manual: true }).questions || []; } catch (e) { console.warn('revise filter', e); ok = []; }
+  return ok.slice(0, PRACTICE_REVISE_MAX);
+}
+function practiseMyMistakes() {
+  const questions = _practiceMistakeQuestions();
+  if (!questions.length) { toast("No mistakes to revise yet — well done!", ""); return; }
+  const ids = new Set(questions.map(q => String(q.id)));
+  _practiceSetMode(true, questions);
+  questionBank = questions.concat(questionBank.filter(q => !ids.has(String(q.id))));
+  qIndex = 0;
+  if (typeof navigateTo === 'function') navigateTo("practice");
+  renderQuestion();
+  toast(`Revising ${questions.length} question(s) you got wrong before`, "success");
+}
 function prioritizeReviewQuestions(resetIndex = true) {
   if (!questionBank.length || !currentUser || currentUser.role !== "student") return;
   _practiceSetMode(false);
@@ -9029,7 +9229,9 @@ function weaknessLabelsFromResult(v, q) {
     if (typeof w === "string") return w;
     if (w && typeof w === "object") return w.label || w.topic || w.name || w.weakness || "";
     return "";
-  }).map(s => String(s).trim()).filter(Boolean);
+  }).map(s => String(s).trim()).filter(Boolean)
+    // "No attempt made" is not a skill to practise — see learningLabelIsSkill.
+    .filter(s => typeof learningLabelIsSkill !== "function" || learningLabelIsSkill(s));
   if (!labels.length && (v.verdict || "").toLowerCase() !== "correct") labels.push(conceptLabel(q) || `${topicForMemory(q)} foundations`);
   return [...new Set(labels)].slice(0, 4);
 }
@@ -25740,6 +25942,9 @@ async function _renderStudentQuestion(epoch, uid) {
       }
       return _renderQuestionReady();
     }
+    // The claim loop narrows its plans (excludeIds), and a narrowed plan never
+    // reclassifies the round — so ask once more, plainly, why it is empty.
+    try { _practicePlan(questionBank); } catch (e) { console.warn('practice empty reason', e); }
     _practiceExhausted = true; _practiceRenderFinished();
   } catch (error) {
     if (!current()) return;
@@ -25756,7 +25961,10 @@ function _renderQuestionReady() {
   if (currentUser && currentUser.role === "student" && !_practiceExhausted && !_studentQuestionAllowed(questionBank[qIndex])) {
     const next = _practicePlan(questionBank).questions.find(q => !videoOnlyFilter || questionHasVideo(q));
     if (next) qIndex = questionBank.findIndex(q => q.id === next.id);
-    else { _practiceExhausted = true; _practiceEmptyReason = !parsePracticeLevel(studentLevel).known ? 'level' : 'fit'; }
+    // The plan that just came back empty has already said WHY (see
+    // practiceEmptyInfo). Forcing 'fit' here told every pupil who had simply
+    // finished the bank that the teacher had not levelled the questions.
+    else { _practiceExhausted = true; if (_practiceEmptyReason === 'round' && videoOnlyFilter) _practiceEmptyReason = 'video'; }
   }
   if (currentUser && currentUser.role === "student" && _practiceExhausted) { _practiceRenderFinished(); return; }
   $("nextBtn").disabled = false;
@@ -25818,6 +26026,9 @@ function changeQuestion(delta) {
   if (ni < 0 || ni >= questionBank.length) {
     if (delta > 0 && _practiceAutomatic()) {
       if (!_practiceCurrentAnswerMarked() && (strokes.length || textBoxes.length || $("typedWorking").value.trim() || solutionPhotoDataUrl) && !confirm("Finish this round? Your current working will be cleared.")) return;
+      // nextVisibleIndex asked a NARROWED plan, which leaves the round's reason
+      // alone — classify the whole round before the finished screen reads it.
+      try { _practicePlan(questionBank); } catch (e) { console.warn('practice empty reason', e); }
       _practiceExhausted = true; renderQuestion();
     }
     return;
@@ -31414,7 +31625,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.89.0 · 2026-09-18";
+const APP_VERSION = "v1.90.0 · 2026-09-23";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
