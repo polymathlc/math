@@ -40,6 +40,12 @@ worker's declared defaults so unattended deployment does not prompt for them.
 Existing values in `functions/.env` or `functions/.env.mathgen--app` are kept.
 API keys continue to come from Secret Manager.
 
+The worker defaults to GPT 6.1 Sol (`gpt-6.1-sol`) for page reading and thinking,
+then tries Gemini and Kimi if an earlier provider fails. Kimi uses the optional
+`MOONSHOT_API_KEY` secret and reads rendered page images. The deployment helper
+creates an empty placeholder only when that secret has never been configured;
+it keeps existing keys and deliberate model overrides.
+
 Unattended deployment acknowledges the dispatcher's existing retry policy and
 targets only the seven named Math importer functions. Before deployment, it
 checks the source and deployed function inventory for missing exports, name

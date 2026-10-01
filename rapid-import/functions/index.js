@@ -18,7 +18,8 @@ const db = getFirestore();
 const bucket = () => getStorage().bucket('mathgen--app.firebasestorage.app');
 const key = defineSecret('GEMINI_API_KEY');
 const openaiKey = defineSecret('OPENAI_API_KEY');
-const openaiModel = defineString('MATH_RAPID_IMPORT_OPENAI_MODEL', {default:'gpt-6-astra'});
+const kimiKey = defineSecret('MOONSHOT_API_KEY');
+const openaiModel = defineString('MATH_RAPID_IMPORT_OPENAI_MODEL', {default:'gpt-6.1-sol'});
 const model = defineString('MATH_RAPID_IMPORT_MODEL', {default:'gemini-2.5-flash'});
 const JOBS = 'mathRapidImports';
 const callOpts = {region:'us-central1', timeoutSeconds:120, memory:'512MiB', maxInstances:4};
@@ -64,7 +65,7 @@ export const mathRapidImportBegin = onCall(callOpts, async request => {
       return;
     }
     tx.create(ref,{id:d.id,ownerUid:a.uid,size:d.size,name:String(d.name||'PDF').slice(0,180),status:'uploading',
-      prompt:d.prompt,engineOrder:Array.isArray(d.engineOrder)?d.engineOrder.filter(e=>['openai','gemini'].includes(e)):['openai','gemini'],grounding:String(d.grounding||'').slice(0,80000),topics:Array.isArray(d.topics)?d.topics.slice(0,100).map(String):[],
+      prompt:d.prompt,engineOrder:Array.isArray(d.engineOrder)?d.engineOrder.filter(e=>['openai','gemini','kimi'].includes(e)):['openai','gemini','kimi'],grounding:String(d.grounding||'').slice(0,80000),topics:Array.isArray(d.topics)?d.topics.slice(0,100).map(String):[],
       level:String(d.level||''),release,autoCheck:d.autoCheck!==false,autoFile:d.autoFile!==false,syllabus:Array.isArray(d.syllabus)?d.syllabus.slice(0,1500).map(x=>({id:String(x.id).slice(0,80),level:String(x.level).slice(0,12),text:String(x.text).slice(0,600)})):[],createdBy:String(a.token.name||a.token.email||'Admin'),
       createdAt:now,updatedAt:now,nextPage:1,added:0,generation:0,phase:'page',publishIndex:0});
   });
@@ -138,19 +139,25 @@ async function storeImage(job,token,name,canvas) {
   return `https://firebasestorage.googleapis.com/v0/b/${bucket().name}/o/${encodeURIComponent(path)}?alt=media&token=${downloadToken}`;
 }
 async function ask(prompt,images,job) {
-  const order=[...new Set([...(job.engineOrder||['openai','gemini']),'gemini'])];
+  const order=[...new Set([...(job.engineOrder||['openai','gemini','kimi']),'openai','gemini','kimi'])].filter(e=>['openai','gemini','kimi'].includes(e));
   let lastError;
   for(const engine of order) {
     try {
-      if(engine==='openai') {
-        const response=await fetch('https://api.openai.com/v1/chat/completions',{
-          method:'POST',headers:{Authorization:'Bearer '+openaiKey.value(),'Content-Type':'application/json'},
-          signal:AbortSignal.timeout(90000),body:JSON.stringify({model:openaiModel.value(),max_completion_tokens:24000,
-            reasoning_effort:'medium',response_format:{type:'json_object'},messages:[{role:'user',content:[
-              {type:'text',text:prompt},...images.map(data=>({type:'image_url',image_url:{url:'data:image/jpeg;base64,'+data}}))]}]})});
-        if(!response.ok) throw new Error('OpenAI request failed ('+response.status+').');
+      if(engine==='openai' || engine==='kimi') {
+        const providerKey = (engine==='openai' ? openaiKey : kimiKey).value();
+        if(!providerKey.trim()) throw new Error(engine+' key is not configured.');
+        const chatModel=engine==='openai'?openaiModel.value():'kimi-k3';
+        const request={model:chatModel,response_format:{type:'json_object'},messages:[{role:'user',content:[
+          {type:'text',text:/json/i.test(prompt)?prompt:prompt+'\nReply with JSON only.'},...images.map(data=>({type:'image_url',image_url:{url:'data:image/jpeg;base64,'+data}}))]}]};
+        if(engine==='openai') { request.max_completion_tokens=24000; if(/^(gpt-[5-9]|o[1-9])/.test(chatModel))request.reasoning_effort='medium'; }
+        else if(/^kimi-k3(?:$|[-.])/i.test(chatModel)) { request.max_completion_tokens=24000; request.reasoning_effort='high'; }
+        else request.max_tokens=24000;
+        const response=await fetch(engine==='openai'?'https://api.openai.com/v1/chat/completions':'https://api.moonshot.ai/v1/chat/completions',{
+          method:'POST',headers:{Authorization:'Bearer '+providerKey,'Content-Type':'application/json'},
+          signal:AbortSignal.timeout(90000),body:JSON.stringify(request)});
+        if(!response.ok) throw new Error(engine+' request failed ('+response.status+').');
         const body=await response.json(),choice=body.choices?.[0];
-        if(choice?.finish_reason!=='stop'||!choice.message?.content) throw new Error('OpenAI response was incomplete.');
+        if(choice?.finish_reason!=='stop'||!choice.message?.content) throw new Error(engine+' response was incomplete.');
         return {text:choice.message.content,candidates:[{finishReason:'STOP'}]};
       }
       const result=await new GoogleGenAI({apiKey:key.value()}).models.generateContent({model:model.value(),
@@ -200,7 +207,7 @@ ${JSON.stringify(q)}`,images,job);
   q.autoCheck={state:error?'error':findings.some(f=>f.severity==='high')?'red':findings.length?'amber':'green',tries,findings,sig:signature(q),at:new Date().toISOString()};
   if(error) q.autoCheck.error=error;
 }
-export const mathRapidImportPage = onTaskDispatched({region:'us-central1',secrets:[key,openaiKey],timeoutSeconds:540,memory:'2GiB',cpu:1,
+export const mathRapidImportPage = onTaskDispatched({region:'us-central1',secrets:[key,openaiKey,kimiKey],timeoutSeconds:540,memory:'2GiB',cpu:1,
   retryConfig:{maxAttempts:5,minBackoffSeconds:60,maxBackoffSeconds:300},rateLimits:{maxConcurrentDispatches:2},maxInstances:2},async request=>{
   const {id,page,generation,phase,publishIndex}=request.data||{};
   if(!validId(id)||!Number.isInteger(page)) throw new Error('Invalid task.');

@@ -78,7 +78,7 @@ const MAX_TOTAL_B64 = 14_000_000;
 // Flip to true once App Check enforcement is verified working in production.
 const ENFORCE_APP_CHECK = false;
 
-const CALL_OPTS = { secrets: [GEMINI_API_KEY], timeoutSeconds: 240, memory: "512MiB", maxInstances: 10, enforceAppCheck: ENFORCE_APP_CHECK };
+const CALL_OPTS = { secrets: [GEMINI_API_KEY, OPENAI_API_KEY, MOONSHOT_API_KEY], timeoutSeconds: 240, memory: "512MiB", maxInstances: 10, enforceAppCheck: ENFORCE_APP_CHECK };
 const OPENAI_OPTS = { secrets: [OPENAI_API_KEY], timeoutSeconds: 240, memory: "512MiB", maxInstances: 10, enforceAppCheck: ENFORCE_APP_CHECK };
 const KIMI_OPTS = { secrets: [MOONSHOT_API_KEY], timeoutSeconds: 240, memory: "512MiB", maxInstances: 10, enforceAppCheck: ENFORCE_APP_CHECK };
 const LIGHT_OPTS = { timeoutSeconds: 30, memory: "256MiB", maxInstances: 10, enforceAppCheck: ENFORCE_APP_CHECK };
@@ -246,28 +246,97 @@ async function withAiRetry(run, { tries = 2, baseDelayMs = 1000 } = {}) {
     }
   }
 }
-async function askGemini(apiKey, prompt, media, { maxOutputTokens = 1500 } = {}) {
+async function askGeminiOnly(apiKey, prompt, media, { maxOutputTokens = 1500, deadline = Date.now() + 60000 } = {}) {
   const ai = new GoogleGenAI({ apiKey });
   const parts = [{ text: prompt }];
   (media || []).forEach(m => parts.push({ inlineData: { mimeType: m.mimeType, data: m.data } }));
   let lastErr = null;
   for (let i = 0; i < AI_TEXT_MODELS.length; i++) {
     try {
-      const res = await withAiRetry(() => ai.models.generateContent({
-        model: AI_TEXT_MODELS[i],
-        contents: [{ role: "user", parts }],
-        config: { responseMimeType: "application/json", maxOutputTokens, temperature: 0.2, thinkingConfig: thinkingConfigFor(AI_TEXT_MODELS[i], 0) }
-      }));
+      const res = await withAiRetry(() => {
+        const timeout = remainingAiTime(deadline, 15000);
+        return withAiTimeLimit(() => ai.models.generateContent({
+          model: AI_TEXT_MODELS[i],
+          contents: [{ role: "user", parts }],
+          config: { responseMimeType: "application/json", maxOutputTokens, temperature: 0.2, thinkingConfig: thinkingConfigFor(AI_TEXT_MODELS[i], 0), httpOptions: { timeout } }
+        }), timeout);
+      });
       const text = (res.text || "").trim();
       if (text) return text;
       throw new Error("empty AI response");
     } catch (e) {
-      if (i === 0 && !isTransientAiError(e)) throw e;
       lastErr = e;
     }
   }
   throw lastErr || new Error("AI request failed");
 }
+const AI_PROVIDER_BUDGET_MS = 60000;
+const AI_CHAIN_BUDGET_MS = 210000;
+function remainingAiTime(deadline, maximum = AI_PROVIDER_BUDGET_MS) {
+  const remaining = Math.min(maximum, deadline - Date.now());
+  if (remaining <= 0) throw new Error('AI provider deadline exceeded.');
+  return Math.max(1, Math.floor(remaining));
+}
+async function withAiTimeLimit(run, timeout) {
+  let timer;
+  try {
+    return await Promise.race([Promise.resolve().then(run), new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error('AI provider deadline exceeded.')), timeout);
+    })]);
+  } finally { clearTimeout(timer); }
+}
+const SERVER_TEXT_ENGINES = ['openai', 'gemini', 'kimi'];
+const OPENAI_ALLOWED_MODELS = ['gpt-6.1-sol', 'gpt-6-astra', 'gpt-6-astra-fast', 'gpt-5.6-sol', 'gpt-4o-mini', 'gpt-4o', 'gpt-4.1', 'o3', 'o4-mini'];
+function kimiIsK3(model) { return /^kimi-k3(?:$|[-.])/i.test(model); }
+function kimiReasoningEffort(value) { return value === 'max' ? 'max' : ['high', 'xhigh'].includes(value) ? 'high' : 'low'; }
+function openAiReasoningEffort(value) { return ['low', 'medium', 'high', 'xhigh', 'max'].includes(value) ? value : 'low'; }
+function effectiveAiEngine(data = {}) {
+  return SERVER_TEXT_ENGINES.includes(data.engine) && (data.updatedBy || data.modelPolicyVersion || data.engine !== 'gemini') ? data.engine : 'openai';
+}
+async function serverTextOrder() {
+  let selected = 'openai';
+  try { const snap = await withAiTimeLimit(() => db.doc('config/aiEngine').get(), 3000); selected = effectiveAiEngine(snap.exists ? snap.data() : {}); }
+  catch (e) { console.warn('Shared AI preference unavailable; using GPT 6.1 Sol:', e.message || e); }
+  return [...new Set([selected, ...SERVER_TEXT_ENGINES])];
+}
+async function askServerChat(engine, prompt, media, { maxOutputTokens = 1500, reasoningEffort = 'low', json = true, deadline = Date.now() + AI_PROVIDER_BUDGET_MS } = {}) {
+  const key = ((engine === 'openai' ? OPENAI_API_KEY : MOONSHOT_API_KEY).value() || '').trim();
+  if (!key) throw new Error(engine + ' key is not configured on the server.');
+  const content = [{ type: 'text', text: prompt }];
+  (media || []).forEach((m, i) => {
+    if (/^image\//.test(m.mimeType || '')) content.push({ type: 'image_url', image_url: { url: 'data:' + m.mimeType + ';base64,' + m.data, detail: 'high' } });
+    else if (engine === 'openai' && m.mimeType === 'application/pdf') content.push({ type: 'file', file: { filename: 'upload-' + (i + 1) + '.pdf', file_data: 'data:application/pdf;base64,' + m.data } });
+    else throw new Error(engine + ' cannot read ' + m.mimeType + ' attachments.');
+  });
+  const body = { model: engine === 'openai' ? OPENAI_MODEL : KIMI_MODEL, messages: [{ role: 'user', content }] };
+  if (engine === 'openai') { body.max_completion_tokens = Math.min(OPENAI_MAX_OUTPUT, Math.max(4096, maxOutputTokens + 4096)); body.reasoning_effort = openAiReasoningEffort(reasoningEffort); }
+  else if (kimiIsK3(KIMI_MODEL)) { body.max_completion_tokens = Math.min(KIMI_MAX_OUTPUT, Math.max(4096, maxOutputTokens + 4096)); body.reasoning_effort = kimiReasoningEffort(reasoningEffort); }
+  else body.max_tokens = Math.min(KIMI_MAX_OUTPUT, Math.max(1024, maxOutputTokens));
+  if (json) { body.response_format = { type: 'json_object' }; if (!/json/i.test(prompt)) content.push({ type: 'text', text: 'Reply with JSON only.' }); }
+  const timeout = remainingAiTime(deadline);
+  const res = await withAiTimeLimit(() => fetch(engine === 'openai' ? OPENAI_URL : KIMI_URL, { method: 'POST', signal: AbortSignal.timeout(timeout), headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key }, body: JSON.stringify(body) }), timeout);
+  if (!res.ok) throw new Error(engine + ' API error ' + res.status);
+  const choice = (await res.json()).choices?.[0];
+  if (choice?.finish_reason === 'length' || !choice?.message?.content?.trim()) throw new Error(engine + ' returned an incomplete or empty response.');
+  return choice.message.content.trim();
+}
+// All marking, photo matching, hints and tutoring share one provider policy.
+// Each caller retains its own auth, payload validation and usage limits.
+async function askGemini(apiKey, prompt, media, options = {}) {
+  const errors = [];
+  const deadline = Math.min(Number(options.deadline) || Infinity, Date.now() + AI_CHAIN_BUDGET_MS);
+  for (const engine of await serverTextOrder()) {
+    try {
+      remainingAiTime(deadline);
+      const providerOptions = { ...options, deadline: Math.min(deadline, Date.now() + AI_PROVIDER_BUDGET_MS) };
+      const text = await withAiTimeLimit(() => engine === 'gemini' ? askGeminiOnly(apiKey, prompt, media, providerOptions) : askServerChat(engine, prompt, media, providerOptions), remainingAiTime(providerOptions.deadline));
+      if (!text || !text.trim()) throw new Error('Empty response');
+      return text;
+    } catch (e) { errors.push(engine + ': ' + (e.message || e)); console.warn('AI provider failed:', engine, e.message || e); }
+  }
+  throw new Error(errors.join(' | ') || 'No AI provider available');
+}
+
 function parseAIJson(raw) {
   let s = (raw || "").trim();
   if (!s) throw new Error("empty AI response");
@@ -1458,9 +1527,9 @@ async function isTeacherUid(uid) {
 // eat into the marking allowance or the other way round.
 // =====================================================================
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
-// The model is the SERVER's choice. A client that could name one could name
-// an expensive one, and the bill is the centre's.
-const OPENAI_MODEL = "gpt-6-astra";
+// Pupils use the server default; teachers may choose a reviewed allowlisted
+// model without exposing the centre's key or accepting arbitrary model ids.
+const OPENAI_MODEL = "gpt-6.1-sol";
 // A REASONING MODEL IS A FAMILY, NOT ONE ID. gpt-5.x and gpt-6-astra want the
 // same request SHAPE — `reasoning_effort` yes, `temperature` never — so a gate
 // written as /^gpt-5/ would send the newer model a temperature it answers with
@@ -1511,6 +1580,7 @@ export const askOpenAi = onCall(OPENAI_OPTS, async (request) => {
   if (!key) throw new HttpsError("failed-precondition", "No OpenAI key is configured on the server.");
 
   const d = request.data || {};
+  const model = isAdminAuth(auth) && OPENAI_ALLOWED_MODELS.includes(d.model) ? d.model : OPENAI_MODEL;
   const prompt = cleanText(d.prompt, 200000);
   const system = cleanText(d.system, 200000);
   if (!prompt) throw new HttpsError("invalid-argument", "Nothing to ask.");
@@ -1547,9 +1617,9 @@ export const askOpenAi = onCall(OPENAI_OPTS, async (request) => {
   messages.push({ role: "user", content });
 
   const body = {
-    model: OPENAI_MODEL,
+    model,
     messages,
-    max_completion_tokens: Math.max(1024, Math.min(Number(d.maxOutputTokens) || 512, OPENAI_MAX_OUTPUT))
+    max_completion_tokens: Math.max(d.exactOutputBudget ? 1024 : 4096, Math.min((Number(d.maxOutputTokens) || 512) + (d.exactOutputBudget ? 0 : 4096), OPENAI_MAX_OUTPUT))
   };
   if (d.json) {
     body.response_format = { type: "json_object" };
@@ -1559,12 +1629,14 @@ export const askOpenAi = onCall(OPENAI_OPTS, async (request) => {
   }
   // A reasoning model runs only at its own default temperature; sending one is
   // a 400 — not a worse answer, no answer at all.
-  if (d.temperature !== undefined && !OPENAI_REASONING_RE.test(OPENAI_MODEL)) body.temperature = Number(d.temperature);
+  if (OPENAI_REASONING_RE.test(model)) body.reasoning_effort = openAiReasoningEffort(d.reasoningEffort);
+  else if (d.temperature !== undefined) body.temperature = Number(d.temperature);
 
   let res;
   try {
     res = await fetch(OPENAI_URL, {
       method: "POST",
+      signal: AbortSignal.timeout(180000),
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
       body: JSON.stringify(body)
     });
@@ -1583,7 +1655,8 @@ export const askOpenAi = onCall(OPENAI_OPTS, async (request) => {
   const data = await res.json();
   const text = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
   if (typeof text !== "string" || !text.trim()) throw new HttpsError("internal", "ChatGPT returned an unexpected response shape.");
-  return { text: text.trim(), model: OPENAI_MODEL };
+  if (data.choices[0].finish_reason === "length") throw new HttpsError("internal", "ChatGPT response was incomplete.");
+  return { text: text.trim(), model };
 });
 
 // =====================================================================
@@ -1879,21 +1952,27 @@ export const askKimi = onCall(KIMI_OPTS, async (request) => {
 
   const body = {
     model,
-    messages,
-    max_tokens: Math.max(1024, Math.min(Number(d.maxOutputTokens) || 512, KIMI_MAX_OUTPUT))
+    messages
   };
+  if (kimiIsK3(model)) {
+    body.max_completion_tokens = Math.max(d.exactOutputBudget ? 1024 : 4096, Math.min((Number(d.maxOutputTokens) || 512) + (d.exactOutputBudget ? 0 : 4096), KIMI_MAX_OUTPUT));
+    body.reasoning_effort = kimiReasoningEffort(d.reasoningEffort);
+  } else {
+    body.max_tokens = Math.max(1024, Math.min(Number(d.maxOutputTokens) || 512, KIMI_MAX_OUTPUT));
+    if (d.temperature !== undefined) body.temperature = Number(d.temperature);
+  }
   if (d.json) {
     body.response_format = { type: "json_object" };
     // Strict JSON mode is REFUSED unless the word appears in the messages,
     // so a prompt that never says it would 400 rather than answer.
     if (!/json/i.test(prompt + " " + system)) content.push({ type: "text", text: "Reply with JSON only." });
   }
-  if (d.temperature !== undefined) body.temperature = Number(d.temperature);
 
   let res;
   try {
     res = await fetch(KIMI_URL, {
       method: "POST",
+      signal: AbortSignal.timeout(180000),
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
       body: JSON.stringify(body)
     });
@@ -1912,6 +1991,7 @@ export const askKimi = onCall(KIMI_OPTS, async (request) => {
   const data = await res.json();
   const text = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
   if (typeof text !== "string" || !text.trim()) throw new HttpsError("internal", "Kimi returned an unexpected response shape.");
+  if (data.choices[0].finish_reason === "length") throw new HttpsError("internal", "Kimi response was incomplete.");
   return { text: text.trim(), model };
 });
 
@@ -1953,19 +2033,19 @@ export const aiEngineConfig = onCall(LIGHT_OPTS, async (request) => {
     if (!AI_ENGINES.includes(wanted)) throw new HttpsError("invalid-argument", "Unknown engine.");
     await db.doc(AI_ENGINE_DOC).set({
       engine: wanted,
+      modelPolicyVersion: "gpt-6.1-sol",
       updatedAt: new Date().toISOString(),
       updatedBy: auth.token && auth.token.email ? auth.token.email : auth.uid
     }, { merge: true });
-    return { engine: wanted, updatedAt: new Date().toISOString() };
+    return { engine: wanted, modelPolicyVersion: "gpt-6.1-sol", updatedAt: new Date().toISOString() };
   }
 
   const snap = await db.doc(AI_ENGINE_DOC).get();
   const data = snap.exists ? (snap.data() || {}) : {};
-  // An unset document means nobody has chosen, which is Gemini — the same
-  // default the apps have always had, so a project where this was never
-  // touched behaves exactly as it did before.
-  const engine = AI_ENGINES.includes(data.engine) ? data.engine : "gemini";
-  return { engine, updatedAt: data.updatedAt || null, updatedBy: data.updatedBy || null };
+  // Unset or implicit old defaults use OpenAI. Explicit teacher preferences
+  // remain valid and still have both other providers as backups.
+  const engine = effectiveAiEngine(data);
+  return { engine, modelPolicyVersion: "gpt-6.1-sol", updatedAt: data.updatedAt || null, updatedBy: data.updatedBy || null };
 });
 
 export const getWorksheetSolutions = onCall(LIGHT_OPTS, async (request) => {
