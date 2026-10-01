@@ -38,7 +38,7 @@ jobs:
           expected='projects/mathgen--app/locations/us-central1/functions/mathRapidImportPage'
           if worker.get('name') != expected: raise SystemExit('Unexpected function')
           if worker.get('state') != 'ACTIVE': raise SystemExit('Worker is not ACTIVE')
-          model=worker.get('serviceConfig',{}).get('environmentVariables',{}).get('OPENAI_MODEL')
+          model=worker.get('serviceConfig',{}).get('environmentVariables',{}).get('MATH_RAPID_IMPORT_OPENAI_MODEL')
           if model != 'gpt-6.1-sol': raise SystemExit('Worker does not have the requested Sol model')
           source=worker.get('buildConfig',{}).get('source',{}).get('storageSource',{})
           bucket, obj=source.get('bucket',''),source.get('object','')
