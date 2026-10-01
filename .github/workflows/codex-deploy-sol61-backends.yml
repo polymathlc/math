@@ -1,4 +1,4 @@
-name: Deploy reviewed education AI backends
+name: Verify reviewed Sol AI backends
 
 # Deploy only the reviewed CER and Tutor codebases using Math's existing
 # credential on their shared Firebase project. Publish/run only after Math's
@@ -76,17 +76,6 @@ jobs:
             cer-source/rapid-import/functions/package-lock.json
             tutor-source/functions/package-lock.json
 
-      - name: Test both reviewed backends before deployment
-        run: |
-          npm ci --prefix cer-source/rapid-import/functions --no-audit --no-fund
-          npm test --prefix cer-source/rapid-import/functions
-          npm ci --prefix tutor-source/functions --no-audit --no-fund
-          npm test --prefix tutor-source/functions
-          cd tutor-source
-          node --test tools/gamification-rules-tests.mjs tools/centre-admin-rules-tests.mjs
-
-      # Same repository secret and ADC environment pattern as Math's existing
-      # deploy-functions.yml, with validation and a private temporary key file.
       - name: Validate the existing Math deployment credential
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
@@ -124,13 +113,6 @@ jobs:
             state=$(gcloud secrets versions describe latest --secret="$secret" --project="$FIREBASE_PROJECT" --format='value(state)')
             [[ "$state" == ENABLED ]]
           done
-
-      - name: Install the reviewed deployment CLI
-        run: npm install -g firebase-tools@15.29.0 --no-audit --no-fund
-
-      - name: Deploy only Tutor's existing codebase
-        working-directory: tutor-source
-        run: firebase deploy --project "$FIREBASE_PROJECT" --config firebase.json --only functions:study-buddy-live --non-interactive
 
       - name: Verify the already-updated CER task worker source
         run: |
@@ -173,6 +155,56 @@ jobs:
                       raise SystemExit('Deployed CER source differs from reviewed source: ' + path)
                   print('Exact reviewed CER source verified: ' + path + ' ' + digest)
           PY
+
+      - name: Verify the deployed Tutor model providers' exact sources
+        run: |
+          set -euo pipefail
+          umask 077
+          for function in studyBuddyTeach studyBuddyGame; do
+            metadata="$RUNNER_TEMP/$function-metadata.json"
+            source_url="$RUNNER_TEMP/$function-source-url"
+            archive="$RUNNER_TEMP/$function-source.zip"
+            gcloud functions describe "$function" --gen2 --region="$RAPID_REGION" --project="$FIREBASE_PROJECT" --format=json > "$metadata"
+            python3 - "$function" "$metadata" "$source_url" <<'PY'
+          import json, sys
+          from pathlib import Path
+          name, metadata, destination = sys.argv[1:]
+          function = json.loads(Path(metadata).read_text())
+          if function.get('name') != 'projects/mathgen--app/locations/us-central1/functions/' + name or function.get('state') != 'ACTIVE':
+              raise SystemExit('Expected Tutor model function is not ACTIVE.')
+          build = function.get('buildConfig', {})
+          source = build.get('sourceProvenance', {}).get('resolvedStorageSource') or build.get('source', {}).get('storageSource', {})
+          bucket, obj = source.get('bucket', ''), source.get('object', '')
+          if not bucket or not obj or '\n' in bucket + obj:
+              raise SystemExit('Tutor source archive metadata unavailable.')
+          uri = 'gs://' + bucket + '/' + obj
+          generation = source.get('generation')
+          if generation is not None:
+              if not str(generation).isdigit():
+                  raise SystemExit('Invalid Tutor source generation.')
+              uri += '#' + str(generation)
+          Path(destination).write_text(uri)
+          print(name + ' ACTIVE; updateTime=' + function.get('updateTime', ''))
+          PY
+            source_uri=$(cat "$source_url")
+            gcloud storage cp "$source_uri" "$archive" --quiet
+            python3 - "$function" "$archive" <<'PY'
+          import hashlib, sys, zipfile
+          expected = {
+              'index.js': 'd9a69392be05224081a09890efbc9f408129d5da',
+              'ai-router.js': 'f10e87104ce8c3b9e2823d179b30772c1cfb50d0',
+              'fast-tutor-provider.js': '9d85b7620030607d4263b939918398827cea7e57',
+              'gamification-provider.js': 'a616650bac8015dc8501c61b0982686cb559196b',
+          }
+          with zipfile.ZipFile(sys.argv[2]) as archive:
+              for path, wanted in expected.items():
+                  data = archive.read(path)
+                  digest = hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest()
+                  if digest != wanted:
+                      raise SystemExit('Tutor deployed source differs from reviewed source: ' + path)
+                  print(sys.argv[1] + ': exact reviewed source ' + path + ' ' + digest)
+          PY
+          done
 
       - name: Verify active functions and the existing task queue
         run: |
@@ -265,4 +297,4 @@ jobs:
 
       - name: Remove temporary deployment files
         if: always()
-        run: rm -f "$RUNNER_TEMP/education-ai-sa.json" "$RUNNER_TEMP/cer-worker-probe.json" "$RUNNER_TEMP/cer-kimi-policy.json" "$RUNNER_TEMP/education-studyBuddyTeach-probe.json" "$RUNNER_TEMP/education-studyBuddyGame-probe.json" "$RUNNER_TEMP/education-studyBuddyLive-probe.json" "$RUNNER_TEMP/cer-worker-metadata.json" "$RUNNER_TEMP/cer-worker-source-url" "$RUNNER_TEMP/cer-worker-source.zip"
+        run: rm -f "$RUNNER_TEMP/studyBuddyTeach-metadata.json" "$RUNNER_TEMP/studyBuddyTeach-source-url" "$RUNNER_TEMP/studyBuddyTeach-source.zip" "$RUNNER_TEMP/studyBuddyGame-metadata.json" "$RUNNER_TEMP/studyBuddyGame-source-url" "$RUNNER_TEMP/studyBuddyGame-source.zip" "$RUNNER_TEMP/education-ai-sa.json" "$RUNNER_TEMP/cer-worker-probe.json" "$RUNNER_TEMP/cer-kimi-policy.json" "$RUNNER_TEMP/education-studyBuddyTeach-probe.json" "$RUNNER_TEMP/education-studyBuddyGame-probe.json" "$RUNNER_TEMP/education-studyBuddyLive-probe.json" "$RUNNER_TEMP/cer-worker-metadata.json" "$RUNNER_TEMP/cer-worker-source-url" "$RUNNER_TEMP/cer-worker-source.zip"
