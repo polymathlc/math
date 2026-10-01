@@ -321,6 +321,8 @@ test('"No attempt made" is filtered where profiles are read AND where they are w
   assert.match(cut('function weaknessLabelsFromResult(', '\nfunction '), /learningLabelIsSkill/);
 });
 
-test('the version is bumped', () => {
-  assert.match(html, /const APP_VERSION = "v1\.90\.0/);
+test('the empty-state release version is present or superseded', () => {
+  const version = html.match(/const APP_VERSION = "v(\d+)\.(\d+)\.(\d+)/);
+  assert.ok(version, 'the app declares a semantic release version');
+  assert.ok(Number(version[1]) > 1 || (Number(version[1]) === 1 && Number(version[2]) >= 90), 'the empty-state release is v1.90.0 or later');
 });
