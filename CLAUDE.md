@@ -2,6 +2,24 @@
 
 Guidance for Claude when working in this repo.
 
+## Current AI defaults — v1.91.0
+- GPT 6.1 Sol (`gpt-6.1-sol`) is the default text, vision and thinking model.
+  The default provider order is OpenAI, Gemini, Kimi. The earlier stack notes
+  below describe the history; they do not override this current policy.
+- Browser text calls try the authenticated `askOpenAi` server route first.
+  A browser key is optional. The server allows reviewed model overrides for
+  teachers, while pupil calls retain the server default.
+- `askGemini` in `functions/index.js` now shares the same provider policy for
+  grading, hints, photo matching and tutoring. Deploy the functions as well as
+  the page; all three secrets are bound, and missing keys fall to the next engine.
+- The online PDF worker also has Gemini and Kimi backups. Speech and image
+  generation retain their specialist models; independent answer cross-checks
+  deliberately request Gemini with `skipOpenAi`.
+- Reasoning effort is low by default, high for extended-thinking requests.
+  No temperature is sent to reasoning models. `exactOutputBudget: true` on
+  `askOpenAi` preserves an explicit total completion-token ceiling.
+- Run `node --test tools/ai-provider-tests.mjs` for provider routing checks.
+
 ## Apps
 - `index.html` — **"Math Practice"**, the whole product in one file: question authoring
   (block editor, AI build-from-screenshot, image crop / touch-up, vetting → bank),

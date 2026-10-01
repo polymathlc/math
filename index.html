@@ -5611,16 +5611,16 @@ body.lore-reading { overflow: hidden; }
   <div class="overlay-card">
     <div class="overlay-head"><h3>🧠 AI Engine</h3><button class="close" data-close="aiEngineOverlay">×</button></div>
     <div class="overlay-body">
-      <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:18px;line-height:1.65;">Choose which AI powers every mode in this app — the AI answer &amp; explanation, Build from screenshot / PDF, Rapid add, marking, and the ✨ art generator in 🌌 Aetherfall. Your choice is saved <b>on this device only</b> and stays until you change it. If ChatGPT ever fails, the app falls back to Gemini automatically, so nobody is ever left without an AI.</p>
+      <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:18px;line-height:1.65;">GPT 6.1 Sol powers text, images you upload, and thinking tasks by default. Gemini takes over if ChatGPT fails, followed by Kimi. The teacher’s engine choice is shared with signed-in devices. Speech and picture generation keep their own specialist models.</p>
       <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:18px;line-height:1.65;">🔗 <b>One key covers all four subjects.</b> Maths, Science, English and Chinese share this browser's storage, so a key saved here is saved for all of them — and 🔍 <b>Check answer keys</b> can put ChatGPT and Gemini side by side in whichever app you are in.</p>
       <div class="editor-field"><label>Engine</label>
         <label class="ai-engine-opt">
-          <input type="radio" name="aiEngineChoice" value="gemini" checked>
-          <span><b>Gemini</b> <span class="dim">— Firebase AI Logic · default · no key needed</span></span>
+          <input type="radio" name="aiEngineChoice" value="gemini">
+          <span><b>Gemini</b> <span class="dim">— Firebase AI Logic · first backup</span></span>
         </label>
         <label class="ai-engine-opt">
-          <input type="radio" name="aiEngineChoice" value="openai">
-          <span><b>ChatGPT</b> <span class="dim">— OpenAI API · your own key required</span></span>
+          <input type="radio" name="aiEngineChoice" value="openai" checked>
+          <span><b>ChatGPT</b> <span class="dim">— GPT 6.1 Sol · default for text, vision and thinking · server key</span></span>
         </label>
         <label class="ai-engine-opt">
           <input type="radio" name="aiEngineChoice" value="kimi">
@@ -5629,7 +5629,8 @@ body.lore-reading { overflow: hidden; }
       </div>
       <div class="editor-field"><label>ChatGPT model</label>
         <select id="aiEngineModel">
-          <option value="gpt-6-astra" selected>gpt-6-astra — newest (recommended)</option>
+          <option value="gpt-6.1-sol" selected>gpt-6.1-sol — default for text, vision and thinking</option>
+          <option value="gpt-6-astra">gpt-6-astra</option>
           <option value="gpt-6-astra-fast">gpt-6-astra-fast — same model, quicker, less thinking</option>
           <option value="gpt-5.6-sol">gpt-5.6-sol — the previous flagship</option>
           <option value="gpt-4o-mini">gpt-4o-mini — fast &amp; cheap</option>
@@ -5672,7 +5673,7 @@ body.lore-reading { overflow: hidden; }
       </div>
       <div class="editor-field"><label>OpenAI API key</label>
         <input type="password" id="aiEngineKey" placeholder="sk-..." autocomplete="off" spellcheck="false">
-        <p style="color:var(--text-muted);font-size:0.78rem;margin-top:8px;line-height:1.55;">The key is saved only in this browser (localStorage) on this device — never uploaded, synced or committed anywhere. Anyone with this device's developer tools could read it, so paste it only on machines you control. Devices without a key simply keep using Gemini.</p>
+        <p style="color:var(--text-muted);font-size:0.78rem;margin-top:8px;line-height:1.55;">The key is saved only in this browser (localStorage) on this device — never uploaded, synced or committed anywhere. Anyone with this device's developer tools could read it, so paste it only on machines you control. Signed-in devices use the server key first; this browser key is an optional fallback.</p>
       </div>
       <div class="editor-field"><label>🎙️ Speech</label>
         <p id="aiEngineMicNote" style="color:var(--text-muted);font-size:0.85rem;line-height:1.65;margin:0;"></p>
@@ -6440,7 +6441,7 @@ try {
     generationConfig: { responseModalities: [ResponseModality.TEXT, ResponseModality.IMAGE] }
   }, AI_REQUEST_OPTIONS));
 } catch (e) { console.warn("Firebase image AI init failed:", e); }
-const aiReady = () => !!geminiModel;
+const aiReady = () => !!geminiModel || !!auth.currentUser || !!getOpenAiKey() || !!getKimiKey();
 // Gemini's image models are the FALLBACK now: the image engine is ChatGPT
 // Images 2.5 (search `THE IMAGE ENGINE`). A picture can be drawn when EITHER
 // is reachable. Guarded, because this is read before the engine block has run.
@@ -6543,48 +6544,26 @@ function aiErrorMessage(e) {
   return raw;
 }
 
-async function askGeminiVision(prompt, media, { maxOutputTokens = 1024, json = true, models = geminiTextModels, modelNames = AI_TEXT_MODEL_NAMES, thinkingBudget = 0, skipOpenAi = false } = {}) {
-  // The optional ChatGPT engine (admin-only, device-local key) goes first and
-  // falls back to Gemini on ANY failure, so a student with no key is never
-  // affected. openAiActive() is defined in the AI ENGINE block below.
-  //
-  // `skipOpenAi` is for a caller that is running BOTH engines on purpose (the
-  // 🔍 answer key cross-check): there, "Gemini" has to mean Gemini, or the two
-  // columns of the comparison are the same model twice and every row agrees.
-  if (!skipOpenAi && typeof openAiActive === "function" && openAiActive()) {
-    try { return await askOpenAI(prompt, media, { maxOutputTokens, json }); }
-    catch (e) { console.warn("ChatGPT engine failed, falling back to Gemini:", e); }
-  }
-  if (!skipOpenAi && typeof kimiActive === "function" && kimiActive()) {
-    try { return await askKimiEngine(prompt, media, { maxOutputTokens, json }); }
-    catch (e) { console.warn("Kimi engine failed, falling back to Gemini:", e); }
-  }
-  if (!models.length) throw new Error("AI is not configured yet");
-  const parts = [{ text: prompt }];
-  (media || []).forEach(m => parts.push({ inlineData: { mimeType: m.mimeType, data: m.data } }));
-  const baseConfig = { maxOutputTokens, temperature: 0.2 };
-  if (json) baseConfig.responseMimeType = "application/json";
-  let lastErr = null;
-  for (let i = 0; i < models.length; i++) {
-    // The thinking config is built PER MODEL: the fallback list spans the 3.x
-    // line, and each side 400s on the other's shape (see _thinkingConfigFor).
-    const generationConfig = Object.assign({}, baseConfig, { thinkingConfig: _thinkingConfigFor(modelNames[i], thinkingBudget) });
-    try {
-      // Per model: up to 2 quick retries, but a 4-min timeout moves straight to the fallback model.
-      const res = await withAiRetry(() => models[i].generateContent({ contents: [{ role: "user", parts }], generationConfig }), { tries: 2, timeoutTries: 1 });
-      return (res.response.text() || "").trim();
-    } catch (e) {
-      // On the primary model a non-transient failure (bad request, safety block)
-      // normally can't be fixed by another model, so we fail fast — except a
-      // "model not found" error, where a different model in the fallback list
-      // very well might work, so we let that one fall through.
-      if (i === 0 && !isTransientAiError(e) && !isModelNotFoundError(e)) throw e;
-      if (!lastErr || isTransientAiError(e)) lastErr = e;
-      if (i < models.length - 1) console.warn(`AI model "${modelNames[i]}" failed, trying "${modelNames[i + 1]}"…`, e);
+async function askGeminiVision(prompt, media, { maxOutputTokens = 1024, json = true, models = geminiTextModels, modelNames = AI_TEXT_MODEL_NAMES, thinkingBudget = 0, skipOpenAi = false, temperature = 0.2, reasoningEffort = 'low' } = {}) {
+  return runTextEngines(prompt, media, { maxOutputTokens, json, thinkingBudget, skipOpenAi, temperature, reasoningEffort }, async () => {
+    if (!models.length) throw new Error('Gemini is not configured yet');
+    const parts = [{ text: prompt }, ...(media || []).map(m => ({ inlineData: { mimeType: m.mimeType, data: m.data } }))];
+    const baseConfig = { maxOutputTokens, temperature };
+    if (json) baseConfig.responseMimeType = 'application/json';
+    let lastError;
+    for (let i = 0; i < models.length; i++) {
+      try {
+        const generationConfig = { ...baseConfig, thinkingConfig: _thinkingConfigFor(modelNames[i], thinkingBudget) };
+        const res = await withAiRetry(() => models[i].generateContent({ contents: [{ role: 'user', parts }], generationConfig }), { tries: 2, timeoutTries: 1 });
+        const text = (res.response.text() || '').trim();
+        if (!text) throw new Error('Gemini returned an empty response.');
+        return text;
+      } catch (e) { lastError = e; }
     }
-  }
-  throw lastErr || new Error("AI request failed");
+    throw lastError || new Error('Gemini request failed');
+  });
 }
+
 function extractInlineImage(result) {
   const inlineParts = result?.response?.inlineDataParts ? result.response.inlineDataParts() : [];
   for (const p of inlineParts || []) {
@@ -6670,7 +6649,7 @@ const AI_ENGINE_STORE_LEGACY = { engine: 'mq_ai_engine', key: 'mq_openai_key', m
     });
   } catch (e) { /* private browsing: the panel still works, it just won't persist */ }
 })();
-const OPENAI_DEFAULT_MODEL = 'gpt-6-astra';
+const OPENAI_DEFAULT_MODEL = 'gpt-6.1-sol';
 /* A REASONING MODEL IS A FAMILY, NOT ONE ID, and this is the one place the
    family is named. gpt-5.x and gpt-6-astra behave identically where the
    request SHAPE is concerned — both take `reasoning_effort` and both REFUSE a
@@ -6686,8 +6665,8 @@ const OPENAI_REASONING_RE = /^(gpt-[5-9]|o[1-9])/;
    that was only ever a default is lifted to the new one ONCE, per device, and
    the flag is what makes a DELIBERATE pick of the old model stick: it is still
    in the dropdown, and choosing it there has to mean something. */
-const OPENAI_SUPERSEDED_MODELS = ['gpt-5.6-sol'];
-const OPENAI_MODEL_GEN = 'astra';
+const OPENAI_SUPERSEDED_MODELS = ['gpt-5.6-sol', 'gpt-6-astra'];
+const OPENAI_MODEL_GEN = 'sol61';
 (function _openAiLiftDefaultOnce() {
   try {
     if (localStorage.getItem(AI_ENGINE_STORE.modelGen) === OPENAI_MODEL_GEN) return;
@@ -6696,36 +6675,132 @@ const OPENAI_MODEL_GEN = 'astra';
     if (m && OPENAI_SUPERSEDED_MODELS.indexOf(m) >= 0) localStorage.setItem(AI_ENGINE_STORE.model, OPENAI_DEFAULT_MODEL);
   } catch (e) { /* private browsing: nothing is stored, so there is nothing to lift */ }
 })();
-function getAiEngine() { try { return localStorage.getItem(AI_ENGINE_STORE.engine) || 'gemini'; } catch (e) { return 'gemini'; } }
-function getOpenAiKey() { try { return (localStorage.getItem(AI_ENGINE_STORE.key) || '').trim(); } catch (e) { return ''; } }
-function getOpenAiModel() { try { return localStorage.getItem(AI_ENGINE_STORE.model) || OPENAI_DEFAULT_MODEL; } catch (e) { return OPENAI_DEFAULT_MODEL; } }
-function openAiActive() { return getAiEngine() === 'openai' && !!getOpenAiKey(); }
-
-async function askOpenAI(prompt, media, { maxOutputTokens = 512, temperature, json = false } = {}) {
+const AI_TEXT_ENGINE_DEFAULT = 'openai';
+const AI_TEXT_ENGINE_GEN = 'sol61';
+const AI_TEXT_ENGINES = ['openai', 'gemini', 'kimi'];
+const KIMI_DEFAULT_MODEL = 'kimi-k3';
+const askOpenAiServerCall = httpsCallable(cloudFunctions, 'askOpenAi', { timeout: 240000 });
+const askKimiServerCall = httpsCallable(cloudFunctions, 'askKimi', { timeout: 240000 });
+const aiEngineConfigCall = httpsCallable(cloudFunctions, 'aiEngineConfig');
+let sharedAiEngine = null;
+let aiEngineConfigEpoch = 0;
+(function liftTextEngineDefaultOnce() {
+  try {
+    if (localStorage.getItem('sq_ai_engine_gen') === AI_TEXT_ENGINE_GEN) return;
+    const previous = localStorage.getItem(AI_ENGINE_STORE.engine);
+    if (!previous || previous === 'gemini') localStorage.setItem(AI_ENGINE_STORE.engine, AI_TEXT_ENGINE_DEFAULT);
+    localStorage.setItem('sq_ai_engine_gen', AI_TEXT_ENGINE_GEN);
+  } catch (_) { /* storage is optional */ }
+})();
+function getAiEngine() {
+  if (AI_TEXT_ENGINES.includes(sharedAiEngine)) return sharedAiEngine;
+  try { const e = localStorage.getItem(AI_ENGINE_STORE.engine); return AI_TEXT_ENGINES.includes(e) ? e : AI_TEXT_ENGINE_DEFAULT; }
+  catch (_) { return AI_TEXT_ENGINE_DEFAULT; }
+}
+async function syncAiEngineConfig() {
+  const uid = auth.currentUser?.uid, epoch = ++aiEngineConfigEpoch;
+  if (!uid) { sharedAiEngine = null; return; }
+  try {
+    const { data } = await aiEngineConfigCall({});
+    if (epoch !== aiEngineConfigEpoch || auth.currentUser?.uid !== uid) return;
+    const e = data && data.engine;
+    sharedAiEngine = AI_TEXT_ENGINES.includes(e) && (data.updatedBy || data.modelPolicyVersion || e !== 'gemini') ? e : AI_TEXT_ENGINE_DEFAULT;
+  } catch (e) { console.warn('Using the default AI policy until the shared setting is available:', e); }
+}
+function getOpenAiKey() { try { return (localStorage.getItem(AI_ENGINE_STORE.key) || '').trim(); } catch (_) { return ''; } }
+function getOpenAiModel() { try { return localStorage.getItem(AI_ENGINE_STORE.model) || OPENAI_DEFAULT_MODEL; } catch (_) { return OPENAI_DEFAULT_MODEL; } }
+function getKimiKey() { try { return (localStorage.getItem(AI_ENGINE_STORE.kimiKey) || '').trim(); } catch (_) { return ''; } }
+function getKimiModel() { try { return localStorage.getItem(AI_ENGINE_STORE.kimiModel) || KIMI_DEFAULT_MODEL; } catch (_) { return KIMI_DEFAULT_MODEL; } }
+function openAiActive() { return getAiEngine() === 'openai'; }
+function kimiActive() { return getAiEngine() === 'kimi'; }
+function kimiIsK3(model) { return /^kimi-k3(?:$|[-.])/i.test(model); }
+function kimiReasoningEffort(value) { return value === 'max' ? 'max' : ['high', 'xhigh'].includes(value) ? 'high' : 'low'; }
+function openAiReasoningEffort(value) { return ['low', 'medium', 'high', 'xhigh', 'max'].includes(value) ? value : 'low'; }
+function textEngineOrder(skipOpenAi, media) {
+  // Audio transcription stays on its speech-capable route. Cross-checks ask
+  // for real Gemini so their two columns remain independent.
+  if (skipOpenAi || (media || []).some(m => /^audio\//.test(m.mimeType || ''))) return ['gemini'];
+  return [...new Set([getAiEngine(), ...AI_TEXT_ENGINES])];
+}
+async function runTextEngines(prompt, media, options, geminiRun) {
+  let lastError;
+  const failures = [];
+  for (const engine of textEngineOrder(options.skipOpenAi, media)) {
+    try {
+      const text = engine === 'openai' ? await askOpenAI(prompt, media, options)
+        : engine === 'kimi' ? await askKimiEngine(prompt, media, options) : await geminiRun();
+      if (typeof text !== 'string' || !text.trim()) throw new Error(engine + ' returned an empty response.');
+      return text.trim();
+    } catch (e) {
+      if (e && e.name === 'AbortError') throw e;
+      lastError = e;
+      failures.push(engine + ': ' + (e.message || e));
+      console.warn(engine + ' failed; trying the next configured AI:', e);
+    }
+  }
+  throw new Error(failures.join(' | ') || 'AI is not configured yet', { cause: lastError });
+}
+async function askOpenAI(prompt, media, { maxOutputTokens = 512, temperature, json = false, reasoningEffort = 'low', thinkingBudget = 0 } = {}) {
   const model = getOpenAiModel();
+  const effort = openAiReasoningEffort(thinkingBudget < 0 ? 'high' : reasoningEffort);
+  if (auth.currentUser) {
+    try {
+      const { data } = await askOpenAiServerCall({ prompt, media: media || [], maxOutputTokens, json, model, reasoningEffort: effort });
+      if (!data || typeof data.text !== 'string' || !data.text.trim()) throw new Error('ChatGPT returned an empty response.');
+      return data.text.trim();
+    } catch (e) { if (!getOpenAiKey()) throw e; }
+  }
+  if (!getOpenAiKey()) throw new Error('ChatGPT needs a signed-in server route or a key in this browser.');
   const content = [{ type: 'text', text: prompt }];
   (media || []).forEach((m, i) => {
     if (/^image\//.test(m.mimeType || '')) content.push({ type: 'image_url', image_url: { url: 'data:' + m.mimeType + ';base64,' + m.data, detail: 'high' } });
-    else content.push({ type: 'file', file: { filename: 'upload-' + (i + 1) + '.pdf', file_data: 'data:' + (m.mimeType || 'application/pdf') + ';base64,' + m.data } });
+    else if (m.mimeType === 'application/pdf') content.push({ type: 'file', file: { filename: 'upload-' + (i + 1) + '.pdf', file_data: 'data:application/pdf;base64,' + m.data } });
+    else throw new Error('ChatGPT cannot read this attachment type: ' + m.mimeType);
   });
-  const body = { model, messages: [{ role: 'user', content }], max_completion_tokens: Math.max(1024, maxOutputTokens) };
-  if (json) body.response_format = { type: 'json_object' };
-  // A reasoning model only runs at its default temperature; sending one is a 400
-  if (temperature !== undefined && !OPENAI_REASONING_RE.test(model)) body.temperature = temperature;
+  const body = { model, messages: [{ role: 'user', content }], max_completion_tokens: Math.max(4096, Math.min(32000, maxOutputTokens + 4096)) };
+  if (json) { body.response_format = { type: 'json_object' }; if (!/json/i.test(prompt)) content.push({ type: 'text', text: 'Reply with JSON only.' }); }
+  if (OPENAI_REASONING_RE.test(model)) body.reasoning_effort = effort;
+  else if (temperature !== undefined) body.temperature = temperature;
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getOpenAiKey() },
-    body: JSON.stringify(body)
+    method: 'POST', signal: AbortSignal.timeout(180000),
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getOpenAiKey() }, body: JSON.stringify(body)
   });
   if (!res.ok) {
-    let detail = '';
-    try { const ej = await res.json(); detail = ej && ej.error ? ej.error.message : ''; } catch (e) { /* non-JSON error body */ }
+    let detail = ''; try { detail = (await res.json()).error?.message || ''; } catch (_) { /* non-JSON error */ }
     throw new Error('OpenAI API error ' + res.status + (detail ? ': ' + detail : ''));
   }
-  const data = await res.json();
-  const text = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
-  if (typeof text !== 'string' || !text) throw new Error('OpenAI returned an unexpected response shape.');
-  return text.trim();
+  const data = await res.json(), choice = data.choices?.[0];
+  if (choice?.finish_reason === 'length' || typeof choice?.message?.content !== 'string' || !choice.message.content.trim()) throw new Error('OpenAI returned an incomplete or empty response.');
+  return choice.message.content.trim();
+}
+async function askKimiEngine(prompt, media, { maxOutputTokens = 512, temperature, json = false, reasoningEffort = 'low', thinkingBudget = 0 } = {}) {
+  if ((media || []).some(m => !/^image\//.test(m.mimeType || ''))) throw new Error('Kimi accepts images; PDFs and audio need another provider.');
+  const model = getKimiModel(), effort = kimiReasoningEffort(thinkingBudget < 0 ? 'high' : reasoningEffort);
+  if (auth.currentUser) {
+    try {
+      const { data } = await askKimiServerCall({ prompt, media: media || [], maxOutputTokens, json, model, reasoningEffort: effort });
+      if (!data || typeof data.text !== 'string' || !data.text.trim()) throw new Error('Kimi returned an empty response.');
+      return data.text.trim();
+    } catch (e) { if (!getKimiKey()) throw e; }
+  }
+  if (!getKimiKey()) throw new Error('Kimi needs a signed-in server route or a key in this browser.');
+  const content = [{ type: 'text', text: prompt }, ...(media || []).map(m => ({ type: 'image_url', image_url: { url: 'data:' + m.mimeType + ';base64,' + m.data } }))];
+  const body = { model, messages: [{ role: 'user', content }] };
+  if (kimiIsK3(model)) { body.max_completion_tokens = Math.max(4096, Math.min(32000, maxOutputTokens + 4096)); body.reasoning_effort = effort; }
+  else { body.max_tokens = Math.max(1024, Math.min(32000, maxOutputTokens)); if (temperature !== undefined) body.temperature = temperature; }
+  if (json) { body.response_format = { type: 'json_object' }; if (!/json/i.test(prompt)) content.push({ type: 'text', text: 'Reply with JSON only.' }); }
+  const res = await fetch('https://api.moonshot.ai/v1/chat/completions', { method: 'POST', signal: AbortSignal.timeout(180000), headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + getKimiKey() }, body: JSON.stringify(body) });
+  if (!res.ok) throw new Error('Kimi API error ' + res.status + ' (model ' + model + ')');
+  const choice = (await res.json()).choices?.[0];
+  if (choice?.finish_reason === 'length' || !choice?.message?.content?.trim()) throw new Error('Kimi returned an incomplete or empty response.');
+  return choice.message.content.trim();
+}
+async function kimiListModels(keyOverride = '') {
+  const key = keyOverride.trim() || getKimiKey();
+  if (!key) throw new Error('A browser Kimi key is required only to list your account’s models.');
+  const res = await fetch('https://api.moonshot.ai/v1/models', { headers: { Authorization: 'Bearer ' + key }, signal: AbortSignal.timeout(30000) });
+  if (!res.ok) throw new Error('Could not load Kimi models (' + res.status + ').');
+  return ((await res.json()).data || []).map(m => m.id).filter(id => /^(kimi|moonshot)[A-Za-z0-9._-]*$/.test(id));
 }
 
 /* =====================================================================
@@ -7248,23 +7323,8 @@ async function generateImageDataUrlGemini(prompt, refDataUrls) {
 // call deliberately does not send one — and 3.8 Flash rejects the "minimal"
 // level as well, which is what AI_THINK_MIN is for. This path only ever talks
 // to the primary model, so it needs no per-model shape the way vision does.
-async function askGemini(prompt, { maxOutputTokens = 512, temperature = 0.3, json = false } = {}) {
-  if (openAiActive()) {
-    try { return await askOpenAI(prompt, null, { maxOutputTokens, temperature, json }); }
-    catch (e) { console.warn('ChatGPT engine failed, falling back to Gemini:', e); }
-  }
-  if (kimiActive()) {
-    try { return await askKimiEngine(prompt, null, { maxOutputTokens, temperature, json }); }
-    catch (e) { console.warn('Kimi engine failed, falling back to Gemini:', e); }
-  }
-  if (!geminiModel) throw new Error("AI is not configured yet");
-  const generationConfig = { maxOutputTokens, temperature, thinkingConfig: { thinkingLevel: AI_THINK_MIN } };
-  if (json) generationConfig.responseMimeType = "application/json";
-  const res = await withAiRetry(() => geminiModel.generateContent({
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    generationConfig
-  }), { tries: 2, timeoutTries: 1 });
-  return (res.response.text() || "").trim();
+async function askGemini(prompt, { maxOutputTokens = 512, temperature = 0.3, json = false, reasoningEffort = 'low' } = {}) {
+  return askGeminiVision(prompt, [], { maxOutputTokens, temperature, json, reasoningEffort });
 }
 
 // Where the FIRST complete JSON value in `s` ends, or -1 if it never closes.
@@ -7373,7 +7433,7 @@ function _aiHash(str) {
   return "ai:" + (h >>> 0).toString(36);
 }
 async function askGeminiCached(prompt, opts) {
-  const key = _aiHash(prompt);
+  const key = _aiHash([auth.currentUser?.uid || '', getAiEngine(), getOpenAiModel(), JSON.stringify(opts || {}), prompt].join('\n'));
   try { const c = sessionStorage.getItem(key); if (c !== null) return c; } catch (e) {}
   const out = await askGemini(prompt, opts);
   try { sessionStorage.setItem(key, out); } catch (e) {}
@@ -9674,6 +9734,8 @@ onAuthStateChanged(auth, async (user) => {
   const authEpoch = ++_studentAuthEpoch;
   studentQuestionHistory.close(); _studentHistoryLoading = null; _practicePresentation = null;
   currentUser = null;
+  sharedAiEngine = null;
+  ++aiEngineConfigEpoch;
   hadesMathBeta.close();
   pirateRiftPortal.close();
   grandLinePortal.close();
@@ -9681,6 +9743,7 @@ onAuthStateChanged(auth, async (user) => {
   if (user) { await enterApp(user, authEpoch); }
   else {
     currentUser = null;
+    sharedAiEngine = null;
     interfaceStudio?.setUser(null);
     rapidCloudReset();
     vetPrintPeekHide();
@@ -9727,6 +9790,7 @@ async function enterApp(user, authEpoch = _studentAuthEpoch) {
   }
   const isGuest = !!user.isAnonymous;
   if (authEpoch !== _studentAuthEpoch) return;
+  void syncAiEngineConfig();
   currentUser = { uid: user.uid, email: user.email, name: user.displayName || (user.email || "").split("@")[0] || (isGuest ? "Guest" : "Student"), role: isAdmin ? "admin" : "student", isGuest };
   studentProgress = {}; studentLearningProfile = learningProfileDefaults(); studentLevel = '';
   _practiceRun = createPracticeRun(user.uid); _practicePresentation = null; _studentFeedInvalidate();
@@ -10090,9 +10154,9 @@ function openAiEngineSettings() {
   if (micNote) micNote.textContent = "🎙️ " + transcribeRouteNote();
   $("aiEngineOverlay").classList.add("show");
 }
-function saveAiEngineSettings() {
+async function saveAiEngineSettings() {
   const picked = document.querySelector('input[name="aiEngineChoice"]:checked');
-  const eng = picked ? picked.value : "gemini";
+  const eng = picked ? picked.value : AI_TEXT_ENGINE_DEFAULT;
   const key = ($("aiEngineKey").value || "").trim();
   const model = $("aiEngineModel").value || OPENAI_DEFAULT_MODEL;
   const imageModel = ($("aiEngineImageModel") && $("aiEngineImageModel").value) || OPENAI_IMAGE_DEFAULT_MODEL;
@@ -10100,13 +10164,18 @@ function saveAiEngineSettings() {
   const imgEng = imgPicked && AI_IMAGE_ENGINES.includes(imgPicked.value) ? imgPicked.value : AI_IMAGE_ENGINE_DEFAULT;
   const kimiKey = (($("aiEngineKimiKey") && $("aiEngineKimiKey").value) || "").trim();
   const kimiModel = (($("aiEngineKimiModel") && $("aiEngineKimiModel").value) || "").trim() || KIMI_DEFAULT_MODEL;
-  // ChatGPT here has only ONE route — a key in this browser — so choosing it
-  // without one chooses nothing. Kimi's real key is on the SERVER, so it is
-  // deliberately not asked for.
-  if (eng === "openai" && !key) { toast("Paste your OpenAI API key to use ChatGPT", "error"); return; }
+  ++aiEngineConfigEpoch;
+  let sharedSaved = false;
+  try {
+    await aiEngineConfigCall({ set: eng });
+    sharedAiEngine = eng;
+    sharedSaved = true;
+  } catch (e) { console.warn('Shared engine setting unavailable; saving this browser’s preference:', e); sharedAiEngine = eng; }
   try {
     localStorage.setItem(AI_ENGINE_STORE.engine, eng);
     localStorage.setItem(AI_ENGINE_STORE.model, model);
+    localStorage.setItem(AI_ENGINE_STORE.modelGen, OPENAI_MODEL_GEN);
+    localStorage.setItem('sq_ai_engine_gen', AI_TEXT_ENGINE_GEN);
     localStorage.setItem(AI_ENGINE_STORE.imageModel, imageModel);
     localStorage.setItem(AI_ENGINE_STORE.imageEngine, imgEng);
     if (key) localStorage.setItem(AI_ENGINE_STORE.key, key);
@@ -10120,7 +10189,7 @@ function saveAiEngineSettings() {
   // and do this again in Science, English and Chinese.
   const what = eng === "openai" ? `ChatGPT (${model})` : eng === "kimi" ? `Kimi (${kimiModel})` : "Gemini";
   const pics = imgEng === "gemini" ? "Gemini image model" : `ChatGPT Images (${imageModel})`;
-  toast(`AI engine set to ${what}, pictures by ${pics} — saved on this device, for all four subjects`, "success");
+  toast(`AI engine set to ${what}, pictures by ${pics} — ${sharedSaved ? "shared with signed-in devices" : "saved in this browser"}`, "success");
 }
 $("navAiEngine").addEventListener("click", openAiEngineSettings);
 $("saveAiEngineBtn").addEventListener("click", saveAiEngineSettings);
@@ -16861,7 +16930,7 @@ function _rapidUploadPdf(file, level, release) {
   try {id=localStorage.getItem(resumeKey)||id;localStorage.setItem(resumeKey,id);} catch(e) {}
   const syllabus = sylAutoFileOn() ? SYL_LOS.filter(lo=>!level || lo.level===level).map(lo=>({id:lo.id,level:lo.level,text:lo.text})) : [];
   const settings={id,name:file.name||'PDF',size:file.size,level,release,syllabus,
-    engineOrder:getAiEngine()==='gemini'?['gemini','openai']:['openai','gemini'],
+    engineOrder:textEngineOrder(false, []),
     prompt:aiQuestionReadPrompt(false,true,true),grounding:genPreamble(),
     autoFile:sylAutoFileOn(),autoCheck:!!document.getElementById('rapidOnlineCheck')?.checked};
   const jobId='rapid_upload_'+id;
@@ -31625,7 +31694,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.90.0 · 2026-09-23";
+const APP_VERSION = "v1.91.0 · 2026-10-01";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)

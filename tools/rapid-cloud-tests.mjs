@@ -12,7 +12,7 @@ function uploadHarness(){
  const factory=new Function('document','localStorage','crypto','calls','statuses','pending','env',`
  let currentUser={uid:env.uid()},rapidJobs=[],_rapidCloudUploading=0,_rapidCloudUploadTail=Promise.resolve();
  const SYL_LOS=[{id:'P3.FR.1',level:'P3',text:'Fractions'},{id:'P5.RA.1',level:'P5',text:'Ratio'}];
- const sylAutoFileOn=()=>true,getAiEngine=()=>env.engine(),aiQuestionReadPrompt=()=>'Math prompt',genPreamble=()=>env.guidance();
+ const sylAutoFileOn=()=>true,getAiEngine=()=>env.engine(),textEngineOrder=()=>[...new Set([getAiEngine(),'openai','gemini','kimi'])],aiQuestionReadPrompt=()=>'Math prompt',genPreamble=()=>env.guidance();
  const updateRapidCounts=()=>{},renderVettingList=()=>{},setRapidStatus=s=>statuses.push(s);
  const setRapidJobState=(id,p)=>Object.assign(rapidJobs.find(j=>j.id===id),p);
  const removeRapidJob=id=>{rapidJobs=rapidJobs.filter(j=>j.id!==id)};

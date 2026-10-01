@@ -39,6 +39,16 @@ for rapid_secret in GEMINI_API_KEY OPENAI_API_KEY; do
   [[ "$rapid_state" == ENABLED ]] || fail "$rapid_secret needs an enabled latest version in Secret Manager."
 done
 
+# Kimi is an optional third backup. An empty secret lets its deployment bind
+# succeed without inventing or exposing a key, and the worker skips it until
+# the centre configures a real one. Never replace an existing secret version.
+if ! gcloud secrets describe MOONSHOT_API_KEY --project="$RAPID_PROJECT" >/dev/null 2>&1; then
+  gcloud secrets create MOONSHOT_API_KEY --project="$RAPID_PROJECT" --replication-policy=automatic
+fi
+if ! gcloud secrets versions describe latest --secret=MOONSHOT_API_KEY --project="$RAPID_PROJECT" >/dev/null 2>&1; then
+  printf ' ' | gcloud secrets versions add MOONSHOT_API_KEY --project="$RAPID_PROJECT" --data-file=- >/dev/null
+fi
+
 # Select Node in this process. Re-executing through npm can preserve an older
 # Node in Cloud Shell and restart setup indefinitely without reaching deployment.
 if [[ "$(node -p 'process.versions.node.split(".")[0]')" != 22 ]]; then
