@@ -8,7 +8,12 @@ Guidance for Claude when working in this repo.
   below describe the history; they do not override this current policy.
 - Browser text calls try the authenticated `askOpenAi` server route first.
   A browser key is optional. The server allows reviewed model overrides for
-  teachers, while pupil calls retain the server default.
+  teachers, while pupil calls retain the server default — except
+  `OPENAI_LIGHT_MODELS` (`gpt-6-luna`), which ANY signed-in caller may name
+  because it costs less than the default. The Science portal, Study Buddy and
+  Ans Key send it for their light jobs only (topic picks, tag suggestions, the
+  paper read at upload, grammar fixes); never add a model dearer than
+  `OPENAI_MODEL` to that list.
 - `askGemini` in `functions/index.js` now shares the same provider policy for
   grading, hints, photo matching and tutoring. Deploy the functions as well as
   the page; all three secrets are bound, and missing keys fall to the next engine.

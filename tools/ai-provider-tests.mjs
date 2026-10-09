@@ -215,6 +215,16 @@ test('pupils cannot choose a different billed model and explicit total budget st
   await h.api.askOpenAi({ auth: { uid: 'pupil', token: {} }, data: { prompt: 'Compute', model: 'gpt-6-astra', reasoningEffort: 'minimal', maxOutputTokens: 8000, exactOutputBudget: true } });
   const body = h.payloads[0].request; assert.equal(body.model, 'gpt-6.1-sol'); assert.equal(body.reasoning_effort, 'low'); assert.equal(body.max_completion_tokens, 8000);
 });
+test('any signed-in caller may ask for the cheaper light model, and nothing dearer', async () => {
+  const h = backend();
+  await h.api.askOpenAi({ auth: { uid: 'pupil', token: {} }, data: { prompt: 'Pick a topic', model: 'gpt-6-luna', temperature: 0.2 } });
+  const body = h.payloads[0].request;
+  assert.equal(body.model, 'gpt-6-luna'); assert.equal(body.reasoning_effort, 'low'); assert.equal('temperature' in body, false);
+  await h.api.askOpenAi({ auth: { uid: 'pupil', token: {} }, data: { prompt: 'Compute', model: 'gpt-6-astra' } });
+  assert.equal(h.payloads[1].request.model, 'gpt-6.1-sol');
+  await h.api.askOpenAi({ auth: { uid: 'teacher', token: { admin: true } }, data: { prompt: 'Fix grammar', model: 'gpt-6-luna' } });
+  assert.equal(h.payloads[2].request.model, 'gpt-6-luna');
+});
 test('shared Kimi K3 callable rejects unsupported sampling knobs and normalises effort', async () => {
   const h = backend();
   await h.api.askKimi({ auth: { uid: 'pupil', token: {} }, data: { prompt: 'Compute', reasoningEffort: 'minimal', temperature: 0.2, top_p: 0.4, thinking: { type: 'disabled' } } });

@@ -286,7 +286,12 @@ async function withAiTimeLimit(run, timeout) {
   } finally { clearTimeout(timer); }
 }
 const SERVER_TEXT_ENGINES = ['openai', 'gemini', 'kimi'];
-const OPENAI_ALLOWED_MODELS = ['gpt-6.1-sol', 'gpt-6-astra', 'gpt-6-astra-fast', 'gpt-5.6-sol', 'gpt-4o-mini', 'gpt-4o', 'gpt-4.1', 'o3', 'o4-mini'];
+const OPENAI_ALLOWED_MODELS = ['gpt-6.1-sol', 'gpt-6-astra', 'gpt-6-astra-fast', 'gpt-5.6-sol', 'gpt-6-luna', 'gpt-4o-mini', 'gpt-4o', 'gpt-4.1', 'o3', 'o4-mini'];
+// THE LIGHT TIER: any signed-in caller may name these, because each costs LESS
+// than OPENAI_MODEL — a pupil naming one cannot raise the bill. The apps use it
+// for jobs the code already checks (a topic pick, a grammar fix, a paper's
+// metadata); marking, hints and explanations never ask for it.
+const OPENAI_LIGHT_MODELS = ['gpt-6-luna'];
 function kimiIsK3(model) { return /^kimi-k3(?:$|[-.])/i.test(model); }
 function kimiReasoningEffort(value) { return value === 'max' ? 'max' : ['high', 'xhigh'].includes(value) ? 'high' : 'low'; }
 function openAiReasoningEffort(value) { return ['low', 'medium', 'high', 'xhigh', 'max'].includes(value) ? value : 'low'; }
@@ -1580,7 +1585,7 @@ export const askOpenAi = onCall(OPENAI_OPTS, async (request) => {
   if (!key) throw new HttpsError("failed-precondition", "No OpenAI key is configured on the server.");
 
   const d = request.data || {};
-  const model = isAdminAuth(auth) && OPENAI_ALLOWED_MODELS.includes(d.model) ? d.model : OPENAI_MODEL;
+  const model = OPENAI_LIGHT_MODELS.includes(d.model) || (isAdminAuth(auth) && OPENAI_ALLOWED_MODELS.includes(d.model)) ? d.model : OPENAI_MODEL;
   const prompt = cleanText(d.prompt, 200000);
   const system = cleanText(d.system, 200000);
   if (!prompt) throw new HttpsError("invalid-argument", "Nothing to ask.");
