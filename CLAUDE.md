@@ -2867,7 +2867,135 @@ fault.
   edit arcade-ui.css for a per-app fix.
 - Run **`node --test tools/practice-empty-state-tests.mjs`** after touching any of it.
 
+## 👩‍💻 Employee accounts — and ⏱️ the work-session clock they run (v1.92.0)
+
+`EMPLOYEE_EMAILS` / `EMPLOYEE_PAGES` / `EMPLOYEE_HOME` / `isEmployeeEmail` (beside
+`ADMIN_EMAILS`), `_isEmployee` / `_canAuthor` / `_navAllowed` / `_bankOwnerUid` /
+`_bankOwnerOrThrow` (beside `canManageQuestions`), `employeeEnsureClaim` /
+`employeeApplySidebar` and the whole `wk*` / `WK_*` block (search `WORK SESSIONS —
+the clock an author starts`), the `body.role-employee` and `.wk-*` CSS, `#wkSlot`
+in the top bar, `#page-worksession`, and `grantEmployeeRole` in `functions/index.js`.
+**Ported from the Science app (`polymathlc/cer`), with the SAME names** — keep the
+two in step; what differs here is called out below.
+
+Until v1.92.0 this app had two roles, and `_isEmployee()` was a stub answering
+`false`. So the person hired to write questions (`pkeertana21@gmail.com`) signed in
+to the **student** app — Practice, the games, "Set by your teacher" on every sheet —
+with no way to add a question and no clock, which is exactly what she reported.
+
+- **The role is decided at sign-in from `EMPLOYEE_EMAILS`**, never from a document a
+  browser can write. Admin wins when an address is on both lists; a QR guest is never
+  an employee. `functions/index.js` carries its own `EMPLOYEE_EMAILS` and the two
+  lists must agree (the harness compares them) — **a change there needs the
+  functions deploy the merge triggers**.
+- **`grantEmployeeRole` sets `employee: true` and NOTHING ELSE**: never `admin`,
+  never `config/mathAdmin`, and it carries the claims it did not set (the project is
+  shared with the Science app, and `setCustomUserClaims` replaces the whole set).
+  The page works without it — `employeeEnsureClaim` never stops a sign-in, exactly as
+  `clientAdminFallback` never stops an admin's.
+- **The menu is DEFAULT-DENY, in three places.** `employeeApplySidebar` hides every
+  `.nav-item` and hands `.emp-ok` only to `EMPLOYEE_PAGES`; the CSS rule
+  `body.role-employee .sidebar-nav .nav-item:not(.emp-ok)` is `!important`, which is
+  what survives a game door switching ITSELF back on seconds later
+  (`rpgApplyVisibility`, `tcgApplyNavVisibility`); and **`navigateTo` rewrites any
+  page off `EMPLOYEE_PAGES` to `EMPLOYEE_HOME`** — that line, not the hidden item, is
+  the lock. The game openers and ✍️ Practise refuse an employee too (practising marks,
+  and a marked attempt earns XP and a leaderboard row on the server). On the way back
+  to an ordinary role only the items this function hid are restored, never an
+  `.admin-only` / `.rpg-el` one — those were just set by their own sweep.
+- **An employee has NO BANK OF THEIR OWN.** `_bankOwnerUid()` is the teacher's uid
+  (`adminUid`, read off `config/mathAdmin` before anything loads) and every writer —
+  `saveQuestionDoc`, `deleteQuestionDoc`, `saveVettingDoc`, `deleteVettingDoc`,
+  `binMove`, `sylSaveLos`, the Custom Paper shelf — goes through it. With no teacher
+  found it is **null and every save refuses**, rather than file a question under the
+  employee's own uid where no pupil would ever meet it. The harness fails on any
+  `"users", currentUser.uid, "mathQuestions" | "mathQuestionKeys" | "mathVetting"`.
+- **`canManageQuestions()` now means "may AUTHOR"** (`_canAuthor()`: admin or
+  employee). What stays the TEACHER's asks `_isAdmin()`: student activity, the flag
+  inbox, the AI engine and both guides, new-question emails, the Dependency Board's
+  writes, the bin sweep, 📥 Import to bank, the RPG preview tools, the bank migration
+  re-saves in `loadBank`, and the online PDF worker (it answers an admin claim only, so
+  an employee's PDFs are read in the tab). Widening `_isAdmin()` instead opens all of
+  them at once.
+- **She is not a pupil.** The employee branch of `enterApp` writes no roster row, no
+  login event, no learning profile and no question history, skips `rpgInit`, and the
+  Student Results roster filters `EMPLOYEE_EMAILS` out (she has a row from the days
+  she signed in as a student).
+- **THE LIVE RULES ARE OPEN TODAY**, which is why none of this needed a rules deploy:
+  the last `student-question-history` rules deploy validated 52 cases, i.e. its 40
+  legacy open-access cases ran, which it only does when the starter `allow read, write`
+  blanket is present. `firestore.rules` is a template that is never deployed as-is; it
+  now documents `isEmployee()` / `isBankEmployee(uid)` (the bank `config/mathAdmin`
+  names, and only that one) and the `mathWorkSessions` matches, for the day the rules
+  are tightened.
+
+### ⏱️ The clock — MINIMAL ON PURPOSE
+
+- **ONE small pill in the top bar** (`#wkChip`): *▶ Start work session* while
+  nothing runs, a quiet ticking time while it does. Break / End / "see every question"
+  live in a popover that opens only when the pill is pressed. No floating bar over the
+  page (the Science app's `#wkBar` was deliberately not ported), no prompt to clock
+  on, no "are you still there?". An employee always has the pill — it IS the start
+  button; a teacher has it only while their own clock runs; a pupil never.
+- **The clock is TWO TIMESTAMPS, never a counter**: `_wkElapsed` =
+  `(endedAt || pausedAt || now) − startedAt − pausedMs`. A throttled tab, a sleeping
+  laptop and a closed browser cost nothing; the 1-second tick only repaints. Never
+  "fix" it by accumulating ticks.
+- **`lastSeen` is a 60-second heartbeat**, and an abandoned session is filed AT it:
+  past `WK_MAX_MS` (12h) of clock or `WK_IDLE_MAX_MS` (4h) since any tab had it open,
+  it is closed at its last heartbeat on the next sign-in. **Signing out files the
+  session** (`wkBeforeSignOut`, awaited before `signOut`). An account change only lets
+  go of the tab's copy (`wkReset`) — `_wkPersist` refuses to write a session under any
+  uid but its own.
+- **ACTIVE MINUTES (`actMins`)** are the one thing the Science app does not have: the
+  minutes in which this app saw a key, a click or a scroll with the tab in front. Passive
+  — nothing is ever asked — and shown beside the clock on HER page as well as the
+  teacher's, because "the tab was open six hours" and "six hours of work" are
+  different numbers.
+- **Every question is logged from the two save doors** (`saveQuestionDoc` /
+  `saveVettingDoc` → `wkLogQuestion`), so no authoring path can be forgotten.
+  `opts.quiet` keeps housekeeping out (the `loadBank` re-saves, release / hold moves,
+  objective re-files, a bin restore, 📥 Import to bank) and `_wkSuppress` guards an
+  automatic job; both are read **before the first await**.
+- **One session covers all her tabs**: localStorage is the shared truth, every write is
+  read-merge-write, and `_wkMerge` must stay **idempotent** — items union by id,
+  `actMins` union, `savesByTab` per tab (a summed total grows for ever), `pauseSetAt`
+  decides whose break is current, any `endedAt` wins, and **on a TIE the second
+  argument (this tab's live copy) wins** — with `>` a question drafted and approved in
+  one millisecond kept its stale "Vetting" tag.
+- **Subject-marked, because the four portals share ONE origin and ONE project**:
+  `mathWorkSessions/{uid}_{startedAt}` (with `users/{uid}/mathWorkSessions` as the
+  fallback when the shared one is refused) and the `mathWorkSession:` storage key. The
+  Science app's `workSessions` / `sq_work_session:` names would merge a Maths session
+  into the Science one.
+- **A session left open elsewhere is recovered** at sign-in (`_wkRecoverRemote`): a
+  stale one is closed at its heartbeat, a live one nobody is writing is picked up, and
+  one another device is still beating (`WK_LIVE_ELSEWHERE_MS`) is left alone — two
+  machines writing one document would erase each other's questions.
+- The state is **`var`**, because the save doors reach `_wkSuppress` / `_wkSession` on
+  every save — the `var editorLos` temporal-dead-zone trap.
+- Run **`node --test tools/employee-work-session-tests.mjs`** and
+  **`node tools/employee-browser-tests.mjs`** (Playwright; it loads the REAL page with
+  Firebase replaced by in-memory stand-ins and signs in as the employee) after touching
+  any of it.
+
 ## House rules
+- After touching **👩‍💻 the employee role or ⏱️ the work-session clock**
+  (`EMPLOYEE_EMAILS`, `EMPLOYEE_PAGES`, `_isEmployee`, `_canAuthor`,
+  `canManageQuestions`, `_bankOwnerUid`, `employeeApplySidebar`, the employee branch
+  of `enterApp`, `navigateTo`'s employee line, any `wk*` function, the save doors'
+  `wkLog`, or `grantEmployeeRole`), run `node --test tools/employee-work-session-tests.mjs`
+  and `node tools/employee-browser-tests.mjs`. Every failure is silent. Put a literal
+  `currentUser.uid` back on a bank path and the employee's questions are filed where no
+  pupil is ever served them, on a save that reports success. Widen `_isAdmin()` instead
+  of `canManageQuestions()` and she is handed Student Results, the AI engine and the
+  bin. Drop the `navigateTo` line and the hidden menu is the only lock — one bookmark
+  walks into the teacher's pages; drop the CSS rule and the game doors reappear a
+  second after sign-in. Count ticks instead of timestamps and every minimised tab loses
+  her hours; lose the merge's tie-break or idempotence and two tabs erase or double her
+  log. Let the two `EMPLOYEE_EMAILS` lists drift and the page grants a role the server
+  will never back. And a change under `functions/` **needs a functions deploy** — the
+  workflow does it on merge to main.
 - After touching **🟢 the practice empty screen** (`practiceEmptyInfo`,
   `practiceEmptyCopy`, `_practicePlan`'s narrowed check, the empty branch of
   `_renderQuestionReady`, `_practiceMistakeQuestions`, `learningLabelIsSkill`, or

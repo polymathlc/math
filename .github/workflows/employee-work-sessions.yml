@@ -1,0 +1,48 @@
+name: Employee role and work sessions
+# 👩‍💻 The employee account (questions written into the teacher's bank, a menu
+# that is default-deny) and ⏱️ the work-session clock it runs. Both fail
+# silently — an employee who lands in the student app, a question filed under
+# the employee's own uid, a clock that loses the hours of a second tab — so
+# both are checked on every change to the page, the functions or the rules.
+on:
+  pull_request:
+    paths: ['index.html', 'functions/index.js', 'firestore.rules', 'tools/employee-*.mjs', '.github/workflows/employee-work-sessions.yml']
+  push:
+    branches: [main]
+    paths: ['index.html', 'functions/index.js', 'firestore.rules', 'tools/employee-*.mjs', '.github/workflows/employee-work-sessions.yml']
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check the role, the bank owner, the clock and the server claim
+        run: node --test tools/employee-work-session-tests.mjs
+      - run: node --check functions/index.js
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated browser runtime
+        run: |
+          npm install --prefix "$RUNNER_TEMP/employee-browser" --no-audit --no-fund playwright@1.62.1
+          "$RUNNER_TEMP/employee-browser/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Sign in as the employee on the real page
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/employee-browser/node_modules/playwright/index.mjs
+          EMP_SHOTS: ${{ runner.temp }}/employee-qa
+        run: node tools/employee-browser-tests.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: employee-work-session-browser
+          path: ${{ runner.temp }}/employee-qa
+          retention-days: 7

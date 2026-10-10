@@ -15,6 +15,8 @@
 //    pre-existing client-side save.
 //  - grantAdminRole: sets the `admin` custom claim for allow-listed,
 //    verified emails (the claim is what Firestore rules trust).
+//  - grantEmployeeRole: sets the `employee` custom claim for the people
+//    hired to WRITE QUESTIONS — never `admin`, and never for an admin.
 //
 // Reward formulas mirror the client's rpgOnMarked/rpgApplyRewards so the
 // game feels identical; the only design deltas are noted inline.
@@ -43,6 +45,11 @@ const MOONSHOT_API_KEY = defineSecret("MOONSHOT_API_KEY");
 // Server-side admin allowlist. Keep in sync with ADMIN_EMAILS in the app —
 // this list is the one that actually grants power.
 const ADMIN_EMAILS = ["chungzhikai@gmail.com", "abigail.yew@stanfordmanpower.com"];
+// Server-side EMPLOYEE allowlist (v1.92.0). Keep in sync with EMPLOYEE_EMAILS
+// in index.html — the page decides who may ASK, this list decides who GETS the
+// claim. An employee authors questions into the teacher's bank and nothing
+// else: the claim is `employee: true`, which no function here treats as admin.
+const EMPLOYEE_EMAILS = ["pkeertana21@gmail.com"];
 
 const AI_TEXT_MODELS = ["gemini-3.8-flash", "gemini-2.5-flash"];
 // How much the model may think is configured differently on either side of the
@@ -2219,5 +2226,37 @@ export const grantAdminRole = onCall(LIGHT_OPTS, async (request) => {
   if (auth.token.admin === true) return { granted: true, refreshed: false };
   await getAuth().setCustomUserClaims(auth.uid, { admin: true });
   await db.doc("config/mathAdmin").set({ uid: auth.uid, email }, { merge: true });
+  return { granted: true, refreshed: true };
+});
+
+// ---------------------------------------------------------------------
+// grantEmployeeRole — the employee twin of grantAdminRole (v1.92.0)
+// ---------------------------------------------------------------------
+// The role an employee works under is decided in the browser from
+// EMPLOYEE_EMAILS (exactly as ADMIN_EMAILS decides who may ask for the admin
+// claim); this is what a rules file can TRUST. Three things it never does:
+//  - grant `admin`. An employee is an author, not the teacher, and every
+//    teacher-only path here (the AI engine switch, model overrides, solutions
+//    for any sheet, the leaderboard exemption) keys on `admin` alone.
+//  - touch `config/mathAdmin`. That pointer is what every student resolves the
+//    bank from; an employee writing it would repoint the school at an empty one.
+//  - drop a claim it did not set. setCustomUserClaims REPLACES the whole set,
+//    so the existing claims are read first and carried — the Firebase project
+//    is shared with the Science app, and a claim that app relies on must not
+//    vanish because this app was signed into.
+export const grantEmployeeRole = onCall(LIGHT_OPTS, async (request) => {
+  const auth = requireAuth(request);
+  const email = String(auth.token.email || "").toLowerCase();
+  if (ADMIN_EMAILS.includes(email)) throw new HttpsError("failed-precondition", "This account is an admin — it signs in with the admin role.");
+  if (!EMPLOYEE_EMAILS.includes(email)) throw new HttpsError("permission-denied", "This account is not on the employee list.");
+  if (auth.token.email_verified !== true) throw new HttpsError("failed-precondition", "Verify your email first, then sign in again.");
+  if (auth.token.employee === true) return { granted: true, refreshed: false };
+  const user = await getAuth().getUser(auth.uid);
+  const claims = Object.assign({}, user.customClaims || {});
+  // An employee is never an admin: a stale `admin` claim on an address that
+  // is on the employee list (and not the admin one) is taken off, not kept.
+  delete claims.admin;
+  claims.employee = true;
+  await getAuth().setCustomUserClaims(auth.uid, claims);
   return { granted: true, refreshed: true };
 });

@@ -55,6 +55,9 @@ function fixture(bank = [question('a')], options = {}) {
     setDoc: async (path, value, merge) => writes.push({ path, value: structuredClone(value), merge }),
     getDocs: async () => ({ forEach: noop }), isPermissionError: () => false,
     updateFlagBadge: noop, closeOverlay: noop, makeDocId: () => 'report-1', notificationAdminUid: () => 'teacher',
+    // saveQuestionDoc writes into the BANK OWNER's subtree (an employee has no
+    // bank of their own) and logs to the ⏱️ work-session clock — v1.92.0.
+    _bankOwnerOrThrow: () => c.currentUser.uid, _wkSuppress: 0, wkLogQuestion: noop,
     compactQuestionSummary: q => q.title, studentTopicsLabel: q => q.topic,
     aiReady: () => true, weaknessPracticeTarget: () => ({ topic: 'Fractions', concept: '' }),
     learningSnapshotForGeneration: () => ({}), parseAIJson: value => value,
