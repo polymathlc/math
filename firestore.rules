@@ -18,6 +18,12 @@ rules_version = '2';
 //    Admin SDK (which bypasses these rules). Clients get read access.
 //  - Everything a student can write is namespaced to their own uid and,
 //    where shared (leaderboard), restricted to cosmetic fields.
+//  - Employees (people hired to WRITE QUESTIONS, v1.92.0) carry the
+//    `employee: true` claim set by the grantEmployeeRole callable. They may
+//    read and write the question bank, its answer keys and the vetting list
+//    of the ONE bank students are served from — the uid config/mathAdmin
+//    names — and nothing else of the teacher's. They never write
+//    config/mathAdmin. Their ⏱️ work sessions are their own documents.
 // =====================================================================
 
 service cloud.firestore {
@@ -31,6 +37,17 @@ service cloud.firestore {
     }
     function isOwner(uid) {
       return signedIn() && request.auth.uid == uid;
+    }
+    function isEmployee() {
+      return signedIn() && request.auth.token.employee == true;
+    }
+    // An employee has no bank of their own: they author into the teacher's,
+    // and only the teacher's — the subtree config/mathAdmin points at, which
+    // is the one every student loads.
+    function isBankEmployee(uid) {
+      return isEmployee()
+        && exists(/databases/$(database)/documents/config/mathAdmin)
+        && get(/databases/$(database)/documents/config/mathAdmin).data.uid == uid;
     }
 
     // Which admin's question bank students should load.
@@ -94,6 +111,22 @@ service cloud.firestore {
       allow read:   if signedIn();
       allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
       allow update, delete: if isAdmin();
+    }
+
+    // ⏱️ Work sessions (v1.92.0) — the clock an author starts, one document per
+    // session, id `{uid}_{startedAt}`. Subject-marked because the Science app
+    // owns a `workSessions` collection in this same project. An author writes
+    // only their own; the teacher reads everyone's; nobody else reads any.
+    match /mathWorkSessions/{sessionId} {
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.uid == request.auth.uid);
+      allow create: if (isAdmin() || isEmployee())
+        && request.resource.data.uid == request.auth.uid
+        && sessionId.matches(request.auth.uid + '_[0-9]+');
+      allow update: if (isAdmin() || isEmployee())
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == request.auth.uid;
+      allow delete: if isAdmin();
     }
 
     // Weekly class raid boss. Damage is contributed by the markAttempt
@@ -160,14 +193,14 @@ service cloud.firestore {
       // may read; only admins write (and only into their own bank).
       match /mathQuestions/{qid} {
         allow read: if signedIn();
-        allow write: if isAdmin() && isOwner(uid);
+        allow write: if (isAdmin() && isOwner(uid)) || isBankEmployee(uid);
       }
 
       // Private half: expected answer, marking guide, answer-key image and
       // video URLs. Students never read this — the marking function reads
       // it through the Admin SDK.
       match /mathQuestionKeys/{qid} {
-        allow read, write: if isAdmin() && isOwner(uid);
+        allow read, write: if (isAdmin() && isOwner(uid)) || isBankEmployee(uid);
       }
 
       // Vetting: questions the AI has read (Rapid add / whole-paper import)
@@ -175,7 +208,7 @@ service cloud.firestore {
       // nothing in here is served to a student — so it is admin-only on BOTH
       // read and write, like mathQuestionKeys above.
       match /mathVetting/{qid} {
-        allow read, write: if isAdmin() && isOwner(uid);
+        allow read, write: if (isAdmin() && isOwner(uid)) || isBankEmployee(uid);
       }
 
       // Saved worksheets. A worksheet doc is only a title, an ORDERED LIST OF
@@ -242,7 +275,9 @@ service cloud.firestore {
       // with the admin.
       match /settings/{docId} {
         allow read: if isOwner(uid) || isAdmin()
-          || (signedIn() && docId in ['tcgConfig', 'tcgArt', 'boardBans']);
+          || (signedIn() && docId in ['tcgConfig', 'tcgArt', 'boardBans'])
+          // An employee builds questions to the teacher's generation brief.
+          || (isBankEmployee(uid) && docId in ['mathMarking', 'mathGeneration']);
         allow write: if (isOwner(uid) || isAdmin())
           && docId in ['mathLearningProfile', 'mathRpg', 'mathMarking', 'mathGeneration',
                        'tcgConfig', 'tcgArt', 'boardBans'];
@@ -268,6 +303,15 @@ service cloud.firestore {
       // Admin-side log of notification emails sent per question.
       match /questionUploadNotifications/{noteId} {
         allow read, write: if isOwner(uid) || isAdmin();
+      }
+
+      // ⏱️ The private copy of an author's work session — the fallback the
+      // app files to if the shared mathWorkSessions collection is ever closed.
+      match /mathWorkSessions/{sessionId} {
+        allow read: if isOwner(uid) || isAdmin();
+        allow create, update: if isOwner(uid) && (isAdmin() || isEmployee())
+          && request.resource.data.uid == request.auth.uid;
+        allow delete: if isAdmin();
       }
     }
 

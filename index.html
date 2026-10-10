@@ -4720,6 +4720,105 @@ body.lore-reading { overflow: hidden; }
 
 
 .vet-print-eye svg {width:18px;height:18px;}
+
+/* ==================== 👩‍💻 EMPLOYEE MENU (v1.92.0) ====================
+   Default-deny, in CSS as well as in employeeApplySidebar(): several game
+   doors switch THEMSELVES back on when their own loads resolve, seconds after
+   the sidebar was locked down, and `style.display = ""` cannot beat an
+   !important rule. An item survives only if it carries .emp-ok, which only
+   employeeApplySidebar() hands out, and only to EMPLOYEE_PAGES. */
+body.role-employee .sidebar-nav .nav-item:not(.emp-ok) { display: none !important; }
+body.role-employee .sidebar-nav .nav-section,
+body.role-employee .nav-tcg-wrap,
+body.role-employee .rpg-side,
+body.role-employee .rpg-el,
+body.role-employee .sidebar-level,
+body.role-employee #flagInboxBtn,
+body.role-employee #emailBellBtn { display: none !important; }
+
+/* ==================== ⏱️ WORK SESSIONS (v1.92.0) ====================
+   MINIMAL ON PURPOSE. The clock is one small pill in the top bar — a start
+   button while nothing is running, a quiet ticking time while it is — and
+   everything else (break, end, the questions logged) is one tap away in a
+   popover that only opens when asked. Nothing floats over the page, nothing
+   interrupts the question being written, and the pill never changes size
+   while it ticks (tabular figures). */
+.wk-slot { position: relative; display: inline-flex; }
+.wk-chip { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); font-family: inherit; font-size: 0.8rem; font-weight: 700; line-height: 1; cursor: pointer; white-space: nowrap; transition: border-color var(--transition), background var(--transition), color var(--transition); }
+.wk-chip:hover { border-color: var(--primary); color: var(--primary); }
+.wk-chip:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.wk-chip.on { color: var(--accent-green); border-color: var(--accent-green); background: var(--accent-green-light); }
+.wk-chip.paused { color: var(--accent-orange); border-color: var(--accent-orange); background: var(--accent-orange-light); }
+.wk-chip-time { font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
+.wk-chip-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: 0 0 auto; }
+.wk-chip.on .wk-chip-dot { animation: wkPulse 2.4s ease-in-out infinite; }
+@keyframes wkPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+.wk-chip:not(.on):not(.paused) .wk-chip-dot { display: none; }   /* idle: the ▶ says it */
+.wk-short { display: none; }
+@media (max-width: 640px) { .wk-long { display: none; } .wk-short { display: inline; } .wk-chip { padding: 0 12px; } }
+.wk-pop { position: absolute; top: calc(100% + 10px); right: 0; z-index: 160; width: min(310px, calc(100vw - 24px)); padding: 20px 22px 18px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-lg); color: var(--text); text-align: left; }
+.wk-pop[hidden] { display: none; }
+.wk-pop-head { font-size: 0.74rem; font-weight: 700; color: var(--text-muted); letter-spacing: 0.02em; margin-bottom: 8px; line-height: 1.5; }
+.wk-pop-clock { font-size: 1.9rem; font-weight: 700; line-height: 1.15; font-variant-numeric: tabular-nums; margin-bottom: 10px; }
+.wk-pop-meta { font-size: 0.8rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 16px; }
+.wk-pop-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.wk-pop-actions .btn { flex: 1 1 auto; }
+.wk-pop-link { display: block; margin-top: 14px; padding: 0; border: 0; background: none; color: var(--primary); font-family: inherit; font-size: 0.8rem; font-weight: 600; cursor: pointer; text-align: left; }
+.wk-pop-link:hover { text-decoration: underline; }
+
+/* ---- The ⏱️ Work Sessions page ---- */
+.wk-wrap { max-width: 820px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+.wk-card { padding: 28px 30px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-sm); }
+.wk-live { text-align: center; }
+.wk-live-head { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+.wk-live-label { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.9rem; color: var(--accent-green); }
+.wk-live-paused .wk-live-label { color: var(--accent-orange); }
+.wk-live-label.wk-idle { color: var(--text-muted); font-weight: 600; }
+.wk-since { font-size: 0.78rem; color: var(--text-muted); }
+.wk-pulse { width: 9px; height: 9px; border-radius: 50%; background: currentColor; animation: wkPulse 2.4s ease-in-out infinite; }
+.wk-clock { font-size: 3.1rem; font-weight: 700; line-height: 1.15; letter-spacing: 0.01em; font-variant-numeric: tabular-nums; color: var(--text); margin: 6px 0 18px; }
+.wk-clock-idle { color: var(--text-light); }
+.wk-stats, .wk-totals { display: flex; justify-content: center; gap: 34px; flex-wrap: wrap; margin-bottom: 22px; }
+.wk-totals { justify-content: flex-start; gap: 40px; margin: 20px 0 24px; }
+.wk-stat { display: flex; flex-direction: column; gap: 4px; align-items: center; }
+.wk-totals .wk-stat { align-items: flex-start; }
+.wk-stat b { font-size: 1.35rem; font-weight: 700; line-height: 1.2; }
+.wk-stat span { font-size: 0.75rem; color: var(--text-muted); }
+.wk-actions { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+.wk-live .wk-actions .btn { min-width: 168px; }
+.wk-hint { margin: 0 auto 22px; max-width: 60ch; font-size: 0.86rem; line-height: 1.7; color: var(--text-muted); }
+.wk-warn { margin: 20px auto 0; max-width: 62ch; padding: 12px 16px; border-radius: var(--radius-md); background: var(--accent-orange-light); color: var(--accent-orange); font-size: 0.8rem; line-height: 1.65; text-align: left; }
+.wk-warn code { font-size: 0.78rem; }
+.wk-h3 { margin: 0 0 18px; font-size: 1.02rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.wk-pill { display: inline-block; padding: 2px 10px; border-radius: 999px; background: var(--primary-light); color: var(--primary); font-size: 0.74rem; font-weight: 700; }
+.wk-empty { margin: 0; font-size: 0.86rem; line-height: 1.7; color: var(--text-muted); }
+.wk-list { display: flex; flex-direction: column; gap: 10px; }
+.wk-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 13px 16px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-alt); }
+.wk-row-main { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.wk-row-title { font-size: 0.88rem; font-weight: 600; line-height: 1.5; overflow: hidden; text-overflow: ellipsis; }
+.wk-row-meta { font-size: 0.75rem; color: var(--text-muted); line-height: 1.55; }
+.wk-row-time { flex: 0 0 auto; font-size: 0.75rem; color: var(--text-light); font-variant-numeric: tabular-nums; }
+.wk-tag { flex: 0 0 auto; padding: 3px 10px; border-radius: 999px; font-size: 0.7rem; font-weight: 700; white-space: nowrap; }
+.wk-tag-bank { background: var(--primary-light); color: var(--primary); }
+.wk-tag-vet { background: var(--accent-orange-light); color: var(--accent-orange); }
+.wk-tag-n { background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); }
+.wk-tag-dur { background: var(--primary); color: #fff; }
+.wk-tag-act { background: var(--accent-green-light); color: var(--accent-green); }
+.wk-hist-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.wk-hist-head .wk-h3 { margin-bottom: 0; }
+.wk-hist-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.wk-select { padding: 7px 12px; border: 1.5px solid var(--border); border-radius: var(--radius-md); background: var(--surface); font-family: inherit; font-size: 0.8rem; color: var(--text); }
+.wk-hist-list { margin-top: 18px; }
+.wk-hist { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-alt); overflow: hidden; }
+.wk-hist-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; width: 100%; padding: 14px 16px; border: 0; background: none; color: inherit; font-family: inherit; text-align: left; cursor: pointer; }
+.wk-hist-row:hover { background: var(--primary-light); }
+.wk-hist-row:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.wk-caret { flex: 0 0 auto; color: var(--text-muted); font-size: 0.8rem; }
+.wk-hist-body { display: flex; flex-direction: column; gap: 10px; padding: 4px 16px 18px; border-top: 1px solid var(--border); }
+.wk-hist-body .wk-row { background: var(--surface); }
+.wk-hist-body .wk-empty { padding-top: 14px; }
+@media (max-width: 640px) { .wk-card { padding: 22px 18px; } .wk-clock { font-size: 2.4rem; } .wk-stats, .wk-totals { gap: 22px; } }
+@media (prefers-reduced-motion: reduce) { .wk-chip.on .wk-chip-dot, .wk-pulse { animation: none; } }
 </style>
 <link rel="stylesheet" href="arcade-ui.css?v=2">
 <link rel="stylesheet" href="./tcg-combat.css?v=1">
@@ -4811,6 +4910,7 @@ body.lore-reading { overflow: hidden; }
       <div class="nav-item admin-only" data-page="custompaper" title="Custom Paper — build a mock exam paper OR an ordinary worksheet from scratch. Paste the question screenshots in and they are read as one run. In paper mode they are sorted into Booklet A (multiple choice) and Booklet B (open-ended), numbered straight through and printed with a cover for each booklet; in worksheet mode they print as one numbered list on an ordinary worksheet. Everything sent to the bank is held back from students until you release it."><span class="ico">🗂️</span> Custom Paper</div>
       <div class="nav-item admin-only" data-page="worksheet" title="Pick questions, add a cover, then print or save the worksheet"><span class="ico">📝</span> Create Worksheet</div>
       <div class="nav-item" data-page="myworksheets" title="Your saved worksheets — reprint, practise or delete"><span class="ico">📄</span> My Worksheets</div>
+      <div class="nav-item admin-only" data-page="worksession" title="Work Sessions — press Start when you sit down to write questions. The clock keeps running in the background, and every question you save while it runs is logged against the session."><span class="ico">⏱️</span> Work Sessions</div>
       <div class="nav-item admin-only" id="navAiEngine" title="Choose which AI powers the app — Gemini (default) or ChatGPT with your own OpenAI key. The choice is saved on this device."><span class="ico">🧠</span> AI Engine</div>
       <div class="nav-item admin-only" id="navMarking"><span class="ico">⚖️</span> AI Marking Guide</div>
       <div class="nav-item admin-only" id="navGen"><span class="ico">✨</span> AI Generation Guide</div>
@@ -4842,6 +4942,17 @@ body.lore-reading { overflow: hidden; }
       <h2 id="topbarTitle">Practice</h2>
       <div class="topbar-spacer"></div>
       <div class="topbar-actions">
+        <!-- ⏱️ The work-session clock (v1.92.0). ONE small pill: "Start work
+             session" while nothing is running, a quiet ticking time while it
+             is. Break / End / the questions logged are in the popover, which
+             opens only when the pill is pressed. Hidden for pupils, and for an
+             admin who has not clocked on — see WORK SESSIONS in the module. -->
+        <div class="wk-slot" id="wkSlot" style="display:none;">
+          <button class="wk-chip" id="wkChip" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="wkPop">
+            <span class="wk-chip-dot" aria-hidden="true"></span><span class="wk-chip-label" id="wkChipLabel">Start work session</span><span class="wk-chip-time" id="wkChipTime"></span>
+          </button>
+          <div class="wk-pop" id="wkPop" role="dialog" aria-label="Work session" hidden></div>
+        </div>
         <button class="icon-btn rpg-chip rpg-el" id="rpgTopChip" type="button" style="display:none;" title="Your hero">🛡️ <span id="rpgTopChipText">Lv 1</span></button>
         <button class="icon-btn student-only" id="emailBellBtn" type="button" title="Email me when new questions are uploaded">🔔</button>
         <button class="icon-btn admin-only" id="flagInboxBtn" type="button" title="Flagged questions">🚩<span class="notify-count" id="flagCount">0</span></button>
@@ -5518,6 +5629,15 @@ body.lore-reading { overflow: hidden; }
         <label title="Print a blank rounded box at the foot of every question for the student to write their own learning objectives in. A question that already has a 🎯 Learning objectives block keeps its own box instead."><input type="checkbox" id="mwIncludeObjBox"> 🎯 Learning-objectives box on every question</label>
       </div>
       <div class="ws-saved-grid" id="savedWsGrid"></div>
+    </div>
+
+    <!-- ================= ⏱️ WORK SESSIONS PAGE (authors) =================
+         The clock, the questions logged against it and every past session.
+         An employee sees their own; the teacher sees everyone's. Rendered
+         entirely from JS — see wkRenderPage. -->
+    <div class="page" id="page-worksession">
+      <div class="page-head"><h3>⏱️ Work Sessions</h3><p>Press <b>Start</b> when you sit down to write questions. The clock runs quietly in the background — in the small pill at the top of every page — and every question you save while it runs is logged here.</p></div>
+      <div class="wk-wrap" id="wkPageBody"></div>
     </div>
 
     <!-- ================= WORKSHEET OVERVIEW PAGE =================
@@ -6344,6 +6464,52 @@ const AI_REGEN_MODEL = "gemini-3.8-flash";
 const ADMIN_EMAILS = ['chungzhikai@gmail.com', 'abigail.yew@stanfordmanpower.com'];
 
 // =====================================================================
+// 👩‍💻 EMPLOYEE ACCOUNTS — somebody hired to WRITE QUESTIONS (v1.92.0)
+// =====================================================================
+// A third role between admin and student, ported from the Science app
+// (polymathlc/cer), where it has run since v1.235.0 with the SAME names —
+// `EMPLOYEE_EMAILS`, `EMPLOYEE_PAGES`, `_isEmployee`, `_canAuthor`,
+// `_navAllowed`, `_bankOwnerUid` — so a fix in one app copies to the other.
+//
+// Until this block existed the Maths app had TWO roles, and an employee who
+// signed in here was simply a STUDENT: the practice page, the games and a
+// "Set by your teacher" label on every worksheet, with no way to add a
+// question and no ⏱️ work-session clock at all — which is exactly what she
+// reported. `_isEmployee()` was a stub that always answered false.
+//
+//  - THE ROLE IS DECIDED AT SIGN-IN FROM THIS LIST, never from a document a
+//    browser can write. An address on BOTH lists is an admin: admin wins.
+//  - THEY GET EXACTLY `EMPLOYEE_PAGES` AND NOTHING ELSE. The sidebar is
+//    default-deny (every nav item is hidden and only these are shown back),
+//    `navigateTo` rewrites any other page to `EMPLOYEE_HOME`, and a CSS rule
+//    keyed on `body.role-employee` keeps a late `style.display = ""` from
+//    resurrecting a game door after the lockdown. A hidden nav item is never
+//    the lock on its own.
+//  - THEY HAVE NO BANK OF THEIR OWN. Everything they author is written into
+//    the teacher's bank (`_bankOwnerUid()` → `adminUid`, read off
+//    `config/mathAdmin`), because a question filed under the employee's own
+//    uid is a question no student would ever be served.
+//  - THEY NEVER WRITE `config/mathAdmin`. That pointer is what every student
+//    resolves the bank from; an employee writing it would repoint the whole
+//    school at an empty bank.
+//  - Authoring gates ask `canManageQuestions()` (= `_canAuthor()`); the
+//    things that stay the TEACHER'S — student results, the AI engine and the
+//    marking guide, the flag inbox, the dependency board, the bin, diagnostic
+//    tests, Custom Paper, the answer-key scanner, the online PDF worker — ask
+//    `_isAdmin()`. Widening `_isAdmin()` instead would open every one of them.
+const EMPLOYEE_EMAILS = ['pkeertana21@gmail.com'];
+// `worksheetview` is the 🎬 Solutions & videos page a My Worksheets card opens;
+// it has no nav item of its own, but rewriting it away would make that button
+// land on the question creator instead.
+const EMPLOYEE_PAGES = ['create', 'vetting', 'bank', 'syllabus', 'worksheet', 'myworksheets', 'worksheetview', 'worksession'];
+// Where an employee lands, and where a page they may not open sends them. The
+// question creator, not the clock: the ⏱️ chip in the top bar is one tap away
+// on every page, and landing on a timer page every morning is the intrusive
+// version of the same feature.
+const EMPLOYEE_HOME = 'create';
+function isEmployeeEmail(email) { return EMPLOYEE_EMAILS.includes(String(email || '').trim().toLowerCase()); }
+
+// =====================================================================
 // THE GAME ATTEMPT LOG LIVES IN THIS APP'S OWN COLLECTION
 // =====================================================================
 // Named here, ONCE, because this Firebase project is shared with the Science
@@ -6395,6 +6561,9 @@ const askMrChungCall = httpsCallable(cloudFunctions, "askMrChung", { timeout: 24
 const starfallCall = httpsCallable(cloudFunctions, "starfall");
 const importLegacyProgressionCall = httpsCallable(cloudFunctions, "importLegacyProgression");
 const grantAdminRoleCall = httpsCallable(cloudFunctions, "grantAdminRole");
+// 👩‍💻 The employee twin of the admin claim. EMPLOYEE_EMAILS only decides who may
+// ASK for it; the function re-checks its own list, and it never grants admin.
+const grantEmployeeRoleCall = httpsCallable(cloudFunctions, "grantEmployeeRole");
 // The worksheet overview page's answer keys and videos. They live in the
 // admin-only mathQuestionKeys docs, so a student can only ever get at them
 // through this function — and only for a worksheet whose owner left
@@ -8679,7 +8848,10 @@ async function loadStudentRoster() {
     wrap.innerHTML = `<div class="empty-note" style="padding:20px;">Couldn't load student results. Ensure your Firestore rules let admins read the <b>studentProfiles</b> collection.</div>`;
     return;
   }
-  rows = rows.filter(r => r && !ADMIN_EMAILS.includes(String(r.email || "").toLowerCase()));
+  // 👩‍💻 An employee is not a pupil. Anybody who signed in here before the role
+  // existed already has a roster row from those student sign-ins, and listing
+  // it would put the person writing the questions in the class answering them.
+  rows = rows.filter(r => r && !ADMIN_EMAILS.includes(String(r.email || "").toLowerCase()) && !isEmployeeEmail(r.email));
   studentRosterRows = rows;
   renderStudentRoster();
 }
@@ -8735,7 +8907,7 @@ function renderStudentRoster() {
 const RAPID_SUBMIT_MS = 30 * 1000;   // consecutive submissions closer than this look unusually fast
 let activityStudentUid = null;
 async function openStudentActivity(uid) {
-  if (!canManageQuestions()) { toast("Only admin accounts can view student activity", "error"); return; }
+  if (!_isAdmin()) { toast("Only admin accounts can view student activity", "error"); return; }
   if (!uid) return;
   activityStudentUid = uid;
   const row = studentRosterRows.find(r => r && r.uid === uid) || {};
@@ -9656,7 +9828,15 @@ $("googleBtn").addEventListener("click", async () => {
   try { await signInWithPopup(auth, googleProvider, browserPopupRedirectResolver); }
   catch (e) { toast(_authError(e), "error"); }
 });
-$("logoutBtn").addEventListener("click", () => signOut(auth));
+// ⏱️ Signing out is the clearest "I have stopped" there is, so a running work
+// session is FILED at this moment rather than left counting on the wall clock
+// until the next sign-in — hours spent signed out are not hours worked. The
+// write is awaited (bounded) BEFORE signOut, because once the auth token is
+// gone the session can no longer be written to the account it belongs to.
+$("logoutBtn").addEventListener("click", async () => {
+  try { await wkBeforeSignOut(); } catch (e) { console.warn("work session sign-out", e); }
+  signOut(auth);
+});
 { const _lv = $("studentLevelSelect"); if (_lv) _lv.addEventListener("change", e => saveStudentLevel(e.target.value)); }
 function _authError(e) {
   const c = (e && e.code) || "";
@@ -9672,7 +9852,9 @@ const pirateRiftPortal = installPirateRiftPortal({
   subject: 'math', getUser: () => currentUser, getLevel: () => studentLevel,
   notify: message => showToast(message, 'error'), beforeOpen: () => { grandLinePortal.close(); hadesMathBeta.close(); }
 });
-window.openPirateRift = () => pirateRiftPortal.open();
+// 👩‍💻 The game doors are a pupil's: an employee's are hidden in the menu AND
+// refused here, because a hidden button is never the lock.
+window.openPirateRift = () => (_isEmployee() ? undefined : pirateRiftPortal.open());
 const grandLineRpgSaveGate = createGrandLineRpgSaveGate({getUser:()=>currentUser,flush:()=>rpgSave()});
 const grandLinePortal = installGrandLinePortal({
   ...createGrandLineEconomy({
@@ -9705,7 +9887,7 @@ const grandLinePortal = installGrandLinePortal({
     }
   })
 });
-window.openGrandLine=()=>grandLinePortal.open();
+window.openGrandLine=()=>(_isEmployee() ? undefined : grandLinePortal.open());
 
 // Hades beta uses the released bank, profile level and authenticated MCQ marking.
 const hadesMathBeta = installHadesMathBeta({
@@ -9727,7 +9909,7 @@ const hadesMathBeta = installHadesMathBeta({
   renderBlocks: q => renderQuestionBlocksHtml((q.blocks || []).filter(b => b && ['text', 'image', 'table', 'objectivesBox'].includes(b.type))),
   renderOption: renderMathBlock, notify: message => showToast(message, 'error')
 });
-window.openHadesMathBeta = () => { pirateRiftPortal.close(); grandLinePortal.close(); return hadesMathBeta.open(); };
+window.openHadesMathBeta = () => { pirateRiftPortal.close(); grandLinePortal.close(); if (_isEmployee()) return; return hadesMathBeta.open(); };
 
 let guestSignInTried = false;
 onAuthStateChanged(auth, async (user) => {
@@ -9740,11 +9922,18 @@ onAuthStateChanged(auth, async (user) => {
   pirateRiftPortal.close();
   grandLinePortal.close();
   _practiceViewEpoch++;
+  // ⏱️ The clock belongs to the account that started it, so this tab lets go
+  // of its copy here. The session itself stays in localStorage under its own
+  // uid, and wkInit picks it back up when that account signs in again.
+  try { wkReset(); } catch (e) { console.warn("work session reset", e); }
   if (user) { await enterApp(user, authEpoch); }
   else {
     currentUser = null;
     sharedAiEngine = null;
     interfaceStudio?.setUser(null);
+    // Signed out: the next account to sign in on this machine must not inherit
+    // the employee's locked-down menu, and nobody's clock chip stays on screen.
+    try { employeeApplySidebar(); wkRenderAll(); } catch (e) { console.warn("role reset", e); }
     rapidCloudReset();
     vetPrintPeekHide();
     adminUid = null;
@@ -9766,6 +9955,1073 @@ onAuthStateChanged(auth, async (user) => {
     $("authScreen").style.display = "flex";
   }
 });
+
+// =====================================================================
+// 👩‍💻 EMPLOYEE SIGN-IN — the claim and the locked-down menu (v1.92.0)
+// =====================================================================
+// The employee twin of the admin claim. The role itself is decided in the
+// browser from EMPLOYEE_EMAILS (exactly as ADMIN_EMAILS decides who may ask
+// for the admin claim); the `employee: true` custom claim is what a rules
+// file can trust, and `grantEmployeeRole` re-checks its own server-side list
+// before it sets one. It is asked ONCE: after it lands, the token carries it
+// and every later sign-in returns at the first line.
+//
+// It never stops the sign-in. Not deployed yet, an unverified address, a cold
+// start that times out — each leaves the role working in this browser, the
+// same fallback `clientAdminFallback` gives an admin, and the shared project's
+// rules decide what a write may do.
+async function employeeEnsureClaim(user, tokenResult) {
+  try {
+    if (tokenResult && tokenResult.claims && tokenResult.claims.employee === true) return true;
+    await grantEmployeeRoleCall({});
+    const fresh = await user.getIdTokenResult(true);   // force-refresh to pick the claim up
+    return !!(fresh && fresh.claims && fresh.claims.employee === true);
+  } catch (e) {
+    console.info("Employee claim unavailable — using the client-side role", (e && (e.code || e.message)) || e);
+    return false;
+  }
+}
+
+// DEFAULT-DENY. For an employee every `.nav-item` is hidden and only
+// EMPLOYEE_PAGES are shown back — so a nav item somebody adds next month is
+// hidden from them without anybody having to remember this function. The
+// `role-employee` class on <body> carries the same rule in CSS with
+// !important, which is what survives the game doors switching THEMSELVES back
+// on seconds later (rpgApplyVisibility, tcgApplyNavVisibility…).
+//
+// Called with the role already set (from enterApp) and with nobody signed in
+// (from the sign-out branch). On the way back to an ordinary role, only the
+// items THIS function hid are shown again (`data-emp-hidden`), and never one
+// whose own visibility rule owns it — an `.admin-only` item, an `.rpg-el`,
+// the Nexus door: those were just set correctly by their own sweep, and a
+// blanket `display = ""` here would hand a pupil the teacher's menu.
+function employeeApplySidebar() {
+  const emp = _isEmployee();
+  document.body.classList.toggle("role-employee", emp);
+  const items = document.querySelectorAll(".sidebar-nav .nav-item");
+  if (emp) {
+    items.forEach(el => {
+      const ok = EMPLOYEE_PAGES.includes(el.dataset.page || "");
+      el.classList.toggle("emp-ok", ok);
+      if (ok) { el.style.display = ""; return; }
+      if (el.style.display !== "none") el.setAttribute("data-emp-hidden", "1");
+      el.style.display = "none";
+    });
+    document.querySelectorAll(".sidebar-nav .nav-section").forEach(el => {
+      if (el.style.display !== "none") el.setAttribute("data-emp-hidden", "1");
+      el.style.display = "none";
+    });
+    return;
+  }
+  items.forEach(el => el.classList.remove("emp-ok"));
+  document.querySelectorAll("[data-emp-hidden]").forEach(el => {
+    el.removeAttribute("data-emp-hidden");
+    if (el.matches(".admin-only, .student-only, .rpg-el, #navTcg, #rpgHideToggle")) return;
+    el.style.display = "";
+  });
+}
+
+// =====================================================================
+// ⏱️ WORK SESSIONS — the clock an author starts, running in the background
+// =====================================================================
+// Ported from the Science app (polymathlc/cer, `wk*`, v1.239.0 → v1.243.0)
+// with the SAME names, so a fix in one copies to the other. What is different
+// here is listed at the end of this comment.
+//
+// An author — the employee, or the teacher — presses ▶ Start work session in
+// the small pill at the top of every page, and every question they save while
+// the clock runs is logged against that session: how long, how many, which
+// ones. The teacher reads everyone's on the ⏱️ Work Sessions page.
+//
+// IT IS MINIMAL ON PURPOSE. One pill that ticks. No floating bar over the page,
+// no prompt to clock on, no "are you still there?" — Break and End live in a
+// popover that opens only when the pill is pressed.
+//
+// THE CLOCK IS A PAIR OF TIMESTAMPS, NEVER A COUNTER:
+//     elapsed = (endedAt || pausedAt || now) − startedAt − pausedMs
+// A minimised tab, a throttled setInterval, a sleeping laptop or a closed
+// browser therefore cost nothing — the 1-second tick only REPAINTS a number
+// derived from the wall clock. Do not "fix" it by accumulating ticks: that is
+// the exact bug this shape exists to prevent. The running session is mirrored
+// into localStorage on every change, so reopening the app picks the same
+// session back up mid-count.
+//
+// `lastSeen` is a 60-second heartbeat meaning "a tab was demonstrably open at
+// this moment", and it is what an abandoned session is closed AT: on resume, a
+// session past WK_MAX_MS of elapsed time, or WK_IDLE_MAX_MS since anybody last
+// had it open, is filed at its last heartbeat rather than at whenever it was
+// reopened. Hours when nobody was at the keyboard are not hours worked.
+//
+// WHERE A SESSION IS FILED:
+//     mathWorkSessions/{uid}_{startedAt}       ← shared; the one the teacher lists
+//     users/{uid}/mathWorkSessions/{id}        ← fallback, if the shared one is
+//                                                ever closed in the rules
+// The fallback exists because a denied write must never stop the clock or lose
+// the log; the session runs out of localStorage either way, and the teacher's
+// history read checks both places.
+//
+// WHAT DIFFERS FROM THE SCIENCE APP, and why:
+//  - The collection and the storage key are SUBJECT-MARKED (`mathWorkSessions`,
+//    `mathWorkSession:`). The four portals share ONE origin and ONE Firebase
+//    project, so the Science app's `workSessions` / `sq_work_session:` names
+//    would merge a Maths session into the Science one — two apps filing one id
+//    into two collections, each listing the other's questions as its own.
+//  - ACTIVE MINUTES (`actMins`): the minutes in which this app saw the author
+//    actually doing something (a key, a click, a scroll, with the tab in
+//    front). Recorded passively — nothing is ever asked — and shown beside the
+//    clock, because "the tab was open for six hours" and "six hours of work"
+//    are different numbers and the teacher is entitled to both.
+//  - SIGNING OUT FILES THE SESSION (wkBeforeSignOut). It is the clearest
+//    "I have stopped" there is.
+//  - A SESSION LEFT OPEN ELSEWHERE is recovered from Firestore at sign-in
+//    (`_wkRecoverRemote`): closed at its last heartbeat when it is stale, picked
+//    back up when it is not — so a cleared browser, or a second computer,
+//    never leaves a session reading "still running" in the teacher's list for
+//    ever.
+//
+// `var`, not `const`/`let`, for everything saveQuestionDoc reads: the save
+// doors sit further down this module and reach `_wkSuppress` / `_wkSession`
+// on every save, and a `let` read before its line has run is a ReferenceError
+// that takes the whole app down — the same temporal-dead-zone trap
+// `var editorLos` documents.
+// ---------------------------------------------------------------------
+var WK_LS_PREFIX = "mathWorkSession:";      // + uid — localStorage, shared by this account's tabs
+var WK_TAB_KEY = "mathWorkSessionTab";      // sessionStorage — this tab's identity, kept across a reload
+var WK_COL = "mathWorkSessions";            // the shared collection the teacher lists
+var WK_MAX_MS = 12 * 60 * 60 * 1000;        // a session longer than this is filed at its last heartbeat
+var WK_IDLE_MAX_MS = 4 * 60 * 60 * 1000;    // …and so is one nobody has had open for this long
+var WK_HEARTBEAT_MS = 60 * 1000;            // how often a running session writes "a tab was open at…"
+var WK_LIVE_ELSEWHERE_MS = 3 * 60 * 1000;   // a heartbeat this fresh means another device is still on it
+var WK_ITEMS_MAX = 500;                     // questions listed by name on one session (the count keeps going)
+var WK_ACT_MAX = 24 * 60;                   // active-minute buckets kept on one session
+var WK_SAVE_DEBOUNCE_MS = 1500;             // a burst of saves is one Firestore write
+var WK_SIGNOUT_WAIT_MS = 4000;              // how long Sign out waits for the session to be filed
+
+var _wkSession = null;        // the running session, or null
+var _wkTickTimer = null;      // 1s repaint
+var _wkSaveTimer = null;      // debounce for the Firestore write
+var _wkSuppress = 0;          // >0 while an AUTOMATIC job saves questions — those are not work done
+var _wkPrivateOnly = false;   // the shared collection refused us; using the private copy
+var _wkHistory = null;        // past sessions, loaded on demand
+var _wkHistoryLoading = false;
+var _wkWho = "";              // teacher's filter: "" = everyone
+var _wkOpen = {};             // which past sessions are expanded
+var _wkBound = false;
+var _wkLastActMin = -1;       // the active-minute bucket this tab last stamped
+var _wkPopOpen = false;       // is the pill's popover showing
+var _wkPersisting = null;     // the last Firestore write in flight (Sign out waits for it)
+var _wkTabFallback = "";      // the tab id when sessionStorage is unavailable
+var _wkRecovering = false;
+
+function _wkLsKey() { return WK_LS_PREFIX + ((currentUser && currentUser.uid) || "anon"); }
+// Per tab, kept across a reload — exactly what savesByTab needs: a refresh is
+// the same tab carrying on, the window beside it is a different one.
+function _wkTabId() {
+  try {
+    let id = sessionStorage.getItem(WK_TAB_KEY);
+    if (!id) {
+      id = "t" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+      sessionStorage.setItem(WK_TAB_KEY, id);
+    }
+    return id;
+  } catch (e) {
+    if (!_wkTabFallback) _wkTabFallback = "t" + Math.random().toString(36).slice(2, 9);
+    return _wkTabFallback;
+  }
+}
+
+// ---- One session, many tabs ----------------------------------------------
+// An author works in several windows at once — ⚡ Rapid add in one, the editor
+// in another — and all of them are the SAME work session. Each tab holds its
+// own copy and each writes the WHOLE doc, so without merging the tab that saves
+// last erases every question the other tabs logged: work really done, gone from
+// the log. localStorage is the shared truth — every write re-reads it and
+// stores the union, and a `storage` event tells the other tabs to do the same.
+//
+// Everything here merges IDEMPOTENTLY, because the same state is merged over and
+// over as the tabs echo each other:
+//   items      union by question id (the log itself)
+//   actMins    union of active-minute buckets
+//   savesByTab per-tab counters, so a re-save can never be double-counted —
+//              a single `saves` total summed across tabs would grow for ever
+//   pausedAt   whichever tab touched the break LAST (pauseSetAt), so a resume
+//              in one window is not undone by another window's stale pause
+//   endedAt    if any tab ended it, it ended
+function _wkMerge(a, b) {
+  if (!a) return b || null;
+  if (!b) return a;
+  // Different sessions entirely (one was ended and another started): the
+  // newer one is the live one.
+  if (a.id !== b.id) return (b.startedAt || 0) > (a.startedAt || 0) ? b : a;
+  const out = Object.assign({}, a, b);
+  out.startedAt = Math.min(a.startedAt || Infinity, b.startedAt || Infinity);
+  out.lastSeen = Math.max(a.lastSeen || 0, b.lastSeen || 0) || out.startedAt;
+  out.pausedMs = Math.max(a.pausedMs || 0, b.pausedMs || 0);   // only ever grows
+  out.pauseSetAt = Math.max(a.pauseSetAt || 0, b.pauseSetAt || 0);
+  out.pausedAt = ((a.pauseSetAt || 0) >= (b.pauseSetAt || 0) ? a : b).pausedAt || null;
+  out.endedAt = (a.endedAt && b.endedAt) ? Math.min(a.endedAt, b.endedAt) : (a.endedAt || b.endedAt || null);
+  const tabs = Object.assign({}, a.savesByTab, b.savesByTab);
+  Object.keys(tabs).forEach(t => {
+    tabs[t] = Math.max((a.savesByTab && a.savesByTab[t]) || 0, (b.savesByTab && b.savesByTab[t]) || 0);
+  });
+  out.savesByTab = tabs;
+  out.saves = _wkSaves({ savesByTab: tabs, saves: Math.max(a.saves || 0, b.saves || 0) });
+  const byId = new Map();
+  (a.items || []).concat(b.items || []).forEach(it => {
+    if (!it || !it.id) return;
+    const prev = byId.get(it.id);
+    if (!prev) { byId.set(it.id, Object.assign({}, it)); return; }
+    // `>=`, not `>`: on a TIE the second argument wins, and every caller passes
+    // this tab's live copy second (_wkMerge(stored, mine)). With `>` two saves
+    // of one question inside a millisecond — drafted to vetting, approved into
+    // the bank — kept the stale "Vetting" tag and the old title.
+    if ((it.last || 0) >= (prev.last || 0)) { prev.act = it.act; if (it.title) prev.title = it.title; }
+    prev.n = Math.max(prev.n || 1, it.n || 1);
+    prev.at = Math.min(prev.at || it.at || 0, it.at || prev.at || 0);
+    prev.last = Math.max(prev.last || 0, it.last || 0);
+  });
+  out.items = Array.from(byId.values()).sort((x, y) => (x.at || 0) - (y.at || 0)).slice(0, WK_ITEMS_MAX);
+  // Past the item cap the union is the best count either tab can offer; under
+  // it (every ordinary session) the merged list IS the answer and always wins.
+  out.uniq = Math.max(a.uniq || 0, b.uniq || 0, out.items.length);
+  const acts = new Set();
+  (a.actMins || []).concat(b.actMins || []).forEach(m => { if (Number.isInteger(m) && m >= 0) acts.add(m); });
+  out.actMins = Array.from(acts).sort((x, y) => x - y).slice(0, WK_ACT_MAX);
+  return out;
+}
+
+// A total that cannot drift: each tab counts only its own writes.
+function _wkSaves(s) {
+  if (!s) return 0;
+  if (!s.savesByTab) return s.saves || 0;
+  let n = 0;
+  Object.keys(s.savesByTab).forEach(t => { n += s.savesByTab[t] || 0; });
+  return Math.max(n, s.saves || 0);
+}
+
+// Read-merge-write. Never a plain overwrite: another tab may have logged a
+// question since this one last looked.
+function _wkStoreLocal() {
+  try {
+    if (!_wkSession || _wkSession.endedAt) { localStorage.removeItem(_wkLsKey()); return; }
+    const merged = _wkMerge(_wkLoadLocal(), _wkSession);
+    _wkSession = merged;
+    // Another tab ended the session while we held a running copy — respect it
+    // rather than writing ours back over the top.
+    if (merged.endedAt) { localStorage.removeItem(_wkLsKey()); _wkStopTick(); _wkSession = null; return; }
+    localStorage.setItem(_wkLsKey(), JSON.stringify(merged));
+  } catch (e) { /* private mode — the Firestore copy is still being written */ }
+}
+
+// Another tab wrote the session. Adopt it instead of fighting it, folding this
+// tab's own items back in so neither copy can erase the other.
+function _wkAdoptRemote(raw) {
+  if (!_canAuthor()) return;
+  let remote = null;
+  try { remote = raw ? JSON.parse(raw) : null; } catch (e) { remote = null; }
+  if (!remote || !remote.id || !remote.startedAt) {
+    // The key was cleared: another tab ended the session (and has already
+    // filed the merged log). Stop the clock here WITHOUT re-persisting, or
+    // this tab would write endedAt back to null and resurrect it.
+    if (_wkRunning()) {
+      _wkStopTick();
+      _wkSession = null;
+      wkRenderAll();
+      toast("⏱️ The work session was ended in another tab", "");
+    }
+    return;
+  }
+  if (remote.uid && currentUser && remote.uid !== currentUser.uid) return;
+  if (!Array.isArray(remote.items)) remote.items = [];
+  if (!Array.isArray(remote.actMins)) remote.actMins = [];
+  const mine = _wkSession;
+  const started = !_wkRunning();
+  const merged = _wkMerge(mine, remote);
+  _wkSession = merged;
+  if (merged.endedAt) { _wkStopTick(); _wkSession = null; wkRenderAll(); return; }
+  if (!_wkTickTimer) _wkStartTick();          // a session was STARTED in another tab
+  // Only write back when we actually hold something the other tab has not
+  // seen. Unconditional write-back would have the two tabs echoing for ever;
+  // after one round the remote copy is a superset and this goes quiet.
+  if (mine && _wkAheadOf(merged, remote)) { _wkStoreLocal(); _wkQueueSave(); }
+  wkRenderAll();
+  if (started && mine == null) toast("⏱️ Work session picked up from another tab", "");
+}
+
+// Does `merged` hold anything `remote` does not?
+function _wkAheadOf(merged, remote) {
+  if (!merged) return false;
+  if (_wkSaves(merged) > _wkSaves(remote)) return true;
+  if ((merged.items || []).length > (remote.items || []).length) return true;
+  if ((merged.actMins || []).length > (remote.actMins || []).length) return true;
+  const seen = new Set((remote.items || []).map(x => x && x.id));
+  return (merged.items || []).some(x => x && !seen.has(x.id));
+}
+function _wkLoadLocal() {
+  try {
+    const j = JSON.parse(localStorage.getItem(_wkLsKey()) || "null");
+    if (!j || !j.id || !j.startedAt) return null;
+    if (!Array.isArray(j.items)) j.items = [];
+    if (!Array.isArray(j.actMins)) j.actMins = [];
+    return j;
+  } catch (e) { return null; }
+}
+
+function _wkRunning() { return !!(_wkSession && !_wkSession.endedAt); }
+function _wkPaused() { return !!(_wkRunning() && _wkSession.pausedAt); }
+function _wkCount(s) { return (s && (s.uniq || (s.items || []).length)) || 0; }
+
+// The whole timer, in one line. Nothing here is incremented by a tick, so a
+// tab that was never open still returns the right elapsed time.
+function _wkElapsed(s) {
+  if (!s || !s.startedAt) return 0;
+  const end = s.endedAt || s.pausedAt || Date.now();
+  return Math.max(0, end - s.startedAt - (s.pausedMs || 0));
+}
+// Active time: one minute for every minute in which the author did something
+// here. Never more than the clock itself — a bucket stamped in the first few
+// seconds of a session is not a minute's work yet.
+function _wkActiveMs(s) {
+  if (!s) return 0;
+  if (!Array.isArray(s.actMins)) return Math.max(0, s.activeMs || 0);
+  return Math.min(s.actMins.length * 60000, _wkElapsed(s));
+}
+
+function _wkHms(ms) {
+  const t = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60;
+  return h + ":" + String(m).padStart(2, "0") + ":" + String(sec).padStart(2, "0");
+}
+function _wkHuman(ms) {
+  const mins = Math.max(0, Math.round(ms / 60000));
+  if (mins < 60) return mins + " min";
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return h + "h" + (m ? " " + m + "m" : "");
+}
+function _wkHours(ms) { return (Math.max(0, ms) / 3600000).toFixed(2); }
+function _wkFmt(ms, opts) {
+  if (!ms) return "";
+  try { return new Date(ms).toLocaleString("en-SG", opts); } catch (e) { return new Date(ms).toLocaleString(); }
+}
+function _wkWhen(ms) { return _wkFmt(ms, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); }
+function _wkTime(ms) { return _wkFmt(ms, { hour: "2-digit", minute: "2-digit" }); }
+function _wkDay(ms) { return _wkFmt(ms, { weekday: "short", day: "numeric", month: "short", year: "numeric" }); }
+function _wkPersonName(s) { return (s && (s.name || s.email)) || "Unknown"; }
+
+// ---- Persistence ---------------------------------------------------------
+// Flattened on the way out: Firestore rejects `undefined`, and the reader (the
+// teacher's history) wants the totals without walking the items array.
+function _wkDoc(s) {
+  return {
+    id: s.id,
+    subject: "math",
+    uid: s.uid || "",
+    email: s.email || "",
+    name: s.name || "",
+    role: s.role || "",
+    bankOwner: s.bankOwner || null,
+    startedAt: s.startedAt,
+    endedAt: s.endedAt || null,
+    pausedMs: s.pausedMs || 0,
+    pausedAt: s.pausedAt || null,
+    pauseSetAt: s.pauseSetAt || 0,
+    lastSeen: s.lastSeen || s.startedAt,
+    ms: _wkElapsed(s),
+    activeMs: _wkActiveMs(s),
+    actMins: (s.actMins || []).slice(0, WK_ACT_MAX),
+    // Carried so a tab that reloads mid-session can keep merging without
+    // double-counting its own earlier writes (see _wkMerge).
+    savesByTab: s.savesByTab || null,
+    saves: _wkSaves(s),
+    questions: _wkCount(s),
+    items: (s.items || []).slice(0, WK_ITEMS_MAX)
+  };
+}
+
+// Never throws, never stops the clock. Only ever writes a session BELONGING to
+// the account signed in now: a write queued before an account switch must not
+// file one person's hours under another's uid.
+function _wkPersist(s) {
+  if (!s || !currentUser || (s.uid && s.uid !== currentUser.uid)) return Promise.resolve();
+  const payload = _wkDoc(s);
+  const uid = currentUser.uid;
+  const run = (async () => {
+    if (!_wkPrivateOnly) {
+      try { await setDoc(doc(db, WK_COL, s.id), payload); return; }
+      catch (err) {
+        // Permission denied is a settled answer, not a blip: stop trying the
+        // shared collection for the rest of the session and file it privately.
+        const denied = err && (err.code === "permission-denied" || err.code === "unauthenticated");
+        if (!denied) { console.warn("work session save:", err); return; }
+        _wkPrivateOnly = true;
+        console.warn(WK_COL + " is not open in the rules — filing this session under the author's own account instead");
+      }
+    }
+    try { await setDoc(doc(db, "users", uid, WK_COL, s.id), payload); }
+    catch (err) { console.warn("work session save (own account):", err); }
+  })();
+  _wkPersisting = run;
+  return run;
+}
+
+// Reads _wkSession when the timer FIRES, never a captured copy. Two reasons,
+// both of which lose work otherwise: _wkStoreLocal replaces the object with the
+// merged one, and a session ended in another tab clears it — a queued write
+// holding the old copy would put endedAt back to null and file it again without
+// the other tab's questions.
+function _wkQueueSave(now) {
+  if (!_wkSession) return;
+  clearTimeout(_wkSaveTimer);
+  if (now) { _wkPersist(_wkSession); return; }
+  _wkSaveTimer = setTimeout(() => { if (_wkSession) _wkPersist(_wkSession); }, WK_SAVE_DEBOUNCE_MS);
+}
+
+// ---- Start / break / end -------------------------------------------------
+function wkStart() {
+  if (!_canAuthor()) { toast("Work sessions are for question authors", "error"); return; }
+  if (_wkRunning()) { wkPopToggle(true); return; }
+  // Another window may have started one seconds ago — join it rather than
+  // opening a second clock over the same hours. Same freshness rule as
+  // wkInit: a clock left running for half a day is one to FILE, not to join.
+  const open = _wkLoadLocal();
+  if (open && !open.endedAt && _wkFresh(open)) {
+    _wkSession = open;
+    _wkLastActMin = -1;
+    _wkStartTick();
+    wkRenderAll();
+    toast("⏱️ Joined the session already running in another tab", "");
+    return;
+  }
+  const now = Date.now();
+  _wkSession = {
+    id: currentUser.uid + "_" + now,
+    uid: currentUser.uid,
+    email: currentUser.email || "",
+    name: currentUser.name || "",
+    role: currentUser.role || "",
+    bankOwner: _bankOwnerUid() || null,
+    startedAt: now, endedAt: null, pausedMs: 0, pausedAt: null, pauseSetAt: 0, lastSeen: now,
+    saves: 0, savesByTab: {}, uniq: 0, items: [], actMins: [0]   // pressing Start is the first active minute
+  };
+  _wkLastActMin = 0;
+  _wkStoreLocal();
+  _wkQueueSave(true);
+  _wkStartTick();
+  wkRenderAll();
+  toast("⏱️ Work session started — it runs quietly in the background", "success");
+}
+
+// Is a stored session still one to carry on with (rather than one to file)?
+function _wkFresh(s, now = Date.now()) {
+  if (!s || s.endedAt) return false;
+  return _wkElapsed(s) <= WK_MAX_MS && now - (s.lastSeen || s.startedAt) <= WK_IDLE_MAX_MS;
+}
+
+function wkTogglePause() {
+  if (!_wkRunning()) return;
+  const now = Date.now();
+  if (_wkSession.pausedAt) {
+    _wkSession.pausedMs = (_wkSession.pausedMs || 0) + Math.max(0, now - _wkSession.pausedAt);
+    _wkSession.pausedAt = null;
+    _wkLastActMin = -1;   // the next input after a break stamps its own minute
+    toast("▶ Work session resumed", "");
+  } else {
+    _wkSession.pausedAt = now;
+    toast("⏸ On a break — the clock is stopped. Questions you save are still logged.", "");
+  }
+  // Stamped so the merge knows which window touched the break last — otherwise
+  // a stale pause in a second window undoes the resume in this one.
+  _wkSession.pauseSetAt = now;
+  _wkSession.lastSeen = now;
+  _wkStoreLocal();
+  _wkQueueSave(true);
+  wkRenderAll();
+}
+
+function wkEnd() {
+  if (!_wkRunning()) return;
+  const n = _wkCount(_wkSession);
+  const msg = "End this work session and file it?\n\n" + _wkHuman(_wkElapsed(_wkSession)) + " · "
+    + n + " question" + (n === 1 ? "" : "s") + ". You can start a new one whenever you like.";
+  if (!confirm(msg)) return;
+  _wkFinish();
+}
+
+// atMs — close the session at a moment in the past (a session left running
+// overnight is filed at its last heartbeat, not at whenever it was reopened).
+function _wkFinish(atMs, quiet) {
+  if (!_wkSession || _wkSession.endedAt) return null;
+  // File the UNION, not this window's copy: the questions another tab logged
+  // are in localStorage and would otherwise be dropped by this last write.
+  // Same session only — if another tab has already ended this one and started
+  // a fresh clock, that new session is not ours to close.
+  const stored = _wkLoadLocal();
+  const s = (stored && stored.id === _wkSession.id ? _wkMerge(stored, _wkSession) : _wkSession);
+  _wkSession = s;
+  if (s.endedAt) { _wkStopTick(); _wkSession = null; _wkStoreLocal(); wkRenderAll(); return s; }
+  const end = Math.max(s.startedAt, atMs || Date.now());
+  if (s.pausedAt) { s.pausedMs = (s.pausedMs || 0) + Math.max(0, end - s.pausedAt); s.pausedAt = null; }
+  s.endedAt = end;
+  s.lastSeen = end;
+  clearTimeout(_wkSaveTimer);
+  _wkPersist(s);
+  _wkStopTick();
+  if (_wkHistory) _wkHistory = [_wkDoc(s)].concat(_wkHistory.filter(x => x.id !== s.id));
+  _wkSession = null;
+  _wkPopOpen = false;
+  _wkStoreLocal();          // reads _wkSession — now null, so the key is cleared
+  wkRenderAll();
+  if (!quiet) toast("Work session filed — " + _wkHuman(_wkElapsed(s)) + " · " + _wkCount(s) + " question" + (_wkCount(s) === 1 ? "" : "s"), "success");
+  return s;
+}
+
+// Sign out = clocked off. Filed at THIS moment and the write awaited (bounded),
+// because once the token is gone the session can no longer be written to the
+// account it belongs to.
+async function wkBeforeSignOut() {
+  if (!_wkRunning()) return;
+  const s = _wkFinish(Date.now(), true);
+  if (!s) return;
+  toast("Work session filed — " + _wkHuman(_wkElapsed(s)), "success");
+  const wait = new Promise(resolve => setTimeout(resolve, WK_SIGNOUT_WAIT_MS));
+  await Promise.race([_wkPersisting || Promise.resolve(), wait]);
+}
+
+// A different account is about to sign in (or nobody is). This tab lets go of
+// its copy WITHOUT filing or clearing anything: the session is still in
+// localStorage under its own uid, and wkInit picks it up when that account is
+// back. Writing here would be the cross-account write _wkPersist refuses.
+function wkReset() {
+  _wkStopTick();
+  clearTimeout(_wkSaveTimer);
+  _wkSession = null;
+  _wkHistory = null;
+  _wkHistoryLoading = false;
+  _wkPrivateOnly = false;
+  _wkWho = "";
+  _wkOpen = {};
+  _wkLastActMin = -1;
+  _wkPopOpen = false;
+  wkRenderBar();
+}
+
+// ---- The tick ------------------------------------------------------------
+function _wkStartTick() {
+  _wkStopTick();
+  _wkPaintClock();
+  _wkTickTimer = setInterval(_wkTick, 1000);
+}
+function _wkStopTick() { if (_wkTickTimer) { clearInterval(_wkTickTimer); _wkTickTimer = null; } }
+
+function _wkTick() {
+  if (!_wkRunning()) { _wkStopTick(); wkRenderBar(); return; }
+  _wkPaintClock();
+  const now = Date.now();
+  // The heartbeat is the last moment a tab was demonstrably open. It is what
+  // an abandoned session gets closed at, so it keeps ticking even when nothing
+  // is being saved.
+  if (!_wkSession.pausedAt && now - (_wkSession.lastSeen || 0) >= WK_HEARTBEAT_MS) {
+    _wkSession.lastSeen = now;
+    _wkStoreLocal();
+    _wkQueueSave(true);
+  }
+}
+
+function _wkPaintClock() {
+  const txt = _wkRunning() ? _wkHms(_wkElapsed(_wkSession)) : "0:00:00";
+  const a = document.getElementById("wkChipTime"); if (a && _wkRunning()) a.textContent = txt;
+  const b = document.getElementById("wkClock"); if (b) b.textContent = txt;
+  const c = document.getElementById("wkPopClock"); if (c) c.textContent = txt;
+}
+
+// ---- Active minutes ------------------------------------------------------
+// Passive, and cheap enough to sit on every pointer move: the first input of a
+// minute stamps that minute's bucket, every other input in it returns at the
+// integer compare. Nothing is asked of the author and nothing is shown to them
+// beyond the total, which is on their own page as well as the teacher's.
+function _wkNoteActivity() {
+  if (!_wkRunning() || _wkSession.pausedAt) return;
+  if (document.visibilityState && document.visibilityState !== "visible") return;
+  const m = Math.floor((Date.now() - _wkSession.startedAt) / 60000);
+  if (m < 0 || m === _wkLastActMin) return;
+  _wkLastActMin = m;
+  const act = Array.isArray(_wkSession.actMins) ? _wkSession.actMins : (_wkSession.actMins = []);
+  if (act.includes(m) || act.length >= WK_ACT_MAX) return;   // another tab stamped it already
+  act.push(m);
+  _wkStoreLocal();
+  // No Firestore write of its own: the next heartbeat or save carries it.
+}
+
+function _wkBind() {
+  if (_wkBound) return;
+  _wkBound = true;
+  document.addEventListener("visibilitychange", () => {
+    if (!_wkRunning()) return;
+    if (document.hidden) { _wkSession.lastSeen = Date.now(); _wkStoreLocal(); _wkQueueSave(true); }
+    else { _wkPaintClock(); wkRenderAll(); }
+  });
+  // localStorage is synchronous, so this copy always lands — a Firestore write
+  // started here would be cancelled with the page.
+  window.addEventListener("pagehide", () => {
+    if (!_wkRunning()) return;
+    _wkSession.lastSeen = Date.now();
+    _wkStoreLocal();
+  });
+  // Another tab of this account changed the session.
+  window.addEventListener("storage", e => {
+    if (!e || e.key !== _wkLsKey()) return;
+    _wkAdoptRemote(e.newValue);
+  });
+  const note = () => _wkNoteActivity();
+  ["pointerdown", "keydown", "wheel", "touchstart", "input"].forEach(t => document.addEventListener(t, note, { passive: true, capture: true }));
+  document.addEventListener("pointermove", note, { passive: true });
+  // The pill and its popover.
+  const chip = document.getElementById("wkChip");
+  if (chip) chip.addEventListener("click", e => {
+    e.stopPropagation();
+    if (!_wkRunning()) { wkStart(); return; }
+    wkPopToggle();
+  });
+  const pop = document.getElementById("wkPop");
+  if (pop) pop.addEventListener("click", e => {
+    e.stopPropagation();
+    const b = e.target.closest("[data-wk]");
+    if (!b) return;
+    const act = b.dataset.wk;
+    if (act === "pause") wkTogglePause();
+    else if (act === "end") wkEnd();
+    else if (act === "details") { wkPopToggle(false); navigateTo("worksession"); }
+  });
+  document.addEventListener("click", () => { if (_wkPopOpen) wkPopToggle(false); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && _wkPopOpen) wkPopToggle(false); });
+  // The Work Sessions page re-renders from state, so ONE delegated handler.
+  const page = document.getElementById("wkPageBody");
+  if (page) {
+    page.addEventListener("click", e => {
+      const b = e.target.closest("[data-wk]");
+      if (!b) return;
+      const act = b.dataset.wk;
+      if (act === "start") wkStart();
+      else if (act === "pause") wkTogglePause();
+      else if (act === "end") wkEnd();
+      else if (act === "load") wkLoadHistory(true);
+      else if (act === "csv") wkExportCsv();
+      else if (act === "toggle") wkToggleSession(b.dataset.id || "");
+    });
+    page.addEventListener("change", e => {
+      const sel = e.target.closest("[data-wk-who]");
+      if (sel) wkSetWho(sel.value);
+    });
+  }
+}
+
+// Called once per sign-in, for anyone who can author.
+function wkInit() {
+  if (!_canAuthor()) { wkRenderBar(); return; }
+  _wkBind();
+  const s = _wkLoadLocal();
+  if (s && !s.endedAt && (!s.uid || s.uid === currentUser.uid)) {
+    _wkSession = s;
+    _wkLastActMin = -1;
+    if (!_wkFresh(s)) {
+      // Left running. Hours when nobody was at the keyboard are not hours
+      // worked, and a three-day clock helps no one.
+      const closed = _wkFinish(s.lastSeen || s.startedAt, true);
+      if (closed) toast("Your last work session was left running — it has been filed at "
+        + _wkWhen(closed.endedAt) + " (" + _wkHuman(_wkElapsed(closed)) + ")", "");
+    } else {
+      _wkStartTick();
+    }
+  }
+  wkRenderBar();
+  // Nothing on this device: look for one left open in the database.
+  if (!_wkRunning()) _wkRecoverRemote().catch(e => console.warn("work session recovery", e));
+}
+
+// A session this account left OPEN — the browser's storage was cleared, or it
+// was started on another computer and never ended. A stale one is closed at its
+// last heartbeat so it stops reading "still running" in the teacher's list; a
+// live one nobody is writing any more is picked back up here; one another
+// device is still beating is left alone — two machines writing one document
+// would each erase the other's questions.
+async function _wkRecoverRemote() {
+  if (_wkRecovering || !currentUser || !_canAuthor()) return;
+  _wkRecovering = true;
+  const uid = currentUser.uid;
+  try {
+    const found = new Map();
+    const take = snap => snap.forEach(d => { const v = d.data(); if (v && v.id && v.startedAt && !v.endedAt && v.uid === uid) found.set(v.id, v); });
+    try { take(await getDocs(query(collection(db, WK_COL), where("uid", "==", uid)))); } catch (e) { /* shared collection unreadable */ }
+    try { take(await getDocs(collection(db, "users", uid, WK_COL))); } catch (e) { /* nothing filed privately */ }
+    if (!currentUser || currentUser.uid !== uid || _wkRunning()) return;
+    const now = Date.now();
+    const open = Array.from(found.values()).sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0));
+    let adopted = false;
+    for (const r of open) {
+      if (!Array.isArray(r.items)) r.items = [];
+      if (!Array.isArray(r.actMins)) r.actMins = [];
+      const beat = now - (r.lastSeen || r.startedAt);
+      if (!adopted && _wkFresh(r, now) && beat > WK_LIVE_ELSEWHERE_MS) {
+        _wkSession = r;
+        _wkLastActMin = -1;
+        _wkStoreLocal();
+        _wkStartTick();
+        adopted = true;
+        toast("⏱️ Picked your running work session back up", "");
+        continue;
+      }
+      if (!_wkFresh(r, now)) {
+        // Filed at its last heartbeat, written straight back — never through
+        // _wkSession, which belongs to the session (if any) on THIS device.
+        const end = Math.max(r.startedAt, r.lastSeen || r.startedAt);
+        if (r.pausedAt) { r.pausedMs = (r.pausedMs || 0) + Math.max(0, end - r.pausedAt); r.pausedAt = null; }
+        r.endedAt = end;
+        await _wkPersist(r);
+      }
+    }
+    wkRenderAll();
+  } finally { _wkRecovering = false; }
+}
+
+// ---- Logging a question --------------------------------------------------
+// Called from saveQuestionDoc / saveVettingDoc — the two doors EVERY committed
+// question goes through — so no authoring path (the block editor, ✨ Build with
+// AI, ⚡ Rapid add, the paper import, an approve out of vetting, 🔄 Regenerate)
+// can be forgotten. `opts.quiet` and `_wkSuppress` are read by the CALLER,
+// before its first await, which is what keeps housekeeping re-saves out.
+function wkLogQuestion(q, where) {
+  if (!_wkRunning() || _wkSuppress > 0) return;
+  if (!q || q.id == null) return;
+  const s = _wkSession, now = Date.now();
+  // Counted per tab, so merging this window's copy with another window's can
+  // never double-count either one (see _wkMerge).
+  const tab = _wkTabId();
+  if (!s.savesByTab) s.savesByTab = {};
+  s.savesByTab[tab] = (s.savesByTab[tab] || 0) + 1;
+  s.saves = _wkSaves(s);
+  s.lastSeen = now;
+  if (!Array.isArray(s.items)) s.items = [];
+  const id = String(q.id);
+  const it = s.items.find(x => x.id === id);
+  const topic = (typeof questionTopics === "function" ? questionTopics(q) : []).join(", ") || String(q.topic || "");
+  if (it) {
+    it.last = now;
+    it.n = (it.n || 1) + 1;
+    it.act = where;
+    if (q.title) it.title = String(q.title).slice(0, 140);
+  } else if (s.items.length < WK_ITEMS_MAX) {
+    // `uniq` keeps counting past WK_ITEMS_MAX so the headline number never
+    // disagrees with the work actually done, even once the list is capped.
+    // Under the cap it is DERIVED from the list rather than incremented — a
+    // question logged in another window is already in the merged list, and a
+    // blind +1 here would count it twice.
+    s.items.push({
+      id,
+      title: String(q.title || "Untitled question").slice(0, 140),
+      level: String(q.level || ""), topic: topic.slice(0, 120),
+      at: now, last: now, n: 1, act: where
+    });
+    s.uniq = Math.max(s.uniq || 0, s.items.length);
+  } else {
+    s.uniq = (s.uniq || 0) + 1;
+  }
+  _wkNoteActivity();
+  _wkStoreLocal();
+  _wkQueueSave();
+  wkRenderAll();
+}
+
+// ---- History -------------------------------------------------------------
+async function wkLoadHistory(force) {
+  if (_wkHistoryLoading || !currentUser) return;
+  if (_wkHistory && !force) return;
+  _wkHistoryLoading = true;
+  wkRenderPage();
+  const uid = currentUser.uid;
+  const byId = new Map();
+  const take = snap => snap.forEach(d => { const v = d.data(); if (v && v.id && v.startedAt) byId.set(v.id, v); });
+  try {
+    const col = collection(db, WK_COL);
+    // No orderBy alongside the uid filter: that pairing needs a composite
+    // index, and these lists are small enough to sort here.
+    take(_isAdmin() ? await getDocs(col) : await getDocs(query(col, where("uid", "==", uid))));
+  } catch (err) { console.warn("work sessions (shared):", err); }
+  try { take(await getDocs(collection(db, "users", uid, WK_COL))); }
+  catch (err) { /* nothing filed privately — fine */ }
+  if (_isAdmin()) {
+    // Anything an author had to file privately (see _wkPersist) still has to
+    // reach the teacher, so read each author's own subtree as well.
+    for (const other of await _wkAuthorUids()) {
+      if (other === uid) continue;
+      try { take(await getDocs(collection(db, "users", other, WK_COL))); } catch (err) { /* not readable */ }
+    }
+  }
+  if (!currentUser || currentUser.uid !== uid) { _wkHistoryLoading = false; return; }
+  _wkHistory = Array.from(byId.values()).sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0));
+  _wkHistoryLoading = false;
+  wkRenderPage();
+}
+
+// The employees' uids, for the private fallback read. An employee who signed
+// in as a pupil before the role existed already has a roster row carrying
+// their address, which is all this needs.
+async function _wkAuthorUids() {
+  const out = [];
+  try {
+    const snap = await getDocs(collection(db, "studentProfiles"));
+    snap.forEach(d => {
+      const p = d.data() || {};
+      const id = p.uid || d.id;
+      if (id && isEmployeeEmail(p.email)) out.push(id);
+    });
+  } catch (err) { console.warn("author lookup:", err); }
+  return out;
+}
+
+function _wkFiled() {
+  const running = _wkSession && _wkSession.id;
+  return (_wkHistory || []).filter(s => s.id !== running);
+}
+function _wkVisible() {
+  return _wkFiled().filter(s => !_wkWho || s.uid === _wkWho);
+}
+
+function wkSetWho(uid) { _wkWho = uid || ""; wkRenderPage(); }
+function wkToggleSession(id) { _wkOpen[id] = !_wkOpen[id]; wkRenderPage(); }
+
+// ---- Rendering: the pill and its popover --------------------------------
+// The employee always has the pill — it IS the start button. A teacher has it
+// only while their own clock runs, because a pill nobody asked for in the top
+// bar of every page is the intrusive version of this feature.
+function wkRenderBar() {
+  const slot = document.getElementById("wkSlot");
+  const chip = document.getElementById("wkChip");
+  if (!slot || !chip) return;
+  const author = !!currentUser && _canAuthor();
+  const running = author && _wkRunning();
+  const show = author && (running || _isEmployee());
+  slot.style.display = show ? "" : "none";
+  if (!show) { _wkPopOpen = false; _wkRenderPop(); return; }
+  chip.classList.toggle("on", running && !_wkPaused());
+  chip.classList.toggle("paused", _wkPaused());
+  const label = document.getElementById("wkChipLabel");
+  const time = document.getElementById("wkChipTime");
+  if (!running) {
+    if (label) { label.innerHTML = `<span class="wk-long">▶ Start work session</span><span class="wk-short">▶ Start</span>`; label.style.display = ""; }
+    if (time) time.textContent = "";
+    chip.title = "Start the work-session clock. It runs quietly in the background and logs every question you save.";
+    chip.setAttribute("aria-label", "Start work session");
+    chip.setAttribute("aria-expanded", "false");
+    _wkPopOpen = false;
+  } else {
+    if (label) { label.innerHTML = _wkPaused() ? `<span class="wk-long">On a break</span>` : ""; label.style.display = _wkPaused() ? "" : "none"; }
+    if (time) time.textContent = _wkHms(_wkElapsed(_wkSession));
+    chip.title = _wkPaused() ? "Work session on a break — press for Resume or End" : "Work session running — press for Break or End";
+    chip.setAttribute("aria-label", _wkPaused() ? "Work session on a break" : "Work session running");
+    chip.setAttribute("aria-expanded", _wkPopOpen ? "true" : "false");
+  }
+  _wkRenderPop();
+}
+
+function wkPopToggle(force) {
+  _wkPopOpen = typeof force === "boolean" ? force : !_wkPopOpen;
+  if (!_wkRunning()) _wkPopOpen = false;
+  const chip = document.getElementById("wkChip");
+  if (chip) chip.setAttribute("aria-expanded", _wkPopOpen ? "true" : "false");
+  _wkRenderPop();
+}
+
+function _wkRenderPop() {
+  const pop = document.getElementById("wkPop");
+  if (!pop) return;
+  if (!_wkPopOpen || !_wkRunning()) { pop.hidden = true; pop.innerHTML = ""; return; }
+  const s = _wkSession, n = _wkCount(s);
+  pop.hidden = false;
+  pop.innerHTML = `<div class="wk-pop-head">${_wkPaused() ? "⏸ On a break" : "Work session"} · started ${escapeHtml(_wkTime(s.startedAt))}</div>
+    <div class="wk-pop-clock" id="wkPopClock">${_wkHms(_wkElapsed(s))}</div>
+    <div class="wk-pop-meta">${n} question${n === 1 ? "" : "s"} saved · active ${escapeHtml(_wkHuman(_wkActiveMs(s)))}${s.pausedMs ? " · " + escapeHtml(_wkHuman(s.pausedMs)) + " on break" : ""}</div>
+    <div class="wk-pop-actions">
+      <button type="button" class="btn btn-ghost btn-sm" data-wk="pause">${_wkPaused() ? "▶ Resume" : "⏸ Break"}</button>
+      <button type="button" class="btn btn-danger btn-sm" data-wk="end">■ End session</button>
+    </div>
+    <button type="button" class="wk-pop-link" data-wk="details">See every question logged →</button>`;
+}
+
+function wkRenderAll() {
+  wkRenderBar();
+  const page = document.getElementById("page-worksession");
+  if (page && page.classList.contains("active")) wkRenderPage();
+}
+
+// ---- Rendering: the page -------------------------------------------------
+function wkRenderPage() {
+  const wrap = document.getElementById("wkPageBody");
+  if (!wrap) return;
+  if (!currentUser || !_canAuthor()) {
+    wrap.innerHTML = `<div class="wk-card"><p class="wk-empty">Work sessions are for question authors.</p></div>`;
+    return;
+  }
+  _wkBind();
+  wrap.innerHTML = _wkLiveCardHtml() + _wkItemsCardHtml() + _wkHistoryCardHtml();
+  _wkPaintClock();
+  if (_wkHistory === null && !_wkHistoryLoading) wkLoadHistory();
+}
+
+function _wkLiveCardHtml() {
+  if (!_wkRunning()) {
+    return `<div class="wk-card wk-live">
+      <div class="wk-live-head"><span class="wk-live-label wk-idle">No session running</span></div>
+      <div class="wk-clock wk-clock-idle">0:00:00</div>
+      <p class="wk-hint">Press <b>Start</b> when you sit down to write questions. The clock runs off the wall clock, so it keeps counting while this tab is minimised or in the background, and every question you save while it runs is listed here. One session covers <b>all your windows</b> — ⚡ Rapid add in one tab and the editor in another are the same session. Signing out ends it.</p>
+      <div class="wk-actions"><button type="button" class="btn btn-primary" data-wk="start">▶ Start work session</button></div>
+    </div>`;
+  }
+  const s = _wkSession, n = _wkCount(s);
+  return `<div class="wk-card wk-live${_wkPaused() ? " wk-live-paused" : ""}">
+    <div class="wk-live-head">
+      <span class="wk-live-label">${_wkPaused() ? "⏸ On a break" : `<span class="wk-pulse"></span> Session running`}</span>
+      <span class="wk-since">started ${escapeHtml(_wkWhen(s.startedAt))}</span>
+    </div>
+    <div class="wk-clock" id="wkClock">${_wkHms(_wkElapsed(s))}</div>
+    <div class="wk-stats">
+      <div class="wk-stat"><b>${n}</b><span>question${n === 1 ? "" : "s"}</span></div>
+      <div class="wk-stat"><b>${escapeHtml(_wkHuman(_wkActiveMs(s)))}</b><span>active</span></div>
+      <div class="wk-stat"><b>${_wkSaves(s)}</b><span>save${_wkSaves(s) === 1 ? "" : "s"}</span></div>
+      ${s.pausedMs ? `<div class="wk-stat"><b>${escapeHtml(_wkHuman(s.pausedMs))}</b><span>on break</span></div>` : ""}
+    </div>
+    <div class="wk-actions">
+      <button type="button" class="btn btn-ghost" data-wk="pause">${_wkPaused() ? "▶ Resume" : "⏸ Take a break"}</button>
+      <button type="button" class="btn btn-danger" data-wk="end">■ End session</button>
+    </div>
+    ${_wkPrivateOnly ? `<p class="wk-warn">⚠ Saving to your own account only — the shared <code>${WK_COL}</code> collection is not open in the database rules, so your teacher sees this session only through the fallback copy. Nothing is lost: it is filed and will still be there.</p>` : ""}
+  </div>`;
+}
+
+function _wkItemsCardHtml() {
+  if (!_wkRunning()) return "";
+  const s = _wkSession;
+  const items = (s.items || []).slice().sort((a, b) => (b.last || b.at || 0) - (a.last || a.at || 0));
+  if (!items.length) {
+    return `<div class="wk-card">
+      <h3 class="wk-h3">Questions this session</h3>
+      <p class="wk-empty">Nothing yet. Every question you save — to the question bank or to the vetting list — appears here the moment it is written.</p>
+    </div>`;
+  }
+  const extra = _wkCount(s) - items.length;
+  return `<div class="wk-card">
+    <h3 class="wk-h3">Questions this session <span class="wk-pill">${items.length}</span></h3>
+    <div class="wk-list">${items.map(_wkItemRowHtml).join("")}</div>
+    ${extra > 0 ? `<p class="wk-hint">…and ${extra} more — only the first ${WK_ITEMS_MAX} are listed by name, but all of them are counted.</p>` : ""}
+  </div>`;
+}
+
+function _wkItemRowHtml(it) {
+  const meta = [it.level, it.topic].filter(Boolean).map(escapeHtml).join(" · ");
+  const vet = it.act === "vetting";
+  return `<div class="wk-row">
+    <div class="wk-row-main">
+      <div class="wk-row-title">${escapeHtml(it.title || "Untitled question")}</div>
+      ${meta ? `<div class="wk-row-meta">${meta}</div>` : ""}
+    </div>
+    <span class="wk-tag ${vet ? "wk-tag-vet" : "wk-tag-bank"}">${vet ? "Vetting" : "Bank"}</span>
+    ${(it.n || 1) > 1 ? `<span class="wk-tag wk-tag-n" title="Saved ${it.n} times">×${it.n}</span>` : ""}
+    <span class="wk-row-time">${escapeHtml(_wkTime(it.at))}</span>
+  </div>`;
+}
+
+function _wkHistoryCardHtml() {
+  if (_wkHistory === null) {
+    return `<div class="wk-card">
+      <h3 class="wk-h3">Past sessions</h3>
+      ${_wkHistoryLoading
+        ? `<p class="wk-empty">Loading…</p>`
+        : `<div class="wk-actions" style="justify-content:flex-start;"><button type="button" class="btn btn-ghost" data-wk="load">Load past sessions</button></div>`}
+    </div>`;
+  }
+  const rows = _wkVisible();
+  const totalMs = rows.reduce((a, s) => a + (s.ms || 0), 0);
+  const totalAct = rows.reduce((a, s) => a + _wkActiveMs(s), 0);
+  const totalQ = rows.reduce((a, s) => a + (s.questions || 0), 0);
+  return `<div class="wk-card">
+    <div class="wk-hist-head">
+      <h3 class="wk-h3">Past sessions <span class="wk-pill">${rows.length}</span></h3>
+      <div class="wk-hist-tools">
+        ${_isAdmin() ? _wkWhoSelectHtml() : ""}
+        <button type="button" class="btn btn-ghost btn-sm" data-wk="load" title="Fetch the latest sessions">↻ Refresh</button>
+        ${rows.length ? `<button type="button" class="btn btn-ghost btn-sm" data-wk="csv" title="Download these sessions as a spreadsheet, one row per question">⬇ CSV</button>` : ""}
+      </div>
+    </div>
+    ${rows.length ? `<div class="wk-totals">
+      <div class="wk-stat"><b>${escapeHtml(_wkHuman(totalMs))}</b><span>on the clock</span></div>
+      <div class="wk-stat"><b>${escapeHtml(_wkHuman(totalAct))}</b><span>active</span></div>
+      <div class="wk-stat"><b>${totalQ}</b><span>questions</span></div>
+      <div class="wk-stat"><b>${totalMs ? (totalQ / (totalMs / 3600000)).toFixed(1) : "0.0"}</b><span>questions / hour</span></div>
+    </div>` : ""}
+    ${rows.length
+      ? `<div class="wk-list wk-hist-list">${rows.map(_wkHistRowHtml).join("")}</div>`
+      : `<p class="wk-empty" style="margin-top:14px;">No sessions filed yet.</p>`}
+  </div>`;
+}
+
+function _wkWhoSelectHtml() {
+  const seen = new Map();
+  _wkFiled().forEach(s => { if (s.uid && !seen.has(s.uid)) seen.set(s.uid, _wkPersonName(s)); });
+  const opts = Array.from(seen.entries()).map(([uid, name]) =>
+    `<option value="${escapeHtml(uid)}"${_wkWho === uid ? " selected" : ""}>${escapeHtml(name)}</option>`).join("");
+  return `<select class="wk-select" data-wk-who title="Whose sessions to show">
+    <option value=""${_wkWho ? "" : " selected"}>Everyone</option>${opts}
+  </select>`;
+}
+
+function _wkHistRowHtml(s) {
+  const open = !!_wkOpen[s.id];
+  const items = Array.isArray(s.items) ? s.items.slice().sort((a, b) => (a.at || 0) - (b.at || 0)) : [];
+  const who = _isAdmin() ? " · " + escapeHtml(_wkPersonName(s)) : "";
+  const brk = s.pausedMs ? " · " + escapeHtml(_wkHuman(s.pausedMs)) + " on break" : "";
+  return `<div class="wk-hist${open ? " wk-hist-open" : ""}">
+    <button type="button" class="wk-hist-row" data-wk="toggle" data-id="${escapeHtml(s.id)}" aria-expanded="${open ? "true" : "false"}" title="Show the questions in this session">
+      <span class="wk-caret">${open ? "▾" : "▸"}</span>
+      <div class="wk-row-main">
+        <div class="wk-row-title">${escapeHtml(_wkDay(s.startedAt))}</div>
+        <div class="wk-row-meta">${escapeHtml(_wkTime(s.startedAt))} – ${escapeHtml(s.endedAt ? _wkTime(s.endedAt) : "still running")}${who}${brk}</div>
+      </div>
+      <span class="wk-tag wk-tag-dur" title="On the clock">${escapeHtml(_wkHuman(s.ms || 0))}</span>
+      <span class="wk-tag wk-tag-act" title="Minutes with activity in the app">${escapeHtml(_wkHuman(_wkActiveMs(s)))} active</span>
+      <span class="wk-tag wk-tag-n">${s.questions || 0} q</span>
+    </button>
+    ${open ? `<div class="wk-hist-body">${items.length
+      ? items.map(_wkItemRowHtml).join("")
+      : `<p class="wk-empty">No questions were saved in this session.</p>`}</div>` : ""}
+  </div>`;
+}
+
+// One row per question, so a session's work can be checked line by line.
+function wkExportCsv() {
+  const rows = _wkVisible();
+  if (!rows.length) { toast("Nothing to export", ""); return; }
+  const esc = v => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+  const out = [["Person", "Email", "Day", "Start", "End", "Hours", "Active (min)", "Break (min)", "Questions", "Saves", "Question", "Level", "Topic", "Saved to", "Saved at", "Times saved"].join(",")];
+  rows.forEach(s => {
+    const head = [_wkPersonName(s), s.email || "", _wkDay(s.startedAt), _wkTime(s.startedAt),
+      s.endedAt ? _wkTime(s.endedAt) : "", _wkHours(s.ms || 0), Math.round(_wkActiveMs(s) / 60000),
+      Math.round((s.pausedMs || 0) / 60000), s.questions || 0, s.saves || 0];
+    const items = Array.isArray(s.items) ? s.items : [];
+    if (!items.length) { out.push(head.concat(["", "", "", "", "", ""]).map(esc).join(",")); return; }
+    items.forEach(it => out.push(head.concat([
+      it.title || "", it.level || "", it.topic || "",
+      it.act === "vetting" ? "Vetting" : "Bank", _wkTime(it.at), it.n || 1
+    ]).map(esc).join(",")));
+  });
+  const blob = new Blob(["﻿" + out.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "math-work-sessions-" + new Date().toISOString().slice(0, 10) + ".csv";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 let clientAdminFallback = false;
 async function enterApp(user, authEpoch = _studentAuthEpoch) {
@@ -9789,9 +11045,13 @@ async function enterApp(user, authEpoch = _studentAuthEpoch) {
     if (!isAdmin) { isAdmin = true; clientAdminFallback = true; console.info("Using client-side admin for allow-listed email (grantAdminRole unavailable)."); }
   }
   const isGuest = !!user.isAnonymous;
+  // 👩‍💻 An employee is never also an admin — admin wins if an address is on
+  // both lists — and an anonymous QR guest is never anybody's employee.
+  const isEmployee = !isAdmin && !isGuest && isEmployeeEmail(user.email);
+  if (isEmployee) await employeeEnsureClaim(user, tokenResult);
   if (authEpoch !== _studentAuthEpoch) return;
   void syncAiEngineConfig();
-  currentUser = { uid: user.uid, email: user.email, name: user.displayName || (user.email || "").split("@")[0] || (isGuest ? "Guest" : "Student"), role: isAdmin ? "admin" : "student", isGuest };
+  currentUser = { uid: user.uid, email: user.email, name: user.displayName || (user.email || "").split("@")[0] || (isGuest ? "Guest" : (isEmployee ? "Employee" : "Student")), role: isAdmin ? "admin" : (isEmployee ? "employee" : "student"), isGuest };
   studentProgress = {}; studentLearningProfile = learningProfileDefaults(); studentLevel = '';
   _practiceRun = createPracticeRun(user.uid); _practicePresentation = null; _studentFeedInvalidate();
 
@@ -9800,8 +11060,14 @@ async function enterApp(user, authEpoch = _studentAuthEpoch) {
   $("appShell").classList.add("show");
   $("userName").textContent = currentUser.name;
   $("userEmail").textContent = currentUser.email;
-  document.querySelectorAll(".admin-only").forEach(el => el.style.display = isAdmin ? "" : "none");
-  document.querySelectorAll(".student-only").forEach(el => el.style.display = isAdmin ? "none" : "");
+  // An employee is an AUTHOR, so the authoring controls inside a page (the
+  // answer-key print option and the like) are theirs too — what keeps the
+  // teacher's own pages away from them is the sidebar lockdown just below,
+  // not this sweep.
+  const isAuthor = isAdmin || isEmployee;
+  document.querySelectorAll(".admin-only").forEach(el => el.style.display = isAuthor ? "" : "none");
+  document.querySelectorAll(".student-only").forEach(el => el.style.display = isAuthor ? "none" : "");
+  employeeApplySidebar();
   // Every signed-in path comes through enterApp, which is why the subject
   // switcher is turned on from this one place. It is shown to BOTH roles: a
   // pupil needs it to reach their other subjects, and a teacher moving between
@@ -9824,6 +11090,34 @@ async function enterApp(user, authEpoch = _studentAuthEpoch) {
     await loadFlagNotifications();
     await loadSavedWorksheets();
     navigateTo("create");
+  } else if (isEmployee) {
+    // 👩‍💻 Employee: an AUTHOR working directly on the teacher's bank. The
+    // config/mathAdmin pointer, the student roster, the learning profile, the
+    // question history, the login log and every game are all deliberately
+    // absent from this branch — an employee is not a pupil, and writing a
+    // roster row or a leaderboard entry for one would put them in the class.
+    //
+    // The bank owner is resolved BEFORE anything reads or writes the bank:
+    // `_bankOwnerUid()` answers null for an employee while `adminUid` is
+    // unknown, and every save refuses rather than file a question in a
+    // subtree no student is ever served from.
+    try { const cfg = await getDoc(doc(db, "config", "mathAdmin")); if (cfg.exists()) adminUid = cfg.data().uid || null; } catch (e) { console.warn("bank owner lookup", e); }
+    if (authEpoch !== _studentAuthEpoch) return;
+    if (adminUid) {
+      // The generation guide grounds ✨ Build with AI and ⚡ Rapid add on the
+      // teacher's own instructions, so an employee's questions are built to
+      // the same brief the teacher's are.
+      await loadMarkingSettings(adminUid);
+      await loadGenSettings(adminUid);
+      await loadBank(adminUid);
+      await loadVettingList(adminUid);
+      await loadQuestionGraph(adminUid);   // read-only here: the board is the teacher's
+    } else {
+      toast("Couldn't find Mr Chung's question bank — ask him to sign in to Maths once, then reload this page", "error");
+    }
+    if (authEpoch !== _studentAuthEpoch) return;
+    await loadSavedWorksheets();
+    navigateTo(EMPLOYEE_HOME);
   } else {
     // students discover the admin and load their bank (the marking rubric
     // stays private — the marking function reads it server-side)
@@ -9849,16 +11143,47 @@ async function enterApp(user, authEpoch = _studentAuthEpoch) {
     prioritizeReviewQuestions();
     navigateTo("practice");
   }
-  rpgInit().catch(e => console.warn("rpg init", e));
+  // The hero, the leaderboard and the game doors are a PUPIL's. An employee's
+  // menu is locked down above, and starting the RPG would only spend reads on
+  // a hero nobody is going to play — and switch `.rpg-el` items back on.
+  if (!isEmployee) rpgInit().catch(e => console.warn("rpg init", e));
+  // ⏱️ The work-session clock picks a running session back up for anyone who
+  // authors (and does nothing at all for a pupil).
+  try { wkInit(); } catch (e) { console.warn("work session init", e); }
   renderQuestion();
   // If they arrived via a question QR / shared link, open that one question.
   if (pendingShareQ) { const t = pendingShareQ; pendingShareQ = null; setTimeout(() => openQuestionShareById(t.id), 80); }
   // If they scanned the SHEET QR instead, open the whole worksheet's overview.
   if (pendingShareWs) { const t = pendingShareWs; pendingShareWs = null; setTimeout(() => openWorksheetOverviewById(t.id, t.owner), 80); }
 }
-function canManageQuestions() { return !!currentUser && currentUser.role === "admin"; }
+// "May this account AUTHOR questions?" — the gate on every write to the bank,
+// the vetting list and the answer keys. An admin and an employee both may; a
+// pupil and a QR guest never. The TEACHER-only things (student results, the AI
+// engine, the marking guide, the flag inbox, the dependency board, the bin…)
+// ask `_isAdmin()` instead, so adding the employee role opened nothing beyond
+// authoring. See EMPLOYEE ACCOUNTS beside ADMIN_EMAILS.
+function canManageQuestions() { return _canAuthor(); }
+function _canAuthor() { return !!currentUser && (currentUser.role === "admin" || currentUser.role === "employee"); }
+// Whose question bank this account reads and writes. An admin's is their own;
+// an employee has NONE of their own and writes into the teacher's — the bank
+// students are actually served from — so it is `adminUid`, read off
+// config/mathAdmin at sign-in. Null for an employee whose teacher could not be
+// found: every writer refuses on null rather than file a question into the
+// employee's own subtree, where no student would ever meet it.
+function _bankOwnerUid() {
+  if (!currentUser) return null;
+  if (currentUser.role === "employee") return adminUid || null;
+  return currentUser.uid;
+}
+function _bankOwnerOrThrow() {
+  const uid = _bankOwnerUid();
+  if (!uid) throw new Error("Couldn't find Mr Chung's question bank — reload the page, and if it keeps happening ask him to sign in to Maths once");
+  return uid;
+}
 function makeDocId(prefix) { return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`; }
-function notificationAdminUid() { return canManageQuestions() ? currentUser.uid : adminUid; }
+// The TEACHER's subtree, whoever is asking: an employee's flags, subscribers
+// and notifications all belong to the bank they write into, not to them.
+function notificationAdminUid() { return (currentUser && currentUser.role === "admin") ? currentUser.uid : adminUid; }
 function compactQuestionSummary(q) {
   const text = questionText(q).slice(0, 120);
   return text || ((q && q.blocks || []).some(b => b.type === "image") ? "Image / diagram question" : "Question");
@@ -9915,13 +11240,13 @@ function renderFlagInbox() {
   list.querySelectorAll("[data-review-flag]").forEach(b => b.addEventListener("click", () => markFlagReviewed(b.dataset.reviewFlag)));
 }
 async function openFlagInbox() {
-  if (!canManageQuestions()) { toast("Only admin accounts can view flagged questions", "error"); return; }
+  if (!_isAdmin()) { toast("Only admin accounts can view flagged questions", "error"); return; }
   await loadFlagNotifications();
   renderFlagInbox();
   $("flagInboxOverlay").classList.add("show");
 }
 async function markFlagReviewed(id) {
-  if (!canManageQuestions() || !id) return;
+  if (!_isAdmin() || !id) return;
   try {
     await setDoc(doc(db, "users", currentUser.uid, "questionFlags", id), {
       status: "reviewed",
@@ -10034,7 +11359,11 @@ function emailForNewQuestion(q, toEmail, toName) {
   };
 }
 async function notifyQuestionSubscribers(q) {
-  if (!canManageQuestions() || !q) return;
+  // The TEACHER's announcement. The mail queue only takes a message to the
+  // sender's own address unless the sender is an admin (see mailToSelf in
+  // firestore.rules), so an employee's save could only ever end in a "the
+  // email queue is not available" toast about mail nobody was going to get.
+  if (!_isAdmin() || !q) return;
   let subscribers = [];
   try {
     const snap = await getDocs(collection(db, "users", currentUser.uid, "questionEmailSubscribers"));
@@ -10082,6 +11411,13 @@ function navigateTo(page) {
     page = "practice";
     toast("Student accounts can practise questions only", "error");
   }
+  // ⏱️ The work-session clock is an AUTHOR's; a pupil has no hours to log.
+  if (page === "worksession" && !canManageQuestions()) page = "practice";
+  // 👩‍💻 DEFAULT-DENY for an employee: anything off EMPLOYEE_PAGES — the
+  // practice page, the games, the teacher's own pages, a bookmark, a deep link
+  // — is rewritten to the question creator. This, not the hidden nav item, is
+  // the lock.
+  if (_isEmployee() && !EMPLOYEE_PAGES.includes(page)) page = EMPLOYEE_HOME;
   document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
   document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
   const pageEl = $("page-" + page); if (pageEl) pageEl.classList.add("active");
@@ -10093,7 +11429,7 @@ function navigateTo(page) {
   // everything else is CSS, which is what makes the swap instant and
   // impossible to leave half-applied.
   document.body.classList.toggle("nova-protocol", page === "tcg");
-  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", bin: "Bin", vetting: "Vetting", graph: "Dependency Board", worksheet: "Create Worksheet", myworksheets: "My Worksheets", worksheetview: "Worksheet Overview", students: "Student Results", diagnostic: "Diagnostic Test", answerkeys: "Answer Key Scanner", custompaper: "Custom Paper", character: "Character", leaderboard: "Leaderboard", adventure: "Dungeon", tcg: "Aetherfall", syllabus: "Syllabus" };
+  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", bin: "Bin", vetting: "Vetting", graph: "Dependency Board", worksheet: "Create Worksheet", myworksheets: "My Worksheets", worksheetview: "Worksheet Overview", students: "Student Results", diagnostic: "Diagnostic Test", answerkeys: "Answer Key Scanner", custompaper: "Custom Paper", worksession: "Work Sessions", character: "Character", leaderboard: "Leaderboard", adventure: "Dungeon", tcg: "Aetherfall", syllabus: "Syllabus" };
   $("topbarTitle").textContent = titles[page] || "";
   $("sidebar").classList.remove("open");
   if (page === "character") rpgRenderCharacterPage();
@@ -10108,6 +11444,7 @@ function navigateTo(page) {
   if (page === "bin") renderBinList();
   if (page === "answerkeys") aksRender();
   if (page === "custompaper") cpbInit();
+  if (page === "worksession") wkRenderPage();
   if (page === "worksheet") { wsPopulateFilters(); renderWsQuestions(); }
   if (page === "myworksheets") renderSavedWorksheets();
   if (page === "worksheetview") renderWorksheetOverview();
@@ -10133,7 +11470,7 @@ window.addEventListener("resize", syncTopbarHeight);
 document.querySelectorAll(".nav-item[data-page]").forEach(n => n.addEventListener("click", () => navigateTo(n.dataset.page)));
 $("menuToggle").addEventListener("click", () => $("sidebar").classList.toggle("open"));
 function openAiEngineSettings() {
-  if (!canManageQuestions()) { toast("Only admin accounts can change the AI engine", "error"); return; }
+  if (!_isAdmin()) { toast("Only admin accounts can change the AI engine", "error"); return; }
   const eng = getAiEngine();
   document.querySelectorAll('input[name="aiEngineChoice"]').forEach(r => { r.checked = r.value === eng; });
   const modelSel = $("aiEngineModel");
@@ -10227,25 +11564,25 @@ async function loadGenSettings(uid) {
   catch (e) { console.warn("gen load", e); }
 }
 function openMarking() {
-  if (!canManageQuestions()) { toast("Only admin accounts can edit marking settings", "error"); return; }
+  if (!_isAdmin()) { toast("Only admin accounts can edit marking settings", "error"); return; }
   $("mkStrictness").value = aiMarkingSettings.strictness || 3;
   $("mkStrictnessLabel").textContent = STRICTNESS_LABELS[aiMarkingSettings.strictness || 3];
   $("mkInstructions").value = aiMarkingSettings.instructions || "";
   $("markingOverlay").classList.add("show");
 }
 function openGen() {
-  if (!canManageQuestions()) { toast("Only admin accounts can edit generation settings", "error"); return; }
+  if (!_isAdmin()) { toast("Only admin accounts can edit generation settings", "error"); return; }
   $("genInstructions").value = aiGenSettings.instructions || ""; $("genOverlay").classList.add("show");
 }
 $("mkStrictness").addEventListener("input", e => $("mkStrictnessLabel").textContent = STRICTNESS_LABELS[e.target.value]);
 $("saveMarkingBtn").addEventListener("click", async () => {
-  if (!canManageQuestions()) { toast("Only admin accounts can edit marking settings", "error"); return; }
+  if (!_isAdmin()) { toast("Only admin accounts can edit marking settings", "error"); return; }
   aiMarkingSettings = { strictness: parseInt($("mkStrictness").value, 10) || 3, instructions: $("mkInstructions").value.trim() };
   try { await setDoc(doc(db, "users", currentUser.uid, "settings", "mathMarking"), aiMarkingSettings, { merge: true }); toast("Marking guide saved", "success"); closeOverlay("markingOverlay"); }
   catch (e) { toast("Save failed: " + e.message, "error"); }
 });
 $("saveGenBtn").addEventListener("click", async () => {
-  if (!canManageQuestions()) { toast("Only admin accounts can edit generation settings", "error"); return; }
+  if (!_isAdmin()) { toast("Only admin accounts can edit generation settings", "error"); return; }
   aiGenSettings = { instructions: $("genInstructions").value.trim() };
   try { await setDoc(doc(db, "users", currentUser.uid, "settings", "mathGeneration"), aiGenSettings, { merge: true }); toast("Generation guide saved", "success"); closeOverlay("genOverlay"); }
   catch (e) { toast("Save failed: " + e.message, "error"); }
@@ -10523,7 +11860,9 @@ async function loadBank(uid) {
       // how a question authored before the split gets migrated out of student
       // reach on the next admin load.
       const leaksBlockAnswer = Array.isArray(q.blocks) && q.blocks.some(b => b && BLOCK_KEY_FIELDS.some(f => b[f]));
-      if (canManageQuestions() && !clientAdminFallback && (QUESTION_KEY_FIELDS.some(f => q[f]) || leaksBlockAnswer)) needsSplit.push(q.id);
+      // The TEACHER's migration: an employee's load reads the bank and never
+      // re-saves the whole of it behind their back.
+      if (_isAdmin() && !clientAdminFallback && (QUESTION_KEY_FIELDS.some(f => q[f]) || leaksBlockAnswer)) needsSplit.push(q.id);
       // ⏳ THE RELEASE GATE, and the only one there is. A question a ⚡ Rapid
       // add batch scheduled for a future date is not loaded for a STUDENT at
       // all, so nothing downstream — practice, worksheets, the games, Snap &
@@ -10562,13 +11901,13 @@ async function loadBank(uid) {
       // split migration) or whose public "has video" flag is out of sync, so
       // students can filter to questions that have a video explanation.
       const needsResave = new Set(needsSplit);
-      if (!clientAdminFallback) {
+      if (_isAdmin() && !clientAdminFallback) {
         questionBank.forEach(q => { if (!!q.videoExplanationUrl !== pubVideoFlag[q.id]) needsResave.add(q.id); });
       }
       if (needsResave.size) {
         for (const id of needsResave) {
           const q = questionBank.find(x => x.id === id);
-          if (q) await saveQuestionDoc(q).catch(e => console.warn("question sync", id, e));
+          if (q) await saveQuestionDoc(q, { quiet: true }).catch(e => console.warn("question sync", id, e));
         }
         console.info(`Synced ${needsResave.size} student-readable question doc(s).`);
       }
@@ -10579,27 +11918,37 @@ async function loadBank(uid) {
 function isPermissionError(e) {
   return String((e && e.code) || "") === "permission-denied" || /permission|insufficient|PERMISSION_DENIED/i.test(String((e && e.message) || ""));
 }
-async function saveQuestionDoc(q) {
+// `opts.quiet` marks a HOUSEKEEPING write — a migration re-save, a release
+// date moved, a picture resized from a preview — which is not a question
+// authored, and must not land in anybody's ⏱️ work-session log.
+async function saveQuestionDoc(q, opts = {}) {
   if (!canManageQuestions()) throw new Error("Only admin accounts can save questions");
+  // 👩‍💻 The TEACHER's bank for an employee, never their own subtree.
+  const owner = _bankOwnerOrThrow();
+  // Read at CALL time, before the first await: an automatic job that fires
+  // saves off without awaiting them has dropped its guard by the time they land.
+  const wkLog = !opts.quiet && !_wkSuppress;
   const { pub, key } = splitQuestionDoc(q);
   q.practiceQuality = pub.practiceQuality;
   try {
-    await setDoc(doc(db, "users", currentUser.uid, "mathQuestions", q.id), pub);
-    await setDoc(doc(db, "users", currentUser.uid, "mathQuestionKeys", q.id), key);
+    await setDoc(doc(db, "users", owner, "mathQuestions", q.id), pub);
+    await setDoc(doc(db, "users", owner, "mathQuestionKeys", q.id), key);
   } catch (e) {
     // The private answer-key collection isn't writable here (its rules aren't
     // deployed). Fall back to storing the whole question — answer key included
     // — in the main doc, like the app did before the public/private split, so
     // saving still succeeds.
     if (isPermissionError(e)) {
-      await setDoc(doc(db, "users", currentUser.uid, "mathQuestions", q.id), q);
+      await setDoc(doc(db, "users", owner, "mathQuestions", q.id), q);
     } else throw e;
   }
+  if (wkLog) { try { wkLogQuestion(q, "bank"); } catch (e) { console.warn("work session log", e); } }
 }
 async function deleteQuestionDoc(id) {
   if (!canManageQuestions()) throw new Error("Only admin accounts can delete questions");
-  await deleteDoc(doc(db, "users", currentUser.uid, "mathQuestions", id));
-  await deleteDoc(doc(db, "users", currentUser.uid, "mathQuestionKeys", id)).catch(() => {});
+  const owner = _bankOwnerOrThrow();
+  await deleteDoc(doc(db, "users", owner, "mathQuestions", id));
+  await deleteDoc(doc(db, "users", owner, "mathQuestionKeys", id)).catch(() => {});
 }
 
 function bankSearchHaystack(q) {
@@ -15364,13 +16713,20 @@ async function loadVettingList(uid) {
   // scheduled function behind this, so opening the app IS the sweep.
   await binPurgeExpired().catch(e => console.warn("bin sweep", e));
 }
-async function saveVettingDoc(q) {
+// `opts.quiet` as on saveQuestionDoc: a re-save that files objectives, or a
+// release date moved, is housekeeping rather than a question written.
+async function saveVettingDoc(q, opts = {}) {
   if (!canManageQuestions()) throw new Error("Only admin accounts can save questions");
-  await setDoc(doc(db, "users", currentUser.uid, "mathVetting", q.id), q);
+  const owner = _bankOwnerOrThrow();
+  const wkLog = !opts.quiet && !_wkSuppress;
+  await setDoc(doc(db, "users", owner, "mathVetting", q.id), q);
+  if (wkLog) { try { wkLogQuestion(q, "vetting"); } catch (e) { console.warn("work session log", e); } }
 }
 async function deleteVettingDoc(id) {
   if (!canManageQuestions()) return;
-  await deleteDoc(doc(db, "users", currentUser.uid, "mathVetting", id)).catch(e => console.warn("vetting delete", e));
+  const owner = _bankOwnerUid();
+  if (!owner) return;
+  await deleteDoc(doc(db, "users", owner, "mathVetting", id)).catch(e => console.warn("vetting delete", e));
 }
 function updateVettingBadge() {
   const el = $("navVettingCount");
@@ -16156,7 +17512,7 @@ async function binMove(q, from) {
     deletedBy: (currentUser && (currentUser.name || currentUser.email)) || "",
     question
   };
-  await setDoc(doc(db, "users", currentUser.uid, "mathVetting", entry.id), entry);
+  await setDoc(doc(db, "users", _bankOwnerOrThrow(), "mathVetting", entry.id), entry);
   binList = binList.filter(b => b.id !== entry.id);
   binList.unshift(entry);
   updateBinBadge();
@@ -16176,12 +17532,14 @@ async function binRestore(id) {
   try {
     // Written back first, dropped from the bin second — the bin copy is the
     // only copy, so it goes only once the question is safely home.
+    // `quiet`: putting a question back is not writing one, so a restore never
+    // lands in a ⏱️ work-session log.
     if (toVetting) {
-      await saveVettingDoc(q);
+      await saveVettingDoc(q, { quiet: true });
       vettingList = vettingList.filter(x => x.id !== q.id);
       vettingList.unshift(q);
     } else {
-      await saveQuestionDoc(q);
+      await saveQuestionDoc(q, { quiet: true });
       const i = questionBank.findIndex(x => x.id === q.id);
       if (i >= 0) questionBank[i] = q; else questionBank.push(q);
     }
@@ -16220,7 +17578,9 @@ async function binEmpty() {
 // swept: a date we cannot read is not a reason to destroy someone's question,
 // and 🗑 Empty the bin is still there for it.
 async function binPurgeExpired() {
-  if (!canManageQuestions()) { updateBinBadge(); return 0; }
+  // The TEACHER's sweep: an employee's load never deletes anything out of the
+  // bin, even an expired entry — emptying it is the teacher's to do.
+  if (!_isAdmin()) { updateBinBadge(); return 0; }
   const cutoff = Date.now() - BIN_KEEP_DAYS * BIN_DAY_MS;
   const dead = binList.filter(b => { const t = _binDeletedMs(b); return t !== null && t <= cutoff; });
   for (const entry of dead) {
@@ -16602,7 +17962,7 @@ async function bankSetHold(id, held) {
   const prev = q.holdBack;
   if (held) q.holdBack = true; else delete q.holdBack;
   try {
-    if (inBank) await saveQuestionDoc(q); else await saveVettingDoc(q);
+    if (inBank) await saveQuestionDoc(q, { quiet: true }); else await saveVettingDoc(q, { quiet: true });
   } catch (e) {
     console.warn("hold-back write failed", e);
     if (prev === undefined) delete q.holdBack; else q.holdBack = prev;
@@ -16706,7 +18066,7 @@ async function bankSetRelease(id, iso) {
   if (on && RELEASE_DAY_RE.test(on) && on > releaseToday()) q.releaseOn = on;
   else delete q.releaseOn;
   try {
-    if (inBank) await saveQuestionDoc(q); else await saveVettingDoc(q);
+    if (inBank) await saveQuestionDoc(q, { quiet: true }); else await saveVettingDoc(q, { quiet: true });
   } catch (e) {
     console.warn("release date write failed", e);
     if (prev === undefined) delete q.releaseOn; else q.releaseOn = prev;
@@ -16882,10 +18242,18 @@ async function _rapidCloudRefresh() {
   clearTimeout(_rapidCloudTimer);
   const uid = currentUser?.uid;
   const note = document.getElementById('rapidCloudNote'), box = document.getElementById('rapidCloudMode');
-  if (!uid || !canManageQuestions()) {
+  // 👩‍💻 The online worker is the TEACHER's: it answers an admin claim only and
+  // files into the caller's own subtree, so an employee's PDFs are read in this
+  // tab instead — which lands them in the teacher's vetting list like any
+  // other Rapid add page. Asked as a role string rather than _isEmployee()
+  // so the rule reads the same in the rapid-cloud harness's sandbox.
+  const employee = currentUser?.role === 'employee';
+  if (!uid || !canManageQuestions() || employee) {
     _rapidCloudReady=false;
     if(box){box.checked=false;box.disabled=true;}
-    if(note) note.textContent='Online PDF processing requires an administrator account. Browser mode needs this tab to stay open.';
+    if(note) note.textContent=employee
+      ? 'Your PDFs are read right here in this tab and land in Mr Chung\'s vetting list — keep the tab open until every page has finished.'
+      : 'Online PDF processing requires an administrator account. Browser mode needs this tab to stay open.';
     return;
   }
   try {
@@ -17941,7 +19309,7 @@ async function rapidAutoFileBatch(list, batchLevel) {
     // P5 back to P6 while its level badge still read P5. Guarded before the
     // save, or the wrong ceiling is what gets written.
     rapidApplyLevel(q, batchLevel);
-    saveVettingDoc(q).catch(e => console.warn("vetting save (objectives)", e));
+    saveVettingDoc(q, { quiet: true }).catch(e => console.warn("vetting save (objectives)", e));
     renderVettingList();
   });
   todo.forEach(q => _rapidFilingIds.delete(q.id));   // the ones that matched nothing
@@ -23534,7 +24902,7 @@ async function cpbSavePaper() {
   }
   cpbLibBusy = true; cpbRender();
   try {
-    await setDoc(doc(db, "users", currentUser.uid, "mathVetting", payload.id), payload);
+    await setDoc(doc(db, "users", _bankOwnerOrThrow(), "mathVetting", payload.id), payload);
     cpbLibId = id;
     const was = cpbLib.find(r => r.id === id);
     const row = cpbLibRow({ id, name, at: payload.at, mode: payload.mode, nA: m.nA, nB: m.nB, nP2: m.nP2 || 0,
@@ -23552,7 +24920,7 @@ async function cpbSavePaper() {
 async function cpbLibOpenNow(id) {
   cpbLibBusy = true; cpbRender();
   try {
-    const snap = await getDoc(doc(db, "users", currentUser.uid, "mathVetting", cpbLibDocId(id)));
+    const snap = await getDoc(doc(db, "users", _bankOwnerOrThrow(), "mathVetting", cpbLibDocId(id)));
     if (!snap.exists()) {
       cpbLib = cpbLib.filter(r => r.id !== id);
       toast("That paper is no longer there", "error");
@@ -23600,7 +24968,7 @@ function cpbLibOpen(id) {
 async function cpbLibMarkSent() {
   if (!cpbLibId) return;
   const at = Date.now();
-  try { await setDoc(doc(db, "users", currentUser.uid, "mathVetting", cpbLibDocId(cpbLibId)), { sentAt: at }, { merge: true }); }
+  try { await setDoc(doc(db, "users", _bankOwnerOrThrow(), "mathVetting", cpbLibDocId(cpbLibId)), { sentAt: at }, { merge: true }); }
   catch (e) { console.warn("custom paper sent stamp", e); return; }
   const i = cpbLib.findIndex(r => r.id === cpbLibId);
   if (i >= 0) cpbLib[i].sentAt = at;
@@ -23611,7 +24979,7 @@ function cpbLibDelete(id) {
   const row = cpbLib.find(r => r.id === id);
   if (!row) return;
   if (!confirm("Delete “" + (row.name || "this paper") + "”?\n\nAny question already sent to the bank STAYS there — this is the paper, not the questions. This cannot be undone.")) return;
-  deleteDoc(doc(db, "users", currentUser.uid, "mathVetting", cpbLibDocId(id)))
+  deleteDoc(doc(db, "users", _bankOwnerOrThrow(), "mathVetting", cpbLibDocId(id)))
     .then(() => {
       cpbLib = cpbLib.filter(r => r.id !== id);
       if (cpbLibId === id) cpbLibId = "";
@@ -24907,7 +26275,9 @@ async function loadSavedWorksheets() {
     } catch (e) { console.warn("worksheet load", uid, e); }
   };
   await pull(currentUser.uid);
-  if (!canManageQuestions()) await pull(adminUid);   // the teacher's assigned sheets
+  // The teacher's assigned sheets — for a pupil, and for an employee building
+  // the next one alongside them.
+  if (!_isAdmin()) await pull(adminUid);
   savedWorksheets.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
 }
 async function persistWorksheet(ws) {
@@ -24987,10 +26357,10 @@ function renderSavedWorksheets() {
         <button class="btn btn-primary btn-sm" data-ws-print="${escapeHtml(ws.id)}">🖨️ Print / PDF</button>
         <button class="btn btn-green btn-sm" data-ws-overview="${escapeHtml(ws.id)}" title="One shareable page with every question on this sheet, its answer key and its video solution — plus a player that works through all the videos in order. Copy the link from that page to give it to students.">🎬 Solutions &amp; videos</button>
         <button class="btn btn-ghost btn-sm" data-ws-preview="${escapeHtml(ws.id)}">👁️ Preview</button>
-        <button class="btn btn-blue btn-sm" data-ws-practise="${escapeHtml(ws.id)}">✍️ Practise</button>
+        ${_isEmployee() ? "" : `<button class="btn btn-blue btn-sm" data-ws-practise="${escapeHtml(ws.id)}">✍️ Practise</button>`}
         ${canManageQuestions() ? `<button class="btn btn-outline btn-sm" data-ws-akc="${escapeHtml(ws.id)}" title="ChatGPT and Gemini each solve every question on this sheet from scratch, at the same time, and the report compares their answers with your answer key, working and marking guide.">🔍 Check answer keys</button>` : ""}
         ${wsMine(ws) ? `<button class="btn btn-ghost btn-sm" data-ws-edit="${escapeHtml(ws.id)}" title="Change which questions are on this sheet">✎ Questions</button>
-        <button class="btn btn-danger btn-sm" data-ws-del="${escapeHtml(ws.id)}">🗑 Delete</button>` : `<span class="ws-saved-meta" style="margin:0;align-self:center;">Set by your teacher</span>`}
+        <button class="btn btn-danger btn-sm" data-ws-del="${escapeHtml(ws.id)}">🗑 Delete</button>` : `<span class="ws-saved-meta" style="margin:0;align-self:center;">${_isEmployee() ? "The teacher's worksheet" : "Set by your teacher"}</span>`}
       </div>
     </div>`;
   }).join("");
@@ -25452,7 +26822,10 @@ window.qbHoverLeave = qbHoverLeave;
 // Practise a worksheet on screen: the practice queue becomes this worksheet's
 // questions, in its own order. `prioritizeReviewQuestions` is deliberately not
 // re-run afterwards — the teacher chose this order.
+// 👩‍💻 Never for an employee: practising MARKS, and a marked attempt earns XP and
+// a leaderboard row on the server — which would put the author in the class.
 function practiseWorksheet(id) {
+  if (_isEmployee()) { toast("Practice is for students — use 👁️ Preview to see the sheet as they will", ""); return; }
   const ws = wsFind(id);
   if (!ws) return;
   const questions = _studentManualQuestions(wsSavedQuestions(ws));
@@ -25473,6 +26846,7 @@ function practiseWorksheet(id) {
   toast(`Practising “${ws.title || "worksheet"}” — ${questions.length} question(s)`, "success");
 }
 function practiseCurrentWorksheet() {
+  if (_isEmployee()) { toast("Practice is for students — use 👁️ Preview to see the sheet as they will", ""); return; }
   const questions = _studentManualQuestions(wsSelectedQuestions());
   if (!questions.length) { toast("Select some questions first", "error"); return; }
   _practiceSetMode(true, questions);
@@ -29768,7 +31142,7 @@ function rpgHpBar(current, max, extraClass = "") {
   return `<div class="rpg-bar ${extraClass}"><div class="rpg-bar-fill hp" style="width:${pct}%;"></div><div class="rpg-bar-label">${current} / ${max}</div></div>`;
 }
 function rpgSimRowHtml() {
-  if (!canManageQuestions()) return "";
+  if (!_isAdmin()) return "";
   return `<div class="rpg-sim">Preview controls:
     <button type="button" data-rpg-act="sim-correct">✓ correct</button>
     <button type="button" data-rpg-act="sim-partial">≈ partial</button>
@@ -31672,7 +33046,7 @@ $("rpgBattle").addEventListener("click", e => {
   const act = btn.dataset.rpgAct;
   // sim-* are admin preview tools: enforce the role here, not just in the
   // renderer — a student can inject the button from dev tools
-  if (act.startsWith("sim-") && !canManageQuestions()) return;
+  if (act.startsWith("sim-") && !_isAdmin()) return;
   if (act === "start") rpgStartBattle();
   else if (act === "flee") rpgFlee();
   else if (act === "toggle-min") { rpgSetBattleMinimized(!rpgBattleMinimized()); rpgRenderBattle(); }
@@ -31694,7 +33068,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.91.1 · 2026-10-09";
+const APP_VERSION = "v1.92.0 · 2026-10-10";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -31918,7 +33292,7 @@ function graphPrereqsMet(qid) {
 
 // ---- Firestore persistence ----
 function graphDocRef() {
-  const uid = canManageQuestions() ? (currentUser && currentUser.uid) : adminUid;
+  const uid = _isAdmin() ? (currentUser && currentUser.uid) : adminUid;
   return uid ? doc(db, "users", uid, "mathQuestionGraph", "main") : null;
 }
 async function loadQuestionGraph(uid) {
@@ -31954,14 +33328,16 @@ function setGraphSaveState(state) {
   else if (state === "dirty") { el.textContent = "Unsaved changes"; el.className = "graph-save-state dirty"; }
   else { el.textContent = ""; el.className = "graph-save-state"; }
 }
+// The Dependency Board is the TEACHER's: an employee reads it (the editor's
+// hints use it) and never writes it.
 function scheduleGraphSave() {
-  if (!canManageQuestions()) return;
+  if (!_isAdmin()) return;
   setGraphSaveState("dirty");
   clearTimeout(_graphSaveTimer);
   _graphSaveTimer = setTimeout(saveQuestionGraphNow, 800);
 }
 async function saveQuestionGraphNow() {
-  if (!canManageQuestions() || !currentUser) return;
+  if (!_isAdmin() || !currentUser) return;
   const ref = graphDocRef(); if (!ref) return;
   setGraphSaveState("saving");
   try {
@@ -32050,7 +33426,7 @@ function graphBuildNodeEl(q, id) {
 }
 function renderGraph() {
   const world = $("graphWorld"); if (!world) return;
-  if (canManageQuestions()) graphPruneMissing();
+  if (_isAdmin()) graphPruneMissing();
   Array.from(world.querySelectorAll(".gnode")).forEach(n => n.remove());
   graphNodeEls = {};
   let count = 0;
@@ -32309,6 +33685,10 @@ function graphRegenerateNode(id, difficulty) {
 // Called from the editor save handler: a freshly-saved AI variant spawned from
 // a board node gets added next to its source and linked with the chosen relationship.
 function graphOnQuestionSaved(q, isNew) {
+  // An employee's variant is not linked on the teacher's board (they cannot
+  // write it), so the pending link is dropped rather than left waiting to be
+  // attached to whatever the teacher saves next.
+  if (graphPendingSpawn && !_isAdmin()) graphPendingSpawn = null;
   if (graphPendingSpawn && isNew && q) {
     const src = graphPendingSpawn.sourceId;
     const rel = graphNormalizeKind(graphPendingSpawn.rel || "same-concept");
@@ -32459,9 +33839,13 @@ function maybeServeEasierOnMiss(q, v) {
 
 // ---- Roles and navigation ----
 function _isAdmin() { return !!(currentUser && currentUser.role === 'admin'); }
-function _isEmployee() { return false; }   // no employee role in the Maths app
-function _navAllowed(page) { return true; }
-function rpgHomePage() { return _isAdmin() ? 'create' : 'practice'; }
+// 👩‍💻 A real role since v1.92.0 (it was a stub answering false, which is why an
+// employee signing in here got the student app). See EMPLOYEE ACCOUNTS.
+function _isEmployee() { return !!(currentUser && currentUser.role === 'employee'); }
+// Every LATE nav show asks this first — the game doors and the Nexus come back
+// on when their own loads resolve, seconds after the sidebar was locked down.
+function _navAllowed(page) { return !_isEmployee() || EMPLOYEE_PAGES.indexOf(page) >= 0; }
+function rpgHomePage() { return _isAdmin() ? 'create' : (_isEmployee() ? EMPLOYEE_HOME : 'practice'); }
 function _renderCommFeed() { /* no community feed in the Maths app */ }
 
 // ---- Question helpers the game's quiz reads ----
@@ -49421,7 +50805,7 @@ function renderSyllabusPage() {
       <div class="syl-cover-note">${canManageQuestions()
         ? `Open a question in <b>Create Question</b> to file it, or use <b>＋ Add questions</b> on any objective below. The <b>✨ Suggest</b> button reads the question and proposes the objectives it assesses.`
         : `Every objective in the Primary Mathematics syllabus. Open one to practise the questions filed under it.`}</div>
-      ${canManageQuestions() ? sylImportPanelHtml() : ''}
+      ${_isAdmin() ? sylImportPanelHtml() : ''}
     </div>`;
 
   html += `<div class="syl-controls">`
@@ -49697,7 +51081,8 @@ function sylImportPanelHtml() {
 }
 let _sylImportRunning = false;
 async function sylImportQuizToBank() {
-  if (!canManageQuestions()) { toast("Only admin accounts can import questions", "error"); return; }
+  // 1 600 questions into the bank in one press is the TEACHER's call.
+  if (!_isAdmin()) { toast("Only admin accounts can import questions", "error"); return; }
   if (_sylImportRunning) return;
   const held = {};
   tcgImportedInBank().forEach(q => { held[q.id] = q; });
@@ -49723,8 +51108,10 @@ async function sylImportQuizToBank() {
         // saveQuestionDoc and nothing else. The editor's save also notifies
         // every subscribed student and touches the Dependency Board — neither
         // belongs on a bulk import of this size: one is 1 600 notifications, the other
-        // only ever applies to a question spawned from another one.
-        await saveQuestionDoc(q);
+        // only ever applies to a question spawned from another one. `quiet`
+        // because 1 600 built-in rows filed at once are not 1 600 questions
+        // anybody wrote this session.
+        await saveQuestionDoc(q, { quiet: true });
         const at = questionBank.findIndex(x => x.id === q.id);
         if (at >= 0) questionBank[at] = q; else questionBank.push(q);
       } catch (e) { failed++; lastErr = (e && e.message) || String(e); }
@@ -49793,7 +51180,7 @@ function sylPractise(qs, manual = true) {
 async function sylSaveLos(q, los) {
   if (!canManageQuestions()) throw new Error("Only admin accounts can file questions");
   q.los = los;
-  await setDoc(doc(db, "users", currentUser.uid, "mathQuestions", q.id), { los }, { merge: true });
+  await setDoc(doc(db, "users", _bankOwnerOrThrow(), "mathQuestions", q.id), { los }, { merge: true });
 }
 async function sylUntag(qid, loId) {
   const q = (questionBank || []).find(x => x.id === qid);
