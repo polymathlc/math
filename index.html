@@ -2071,6 +2071,9 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 @media (max-width: 520px) { .qc-next-choices { grid-template-columns: 1fr; } }
 /* 🧩 Foundational questions: the parts, for checking before they are added. */
 .qc-break-card { max-width: 760px; }
+.qc-found { margin: 0 0 8px; font-size: 0.74rem; line-height: 1.45; color: var(--text-light, #9ca3af); }
+.qc-found.on { color: #3b5b8c; }
+.gnode-act.on { background: #e8eefb; border-radius: 8px; }
 .qc-break-intro { margin: 0 0 16px; font-size: 0.9rem; line-height: 1.65; color: var(--text-muted); }
 .qc-break-status { margin-bottom: 18px; font-size: 0.86rem; line-height: 1.6; color: var(--text-muted); display: flex; align-items: center; gap: 10px; }
 .qc-break-status.error { color: var(--danger, #b42318); }
@@ -9959,6 +9962,12 @@ let questionBank = [];           // the active practice questions
 // scheduled question for a student at all, and this is the ONLY thing it keeps
 // instead — an id and a date, never one word of the question.
 let lockedQuestions = {};
+// 🧩 id → a FOUNDATIONAL step (a part of another question, made on its chart).
+// A student's `loadBank` keeps these OUT of `questionBank` — the practice list,
+// worksheets-by-index, the games — and holds them here, to be served only
+// after the question they are a part of was answered wrongly
+// (`maybeServeFoundationOnMiss`). See "FOUNDATIONAL STEPS ONLY AFTER A MISS".
+let foundationQuestions = {};
 let bankSearchTerm = "";         // Question Bank search filter
 // ---- Vetting + Rapid add (admin) ----------------------------------------
 // Nothing in `vettingList` is ever served to a student: it is the holding pen
@@ -11970,6 +11979,30 @@ function qHeldBack(q) { return !!q && q.holdBack === true; }
 // student-facing surface in the app without one of them being told about it.
 // A gate of its own is one the next reader somebody writes forgets to ask.
 function qReleased(q, today) { return !qHeldBack(q) && !qScheduled(q, today); }
+// ---- 🧩 FOUNDATIONAL STEPS ONLY AFTER A MISS (v1.96.0) -----------------------
+// A step made on a question's chart (➕ From a copy, or 🧩 Foundational
+// questions) carries `foundationOf: "<id of the question it is a part of>"` in
+// its STUDENT-READABLE half. A pupil never meets it in ordinary practice: it is
+// served only straight after they get that question wrong. A question picked
+// onto a chart from the bank (📚) is NOT flagged — it was an ordinary
+// question before anyone linked it, and stays one; the 🔒 on its chart node
+// flags it by hand.
+//  • STRICT: a non-empty string that is not the question's own id. Anything
+//    else is not a flag, so a junk value can never hide a question.
+//  • NOT IN `QUESTION_KEY_FIELDS`. The pupil's own client acts on it; move it
+//    into the key doc and every step is served in ordinary practice again.
+function qIsFoundation(q) {
+  const v = q && q.foundationOf;
+  return typeof v === "string" && !!v.trim() && v.trim() !== String(q.id);
+}
+// The steps of `qid` a pupil has not mastered, in the order they were made —
+// which is solving order, because 🧩 saves its parts one after another.
+function foundationStepsFor(qid, pool, mastered) {
+  qid = String(qid || "");
+  return Object.values(pool || {})
+    .filter(x => x && qIsFoundation(x) && x.foundationOf.trim() === qid && !(mastered && mastered(x)))
+    .sort((a, b) => String(a.createdAt || "").localeCompare(String(b.createdAt || "")) || String(a.id).localeCompare(String(b.id)));
+}
 function qReleaseLabel(on) {
   const iso = String(on || "");
   if (!RELEASE_DAY_RE.test(iso)) return "";
@@ -12120,6 +12153,7 @@ function splitQuestionDoc(q) {
 async function loadBank(uid) {
   questionBank = [];
   lockedQuestions = {};
+  foundationQuestions = {};
   _studentPrivateKeysLoaded = false;
   const needsSplit = [];
   try {
@@ -12148,6 +12182,13 @@ async function loadBank(uid) {
         // sentinel instead: the sheet still draws a locked row saying it is not
         // open yet, and simply names no day — which is the truth.
         lockedQuestions[String(q.id)] = qReleaseOn(q) || HOLD_LOCK_KEY;
+        return;
+      }
+      // 🧩 A FOUNDATIONAL STEP is held aside, not served: a pupil meets it
+      // only after getting the question it is a part of wrong. Held here
+      // rather than dropped, because that miss is when it is needed.
+      if (!canManageQuestions() && qIsFoundation(q)) {
+        foundationQuestions[String(q.id)] = q;
         return;
       }
       questionBank.push(q);
@@ -16602,6 +16643,11 @@ function collectQuestion() {
     createdBy: currentUser ? currentUser.name : "Admin"
   };
   if (variantOf && variantOf !== q.id) q.variantOf = variantOf;
+  // 🧩 A foundational step stays one through an edit, and a NEW easier step
+  // made on a chart with ➕ is born one — a part of the question it sits under.
+  // A ⏭ next question is not: it comes after the question, not after a miss.
+  const foundationOf = String(existing.foundationOf || (!currentEditingId && qcSpawn && !qcSpawn.tier ? qcParseKey(qcSpawn.target).id : "") || "").trim();
+  if (foundationOf && foundationOf !== q.id) q.foundationOf = foundationOf;
   // MCQ: include the options (public) + correct index (private) when present.
   const mcq = collectEditorOptions();
   if (mcq.options.length >= 2) { q.options = mcq.options; q.correctOption = mcq.correctOption; }
@@ -23039,6 +23085,9 @@ function wsBank() {
 function wsQuestionById(id) {
   return questionBank.find(q => q.id === id)
     || (Array.isArray(studentGeneratedQuestions) ? studentGeneratedQuestions.find(q => q.id === id) : null)
+    // 🧩 A step the TEACHER put on a sheet by hand is that sheet's question —
+    // held out of ordinary practice, not out of an assignment.
+    || foundationQuestions[String(id)]
     || null;
 }
 // The selected questions IN ORDER. wsOrder is the record of order; the Set is
@@ -29098,7 +29147,7 @@ $("submitBtn").addEventListener("click", async () => {
     showResult(v, png, reviewPlan, !!answer.solutionMedia);
     if (isMcq) showMcqResult(answer.selectedOption, typeof out.correctOption === "number" ? out.correctOption
       : onDevice && String(v.verdict).toLowerCase() === "correct" ? answer.selectedOption : undefined);
-    if (!maybeServePrerequisiteOnMiss(q, v) && !maybeServeEasierOnMiss(q, v)) maybeServeVariantOnMiss(q, v);
+    if (!maybeServeFoundationOnMiss(q, v) && !maybeServePrerequisiteOnMiss(q, v) && !maybeServeEasierOnMiss(q, v)) maybeServeVariantOnMiss(q, v);
     const verdict = String(v.verdict).toLowerCase();
     let message = verdict === "correct" ? "Great work! 🎉" : "Marked — see the feedback";
     if (lastEloChange && currentUser.role === "student") {
@@ -33353,7 +33402,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.95.0 · 2026-10-11";
+const APP_VERSION = "v1.96.0 · 2026-10-11";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -34074,6 +34123,24 @@ function graphBestEasierToServe(q) {
   cands.sort((a, b) => (studentProgress[a.id]?.attempts || 0) - (studentProgress[b.id]?.attempts || 0));
   return cands[0];
 }
+// 🧩 The ONE place a foundational step reaches a pupil: straight after they
+// got the question it is a part of wrong. Every step they have not mastered
+// goes in next, in solving order, so the parts are tried one after another.
+// Not gated on AI practice (unlike the board's rules below): a miss is a miss
+// in any automatic practice, and this is the only way these questions are
+// ever served at all.
+function maybeServeFoundationOnMiss(q, v) {
+  if (!q || !_practiceAutomatic()) return false;
+  if (String((v && v.verdict) || "").toLowerCase() === "correct") return false;
+  const steps = foundationStepsFor(q.id, foundationQuestions, x => questionMastered(studentProgress[x.id]));
+  if (!steps.length) return false;
+  steps.forEach(st => { const i = questionBank.findIndex(x => x.id === st.id); if (i !== -1) questionBank.splice(i, 1); });
+  qIndex = questionBank.findIndex(x => x.id === q.id); if (qIndex < 0) qIndex = 0;
+  questionBank.splice(qIndex + 1, 0, ...steps);
+  if (aiPracticeActive) { aiPracticeStats.foundation = (aiPracticeStats.foundation || 0) + steps.length; renderAiPracticeBar(); }
+  toast(steps.length === 1 ? "Let's do one part of it first 🧩" : "Let's break it into " + steps.length + " smaller parts first 🧩", "");
+  return true;
+}
 function maybeServeEasierOnMiss(q, v) {
   if (!aiPracticeActive || !q) return false;
   if (String((v && v.verdict) || "").toLowerCase() === "correct") return false;
@@ -34546,7 +34613,9 @@ function qcBreakdownQuestion(part, root, id, nowIso, by) {
     videoOverlays: [],
     answerKeyImageUrl: "",
     createdAt: nowIso,
-    createdBy: by || "Admin"
+    createdBy: by || "Admin",
+    // A part of the question it was broken out of: served only after a miss.
+    foundationOf: String(root.id || "")
   };
 }
 
@@ -34681,11 +34750,15 @@ function qcNodeHtml(key, node, isRoot) {
     '<div class="gnode-body">' +
       (node.checks ? '<div class="qc-checks">' + escapeHtml(node.checks) + '</div>'
         : (isRoot ? '' : '<div class="qc-checks empty">No “checks” line yet — press ✎</div>')) +
+      (!isRoot && q ? (qIsFoundation(q) ? '<div class="qc-found on">🔒 Pupils see it only after getting a question above it wrong</div>'
+        : '<div class="qc-found">In ordinary practice too — 🔒 to keep it for after a miss</div>') : '') +
       '<div class="gnode-snippet">' + escapeHtml(snip) + '</div>' +
     '</div>' +
     '<div class="gnode-foot">' +
       '<button class="gnode-act" data-act="preview" title="Preview the question">👁</button>' +
       (isRoot ? '' : '<button class="gnode-act" data-act="note" title="What this step checks">✎</button>') +
+      (isRoot || !q ? '' : '<button class="gnode-act' + (qIsFoundation(q) ? ' on' : '') + '" data-act="found" title="' +
+        (qIsFoundation(q) ? 'Shown only after a miss. Press to put it in ordinary practice too' : 'In ordinary practice. Press to show it only after a miss') + '">' + (qIsFoundation(q) ? '🔒' : '🔓') + '</button>') +
       '<button class="gnode-act" data-act="breakdown" title="Foundational questions: break this into its parts, one short question per step">🧩</button>' +
       '<button class="gnode-act" data-act="addstep" title="New step from a copy: this question opens in the editor for the AI to change">➕</button>' +
       '<button class="gnode-act" data-act="pickstep" title="Pick an easier step from the bank">📚</button>' +
@@ -34846,6 +34919,7 @@ function qcOnNodeClick(e, el) {
   if (act === "preview") { const q = graphFindQ(p.id); if (q) openQuestionPreview(q, "Question preview"); }
   else if (act === "note") qcOpenNode(key);
   else if (act === "breakdown") qcOpenBreakdown(key);
+  else if (act === "found") qcToggleFoundation(key);
   else if (act === "addstep") qcSpawnEditor(key, "");
   else if (act === "pickstep") qcOpenPicker(key, "");
   else if (act === "addnext") qcOpenNextChooser();
@@ -34919,6 +34993,30 @@ function qcLinkComplete(targetKey) {
   const why = qcAddEdge(chart, from, targetKey, "");
   if (why) toast(why, "error"); else qcScheduleSave();
   qcRender();
+}
+// 🔒 / 🔓 on a step: whether pupils meet it only after a miss. Writes the ONE
+// field on the question's public half, and puts it back if the write fails.
+// Flagging makes it a foundation of the question its arrow points to (the
+// chart's own question when it has none).
+async function qcToggleFoundation(key) {
+  if (!_isAdmin()) { toast("Only the teacher's account can edit dependency charts", "error"); return; }
+  const chart = qcCharts[qcRoot], p = qcParseKey(key);
+  if (!chart || !p || p.type !== "q" || key === qcKeyQ(qcRoot)) return;
+  const q = graphFindQ(p.id); if (!q) return;
+  const prev = q.foundationOf;
+  const out = chart.edges.find(e => e.from === key && qcParseKey(e.to) && qcParseKey(e.to).type === "q");
+  const parent = out ? qcParseKey(out.to).id : qcRoot;
+  const on = !qIsFoundation(q);
+  if (on) q.foundationOf = parent; else delete q.foundationOf;
+  qcRender();
+  try {
+    await setDoc(doc(db, "users", _bankOwnerOrThrow(), "mathQuestions", q.id), { foundationOf: on ? parent : deleteField() }, { merge: true });
+    toast(on ? "Pupils now meet this only after getting the question above it wrong" : "This is back in ordinary practice", "success");
+  } catch (e) {
+    if (prev === undefined) delete q.foundationOf; else q.foundationOf = prev;
+    qcRender();
+    toast("Couldn't change that: " + (e.message || e), "error");
+  }
 }
 function qcRemoveNode(key) {
   const chart = qcCharts[qcRoot]; if (!chart || key === qcKeyQ(qcRoot)) return;
@@ -35282,7 +35380,10 @@ async function qcBreakAdd() {
   const flagged = picked.filter(p => p.check === "flag").length;
   if (flagged && !confirm(flagged + " of these " + (flagged === 1 ? "was" : "were") + " flagged by the checker. Add anyway?")) return;
   st.saving = true; qcBreakRender();
-  const root = graphFindQ(st.root) || {};
+  // The question these are parts OF — the step 🧩 was pressed on, or the
+  // chart's own question. Its level and topics carry over, and its id is
+  // what each part is a foundation of.
+  const root = graphFindQ(qcParseKey(st.target).id) || graphFindQ(st.root) || {};
   const by = currentUser ? currentUser.name : "Admin";
   const saved = [];
   try {
