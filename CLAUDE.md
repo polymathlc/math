@@ -3057,9 +3057,33 @@ step from the working, and the climb back up come next.
   touching one and `qcAddEdge` refuses one. Phase 4 serves them after the
   question is solved.
 
+### 🧩 Foundational questions — the question broken into its PARTS (v1.95.0)
+
+`QC_BREAK_*` / `qcBreakdownPrompt` / `qcBreakdownParts` / `qcBreakdownQuestion`
+(pure, in the helper section) and `qcOpenBreakdown` / `qcBreakGenerate` /
+`qcBreakRender` / `qcBreakField` / `qcBreakAdd` with `#qcBreakOverlay`.
+
+- **An easier step is ONE PART of the problem, not smaller numbers.** The
+  prompt carries Zhi Kai's fruit-tart → candies example: one step per question,
+  2–5 of them in solving order, the same new person and objects throughout,
+  numbers about the original's size, and a later part GIVES an earlier part's
+  answer as a fact (176), so each stands alone and the set still chains.
+- **Nothing is saved before the teacher has read the parts.** The ordinary
+  `verifyGeneratedQuestion` checks each part; a flagged one is badged and asks
+  again on Add. A reply that lands after the window closed or 🔄 Try again is
+  dropped (`qcBreakRun`), and the list is never rebuilt under the caret.
+- **A part is an ordinary bank question** (`qcBreakdownQuestion`): the root's
+  level and topics, its own objectives filed afterwards by `sylAutoFileLos`,
+  **no `variantOf`**, and its `checks` line on the chart NODE, never on the
+  question. Each joins as an easier step under the question it came from,
+  through `qcAttachNew`, which now places new steps side by side on that row.
+- 🧩 is on the toolbar (the chart's question) and on every step (that step).
+  ➕ is now "From a copy".
+
 ## House rules
 - After touching **🧩 question charts** (`qcNormalizeChart`, `qcChartPayload`,
-  `qcAddEdge`, `qcAttachNew`, `qcSpawnEditor`, `qcOnQuestionSaved`, the
+  `qcAddEdge`, `qcAttachNew`, `qcSpawnEditor`, `qcOnQuestionSaved`, the 🧩 break-down
+  (`qcBreakdownPrompt`, `qcBreakdownParts`, `qcBreakdownQuestion`, `qcBreakAdd`), the
   `qcSpawn` clears in `resetEditor` / `loadQuestionIntoEditor`,
   `qcWouldCycle`, `qcSeedFromBoard`, `qcNormalizeApp`,
   `qcAppPrompt`, `qcDefaultBrief`, `qcAppFrameAttrs`, the `qcApp*` overlay, or
