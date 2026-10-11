@@ -3018,10 +3018,8 @@ step from the working, and the climb back up come next.
   the SERVER (`CHART_APP_SIZES` + `CHART_APP_REASONING`, clamped). Until it is
   deployed the page falls back to `askOpenAi` with the same model and effort.
   **A change here needs the functions deploy the merge triggers.**
-- **The app prompt never carries the admin-only half** (`expected`,
-  `markingGuide`, the answer-key image): the app is for the pupil.
-  `qcDefaultBrief` uses the step's wording as context and tells the model to use
-  its own numbers.
+- **The app SOLVES THE QUESTION ITSELF** (v1.100.0 — see 🧪 below). It
+  used to be told never to; that rule is gone.
 - **Plain helpers in `functions/index.js` are NOT exported**: the deploy reads
   every export as a function.
 - Run **`node tools/question-chart-tests.mjs`** and
@@ -3163,6 +3161,29 @@ in the helper section), `qcBranchDocumentOpts` / `qcOpenPrintSheet` /
   question). With none of them set nothing changes for Custom Paper.
 - Teacher only (`_isAdmin()` in the handlers). Nothing is written anywhere.
 
+### 🧪 The app works the question itself, never a made-up twin (v1.100.0)
+
+`qcAppQuestionFacts` / `qcDefaultBrief` / `qcAppBriefUpgrade` /
+`QC_APP_OLD_BRIEF_RE` / `qcAppPrompt`'s `question`, and the target lookup in
+`qcGenerateApp`.
+
+- **A parallel story is a second problem.** A pupil who missed a question
+  cannot carry a lesson from "5 bags of 12 sweets" back to the question in
+  front of them, so the prompt carries THE question (the step the app is
+  attached to, else the chart's own) and forbids any hypothetical situation
+  or swapped numbers. The pupil builds the answer in bar models, equal groups
+  or a diagram, a step at a time, and the last step states the real answer.
+- **`qcAppQuestionFacts` is the ONE place a question becomes prompt text**:
+  wording with tables, MCQ options numbered 1) 2), and the teacher's
+  `expected` / `correctOption` / `markingGuide` so the app's answer agrees
+  with the key. The answer-key PICTURE's address is never sent.
+- **The question rides in the PROMPT, not the brief**, so an edit to its
+  wording reaches the next regenerate. The brief is the teacher's notes.
+- **An old brief is rewritten on the way in** (`qcAppBriefUpgrade`): lines
+  saying "use different numbers; do not solve it" would otherwise contradict
+  the prompt on every regenerate of an app made before this.
+- No server change: `generateChartApp` sends the page's prompt as it is.
+
 ## House rules
 - After touching **🧩 question charts** (`qcNormalizeChart`, `qcChartPayload`,
   `qcAddEdge`, `qcRelink`, `qcMoveStepOrder`, `qcAfterStepMove`, the 🖨 booklet (`qcBranchPlan`, `qcBranchNotes`, `qcBranchDocumentOpts`), `qcAttachNew`, `qcSpawnEditor`, `qcOnQuestionSaved`, the 🧩 break-down
@@ -3177,8 +3198,9 @@ in the helper section), `qcBranchDocumentOpts` / `qcOpenPrintSheet` /
   `node tools/question-chart-browser-tests.mjs`. Every failure is silent: store
   a question's wording or answer on a chart and every pupil can read it; give an
   app frame `allow-same-origin` and a generated page can read the ChatGPT key;
-  let a loop through and the later phases have no top to walk from; put the
-  answer key in the app prompt and the app gives the question away.
+  let a loop through and the later phases have no top to walk from; let the
+  app prompt drift back to "use your own numbers" and pupils are handed a
+  twin problem to translate instead of their own question solved.
 - After touching **👩‍💻 the employee role or ⏱️ the work-session clock**
   (`EMPLOYEE_EMAILS`, `EMPLOYEE_PAGES`, `_isEmployee`, `_canAuthor`,
   `canManageQuestions`, `_bankOwnerUid`, `employeeApplySidebar`, the employee branch

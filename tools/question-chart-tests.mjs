@@ -52,7 +52,7 @@ const M = new Function(`
   ${cutFrom(src, '// 🧩 QUESTION CHARTS', '// ---- Firestore ----', 'qc helpers')}
   return { QC_MAX_NODES, QC_CHECKS_MAX, QC_ROWH, QC_COLW, QC_TIERS, qcTierOf, qcKeyQ, qcKeyApp, qcParseKey, qcChartDocId, qcAppDocId,
            qcNormalizeChart, qcWouldCycle, qcChartPayload, qcSeedFromBoard, qcLayout, qcDepths,
-           qcNormalizeApp, qcAppRequestShape, qcAppMetaLabel, qcAppHtmlFrom, qcDefaultBrief, qcAppPrompt,
+           qcNormalizeApp, qcAppRequestShape, qcAppMetaLabel, qcAppHtmlFrom, qcDefaultBrief, qcAppPrompt, qcAppQuestionFacts, qcAppBriefUpgrade,
            QC_APP_MODELS, QC_APP_SIZES,
            QC_BREAK_MIN, QC_BREAK_MAX, qcBreakdownPrompt, qcBreakdownParts, qcBreakdownQuestion,
            qcStepTarget, qcStepsUnder, qcMoveStepOrder,
@@ -518,15 +518,36 @@ test('the server decides the budget: Luna runs at low effort, nothing exceeds th
   ok(S.chartAppShape({ size: 'compact', effort: 'low' }).budget < S.chartAppShape({ size: 'rich', effort: 'low' }).budget, 'size grows the budget');
   ok(S.chartAppShape({ size: 'standard', effort: 'low' }).budget < S.chartAppShape({ size: 'standard', effort: 'high' }).budget, 'effort grows the budget');
 });
-test('the app brief and prompt never carry the answer key', () => {
-  const q = { title: 'Sharing money', level: 'P5', blocks: [{ type: 'text', content: 'Ali has $240.' }],
-    expected: 'SECRET-ANSWER-96', markingGuide: 'SECRET-GUIDE', answerKeyImageUrl: 'https://secret.example/key.png' };
+test('the app solves THE question, with its own numbers and the teacher key', () => {
+  const q = { title: 'Sharing money', level: 'P5', blocks: [{ type: 'text', content: 'Ali has <b>$240</b>. He gives 3/5 to Ben.' }],
+    options: ['$96', '$144', '$160', '$240'], correctOption: 1,
+    expected: '$144', markingGuide: '3/5 x 240 = 144', answerKeyImageUrl: 'https://secret.example/key.png' };
+  const facts = M.qcAppQuestionFacts(q);
+  eq(facts.text, 'Ali has $240 . He gives 3/5 to Ben.'.replace(' .', '.'), 'wording, tags stripped');
+  eq(facts.options.length, 4, 'options');
+  ok(/^option 2\) \$144/.test(facts.answer), 'the MCQ answer is named by number: ' + facts.answer);
+  eq(facts.working, '3/5 x 240 = 144', 'the working');
   const brief = M.qcDefaultBrief(q, 'finds 3/5 of a quantity');
-  const prompt = M.qcAppPrompt({ title: 'Fractions', brief, level: q.level, size: 'standard' });
-  ok(!/SECRET|secret\.example/.test(brief + prompt), 'leaked: ' + prompt);
-  ok(/Ali has \$240/.test(brief), 'the question wording is there as context');
-  ok(/Never solve the original exam question/.test(prompt), 'told not to solve it');
+  ok(/finds 3\/5 of a quantity/.test(brief), 'the step is in the brief');
+  ok(/Solve THIS question/.test(brief) && !/different numbers;|do not solve it/i.test(brief), 'brief asks for the real question: ' + brief);
+  const prompt = M.qcAppPrompt({ title: 'Fractions', brief, level: q.level, size: 'standard', question: facts });
+  ok(/THE QUESTION \(solve exactly this one\):\nAli has \$240/.test(prompt), 'the question is in the prompt');
+  ok(/1\) \$96\n2\) \$144/.test(prompt), 'options numbered 1) 2)');
+  ok(/must agree with it\):\noption 2\) \$144/.test(prompt), 'the key so the answer agrees');
+  ok(/Never set up a different, hypothetical/.test(prompt), 'no parallel story');
+  ok(/bar model/i.test(prompt) && /equal groups/i.test(prompt), 'models and groups');
+  ok(!/Never solve the original|own friendly numbers/.test(prompt), 'the old rule is gone');
+  ok(!/secret\.example/.test(prompt), 'the answer-key picture address is never sent');
   ok(/no network and no storage/.test(prompt), 'told about the sandbox');
+  eq(M.qcAppQuestionFacts(null).text, '', 'no question');
+  ok(!/ANSWER OPTIONS/.test(M.qcAppPrompt({ title: 't', brief: 'b', size: 'compact', question: M.qcAppQuestionFacts({ blocks: [{ type: 'text', content: 'x' }] }) })), 'no options on an open question');
+});
+test('an old brief is rewritten so a regenerate solves the real question', () => {
+  const old = 'Help a pupil SEE this step: finds 3/5.\nIt builds towards this question (use different numbers; do not solve it): Ali has $240.\nLet the pupil change the numbers and watch the model update.\nUse coins.';
+  const up = M.qcAppBriefUpgrade(old, null, 'finds 3/5');
+  ok(!/use different numbers|do not solve|change the numbers/.test(up), up);
+  ok(/Solve THIS question/.test(up) && /Use coins\./.test(up), 'the teacher\'s own lines are kept: ' + up);
+  eq(M.qcAppBriefUpgrade('Use a bar model.', null, ''), 'Use a bar model.', 'a new brief is left alone');
 });
 
 // ---- wiring read as text ----------------------------------------------------------------
@@ -607,9 +628,9 @@ test('the booklet prints through the ONE worksheet renderer, with no covers', ()
   ok(/if \(!_isAdmin\(\)\) return;/.test(fn), 'teacher only');
   ok(/id="wsBranchSheetBtn"/.test(src) && /on\("wsBranchSheetBtn"/.test(src), 'reachable from 📝 Create Worksheet');
 });
-test('the version is v1.99.0 or later', () => {
+test('the version is v1.100.0 or later', () => {
   const v = src.match(/const APP_VERSION = "v(\d+)\.(\d+)\.(\d+)/);
-  ok(v && (Number(v[1]) > 1 || (Number(v[1]) === 1 && Number(v[2]) >= 99)), 'APP_VERSION is v1.99.0 or later');
+  ok(v && (Number(v[1]) > 1 || (Number(v[1]) === 1 && Number(v[2]) >= 100)), 'APP_VERSION is v1.100.0 or later');
 });
 
 // ---- runner ------------------------------------------------------------------------------------------

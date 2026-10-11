@@ -219,7 +219,9 @@ await scenario('an app is generated with Sol at the chosen effort and size, prev
   const gen = await page.evaluate(() => window.__fx.calls.filter(c => c.op === 'gen').map(c => c.data));
   assert.equal(gen.length, 1);
   assert.deepEqual([gen[0].model, gen[0].effort, gen[0].size], ['gpt-6.1-sol', 'high', 'rich']);
-  assert.match(gen[0].prompt, /Find 2\/5 of 30/, 'the step it was made for is in the brief');
+  assert.match(gen[0].prompt, /THE QUESTION \(solve exactly this one\):\n[^\n]*Find 2\/5 of 30/, 'the step it was made for is the question it solves');
+  assert.match(gen[0].prompt, /Never set up a different, hypothetical/, 'no parallel story');
+  assert.doesNotMatch(gen[0].prompt, /use different numbers|Never solve the original/i, 'the old rule is gone');
   assert.equal(await page.getAttribute('#qcAppFrame', 'sandbox'), 'allow-scripts');
   await shot(page, '2-app-generated');
   await page.click('#qcAppSaveBtn');
