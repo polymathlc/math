@@ -3120,9 +3120,29 @@ door, and the 🧩 **Dependency Charts** nav item (teacher only).
 - **📂 Open question is the step picker in open mode**: a pick opens that
   question's chart and never adds it to this one.
 
+### ◀ ▶ Step order and drag-to-relink (v1.98.0)
+
+`qcStepTarget` / `qcStepsUnder` / `qcMoveStepOrder` / `qcRelink` /
+`qcMoveStep` / `qcAfterStepMove` / `foundationRankOf`, the `.qc-order` pill on
+a step card and the `.qc-drop` outline.
+
+- **LEFT TO RIGHT ON THE CHART IS THE ORDER A PUPIL DOES THE STEPS IN.** There
+  is no second list to drift from what the teacher sees. ◀ ▶ swap a step with
+  its neighbour under the same question; a card shows *Do 1st of 3*.
+- **Dropping a step ON another question card re-parents it**, through
+  `qcRelink`, which tries the new arrow on a trial chart via `qcAddEdge` — so
+  a loop, an app and a ⏭ next question are still refused, the reason is
+  toasted, and the card goes back where it was.
+- **Pupils never load charts**, so `qcAfterStepMove` copies the order onto
+  each held-back step as the public `foundationRank`, and moves `foundationOf`
+  when a 🔒 step is dropped under another question. `foundationStepsFor`
+  sorts by rank, then by `createdAt` for steps saved before ranks existed.
+- `qcStepTarget` answers "" for anything that is not a non-tier QUESTION node;
+  an app or a next question with an arrow is not a step.
+
 ## House rules
 - After touching **🧩 question charts** (`qcNormalizeChart`, `qcChartPayload`,
-  `qcAddEdge`, `qcAttachNew`, `qcSpawnEditor`, `qcOnQuestionSaved`, the 🧩 break-down
+  `qcAddEdge`, `qcRelink`, `qcMoveStepOrder`, `qcAfterStepMove`, `qcAttachNew`, `qcSpawnEditor`, `qcOnQuestionSaved`, the 🧩 break-down
   (`qcBreakdownPrompt`, `qcBreakdownParts`, `qcBreakdownQuestion`, `qcBreakAdd`), the
   🔒 after-a-miss hold (`qIsFoundation`, `foundationStepsFor`, `loadBank`'s
   foundation line, `maybeServeFoundationOnMiss`, `qcToggleFoundation`), the
