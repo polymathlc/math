@@ -169,8 +169,10 @@ test('markup: the pill lives in the top bar, the page and the nav item exist', (
   assert.doesNotMatch(html, /id="wkBar"/);
 });
 
-test('the version is bumped to v1.92.0', () => {
-  assert.match(src, /const APP_VERSION = "v1\.92\.0/);
+test('the version is bumped to v1.92.0 or later', () => {
+  const v = src.match(/const APP_VERSION = "v(\d+)\.(\d+)\.(\d+)/);
+  assert.ok(v, 'APP_VERSION is present');
+  assert.ok(Number(v[1]) > 1 || (Number(v[1]) === 1 && Number(v[2]) >= 92), 'the employee release is v1.92.0 or later');
 });
 
 /* =====================================================================

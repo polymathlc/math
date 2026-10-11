@@ -2979,7 +2979,66 @@ with no way to add a question and no clock, which is exactly what she reported.
   Firebase replaced by in-memory stand-ins and signs in as the employee) after touching
   any of it.
 
+## 🧩 Question charts — every question's own steps and visual apps (v1.93.0)
+
+`QC_*` / `qc*` (search `🧩 QUESTION CHARTS`), `#page-qchart` and the `qc*`
+overlays, the 🧩 buttons on a bank row, a board node and the editor, and
+**`generateChartApp`** in `functions/index.js`. Plan:
+https://claude.ai/code/artifact/082ac3ad-a39c-4b72-acc8-229043c1da21 — this is
+phase 1 of 4 (charts by hand + apps); the AI break-down, the marker choosing a
+step from the working, and the climb back up come next.
+
+- **A chart is `users/{adminUid}/mathQuestionGraph/chart__<qid>`, an app is
+  `…/mathQuestionGraph/app__<appId>`.** Both sit beside the board's `main`
+  document under a rule that already exists, so **no `firestore.rules` deploy**.
+  Do not move them to a collection of their own: that file is shared with the
+  Science app and a new collection falls to the default deny.
+- **A NODE IS A KEY, NEVER CONTENT** — `q:<qid>` or `app:<appId>`, plus x/y and
+  the one-line `checks`. Every signed-in pupil can read these documents, so a
+  question's wording or answer copied into one undoes the bank's public/private
+  split. `qcNormalizeChart` is the ONE place a stored chart is believed and it
+  drops every field it does not know; `qcChartPayload` is the ONE shape written.
+- **An edge `from → to` means "from is a step towards to".** Never from the
+  root, never into an app, never a repeat, never a loop (`qcWouldCycle`).
+  `qcAddEdge` is the ONE writer and returns the reason it refused.
+- **A new chart is SEEDED from the board** (`qcSeedFromBoard`): prerequisites,
+  easier and harder versions, with the arrow's note as the `checks` line. After
+  that the two are edited separately.
+- **`checks` is what the later phases match a pupil's working against** — keep
+  it a single line about a skill, not a worked answer.
+- **🧪 Apps are a generated page (`html`) OR an https link (`url`), never both.**
+  Generated pages run in `sandbox="allow-scripts"` with **no
+  `allow-same-origin`**: the four portals share one origin and one localStorage
+  holding the ChatGPT key, and a page a model wrote must never run as that
+  origin. A linked page gets forms and popups too, and an *Open in a new tab*.
+- **`generateChartApp` is its own callable for TIME** (540 s; `askOpenAi` gives
+  up at 180 s, too short for a Rich page at high effort). Teacher only, its own
+  throttle fields (`chartAppDay` …), the model one of `gpt-6.1-sol` (with an
+  effort) or `gpt-6-luna` (size only), and the size → token budget decided on
+  the SERVER (`CHART_APP_SIZES` + `CHART_APP_REASONING`, clamped). Until it is
+  deployed the page falls back to `askOpenAi` with the same model and effort.
+  **A change here needs the functions deploy the merge triggers.**
+- **The app prompt never carries the admin-only half** (`expected`,
+  `markingGuide`, the answer-key image): the app is for the pupil.
+  `qcDefaultBrief` uses the step's wording as context and tells the model to use
+  its own numbers.
+- **Plain helpers in `functions/index.js` are NOT exported**: the deploy reads
+  every export as a function.
+- Run **`node tools/question-chart-tests.mjs`** and
+  **`node tools/question-chart-browser-tests.mjs`** (Playwright, the employee
+  harness's Firebase stand-ins) after touching any of it.
+
 ## House rules
+- After touching **🧩 question charts** (`qcNormalizeChart`, `qcChartPayload`,
+  `qcAddEdge`, `qcWouldCycle`, `qcSeedFromBoard`, `qcNormalizeApp`,
+  `qcAppPrompt`, `qcDefaultBrief`, `qcAppFrameAttrs`, the `qcApp*` overlay, or
+  `generateChartApp` / `chartAppShape` / `chartAppHtml`), run
+  `node tools/question-chart-tests.mjs` and
+  `node tools/question-chart-browser-tests.mjs`. Every failure is silent: store
+  a question's wording or answer on a chart and every pupil can read it; give an
+  app frame `allow-same-origin` and a generated page can read the ChatGPT key;
+  let a loop through and the later phases have no top to walk from; put the
+  answer key in the app prompt and the app gives the question away.
 - After touching **👩‍💻 the employee role or ⏱️ the work-session clock**
   (`EMPLOYEE_EMAILS`, `EMPLOYEE_PAGES`, `_isEmployee`, `_canAuthor`,
   `canManageQuestions`, `_bankOwnerUid`, `employeeApplySidebar`, the employee branch

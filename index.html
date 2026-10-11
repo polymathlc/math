@@ -2027,6 +2027,33 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .graph-spawn-menu .sm-ico { font-size: 1.05rem; line-height: 1.1; }
 .graph-spawn-menu .sm-title { display: block; font-weight: 600; font-size: 0.86rem; color: var(--text); }
 .graph-spawn-menu .sm-sub { display: block; font-size: 0.72rem; color: var(--text-muted); line-height: 1.3; }
+/* =================== 🧩 QUESTION CHARTS (admin) =================== */
+#page-qchart { padding: 0; max-width: none; margin: 0; }
+.qc-node.qc-root { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light), var(--shadow-md); }
+.qc-node.qc-app { border-color: #b7a6d6; }
+.qc-node.qc-app .gnode-head { background: linear-gradient(#faf7ff, #f2ecfb); }
+.gnode-level.qc-root-chip { background: var(--primary); color: #fff; }
+.gnode-level.qc-app-chip { background: #ece4f7; color: #6a4f97; }
+.qc-checks { font-size: 0.78rem; line-height: 1.4; color: var(--text); background: var(--surface-alt); border-radius: var(--radius-sm); padding: 6px 8px; margin-bottom: 8px; }
+.qc-checks.empty { color: var(--text-light); font-style: italic; }
+.qc-meta { font-size: 0.72rem; color: var(--text-muted); margin-bottom: 6px; }
+.qc-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 18px; }
+.qc-tab { border: 1.5px solid var(--border); background: var(--surface); border-radius: 999px; padding: 7px 14px; cursor: pointer; font: inherit; font-size: 0.84rem; font-weight: 600; color: var(--text-muted); }
+.qc-tab.active { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+.qc-gen-row { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-start; }
+.qc-gen-row .editor-field { flex: 1 1 180px; }
+.qc-radio-row { display: flex; gap: 14px; flex-wrap: wrap; padding-top: 6px; }
+.qc-radio { display: inline-flex; align-items: center; gap: 6px; font-size: 0.88rem; cursor: pointer; }
+.qc-radio input { appearance: auto; width: auto; }
+.qc-gen-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 6px 0 16px; }
+.qc-app-status { font-size: 0.82rem; color: var(--text-muted); line-height: 1.45; flex: 1 1 260px; }
+.qc-app-status.busy { color: var(--accent-blue); }
+.qc-app-status.ok { color: var(--primary); }
+.qc-app-status.err { color: var(--accent-red); }
+.qc-app-frame { width: 100%; height: 460px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: #fafafa; }
+.qc-app-frame.big { height: min(72vh, 760px); }
+.qc-view-card { max-width: 1040px; }
+
 .ai-finish-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; padding: 12px 16px; max-width: 880px;
                  border: 1px solid var(--border, #e2e8f0); border-left: 4px solid var(--primary, #4a7c59);
                  border-radius: 12px; background: var(--surface, #fff); font-size: 0.86rem; color: var(--text-muted, #6b7280); }
@@ -5236,6 +5263,7 @@ body.role-employee #emailBellBtn { display: none !important; }
           <button class="btn btn-primary" id="saveQBtn">💾 Save to Question Bank</button>
           <button class="btn btn-ghost" id="clearQBtn">Clear</button>
           <button class="btn btn-ghost" id="cancelEditBtn" style="display:none;">Cancel edit</button>
+          <button class="btn btn-ghost admin-only" id="qcEditorChartBtn" type="button" title="Break this question into easier steps and visual apps">🧩 Dependency chart</button>
         </div>
       </div>
     </div>
@@ -5690,6 +5718,41 @@ body.role-employee #emailBellBtn { display: none !important; }
         </div>
       </div>
     </div>
+    <!-- ================= 🧩 QUESTION CHART PAGE (admin) ================= -->
+    <div class="page" id="page-qchart">
+      <div class="graph-wrap">
+        <div class="graph-toolbar">
+          <button class="btn btn-ghost btn-sm" id="qcBackBtn" type="button" title="Back to the Question Bank">← Bank</button>
+          <span class="graph-title"><span id="qcTitle">🧩 Question</span><small>Arrow A → B means “A is an easier step towards B”. Purple arrows are visual apps.</small></span>
+          <button class="btn btn-primary btn-sm" id="qcAddStepBtn" type="button">➕ Add step question</button>
+          <button class="btn btn-outline btn-sm" id="qcAddAppBtn" type="button">🧪 Add app</button>
+          <button class="btn btn-ghost btn-sm" id="qcTidyBtn" type="button" title="Put the question on top and its steps below by depth">🧹 Tidy up</button>
+          <button class="btn btn-ghost btn-sm" id="qcFitBtn" type="button" title="Zoom to fit everything">🔍 Fit</button>
+          <div class="spacer"></div>
+          <span class="graph-save-state" id="qcSaveState"></span>
+          <div class="graph-zoom">
+            <button id="qcZoomOut" type="button" title="Zoom out">−</button>
+            <span id="qcZoomLabel">100%</span>
+            <button id="qcZoomIn" type="button" title="Zoom in">+</button>
+          </div>
+        </div>
+        <div class="graph-viewport" id="qcViewport">
+          <div class="graph-link-banner" id="qcLinkBanner">
+            <span id="qcLinkBannerText">Click the question this step builds towards</span>
+            <button type="button" id="qcLinkCancel">Cancel</button>
+          </div>
+          <div class="graph-world" id="qcWorld">
+            <svg class="graph-edges" id="qcEdges">
+              <defs>
+                <marker id="qcArrowStep" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#3a9e5f"></path></marker>
+                <marker id="qcArrowApp" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#7b5ea7"></path></marker>
+              </defs>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
 
   </div>
 </div>
@@ -6275,6 +6338,125 @@ body.role-employee #emailBellBtn { display: none !important; }
       <div style="flex:1"></div>
       <button class="btn btn-ghost" data-close="graphEdgeOverlay">Cancel</button>
       <button class="btn btn-primary" type="button" id="graphEdgeSaveBtn">Save note</button>
+    </div>
+  </div>
+</div>
+
+<!-- 🧩 Question chart dialogs -->
+<div class="overlay" id="qcPickerOverlay">
+  <div class="overlay-card">
+    <div class="overlay-head"><h3>Add an easier step question</h3><button class="close" data-close="qcPickerOverlay">×</button></div>
+    <div class="overlay-body">
+      <input type="search" id="qcPickerSearch" class="bank-search" placeholder="Search by title, level, topic or wording…" autocomplete="off">
+      <div class="graph-picker-list" id="qcPickerList"></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="qcNodeOverlay">
+  <div class="overlay-card">
+    <div class="overlay-head"><h3 id="qcNodeName">Step</h3><button class="close" data-close="qcNodeOverlay">×</button></div>
+    <div class="overlay-body">
+      <div class="editor-field"><label id="qcNodeLabel">What this step checks the pupil can do</label>
+        <textarea id="qcNodeChecks" maxlength="240" style="min-height:84px;" placeholder="e.g. finds 3/5 of a quantity"></textarea>
+        <div class="hint">One line. The AI compares a pupil's working against these lines to choose which step they should try first.</div>
+      </div>
+    </div>
+    <div class="overlay-foot">
+      <div style="flex:1"></div>
+      <button class="btn btn-ghost" data-close="qcNodeOverlay">Cancel</button>
+      <button class="btn btn-primary" type="button" id="qcNodeSaveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="qcEdgeOverlay">
+  <div class="overlay-card">
+    <div class="overlay-head"><h3>Step link</h3><button class="close" data-close="qcEdgeOverlay">×</button></div>
+    <div class="overlay-body">
+      <div id="qcEdgeSummary" style="font-size:0.88rem;color:var(--text-muted);line-height:1.5;margin-bottom:14px;"></div>
+      <div class="editor-field"><label>Note on this arrow</label><textarea id="qcEdgeComment" maxlength="200" style="min-height:70px;" placeholder="Optional, e.g. only if the bar model is the problem"></textarea></div>
+    </div>
+    <div class="overlay-foot">
+      <button class="btn btn-danger" type="button" id="qcEdgeDeleteBtn">🗑 Delete link</button>
+      <div style="flex:1"></div>
+      <button class="btn btn-ghost" data-close="qcEdgeOverlay">Cancel</button>
+      <button class="btn btn-primary" type="button" id="qcEdgeSaveBtn">Save note</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="qcAppOverlay">
+  <div class="overlay-card wide">
+    <div class="overlay-head"><h3 id="qcAppHeading">Add a visual app</h3><button class="close" data-close="qcAppOverlay">×</button></div>
+    <div class="overlay-body">
+      <div class="qc-tabs" id="qcAppTabs">
+        <button type="button" class="qc-tab active" id="qcAppTab-gen">✨ Generate with AI</button>
+        <button type="button" class="qc-tab" id="qcAppTab-url">🔗 Link an app</button>
+        <button type="button" class="qc-tab" id="qcAppTab-reuse">📚 Use an existing app</button>
+      </div>
+      <div id="qcAppPane-gen">
+        <div class="editor-field"><label>App title</label><input type="text" id="qcAppTitle" maxlength="120" placeholder="e.g. Finding a fraction of an amount"></div>
+        <div class="editor-field"><label>What should the app show?</label>
+          <textarea id="qcAppBrief" maxlength="4000" style="min-height:120px;"></textarea>
+          <div class="hint">The answer key and marking guide are never sent. The app uses its own numbers so it can't give the question away.</div>
+        </div>
+        <div class="qc-gen-row">
+          <div class="editor-field"><label>Model</label>
+            <div class="qc-radio-row">
+              <label class="qc-radio"><input type="radio" name="qcAppModel" value="gpt-6.1-sol" checked> GPT 6.1 Sol</label>
+              <label class="qc-radio"><input type="radio" name="qcAppModel" value="gpt-6-luna"> GPT 6 Luna</label>
+            </div>
+          </div>
+          <div class="editor-field" id="qcAppEffortWrap"><label>Effort</label>
+            <select id="qcAppEffort">
+              <option value="low">Low — fastest</option>
+              <option value="medium" selected>Medium</option>
+              <option value="high">High</option>
+              <option value="xhigh">Extra high</option>
+              <option value="max">Max — slowest, most careful</option>
+            </select>
+          </div>
+          <div class="editor-field"><label>Size</label>
+            <select id="qcAppSize">
+              <option value="compact">Compact</option>
+              <option value="standard" selected>Standard</option>
+              <option value="rich">Rich</option>
+            </select>
+            <div class="hint" id="qcAppSizeHint"></div>
+          </div>
+        </div>
+        <div class="qc-gen-actions">
+          <button class="btn btn-primary" type="button" id="qcAppGenBtn">✨ Generate app</button>
+          <span class="qc-app-status" id="qcAppStatus"></span>
+        </div>
+        <div id="qcAppPreviewWrap" style="display:none;">
+          <iframe class="qc-app-frame" id="qcAppFrame" sandbox="allow-scripts" referrerpolicy="no-referrer" title="App preview"></iframe>
+        </div>
+      </div>
+      <div id="qcAppPane-url" style="display:none;">
+        <div class="editor-field"><label>Link to the app (https://…)</label><input type="url" id="qcAppUrl" placeholder="https://polymathlc.github.io/fractions/"></div>
+        <div class="editor-field"><label>Title</label><input type="text" id="qcAppUrlTitle" maxlength="120" placeholder="e.g. Fraction bars"></div>
+        <button class="btn btn-primary" type="button" id="qcAppUrlSaveBtn">🔗 Add linked app</button>
+      </div>
+      <div id="qcAppPane-reuse" style="display:none;">
+        <div class="graph-picker-list" id="qcAppReuseList"></div>
+      </div>
+    </div>
+    <div class="overlay-foot">
+      <div style="flex:1"></div>
+      <button class="btn btn-ghost" data-close="qcAppOverlay">Cancel</button>
+      <button class="btn btn-primary" type="button" id="qcAppSaveBtn" disabled>💾 Save to chart</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="qcViewOverlay">
+  <div class="overlay-card wide qc-view-card">
+    <div class="overlay-head"><h3 id="qcViewTitle">App</h3><span class="qc-meta" id="qcViewMeta" style="margin-left:12px;"></span><button class="close" data-close="qcViewOverlay">×</button></div>
+    <div class="overlay-body">
+      <div id="qcViewFrameWrap"></div>
+      <a class="btn btn-ghost btn-sm" id="qcViewExternal" target="_blank" rel="noopener noreferrer" style="display:none;margin-top:12px;">Open in a new tab ↗</a>
     </div>
   </div>
 </div>
@@ -11087,6 +11269,7 @@ async function enterApp(user, authEpoch = _studentAuthEpoch) {
     await loadBank(user.uid);
     await loadVettingList(user.uid);
     await loadQuestionGraph(user.uid);
+    await qcLoadAll(user.uid);          // 🧩 every question's own chart, and its apps
     await loadFlagNotifications();
     await loadSavedWorksheets();
     navigateTo("create");
@@ -11407,7 +11590,7 @@ function navigateTo(page) {
   _practiceViewEpoch++;
   // My Worksheets is deliberately NOT on this list: a student's own saved
   // worksheets are their own documents, and reprinting one is the whole point.
-  if (["create", "bank", "bin", "worksheet", "vetting", "students", "graph", "diagnostic", "answerkeys", "custompaper"].includes(page) && !canManageQuestions()) {
+  if (["create", "bank", "bin", "worksheet", "vetting", "students", "graph", "qchart", "diagnostic", "answerkeys", "custompaper"].includes(page) && !canManageQuestions()) {
     page = "practice";
     toast("Student accounts can practise questions only", "error");
   }
@@ -11429,7 +11612,7 @@ function navigateTo(page) {
   // everything else is CSS, which is what makes the swap instant and
   // impossible to leave half-applied.
   document.body.classList.toggle("nova-protocol", page === "tcg");
-  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", bin: "Bin", vetting: "Vetting", graph: "Dependency Board", worksheet: "Create Worksheet", myworksheets: "My Worksheets", worksheetview: "Worksheet Overview", students: "Student Results", diagnostic: "Diagnostic Test", answerkeys: "Answer Key Scanner", custompaper: "Custom Paper", worksession: "Work Sessions", character: "Character", leaderboard: "Leaderboard", adventure: "Dungeon", tcg: "Aetherfall", syllabus: "Syllabus" };
+  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", bin: "Bin", vetting: "Vetting", graph: "Dependency Board", qchart: "Dependency Chart", worksheet: "Create Worksheet", myworksheets: "My Worksheets", worksheetview: "Worksheet Overview", students: "Student Results", diagnostic: "Diagnostic Test", answerkeys: "Answer Key Scanner", custompaper: "Custom Paper", worksession: "Work Sessions", character: "Character", leaderboard: "Leaderboard", adventure: "Dungeon", tcg: "Aetherfall", syllabus: "Syllabus" };
   $("topbarTitle").textContent = titles[page] || "";
   $("sidebar").classList.remove("open");
   if (page === "character") rpgRenderCharacterPage();
@@ -11438,6 +11621,7 @@ function navigateTo(page) {
   if (page === "create") { dupWatchBind(); dupWatchKick(); }   // idempotent bind; the listener outlives every reset
   if (page === "bank") renderBank();
   if (page === "graph") renderGraphPage();
+  if (page === "qchart") renderQuestionChartPage();
   if (page === "students") loadStudentRoster();
   if (page === "practice") { renderQuestion(); setupCanvasSize(); }
   if (page === "vetting") renderVettingList();
@@ -12291,6 +12475,7 @@ function renderBank() {
        <div class="bank-item-actions">
         <button class="btn btn-ghost btn-sm" data-preview="${q.id}">Preview</button>
         <button class="btn btn-ghost btn-sm" data-share="${q.id}">🔗 Share / QR</button>
+        ${_isAdmin() ? `<button class="btn btn-ghost btn-sm" data-qchart="${q.id}" title="This question's own dependency chart: easier steps and visual apps">${qcBankButtonLabel(q.id)}</button>` : ""}
         <button class="btn btn-ghost btn-sm" data-edit="${q.id}">Edit</button>
         <button class="btn btn-danger btn-sm" data-del="${q.id}">Delete</button></div>`;
     list.appendChild(el);
@@ -12304,6 +12489,7 @@ function renderBank() {
     if (q) openQuestionShare(q);
   }));
   list.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => editQuestion(b.dataset.edit)));
+  list.querySelectorAll("[data-qchart]").forEach(b => b.addEventListener("click", () => openQuestionChart(b.dataset.qchart)));
   list.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => removeQuestion(b.dataset.del)));
 }
 // Delete is a MOVE to the bin — see the BIN block. The copy is written before
@@ -33068,7 +33254,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.92.0 · 2026-10-10";
+const APP_VERSION = "v1.93.0 · 2026-10-11";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -33416,6 +33602,7 @@ function graphBuildNodeEl(q, id) {
       '<button class="gnode-act" data-act="preview" title="Preview the question (eye)">👁</button>' +
       '<button class="gnode-act" data-act="duplicate" title="Duplicate this question onto the board">⧉</button>' +
       '<button class="gnode-act" data-act="regen" title="Regenerate an AI variant — same level, easier, or harder">✨▾</button>' +
+      (_isAdmin() ? '<button class="gnode-act" data-act="qchart" title="Open this question\'s own dependency chart">🧩</button>' : '') +
       '<span class="spacer"></span>' +
       '<button class="gnode-act link' + armed + '" data-act="link" title="Draw a prerequisite link from this question">🔗</button>' +
       '<button class="gnode-act del" data-act="remove" title="Remove from board">✕</button>' +
@@ -33515,6 +33702,7 @@ function graphOnNodeClick(e, node) {
   else if (act === "duplicate") graphDuplicateNode(id);
   else if (act === "regen") openDifficultyMenu(b, d => graphRegenerateNode(id, d));
   else if (act === "link") graphToggleLink(id);
+  else if (act === "qchart") openQuestionChart(id);
   else if (act === "remove") graphRemoveNode(id);
 }
 // Floating "same / easier / harder" menu for the regenerate dropdowns (board
@@ -33823,6 +34011,905 @@ function maybeServeEasierOnMiss(q, v) {
   const search = $("graphPickerSearch");
   if (search) search.addEventListener("input", e => graphRenderPicker(e.target.value));
   document.addEventListener("keydown", e => { if (e.key === "Escape" && graphLinkSourceId) graphCancelLink(); });
+})();
+
+// =====================================================================
+// 🧩 QUESTION CHARTS — every question's OWN dependency chart (v1.93.0)
+// ---------------------------------------------------------------------
+// The 🕸️ Dependency Board is ONE map across the whole bank. A chart is the
+// zoomed-in breakdown of ONE question: the easier step questions a pupil can
+// try before it, and the visual APPS that show a step working, arranged as a
+// small tree with the question itself at the top.
+//
+// WHERE IT LIVES: `users/{adminUid}/mathQuestionGraph/chart__<questionId>`,
+// beside the board's own `main` document, and each app at
+// `mathQuestionGraph/app__<appId>`. `firestore.rules` already matches
+// `mathQuestionGraph/{docId}` (any signed-in user reads, the owning admin
+// writes), so NOTHING here needs a rules deploy — which matters, because that
+// file is shared with the Science app.
+//
+// A NODE IS A KEY, NEVER CONTENT. `q:<questionId>` names a bank question and
+// `app:<appId>` names an app. The chart stores positions, the one-line
+// `checks` ("what this step proves the pupil can do") and the links — never a
+// question's wording and never an answer. The bank already keeps the answer
+// in the admin-only half; copying any of it into a document every signed-in
+// pupil can read would undo that split. `qcNormalizeChart` is the ONE place a
+// stored chart is believed, and it drops every field it does not know.
+//
+// AN EDGE `from → to` MEANS "from is a step towards to" — the same direction
+// as the board's prerequisite arrows. The root (the question itself) is never
+// a `from`, a link that would close a loop is refused (`qcWouldCycle`), and an
+// app is only ever a `from`: an app shows a step, it is not built towards.
+//
+// THE BOARD IS NOT REPLACED. A new chart is SEEDED from the board
+// (`qcSeedFromBoard`): the question's board prerequisites and easier versions
+// come in as its first layer, so mapping already done is not lost. After that
+// the two are edited separately.
+//
+// 🧪 APPS are single self-contained HTML pages that make a step VISIBLE. They
+// are linked by URL, re-used from another chart, or generated by AI through
+// `generateChartApp` (functions/index.js): GPT 6.1 Sol with a reasoning
+// effort, or GPT 6 Luna, each at one of three sizes. A generated app is shown
+// in an iframe with `sandbox="allow-scripts"` and NO `allow-same-origin`: the
+// four portals share one origin and one localStorage, which holds the ChatGPT
+// key, so a page a model wrote must never run as this origin.
+// =====================================================================
+const QC_DOC_PREFIX = "chart__";
+const QC_APP_PREFIX = "app__";
+const QC_MAX_NODES = 40;               // a chart, not a second board
+const QC_CHECKS_MAX = 240;             // one line, not a worked answer
+const QC_COMMENT_MAX = 200;
+const QC_APP_TITLE_MAX = 120;
+const QC_APP_BRIEF_MAX = 4000;
+const QC_APP_HTML_MAX = 600000;        // well under Firestore's 1 MB document cap
+// The two engines Zhi Kai asked for. Sol takes a reasoning effort; Luna is the
+// light model and takes a size only.
+const QC_APP_MODELS = {
+  "gpt-6.1-sol": { label: "GPT 6.1 Sol", effort: true },
+  "gpt-6-luna":  { label: "GPT 6 Luna",  effort: false },
+};
+const QC_APP_DEFAULT_MODEL = "gpt-6.1-sol";
+const QC_APP_EFFORTS = ["low", "medium", "high", "xhigh", "max"];
+const QC_APP_DEFAULT_EFFORT = "medium";
+// SIZE is how much app the model is asked to write: the length of the page it
+// may return, which is what decides how many interactive parts fit in it. The
+// SERVER owns the token budgets (`CHART_APP_SIZES`); these are the labels.
+const QC_APP_SIZES = {
+  compact:  { label: "Compact",  hint: "one focused interactive, quick to make" },
+  standard: { label: "Standard", hint: "explain, interact, reflect — two interactives" },
+  rich:     { label: "Rich",     hint: "a full guided lesson with several interactives" },
+};
+const QC_APP_DEFAULT_SIZE = "standard";
+
+let qcCharts = {};          // rootQid -> normalised chart
+let qcApps = {};            // appId -> app
+let qcLoaded = false;
+let qcRoot = null;          // the question whose chart is open
+let qcNodeEls = {};
+let qcPan = { x: 0, y: 0 };
+let qcZoom = 1;
+let qcLinkFrom = null;      // node key a link is being drawn FROM
+let qcEditingKey = null;    // node open in the node dialog
+let qcEditingEdge = null;   // edge open in the link dialog
+let qcAppTarget = null;     // node key a new app will be linked TO
+let qcAppDraft = null;      // { html, model, effort, size, title, brief, editingId }
+let qcAppBusy = false;
+let _qcSaveTimer = null;
+
+// ---- Keys --------------------------------------------------------------
+function qcKeyQ(qid) { return "q:" + String(qid); }
+function qcKeyApp(appId) { return "app:" + String(appId); }
+function qcParseKey(key) {
+  const m = /^(q|app):(.+)$/.exec(String(key || ""));
+  return m ? { type: m[1], id: m[2] } : null;
+}
+function qcChartDocId(rootQid) { return QC_DOC_PREFIX + String(rootQid); }
+function qcAppDocId(appId) { return QC_APP_PREFIX + String(appId); }
+function qcNewAppId() { return "ca_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 7); }
+
+// ---- The ONE place a stored chart is believed ---------------------------
+// Unknown fields are dropped, the root is always present, an edge must join
+// two nodes that exist, never start at the root, never END at an app, never
+// repeat and never close a loop. Junk in, a valid (possibly empty) chart out.
+function qcNormalizeChart(raw, rootQid) {
+  const root = String(rootQid || (raw && raw.root) || "");
+  const rootKey = qcKeyQ(root);
+  const out = { root, nodes: {}, edges: [] };
+  const src = raw && typeof raw.nodes === "object" && raw.nodes ? raw.nodes : {};
+  Object.keys(src).slice(0, QC_MAX_NODES * 2).forEach(k => {
+    const p = qcParseKey(k); if (!p) return;
+    if (Object.keys(out.nodes).length >= QC_MAX_NODES && k !== rootKey) return;
+    const n = src[k] || {};
+    out.nodes[k] = {
+      x: Number.isFinite(n.x) ? Math.round(n.x) : 0,
+      y: Number.isFinite(n.y) ? Math.round(n.y) : 0,
+      checks: String(n.checks || "").replace(/\s+/g, " ").trim().slice(0, QC_CHECKS_MAX)
+    };
+  });
+  if (!out.nodes[rootKey]) out.nodes[rootKey] = { x: 0, y: 0, checks: "" };
+  const seen = new Set();
+  (Array.isArray(raw && raw.edges) ? raw.edges : []).forEach(e => {
+    if (!e) return;
+    const from = String(e.from || ""), to = String(e.to || "");
+    if (!out.nodes[from] || !out.nodes[to] || from === to) return;
+    if (from === rootKey) return;
+    const pt = qcParseKey(to); if (!pt || pt.type !== "q") return;
+    const sig = from + ">" + to; if (seen.has(sig)) return;
+    if (qcWouldCycle(out.edges, from, to)) return;
+    seen.add(sig);
+    out.edges.push({
+      id: String(e.id || ("ce_" + Math.random().toString(36).slice(2, 9))),
+      from, to,
+      comment: String(e.comment || "").replace(/\s+/g, " ").trim().slice(0, QC_COMMENT_MAX)
+    });
+  });
+  return out;
+}
+// Would adding from → to close a loop? True when `to` can already reach
+// `from` by following edges forward.
+function qcWouldCycle(edges, from, to) {
+  if (from === to) return true;
+  const next = {};
+  (edges || []).forEach(e => { (next[e.from] = next[e.from] || []).push(e.to); });
+  const stack = [to], seen = new Set();
+  while (stack.length) {
+    const k = stack.pop();
+    if (k === from) return true;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    (next[k] || []).forEach(n => stack.push(n));
+  }
+  return false;
+}
+// What a chart looks like as a plain object for Firestore. Nothing but the
+// normalised fields — never a question's wording, never an answer.
+function qcChartPayload(chart) {
+  const c = qcNormalizeChart(chart, chart && chart.root);
+  return { kind: "questionChart", version: 1, root: c.root, nodes: c.nodes, edges: c.edges, updatedAt: new Date().toISOString() };
+}
+
+// ---- Seeding from the Dependency Board ---------------------------------
+// The question's board PREREQUISITES (edges into it) and EASIER versions
+// ("this → X easier" or "X → this harder") become its first layer. The board
+// arrow's note comes across as the step's `checks` line when there is one.
+function qcSeedFromBoard(rootQid, boardEdges) {
+  const root = String(rootQid), rootKey = qcKeyQ(root);
+  const chart = { root, nodes: { [rootKey]: { x: 0, y: 0, checks: "" } }, edges: [] };
+  const kindOf = k => (k === "variant" ? "duplicate" : (k || "prereq"));
+  const add = (otherId, comment) => {
+    if (!otherId || String(otherId) === root) return;
+    const key = qcKeyQ(otherId);
+    if (chart.nodes[key]) return;
+    if (Object.keys(chart.nodes).length >= QC_MAX_NODES) return;
+    chart.nodes[key] = { x: 0, y: 0, checks: String(comment || "").trim().slice(0, QC_CHECKS_MAX) };
+    chart.edges.push({ id: "ce_seed_" + Object.keys(chart.nodes).length, from: key, to: rootKey, comment: "" });
+  };
+  (boardEdges || []).forEach(e => {
+    if (!e) return;
+    const k = kindOf(e.kind);
+    if (k === "prereq" && e.to === root) add(e.from, e.comment);
+    else if (k === "easier" && e.from === root) add(e.to, e.comment);
+    else if (k === "harder" && e.to === root) add(e.from, e.comment);
+  });
+  return qcLayout(chart);
+}
+
+// ---- Layout: the question on top, its steps below by depth --------------
+// depth(root) = 0; a node's depth is one more than the deepest node it leads
+// to. Nodes not yet linked to anything go on a row of their own at the foot.
+const QC_COLW = 290, QC_ROWH = 230;
+function qcDepths(chart) {
+  const rootKey = qcKeyQ(chart.root), depth = { [rootKey]: 0 };
+  const outs = {};
+  chart.edges.forEach(e => { (outs[e.from] = outs[e.from] || []).push(e.to); });
+  const visiting = {};
+  const dep = k => {
+    if (depth[k] != null) return depth[k];
+    if (visiting[k]) return null;
+    visiting[k] = true;
+    let best = null;
+    (outs[k] || []).forEach(t => { const d = dep(t); if (d != null) best = Math.max(best == null ? 0 : best, d + 1); });
+    visiting[k] = false;
+    if (best != null) depth[k] = best;
+    return best;
+  };
+  Object.keys(chart.nodes).forEach(dep);
+  return depth;
+}
+function qcLayout(chart) {
+  const depth = qcDepths(chart);
+  const rows = {}; let maxD = 0;
+  Object.keys(chart.nodes).forEach(k => { const d = depth[k]; if (d != null) { (rows[d] = rows[d] || []).push(k); maxD = Math.max(maxD, d); } });
+  const loose = Object.keys(chart.nodes).filter(k => depth[k] == null);
+  if (loose.length) rows[maxD + 1] = loose;
+  Object.keys(rows).forEach(d => {
+    const ks = rows[d].sort();
+    const w = (ks.length - 1) * QC_COLW;
+    ks.forEach((k, i) => { chart.nodes[k].x = Math.round(i * QC_COLW - w / 2); chart.nodes[k].y = Math.round(Number(d) * QC_ROWH); });
+  });
+  return chart;
+}
+
+// ---- Apps ----------------------------------------------------------------
+function qcNormalizeApp(raw, id) {
+  if (!raw) return null;
+  const url = String(raw.url || "").trim();
+  const html = typeof raw.html === "string" ? raw.html.slice(0, QC_APP_HTML_MAX) : "";
+  const safeUrl = /^https:\/\/[^\s"'<>]+$/i.test(url) ? url : "";
+  if (!html && !safeUrl) return null;
+  return {
+    id: String(id || raw.id || ""),
+    title: String(raw.title || "Untitled app").trim().slice(0, QC_APP_TITLE_MAX) || "Untitled app",
+    brief: String(raw.brief || "").slice(0, QC_APP_BRIEF_MAX),
+    html, url: html ? "" : safeUrl,
+    model: QC_APP_MODELS[raw.model] ? raw.model : "",
+    effort: QC_APP_EFFORTS.includes(raw.effort) ? raw.effort : "",
+    size: QC_APP_SIZES[raw.size] ? raw.size : "",
+    createdFor: String(raw.createdFor || ""),
+    createdAt: String(raw.createdAt || ""),
+    updatedAt: String(raw.updatedAt || "")
+  };
+}
+// Which settings a generator request is ALLOWED to carry: Luna takes no
+// effort, an unknown model is Sol, an unknown size is standard.
+function qcAppRequestShape(model, effort, size) {
+  const m = QC_APP_MODELS[model] ? model : QC_APP_DEFAULT_MODEL;
+  return {
+    model: m,
+    effort: QC_APP_MODELS[m].effort ? (QC_APP_EFFORTS.includes(effort) ? effort : QC_APP_DEFAULT_EFFORT) : "",
+    size: QC_APP_SIZES[size] ? size : QC_APP_DEFAULT_SIZE
+  };
+}
+function qcAppMetaLabel(app) {
+  if (!app) return "";
+  if (!app.html) return "Linked page";
+  const bits = [];
+  if (app.model && QC_APP_MODELS[app.model]) bits.push(QC_APP_MODELS[app.model].label);
+  if (app.effort) bits.push(app.effort);
+  if (app.size && QC_APP_SIZES[app.size]) bits.push(QC_APP_SIZES[app.size].label);
+  return bits.join(" · ") || "Generated app";
+}
+// A model asked for a page often wraps it in a ``` fence or says a sentence
+// first. Take the document itself, or nothing.
+function qcAppHtmlFrom(text) {
+  let t = String(text || "").trim();
+  const fence = /```(?:html)?\s*([\s\S]*?)```/i.exec(t);
+  if (fence && /<(?:!doctype|html|body|div|svg|script)/i.test(fence[1])) t = fence[1].trim();
+  const start = t.search(/<!doctype html|<html[\s>]/i);
+  if (start > 0) t = t.slice(start);
+  const end = t.toLowerCase().lastIndexOf("</html>");
+  if (end >= 0) t = t.slice(0, end + 7);
+  if (!/<(?:html|body|div|svg|canvas|main)[\s>]/i.test(t)) return "";
+  return t.slice(0, QC_APP_HTML_MAX);
+}
+// The brief a teacher starts from: what the step checks, and the question it
+// builds towards. The QUESTION'S ANSWER IS NEVER IN IT — the app is for the
+// pupil, and an app that worked the real question would hand them the answer.
+function qcDefaultBrief(q, checks) {
+  const qt = q ? graphPlainText(q.blocks).slice(0, 600) : "";
+  const lines = [];
+  if (checks) lines.push("Help a pupil SEE this step: " + checks + ".");
+  if (qt) lines.push("It builds towards this question (use different numbers; do not solve it): " + qt);
+  lines.push("Let the pupil change the numbers and watch the model update.");
+  return lines.join("\n");
+}
+// The prompt the generator sends. Built from the brief, the level and the
+// Polymath design brief — and deliberately from nothing on the admin-only half
+// of a question (`expected`, `markingGuide`, the answer key).
+function qcAppPrompt({ title, brief, level, size }) {
+  const sz = QC_APP_SIZES[size] || QC_APP_SIZES[QC_APP_DEFAULT_SIZE];
+  return [
+    "Build ONE self-contained interactive web page that helps a Singapore primary-school pupil understand a maths step visually.",
+    "",
+    "TITLE: " + String(title || "").slice(0, QC_APP_TITLE_MAX),
+    level ? "LEVEL: " + level : "",
+    "WHAT IT MUST SHOW:",
+    String(brief || "").slice(0, QC_APP_BRIEF_MAX),
+    "",
+    "SIZE: " + sz.label + " — " + sz.hint + ".",
+    "",
+    "RULES:",
+    "- Return ONLY the complete HTML document, from <!DOCTYPE html> to </html>. No commentary, no markdown fence.",
+    "- Everything inline: one <style>, one <script>. No external scripts, stylesheets, fonts or fetches. The page runs in a sandbox with no network and no storage, so never use localStorage, cookies or alert().",
+    "- Teach by letting the pupil change something and see it change: sliders, steppers, draggable bar models, fraction bars, number lines, area grids. Every value change animates smoothly and the numbers update live.",
+    "- Never solve the original exam question or print its final answer. Use your own friendly numbers.",
+    "- Design (Polymath style): light and minimal; background #FAFAFA; text #222; font-family 'Century Gothic', CenturyGothic, AppleGothic, sans-serif; ONE soft green accent #C8E6C9 (hover #A5D6A7) used sparingly; cards with box-shadow 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06); rounded corners 14px; generous spacing; prose max-width 720px, centred.",
+    "- Flow: a short friendly explanation, then the interactive, then a one-line reflection, then a boxed Key Takeaway.",
+    "- Works on a phone (single column under 600px, touch-friendly controls of at least 44px) and on a laptop.",
+    "- Short sentences a 10-year-old can read. British spelling. Use $ for money and SI units."
+  ].filter(s => s !== "").join("\n");
+}
+
+// ---- Firestore ------------------------------------------------------------
+function qcOwnerUid() { return _isAdmin() ? (currentUser && currentUser.uid) : adminUid; }
+async function qcLoadAll(uid) {
+  qcCharts = {}; qcApps = {}; qcLoaded = false;
+  if (!uid) return;
+  try {
+    const snap = await getDocs(collection(db, "users", uid, "mathQuestionGraph"));
+    snap.forEach(d => {
+      const id = d.id, data = d.data() || {};
+      if (id.startsWith(QC_DOC_PREFIX)) {
+        const root = id.slice(QC_DOC_PREFIX.length);
+        if (root) qcCharts[root] = qcNormalizeChart(data, root);
+      } else if (id.startsWith(QC_APP_PREFIX)) {
+        const appId = id.slice(QC_APP_PREFIX.length);
+        const app = qcNormalizeApp(data, appId);
+        if (app) qcApps[appId] = app;
+      }
+    });
+    qcLoaded = true;
+  } catch (e) { console.warn("chart load", e); }
+}
+function qcSetSaveState(state) {
+  const el = $("qcSaveState"); if (!el) return;
+  el.textContent = state === "saving" ? "Saving…" : state === "saved" ? "✓ All changes saved" : state === "dirty" ? "Unsaved changes" : "";
+  el.className = "graph-save-state" + (state === "saved" ? " saved" : state ? " dirty" : "");
+}
+function qcScheduleSave() {
+  if (!_isAdmin() || !qcRoot) return;
+  qcSetSaveState("dirty");
+  clearTimeout(_qcSaveTimer);
+  _qcSaveTimer = setTimeout(qcSaveNow, 700);
+}
+async function qcSaveNow() {
+  clearTimeout(_qcSaveTimer);
+  if (!_isAdmin() || !currentUser || !qcRoot || !qcCharts[qcRoot]) return;
+  qcSetSaveState("saving");
+  try {
+    await setDoc(doc(db, "users", currentUser.uid, "mathQuestionGraph", qcChartDocId(qcRoot)), qcChartPayload(qcCharts[qcRoot]));
+    qcSetSaveState("saved");
+  } catch (e) { console.warn("chart save", e); qcSetSaveState("dirty"); toast("Couldn't save the chart: " + (e.message || e), "error"); }
+}
+async function qcSaveApp(app) {
+  if (!_isAdmin() || !currentUser) throw new Error("Only the teacher's account can save apps");
+  const clean = qcNormalizeApp(app, app.id);
+  if (!clean) throw new Error("This app has no page and no https link");
+  const payload = { kind: "chartApp", ...clean, updatedAt: new Date().toISOString(), createdAt: clean.createdAt || new Date().toISOString() };
+  await setDoc(doc(db, "users", currentUser.uid, "mathQuestionGraph", qcAppDocId(clean.id)), payload);
+  qcApps[clean.id] = qcNormalizeApp(payload, clean.id);
+  return qcApps[clean.id];
+}
+
+// ---- Counts the bank card shows -----------------------------------------
+function qcStepCount(qid) {
+  const c = qcCharts[String(qid)];
+  return c ? Math.max(0, Object.keys(c.nodes).length - 1) : 0;
+}
+function qcBankButtonLabel(qid) {
+  const n = qcStepCount(qid);
+  return n ? "🧩 Chart · " + n : "🧩 Chart";
+}
+
+// ---- Opening a chart -------------------------------------------------------
+function openQuestionChart(qid) {
+  if (!_isAdmin()) { toast("Only the teacher's account can edit dependency charts", "error"); return; }
+  const q = graphFindQ(qid);
+  if (!q) { toast("That question isn't in the bank", "error"); return; }
+  qcRoot = String(qid);
+  if (!qcCharts[qcRoot]) {
+    qcCharts[qcRoot] = qcSeedFromBoard(qcRoot, graphEdges);
+    if (Object.keys(qcCharts[qcRoot].nodes).length > 1) {
+      toast("Started from the Dependency Board's links for this question", "success");
+      qcScheduleSave();
+    }
+  }
+  qcLinkCancel(true);
+  navigateTo("qchart");
+}
+function renderQuestionChartPage() {
+  if (!_isAdmin() || !qcRoot) { navigateTo("bank"); return; }
+  const q = graphFindQ(qcRoot);
+  const t = $("qcTitle"); if (t) t.textContent = "🧩 " + ((q && q.title) || "Question");
+  qcRender();
+  qcFit();
+}
+
+// ---- Rendering --------------------------------------------------------------
+function qcNodeHtml(key, node, isRoot) {
+  const p = qcParseKey(key);
+  const armed = qcLinkFrom === key ? " armed" : "";
+  if (p.type === "app") {
+    const app = qcApps[p.id];
+    return '<div class="gnode-head"><span class="gnode-level qc-app-chip">🧪 App</span>' +
+        '<span class="gnode-title">' + escapeHtml(app ? app.title : "Missing app") + '</span></div>' +
+      '<div class="gnode-body">' +
+        '<div class="qc-meta">' + escapeHtml(qcAppMetaLabel(app)) + '</div>' +
+        (node.checks ? '<div class="qc-checks">' + escapeHtml(node.checks) + '</div>' : '') +
+      '</div>' +
+      '<div class="gnode-foot">' +
+        '<button class="gnode-act" data-act="open" title="Open the app">▶</button>' +
+        (app && app.html ? '<button class="gnode-act" data-act="regen" title="Change the brief and generate it again">✨</button>' : '') +
+        '<button class="gnode-act" data-act="note" title="What this app helps with">✎</button>' +
+        '<span class="spacer"></span>' +
+        '<button class="gnode-act link' + armed + '" data-act="link" title="Link this app to the step it helps with">🔗</button>' +
+        '<button class="gnode-act del" data-act="remove" title="Remove from this chart">✕</button>' +
+      '</div>';
+  }
+  const q = graphFindQ(p.id);
+  let snip = q ? graphPlainText(q.blocks) : ""; if (!snip) snip = q ? "(diagram-based question)" : "This question is no longer in the bank.";
+  if (snip.length > 130) snip = snip.slice(0, 130) + "…";
+  return '<div class="gnode-head">' +
+      (isRoot ? '<span class="gnode-level qc-root-chip">Question</span>' : '<span class="gnode-level">' + escapeHtml((q && q.level) || "—") + '</span>') +
+      '<span class="gnode-title">' + escapeHtml((q && q.title) || "Missing question") + '</span></div>' +
+    '<div class="gnode-body">' +
+      (node.checks ? '<div class="qc-checks">' + escapeHtml(node.checks) + '</div>'
+        : (isRoot ? '' : '<div class="qc-checks empty">No “checks” line yet — press ✎</div>')) +
+      '<div class="gnode-snippet">' + escapeHtml(snip) + '</div>' +
+    '</div>' +
+    '<div class="gnode-foot">' +
+      '<button class="gnode-act" data-act="preview" title="Preview the question">👁</button>' +
+      (isRoot ? '' : '<button class="gnode-act" data-act="note" title="What this step checks">✎</button>') +
+      '<button class="gnode-act" data-act="addstep" title="Add an easier step question under this one">➕</button>' +
+      '<button class="gnode-act" data-act="addapp" title="Add a visual app for this step">🧪</button>' +
+      '<span class="spacer"></span>' +
+      (isRoot ? '' : '<button class="gnode-act link' + armed + '" data-act="link" title="Link this step to the question it builds towards">🔗</button>') +
+      (isRoot ? '' : '<button class="gnode-act del" data-act="remove" title="Remove from this chart (the question stays in the bank)">✕</button>') +
+    '</div>';
+}
+function qcRender() {
+  const world = $("qcWorld"); if (!world || !qcRoot) return;
+  const chart = qcCharts[qcRoot]; if (!chart) return;
+  const rootKey = qcKeyQ(qcRoot);
+  Array.from(world.querySelectorAll(".gnode")).forEach(n => n.remove());
+  qcNodeEls = {};
+  Object.keys(chart.nodes).forEach(key => {
+    const node = chart.nodes[key], isRoot = key === rootKey;
+    const el = document.createElement("div");
+    const app = qcParseKey(key).type === "app";
+    el.className = "gnode qc-node" + (isRoot ? " qc-root" : "") + (app ? " qc-app" : "") + (qcLinkFrom === key ? " linking-source" : "");
+    el.dataset.key = key;
+    el.innerHTML = qcNodeHtml(key, node, isRoot);
+    el.style.left = node.x + "px"; el.style.top = node.y + "px";
+    el.addEventListener("pointerdown", e => qcOnNodePointerDown(e, el));
+    el.addEventListener("click", e => qcOnNodeClick(e, el));
+    world.appendChild(el); qcNodeEls[key] = el;
+  });
+  qcRedrawEdges();
+  qcApplyTransform();
+}
+function qcRedrawEdges() {
+  const svg = $("qcEdges"), world = $("qcWorld"); if (!svg || !world || !qcRoot) return;
+  const chart = qcCharts[qcRoot]; if (!chart) return;
+  Array.from(svg.querySelectorAll(".graph-edge")).forEach(n => n.remove());
+  Array.from(world.querySelectorAll(".gedge-label")).forEach(n => n.remove());
+  const NS = "http://www.w3.org/2000/svg";
+  chart.edges.forEach(e => {
+    const aEl = qcNodeEls[e.from], bEl = qcNodeEls[e.to], a = chart.nodes[e.from], b = chart.nodes[e.to];
+    if (!aEl || !bEl || !a || !b) return;
+    const aw = aEl.offsetWidth, ah = aEl.offsetHeight, bw = bEl.offsetWidth, bh = bEl.offsetHeight;
+    const acx = a.x + aw / 2, acy = a.y + ah / 2, bcx = b.x + bw / 2, bcy = b.y + bh / 2;
+    const s = graphRectEdgePoint(acx, acy, aw, ah, bcx, bcy), t = graphRectEdgePoint(bcx, bcy, bw, bh, acx, acy);
+    const d = "M " + s.x + " " + s.y + " L " + t.x + " " + t.y;
+    const isApp = qcParseKey(e.from).type === "app";
+    const g = document.createElementNS(NS, "g");
+    g.setAttribute("class", "graph-edge"); g.dataset.edge = e.id;
+    const hit = document.createElementNS(NS, "path"); hit.setAttribute("class", "graph-edge-hit"); hit.setAttribute("d", d); g.appendChild(hit);
+    const line = document.createElementNS(NS, "path"); line.setAttribute("class", "graph-edge-line"); line.setAttribute("d", d);
+    line.style.stroke = isApp ? "#7b5ea7" : "#3a9e5f";
+    if (isApp) line.style.strokeDasharray = "7 5";
+    line.setAttribute("marker-end", "url(#" + (isApp ? "qcArrowApp" : "qcArrowStep") + ")");
+    g.appendChild(line);
+    svg.appendChild(g);
+    if (e.comment) {
+      const lab = document.createElement("div");
+      lab.className = "gedge-label"; lab.dataset.edge = e.id;
+      lab.style.left = (s.x + t.x) / 2 + "px"; lab.style.top = (s.y + t.y) / 2 + "px";
+      lab.style.borderColor = isApp ? "#7b5ea7" : "#3a9e5f"; lab.style.color = isApp ? "#7b5ea7" : "#3a9e5f";
+      lab.textContent = e.comment;
+      lab.addEventListener("click", ev => { ev.stopPropagation(); qcOpenEdge(e.id); });
+      world.appendChild(lab);
+    }
+  });
+}
+
+// ---- Pan / zoom (the board's own maths, on this page's own state) ----------
+function qcApplyTransform() {
+  const w = $("qcWorld"); if (w) w.style.transform = "translate(" + qcPan.x + "px," + qcPan.y + "px) scale(" + qcZoom + ")";
+  const vp = $("qcViewport");
+  if (vp) { const s = 26 * qcZoom; vp.style.backgroundSize = s + "px " + s + "px"; vp.style.backgroundPosition = qcPan.x + "px " + qcPan.y + "px"; }
+  const z = $("qcZoomLabel"); if (z) z.textContent = Math.round(qcZoom * 100) + "%";
+}
+function qcZoomAt(mx, my, factor) {
+  const wx = (mx - qcPan.x) / qcZoom, wy = (my - qcPan.y) / qcZoom;
+  const nz = graphClamp(qcZoom * factor, 0.2, 2.5);
+  qcPan.x = mx - wx * nz; qcPan.y = my - wy * nz; qcZoom = nz;
+  qcApplyTransform();
+}
+function qcZoomBy(f) { const vp = $("qcViewport"); if (vp) qcZoomAt(vp.clientWidth / 2, vp.clientHeight / 2, f); }
+function qcFit() {
+  const vp = $("qcViewport"), chart = qcCharts[qcRoot]; if (!vp || !chart) return;
+  const keys = Object.keys(chart.nodes).filter(k => qcNodeEls[k]);
+  if (!keys.length) return;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  keys.forEach(k => {
+    const n = chart.nodes[k], el = qcNodeEls[k];
+    minX = Math.min(minX, n.x); minY = Math.min(minY, n.y);
+    maxX = Math.max(maxX, n.x + el.offsetWidth); maxY = Math.max(maxY, n.y + el.offsetHeight);
+  });
+  const pad = 70, bw = (maxX - minX) + pad * 2, bh = (maxY - minY) + pad * 2;
+  qcZoom = graphClamp(Math.min(vp.clientWidth / bw, vp.clientHeight / bh), 0.2, 1.2);
+  qcPan.x = (vp.clientWidth - (maxX - minX) * qcZoom) / 2 - minX * qcZoom;
+  qcPan.y = (vp.clientHeight - (maxY - minY) * qcZoom) / 2 - minY * qcZoom;
+  qcApplyTransform();
+}
+function qcTidy() {
+  const chart = qcCharts[qcRoot]; if (!chart) return;
+  qcLayout(chart); qcRender(); qcFit(); qcScheduleSave();
+}
+function qcOnViewportPointerDown(e) {
+  if (e.target.closest(".gnode") || e.target.closest(".gedge-label") || e.target.closest(".graph-edge") || e.target.closest(".graph-link-banner")) return;
+  if (qcLinkFrom) { qcLinkCancel(); return; }
+  if (e.pointerType === "mouse" && e.button !== 0) return;
+  const vp = $("qcViewport");
+  e.preventDefault(); vp.classList.add("panning");
+  try { vp.setPointerCapture(e.pointerId); } catch (_) {}
+  const sx = e.clientX, sy = e.clientY, px = qcPan.x, py = qcPan.y;
+  const mv = ev => { qcPan.x = px + (ev.clientX - sx); qcPan.y = py + (ev.clientY - sy); qcApplyTransform(); };
+  const up = () => {
+    vp.classList.remove("panning");
+    try { vp.releasePointerCapture(e.pointerId); } catch (_) {}
+    vp.removeEventListener("pointermove", mv); vp.removeEventListener("pointerup", up); vp.removeEventListener("pointercancel", up);
+  };
+  vp.addEventListener("pointermove", mv); vp.addEventListener("pointerup", up); vp.addEventListener("pointercancel", up);
+}
+function qcOnNodePointerDown(e, el) {
+  if (e.target.closest(".gnode-act")) return;
+  if (e.pointerType === "mouse" && e.button !== 0) return;
+  const key = el.dataset.key, chart = qcCharts[qcRoot];
+  if (qcLinkFrom) { e.preventDefault(); e.stopPropagation(); qcLinkComplete(key); return; }
+  e.preventDefault(); e.stopPropagation();
+  const start = { ...chart.nodes[key] }, sx = e.clientX, sy = e.clientY; let moved = false;
+  try { el.setPointerCapture(e.pointerId); } catch (_) {}
+  const mv = ev => {
+    const dx = (ev.clientX - sx) / qcZoom, dy = (ev.clientY - sy) / qcZoom;
+    if (Math.abs(dx) + Math.abs(dy) > 2) moved = true;
+    chart.nodes[key].x = Math.round(start.x + dx); chart.nodes[key].y = Math.round(start.y + dy);
+    el.style.left = chart.nodes[key].x + "px"; el.style.top = chart.nodes[key].y + "px";
+    qcRedrawEdges();
+  };
+  const up = () => {
+    try { el.releasePointerCapture(e.pointerId); } catch (_) {}
+    el.removeEventListener("pointermove", mv); el.removeEventListener("pointerup", up); el.removeEventListener("pointercancel", up);
+    if (moved) qcScheduleSave();
+  };
+  el.addEventListener("pointermove", mv); el.addEventListener("pointerup", up); el.addEventListener("pointercancel", up);
+}
+function qcOnNodeClick(e, el) {
+  const b = e.target.closest(".gnode-act"); if (!b) return;
+  e.stopPropagation();
+  const key = el.dataset.key, act = b.dataset.act, p = qcParseKey(key);
+  if (act === "preview") { const q = graphFindQ(p.id); if (q) openQuestionPreview(q, "Question preview"); }
+  else if (act === "note") qcOpenNode(key);
+  else if (act === "addstep") qcOpenPicker(key);
+  else if (act === "addapp") qcOpenAppDialog(key);
+  else if (act === "open") qcOpenAppViewer(p.id);
+  else if (act === "regen") qcOpenAppDialog(null, p.id);
+  else if (act === "link") { if (qcLinkFrom === key) qcLinkCancel(); else qcLinkStart(key); }
+  else if (act === "remove") qcRemoveNode(key);
+}
+
+// ---- Linking -----------------------------------------------------------------
+function qcLinkStart(key) {
+  qcLinkFrom = key;
+  const vp = $("qcViewport"); if (vp) vp.classList.add("linking");
+  const t = $("qcLinkBannerText");
+  if (t) t.textContent = qcParseKey(key).type === "app" ? "Click the step this app helps with" : "Click the question this step builds towards";
+  qcRender();
+}
+function qcLinkCancel(quiet) {
+  qcLinkFrom = null;
+  const vp = $("qcViewport"); if (vp) vp.classList.remove("linking");
+  if (!quiet) qcRender();
+}
+// The ONE writer of a new edge. Returns the reason it refused, or "".
+function qcAddEdge(chart, from, to, comment) {
+  const rootKey = qcKeyQ(chart.root);
+  if (!chart.nodes[from] || !chart.nodes[to]) return "Both ends must be on this chart.";
+  if (from === to) return "A step can't lead to itself.";
+  if (from === rootKey) return "The question itself is the top of its chart — link steps INTO it.";
+  if (qcParseKey(to).type !== "q") return "Link an app FROM itself TO the step it helps with.";
+  if (chart.edges.some(e => e.from === from && e.to === to)) return "Those two are already linked.";
+  if (qcWouldCycle(chart.edges, from, to)) return "That link would make a loop.";
+  chart.edges.push({ id: "ce_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), from, to, comment: String(comment || "").slice(0, QC_COMMENT_MAX) });
+  return "";
+}
+function qcLinkComplete(targetKey) {
+  const from = qcLinkFrom; qcLinkCancel(true);
+  const chart = qcCharts[qcRoot];
+  if (!from || !chart || from === targetKey) { qcRender(); return; }
+  const why = qcAddEdge(chart, from, targetKey, "");
+  if (why) toast(why, "error"); else qcScheduleSave();
+  qcRender();
+}
+function qcRemoveNode(key) {
+  const chart = qcCharts[qcRoot]; if (!chart || key === qcKeyQ(qcRoot)) return;
+  if (!confirm("Remove this from the chart? The question or app itself is kept.")) return;
+  delete chart.nodes[key];
+  chart.edges = chart.edges.filter(e => e.from !== key && e.to !== key);
+  if (qcLinkFrom === key) qcLinkFrom = null;
+  qcRender(); qcScheduleSave();
+}
+
+// ---- Node and link dialogs -----------------------------------------------------
+function qcOpenNode(key) {
+  const chart = qcCharts[qcRoot]; if (!chart || !chart.nodes[key]) return;
+  qcEditingKey = key;
+  const p = qcParseKey(key);
+  const name = p.type === "app" ? ((qcApps[p.id] || {}).title || "App") : ((graphFindQ(p.id) || {}).title || "Question");
+  $("qcNodeName").textContent = name;
+  $("qcNodeLabel").textContent = p.type === "app" ? "What this app helps the pupil see" : "What this step checks the pupil can do";
+  $("qcNodeChecks").value = chart.nodes[key].checks || "";
+  $("qcNodeOverlay").classList.add("show");
+  setTimeout(() => $("qcNodeChecks").focus(), 50);
+}
+function qcSaveNode() {
+  const chart = qcCharts[qcRoot];
+  if (chart && chart.nodes[qcEditingKey]) {
+    chart.nodes[qcEditingKey].checks = $("qcNodeChecks").value.replace(/\s+/g, " ").trim().slice(0, QC_CHECKS_MAX);
+    qcRender(); qcScheduleSave();
+  }
+  closeOverlay("qcNodeOverlay");
+}
+function qcOpenEdge(edgeId) {
+  const chart = qcCharts[qcRoot]; const e = chart && chart.edges.find(x => x.id === edgeId); if (!e) return;
+  qcEditingEdge = edgeId;
+  const name = k => { const p = qcParseKey(k); return p.type === "app" ? ((qcApps[p.id] || {}).title || "App") : ((graphFindQ(p.id) || {}).title || "Question"); };
+  $("qcEdgeSummary").innerHTML = "<b>" + escapeHtml(name(e.from)) + "</b> is a step towards <b>" + escapeHtml(name(e.to)) + "</b>.";
+  $("qcEdgeComment").value = e.comment || "";
+  $("qcEdgeOverlay").classList.add("show");
+}
+function qcSaveEdge() {
+  const chart = qcCharts[qcRoot]; const e = chart && chart.edges.find(x => x.id === qcEditingEdge);
+  if (e) { e.comment = $("qcEdgeComment").value.replace(/\s+/g, " ").trim().slice(0, QC_COMMENT_MAX); qcRender(); qcScheduleSave(); }
+  closeOverlay("qcEdgeOverlay");
+}
+function qcDeleteEdge() {
+  const chart = qcCharts[qcRoot];
+  if (chart) { chart.edges = chart.edges.filter(x => x.id !== qcEditingEdge); qcRender(); qcScheduleSave(); }
+  closeOverlay("qcEdgeOverlay");
+}
+
+// ---- Adding step questions ---------------------------------------------------
+let qcPickerTarget = null;
+function qcOpenPicker(targetKey) {
+  qcPickerTarget = targetKey || qcKeyQ(qcRoot);
+  const s = $("qcPickerSearch"); if (s) s.value = "";
+  qcRenderPicker("");
+  $("qcPickerOverlay").classList.add("show");
+  setTimeout(() => { if (s) s.focus(); }, 50);
+}
+function qcRenderPicker(term) {
+  term = String(term || "").toLowerCase().trim();
+  const list = $("qcPickerList"), chart = qcCharts[qcRoot]; if (!list || !chart) return;
+  const items = (questionBank || []).filter(q => q && !chart.nodes[qcKeyQ(q.id)])
+    .filter(q => !term || ((q.title || "") + " " + (q.level || "") + " " + (q.topic || "") + " " + graphPlainText(q.blocks).slice(0, 200)).toLowerCase().includes(term));
+  if (!items.length) { list.innerHTML = '<div class="graph-picker-empty">No matching questions.</div>'; return; }
+  list.innerHTML = "";
+  items.slice(0, 150).forEach(q => {
+    const it = document.createElement("button");
+    it.type = "button"; it.className = "graph-picker-item";
+    it.innerHTML = '<span class="gp-title">' + escapeHtml(q.title || "Untitled") + '</span><span class="gp-meta">' + escapeHtml([q.level, studentTopicsLabel(q)].filter(Boolean).join(" · ")) + '</span>';
+    it.addEventListener("click", () => qcAddStep(q.id));
+    list.appendChild(it);
+  });
+}
+function qcAddStep(qid) {
+  const chart = qcCharts[qcRoot]; if (!chart) return;
+  const key = qcKeyQ(qid);
+  if (chart.nodes[key]) return;
+  if (Object.keys(chart.nodes).length >= QC_MAX_NODES) { toast("A chart holds up to " + QC_MAX_NODES + " steps", "error"); return; }
+  const target = chart.nodes[qcPickerTarget] ? qcPickerTarget : qcKeyQ(qcRoot);
+  const t = chart.nodes[target];
+  const siblings = chart.edges.filter(e => e.to === target).length;
+  chart.nodes[key] = { x: t.x + (siblings - 0.5) * 140, y: t.y + QC_ROWH, checks: "" };
+  qcAddEdge(chart, key, target, "");
+  closeOverlay("qcPickerOverlay");
+  qcRender(); qcScheduleSave();
+  toast("Added — press ✎ on it to say what this step checks", "success");
+}
+
+// ---- Apps: dialog, generator, viewer ----------------------------------------------
+function qcSetAppTab(tab) {
+  ["gen", "url", "reuse"].forEach(t => {
+    const b = $("qcAppTab-" + t), p = $("qcAppPane-" + t);
+    if (b) b.classList.toggle("active", t === tab);
+    if (p) p.style.display = t === tab ? "" : "none";
+  });
+  if (tab === "reuse") qcRenderReuseList();
+}
+function qcSyncAppControls() {
+  const model = (document.querySelector('input[name="qcAppModel"]:checked') || {}).value || QC_APP_DEFAULT_MODEL;
+  const wrap = $("qcAppEffortWrap"); if (wrap) wrap.style.display = QC_APP_MODELS[model] && QC_APP_MODELS[model].effort ? "" : "none";
+  const size = $("qcAppSize"), hint = $("qcAppSizeHint");
+  if (size && hint) hint.textContent = (QC_APP_SIZES[size.value] || {}).hint || "";
+}
+function qcOpenAppDialog(targetKey, editAppId) {
+  if (!_isAdmin()) return;
+  const chart = qcCharts[qcRoot]; if (!chart) return;
+  qcAppTarget = targetKey && chart.nodes[targetKey] ? targetKey : null;
+  const editing = editAppId ? qcApps[editAppId] : null;
+  const tk = qcAppTarget || qcKeyQ(qcRoot), tp = qcParseKey(tk);
+  const q = tp.type === "q" ? graphFindQ(tp.id) : graphFindQ(qcRoot);
+  const checks = chart.nodes[tk] ? chart.nodes[tk].checks : "";
+  qcAppDraft = { editingId: editing ? editing.id : null, html: "", model: "", effort: "", size: "" };
+  $("qcAppHeading").textContent = editing ? "Regenerate “" + editing.title + "”" : "Add a visual app" + (q ? " for “" + (q.title || "this step") + "”" : "");
+  $("qcAppTitle").value = editing ? editing.title : ((checks || (q && q.title) || "Step") + "").slice(0, 80);
+  $("qcAppBrief").value = editing ? (editing.brief || "") : qcDefaultBrief(q, checks);
+  const shape = qcAppRequestShape(editing && editing.model, editing && editing.effort, editing && editing.size);
+  document.querySelectorAll('input[name="qcAppModel"]').forEach(r => { r.checked = r.value === shape.model; });
+  $("qcAppEffort").value = shape.effort || QC_APP_DEFAULT_EFFORT;
+  $("qcAppSize").value = shape.size;
+  $("qcAppUrl").value = ""; $("qcAppUrlTitle").value = "";
+  $("qcAppStatus").textContent = ""; $("qcAppStatus").className = "qc-app-status";
+  $("qcAppPreviewWrap").style.display = "none";
+  $("qcAppFrame").removeAttribute("srcdoc");
+  $("qcAppSaveBtn").disabled = true;
+  $("qcAppTabs").style.display = editing ? "none" : "";
+  qcSetAppTab("gen");
+  qcSyncAppControls();
+  $("qcAppOverlay").classList.add("show");
+}
+// The browser half of the generator. The dedicated `generateChartApp`
+// callable has the long timeout a Rich page at high effort needs; while it is
+// not deployed yet, the ordinary `askOpenAi` route (four minutes) is tried
+// with the same model, effort and a size it can carry.
+const generateChartAppCall = httpsCallable(cloudFunctions, "generateChartApp", { timeout: 560000 });
+const QC_APP_FALLBACK_TOKENS = { compact: 7000, standard: 14000, rich: 22000 };
+async function qcRequestApp(prompt, shape) {
+  try {
+    const { data } = await generateChartAppCall({ prompt, model: shape.model, effort: shape.effort, size: shape.size });
+    if (data && typeof data.html === "string" && data.html) return { html: data.html, model: data.model || shape.model };
+    throw new Error("The app generator returned no page.");
+  } catch (e) {
+    const code = String((e && e.code) || "");
+    if (!/not-found|unimplemented|failed-precondition/.test(code) && !/not found|NOT_FOUND/i.test(String(e && e.message))) throw e;
+    console.warn("generateChartApp unavailable; using askOpenAi", e);
+    const { data } = await askOpenAiServerCall({ prompt, model: shape.model, reasoningEffort: shape.effort || "low",
+      maxOutputTokens: QC_APP_FALLBACK_TOKENS[shape.size] || QC_APP_FALLBACK_TOKENS.standard });
+    const html = qcAppHtmlFrom(data && data.text);
+    if (!html) throw new Error("ChatGPT answered without a web page — try again or pick a bigger size.");
+    return { html, model: (data && data.model) || shape.model };
+  }
+}
+async function qcGenerateApp() {
+  if (!_isAdmin() || qcAppBusy) return;
+  const title = $("qcAppTitle").value.trim(), brief = $("qcAppBrief").value.trim();
+  if (!brief) { toast("Say what the app should show first", "error"); return; }
+  const model = (document.querySelector('input[name="qcAppModel"]:checked') || {}).value;
+  const shape = qcAppRequestShape(model, $("qcAppEffort").value, $("qcAppSize").value);
+  const q = graphFindQ(qcRoot);
+  const prompt = qcAppPrompt({ title: title || "Maths step", brief, level: q && q.level, size: shape.size });
+  const st = $("qcAppStatus"), btn = $("qcAppGenBtn");
+  qcAppBusy = true; btn.disabled = true; $("qcAppSaveBtn").disabled = true;
+  st.className = "qc-app-status busy";
+  st.textContent = "✨ " + QC_APP_MODELS[shape.model].label + (shape.effort ? " (" + shape.effort + " effort)" : "") + " is building a " + QC_APP_SIZES[shape.size].label.toLowerCase() + " app… bigger sizes and higher effort take longer, up to a few minutes.";
+  const t0 = Date.now();
+  try {
+    const res = await qcRequestApp(prompt, shape);
+    qcAppDraft = { ...qcAppDraft, html: res.html, model: shape.model, effort: shape.effort, size: shape.size, title, brief };
+    $("qcAppFrame").srcdoc = res.html;
+    $("qcAppPreviewWrap").style.display = "";
+    $("qcAppSaveBtn").disabled = false;
+    st.className = "qc-app-status ok";
+    st.textContent = "Ready in " + Math.round((Date.now() - t0) / 1000) + "s · " + Math.round(res.html.length / 1024) + " KB. Try it below, then save it to the chart.";
+  } catch (e) {
+    console.error(e);
+    st.className = "qc-app-status err";
+    st.textContent = "Couldn't build the app: " + (typeof serverErrorMessage === "function" ? serverErrorMessage(e) : (e.message || e));
+  } finally { qcAppBusy = false; btn.disabled = false; }
+}
+function qcAttachApp(app) {
+  const chart = qcCharts[qcRoot]; if (!chart) return;
+  const key = qcKeyApp(app.id);
+  const target = qcAppTarget || qcKeyQ(qcRoot);
+  if (!chart.nodes[key]) {
+    if (Object.keys(chart.nodes).length >= QC_MAX_NODES) { toast("A chart holds up to " + QC_MAX_NODES + " steps", "error"); return; }
+    const t = chart.nodes[target];
+    chart.nodes[key] = { x: t.x + 300, y: t.y + 40, checks: "" };
+  }
+  const why = qcAddEdge(chart, key, target, "");
+  if (why && !/already linked/.test(why)) toast(why, "error");
+  qcRender(); qcScheduleSave();
+}
+async function qcSaveGeneratedApp() {
+  if (!qcAppDraft || !qcAppDraft.html) return;
+  const btn = $("qcAppSaveBtn"); btn.disabled = true;
+  try {
+    const prev = qcAppDraft.editingId ? qcApps[qcAppDraft.editingId] : null;
+    const app = await qcSaveApp({
+      id: prev ? prev.id : qcNewAppId(),
+      title: $("qcAppTitle").value.trim() || "Maths step", brief: $("qcAppBrief").value.trim(),
+      html: qcAppDraft.html, model: qcAppDraft.model, effort: qcAppDraft.effort, size: qcAppDraft.size,
+      createdFor: qcRoot, createdAt: prev ? prev.createdAt : ""
+    });
+    if (!prev) qcAttachApp(app); else qcRender();
+    closeOverlay("qcAppOverlay");
+    toast(prev ? "App updated everywhere it is linked" : "App saved and linked on the chart", "success");
+  } catch (e) { btn.disabled = false; toast("Couldn't save the app: " + (e.message || e), "error"); }
+}
+async function qcSaveUrlApp() {
+  const url = $("qcAppUrl").value.trim(), title = $("qcAppUrlTitle").value.trim();
+  if (!/^https:\/\/[^\s"'<>]+$/i.test(url)) { toast("Paste a full https:// link", "error"); return; }
+  try {
+    const app = await qcSaveApp({ id: qcNewAppId(), title: title || url.replace(/^https:\/\//, "").slice(0, 60), url, createdFor: qcRoot });
+    qcAttachApp(app);
+    closeOverlay("qcAppOverlay");
+    toast("Linked app added to the chart", "success");
+  } catch (e) { toast("Couldn't save the link: " + (e.message || e), "error"); }
+}
+function qcRenderReuseList() {
+  const list = $("qcAppReuseList"), chart = qcCharts[qcRoot]; if (!list || !chart) return;
+  const apps = Object.values(qcApps).filter(a => !chart.nodes[qcKeyApp(a.id)])
+    .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+  if (!apps.length) { list.innerHTML = '<div class="graph-picker-empty">No other apps yet — generate one or paste a link.</div>'; return; }
+  list.innerHTML = "";
+  apps.forEach(a => {
+    const it = document.createElement("button");
+    it.type = "button"; it.className = "graph-picker-item";
+    it.innerHTML = '<span class="gp-title">🧪 ' + escapeHtml(a.title) + '</span><span class="gp-meta">' + escapeHtml(qcAppMetaLabel(a)) + '</span>';
+    it.addEventListener("click", () => { qcAttachApp(a); closeOverlay("qcAppOverlay"); toast("App linked on the chart", "success"); });
+    list.appendChild(it);
+  });
+}
+// THE VIEWER. A generated page runs with `allow-scripts` only — no
+// `allow-same-origin`, so it gets an opaque origin and cannot read this
+// app's storage, cookies or the ChatGPT key the portals share. A linked page
+// gets the same sandbox plus forms and popups, and a button to open it in its
+// own tab for the pages that need storage of their own.
+function qcAppFrameAttrs(app) {
+  return app && app.html ? { sandbox: "allow-scripts" } : { sandbox: "allow-scripts allow-forms allow-popups" };
+}
+function qcOpenAppViewer(appId) {
+  const app = qcApps[appId];
+  if (!app) { toast("That app is missing — remove it from the chart", "error"); return; }
+  $("qcViewTitle").textContent = "🧪 " + app.title;
+  $("qcViewMeta").textContent = qcAppMetaLabel(app);
+  const holder = $("qcViewFrameWrap");
+  holder.innerHTML = "";
+  const f = document.createElement("iframe");
+  f.className = "qc-app-frame big";
+  f.setAttribute("sandbox", qcAppFrameAttrs(app).sandbox);
+  f.setAttribute("referrerpolicy", "no-referrer");
+  if (app.html) f.srcdoc = app.html; else f.src = app.url;
+  holder.appendChild(f);
+  const ext = $("qcViewExternal");
+  if (ext) { ext.style.display = app.url ? "" : "none"; ext.href = app.url || "#"; }
+  $("qcViewOverlay").classList.add("show");
+}
+
+// ---- Wiring -----------------------------------------------------------------------
+(function wireQuestionCharts() {
+  const vp = $("qcViewport"); if (!vp) return;
+  vp.addEventListener("wheel", e => { e.preventDefault(); const r = vp.getBoundingClientRect(); qcZoomAt(e.clientX - r.left, e.clientY - r.top, e.deltaY < 0 ? 1.1 : 1 / 1.1); }, { passive: false });
+  vp.addEventListener("pointerdown", qcOnViewportPointerDown);
+  const on = (id, fn) => { const el = $(id); if (el) el.addEventListener("click", fn); };
+  on("qcBackBtn", () => navigateTo("bank"));
+  on("qcAddStepBtn", () => qcOpenPicker(qcKeyQ(qcRoot)));
+  on("qcAddAppBtn", () => qcOpenAppDialog(qcKeyQ(qcRoot)));
+  on("qcTidyBtn", qcTidy);
+  on("qcFitBtn", qcFit);
+  on("qcZoomIn", () => qcZoomBy(1.2));
+  on("qcZoomOut", () => qcZoomBy(1 / 1.2));
+  on("qcLinkCancel", () => qcLinkCancel());
+  on("qcNodeSaveBtn", qcSaveNode);
+  on("qcEdgeSaveBtn", qcSaveEdge);
+  on("qcEdgeDeleteBtn", qcDeleteEdge);
+  on("qcAppGenBtn", qcGenerateApp);
+  on("qcAppSaveBtn", qcSaveGeneratedApp);
+  on("qcAppUrlSaveBtn", qcSaveUrlApp);
+  ["gen", "url", "reuse"].forEach(t => on("qcAppTab-" + t, () => qcSetAppTab(t)));
+  document.querySelectorAll('input[name="qcAppModel"]').forEach(r => r.addEventListener("change", qcSyncAppControls));
+  const size = $("qcAppSize"); if (size) size.addEventListener("change", qcSyncAppControls);
+  const search = $("qcPickerSearch"); if (search) search.addEventListener("input", e => qcRenderPicker(e.target.value));
+  on("qcEditorChartBtn", () => {
+    if (!currentEditingId || !questionBank.some(x => x && x.id === currentEditingId)) { toast("Save the question to the bank first, then open its chart", "error"); return; }
+    openQuestionChart(currentEditingId);
+  });
+  // An app frame keeps running (and keeps its timers) until it is emptied.
+  const view = $("qcViewOverlay");
+  if (view) view.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => { $("qcViewFrameWrap").innerHTML = ""; }));
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && qcLinkFrom) qcLinkCancel(); });
 })();
 
 // =====================================================================
