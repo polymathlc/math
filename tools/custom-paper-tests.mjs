@@ -310,7 +310,7 @@ ok("one option is not a multiple choice", api.cpbBookOf({ id: "q", options: ["on
  * ------------------------------------------------------------------ */
 const build = cut("async function wsBuildDocumentHtml(questions, title, opts) {",
                   "\n// ---- Editing the header ON the preview", "wsBuildDocumentHtml");
-const chunkFn = cut("function wsQuestionChunkHtml(q, n, qrSvg, reserveMm, noBracket, objBoxAll, exam) {",
+const chunkFn = cut("function wsQuestionChunkHtml(q, n, qrSvg, reserveMm, noBracket, objBoxAll, exam, appQr) {",
                     "\nfunction wsAnswerKeyHtml(", "wsQuestionChunkHtml");
 const keyFn = cut("function wsAnswerKeyHtml(questions, numbers) {", "\nfunction wsPrintCss(", "wsAnswerKeyHtml");
 const doc = new Function(`

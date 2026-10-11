@@ -34,7 +34,15 @@ const stubs = {
     export async function signOut() { fx.user = null; if (fx.authCb) await fx.authCb(null); }
     export async function signInWithEmailAndPassword() { throw new Error('not in this test'); }
     export async function createUserWithEmailAndPassword() { throw new Error('not in this test'); }
-    export async function signInAnonymously() { throw new Error('anonymous sign-in is off'); }
+    // A scenario that sets fx.allowAnon gets the anonymous guest a printed QR signs in as.
+    export async function signInAnonymously() {
+      if (!fx.allowAnon) throw new Error('anonymous sign-in is off');
+      fx.calls.push({ op: 'anon' });
+      fx.user = { uid: 'anon1', email: null, displayName: null, isAnonymous: true, providerData: [],
+        getIdTokenResult: async () => ({ claims: {} }), getIdToken: async () => 'token' };
+      if (fx.authCb) await fx.authCb(fx.user);
+      return { user: fx.user };
+    }
     export async function signInWithPopup() { throw new Error('not in this test'); }
     export async function updateProfile() {}
     export class GoogleAuthProvider { setCustomParameters() {} }
@@ -51,7 +59,11 @@ const stubs = {
     export function deleteField() { return DEL; }
     export function increment(n) { return { __inc: n }; }
     const snap = (path, data) => ({ id: path.split('/').pop(), exists: () => data !== undefined, data: () => clone(data), ref: { path } });
-    export async function getDoc(ref) { return snap(ref.path, fx.db.get(ref.path)); }
+    // fx.denyAnon: rules that refuse a reader who is not signed in.
+    export async function getDoc(ref) {
+      if (fx.denyAnon && !fx.user) { const e = new Error('Missing or insufficient permissions.'); e.code = 'permission-denied'; throw e; }
+      return snap(ref.path, fx.db.get(ref.path));
+    }
     export async function getDocs(q) {
       const depth = q.path.split('/').length + 1, out = [];
       for (const [p, v] of fx.db) {
@@ -114,6 +126,9 @@ async function scenario(name, fn) {
     const url = new URL(route.request().url());
     const stub = url.hostname === 'www.gstatic.com' && Object.keys(stubs).find(k => url.pathname.endsWith('/' + k));
     if (stub) return route.fulfill({ status: 200, contentType: 'text/javascript', body: stubs[stub] });
+    // The QR library: a stand-in whose "code" carries the text it encodes, so a test can read the link.
+    if (url.hostname === 'cdn.jsdelivr.net' && url.pathname.includes('qrcode-generator')) return route.fulfill({ status: 200, contentType: 'text/javascript',
+      body: 'export default function qrcode() { return { addData(t) { this.t = t; }, make() {}, createSvgTag() { return \'<svg class="fakeqr" data-qr="\' + encodeURIComponent(this.t) + \'"></svg>\'; } }; }' });
     if (url.origin !== ORIGIN) return route.abort();
     const rel = decodeURIComponent(url.pathname === '/' ? '/index.html' : url.pathname);
     const file = path.join(repo, rel);
@@ -711,6 +726,116 @@ await scenario('🖨 prints the chart as a booklet: wrong? turn to the steps pag
   await page.click('#wsBranchSheetBtn');
   await page.waitForSelector('#qcPrintOverlay.show');
   assert.equal(await page.$eval('#qcPrintRoot', s => s.value), 'q1');
+  assert.deepEqual(errors, []);
+});
+
+// ---- v1.103.0: 🧩 Show related questions on Create Worksheet, and 🧪 a QR to each app ------------
+const APP_HTML = '<!DOCTYPE html><html><body><h1>Tart bars</h1><script>document.body.dataset.ran = "1";<\/script></body></html>';
+const RELATED_DB = Object.assign({}, BOOK_DB, {
+  'users/teacher/mathQuestions/q3': { id: 'q3', title: 'Area of a room', level: 'P5', topics: ['Area'], createdAt: '2026-10-02T00:00:00.000Z', blocks: [{ id: 'b3', type: 'text', content: 'A room is 4 m by 5 m. Find its area.' }] },
+  'users/teacher/mathQuestionGraph/app__ca_t1': { title: 'Tart bars', html: APP_HTML, source: 'pasted', createdFor: 'q1' },
+  'users/teacher/mathQuestionGraph/chart__q1': { root: 'q1', nodes: { 'q:q1': { x: 0, y: 0 }, 'q:s1': { x: -300, y: 230 }, 'q:s2': { x: 0, y: 230 }, 'q:s3': { x: -300, y: 460 }, 'q:q2': { x: 0, y: -230, tier: 'harder' }, 'app:ca_t1': { x: 300, y: 230 } },
+    edges: [{ id: 'e1', from: 'q:s1', to: 'q:q1' }, { id: 'e2', from: 'q:s2', to: 'q:q1' }, { id: 'e3', from: 'q:s3', to: 'q:s1' }, { id: 'e4', from: 'app:ca_t1', to: 'q:s1' }] }
+});
+await scenario('🧩 Show related questions prints the chosen questions with their steps behind, and an app QR', async (page, errors) => {
+  await boot(page, TEACHER, RELATED_DB);
+  await page.click('.nav-item[data-page="worksheet"]');
+  await page.waitForSelector('#page-worksheet.active');
+  await page.click('[data-ws-check="q1"]');
+  await page.click('[data-ws-check="q3"]');
+  assert.equal(await page.isVisible('#wsRelatedNote'), false, 'quiet until ticked');
+  await page.check('#wsIncludeRelated');
+  assert.match(await page.textContent('#wsRelatedNote'), /4 related questions from the dependency charts will print behind these 2, as a 4-page step-by-step booklet\./);
+  await shot(page, '19-related-tick');
+  const [sheet] = await Promise.all([page.context().waitForEvent('page'), page.click('#wsPreviewBtn')]);
+  await sheet.waitForSelector('.qcb-label', { timeout: 15000 });
+  const text = (await sheet.evaluate(() => document.querySelector('.ws-sheet').innerText)).replace(/\s+/g, ' ');
+  assert.match(text, /work down the page in order/, 'the guide speaks of several questions');
+  assert.match(text, /✓ Right\? Go on to Question 2 below\./, 'question 1 sends the pupil on to question 2');
+  assert.match(text, /Find its area\./, 'the second chosen question is on page 1');
+  assert.match(text, /Page 2 Steps for Question 1/);
+  assert.match(text, /Page 4 Your next challenge/);
+  const app = await sheet.$$eval('.ws-qr-app .fakeqr', els => els.map(e => decodeURIComponent(e.dataset.qr)));
+  assert.equal(app.length, 1, 'one app, on the step it is attached to');
+  assert.equal(app[0], 'http://polymath.test/index.html?app=ca_t1&owner=teacher');
+  assert.match(await sheet.textContent('.ws-qr-app'), /Scan to open the app\s*Tart bars/);
+  const stepWithApp = await sheet.$eval('.ws-qr-app', el => el.closest('.ws-chunk').dataset.qid);
+  assert.equal(stepWithApp, 's1');
+  const markQrs = await sheet.$$eval('.ws-chunk', els => els.filter(c => c.querySelector('.ws-qr:not(.ws-qr-app)')).map(c => c.dataset.qid));
+  assert.deepEqual(markQrs.sort(), ['q1', 'q2', 'q3'], 'no AI-mark QR on a 🔒 step a pupil could never open');
+  if (process.env.QC_SHOTS) await sheet.screenshot({ path: path.join(process.env.QC_SHOTS, '20-related-sheet.png'), fullPage: true, timeout: 5000 }).catch(() => {});
+  await sheet.close();
+  // Saved with the sheet, and a reprint from 📄 My Worksheets is the same booklet.
+  await page.fill('#wsTitle', 'Tarts and rooms');
+  await page.click('#wsSaveBtn');
+  await page.waitForFunction(() => [...window.__fx.db.keys()].some(k => k.includes('/mathWorksheets/')));
+  const ws = await page.evaluate(() => { const k = [...window.__fx.db.keys()].find(x => x.includes('/mathWorksheets/')); return window.__fx.db.get(k); });
+  assert.equal(ws.includeRelated, true);
+  assert.deepEqual(ws.questionIds, ['q1', 'q3']);
+  assert.deepEqual(errors, []);
+});
+
+await scenario('🧪 an ordinary worksheet prints an app QR beside the question, and none when unticked', async (page, errors) => {
+  const db = Object.assign({}, RELATED_DB);
+  db['users/teacher/mathQuestionGraph/chart__q1'] = Object.assign({}, RELATED_DB['users/teacher/mathQuestionGraph/chart__q1'], {
+    edges: RELATED_DB['users/teacher/mathQuestionGraph/chart__q1'].edges.concat([{ id: 'e5', from: 'app:ca_t1', to: 'q:q1' }]) });
+  await boot(page, TEACHER, db);
+  await page.click('.nav-item[data-page="worksheet"]');
+  await page.waitForSelector('#page-worksheet.active');
+  await page.click('[data-ws-check="q1"]');
+  let [sheet] = await Promise.all([page.context().waitForEvent('page'), page.click('#wsPreviewBtn')]);
+  await sheet.waitForSelector('.ws-chunk', { timeout: 15000 });
+  await sheet.waitForSelector('.ws-qr-app');
+  assert.equal(await sheet.$$eval('.ws-qrs .ws-qr', els => els.length), 2, 'the two codes stacked in one column');
+  assert.equal(await sheet.$$eval('.qcb-label', els => els.length), 0, 'an ordinary sheet, not a booklet');
+  await sheet.close();
+  await page.uncheck('#wsIncludeAppQr');
+  [sheet] = await Promise.all([page.context().waitForEvent('page'), page.click('#wsPreviewBtn')]);
+  await sheet.waitForSelector('.ws-chunk', { timeout: 15000 });
+  assert.equal(await sheet.$$eval('.ws-qr-app', els => els.length), 0);
+  assert.equal(await sheet.$$eval('.ws-qrs', els => els.length), 0, 'no app, no wrapper: the chunk is what it always was');
+  await sheet.close();
+  assert.deepEqual(errors, []);
+});
+
+// The printed link on a pupil's phone: nobody signed in.
+async function bootShare(page, url, opts) {
+  await page.addInitScript(([seed, o]) => {
+    window.__fx = { db: new Map(Object.entries(seed)), calls: [], claims: {}, user: null, authCb: null, denyAnon: !!o.denyAnon, allowAnon: !!o.allowAnon };
+  }, [Object.assign({ 'config/mathAdmin': { uid: 'teacher', email: 'chungzhikai@gmail.com' } }, RELATED_DB), opts || {}]);
+  await page.goto(ORIGIN + url);
+}
+await scenario('🧪 the scanned QR opens the app alone, sealed, on a phone with nobody signed in', async (page, errors) => {
+  await page.setViewportSize({ width: 390, height: 780 });
+  await bootShare(page, '/index.html?app=ca_t1&owner=teacher');
+  await page.waitForSelector('#appShareLayer iframe');
+  assert.equal(await page.getAttribute('#appShareLayer iframe', 'sandbox'), 'allow-scripts');
+  assert.match(await page.textContent('#appShareTitle'), /Tart bars/);
+  assert.equal(await page.frameLocator('#appShareLayer iframe').locator('h1').textContent(), 'Tart bars');
+  assert.equal(await page.frameLocator('#appShareLayer iframe').locator('body').getAttribute('data-ran'), '1', 'its own script runs');
+  const box = await page.$eval('#appShareLayer', el => { const r = el.getBoundingClientRect(); return [r.width, r.height]; });
+  assert.deepEqual(box, [390, 780], 'the whole screen');
+  await shot(page, '21-app-on-phone');
+  await page.click('#appShareClose');
+  assert.equal(await page.$('#appShareLayer'), null);
+  assert.doesNotMatch(page.url(), /app=/, 'Done takes the app out of the address');
+  assert.deepEqual(errors, []);
+});
+await scenario('🧪 refused before sign-in, the QR signs in as a guest and opens the app', async (page, errors) => {
+  await bootShare(page, '/index.html?app=ca_t1&owner=teacher', { denyAnon: true, allowAnon: true });
+  await page.waitForSelector('#appShareLayer iframe', { timeout: 20000 });
+  assert.ok(await page.evaluate(() => window.__fx.calls.some(c => c.op === 'anon')), 'guest sign-in used');
+  assert.match(await page.textContent('#appShareTitle'), /Tart bars/);
+  assert.deepEqual(errors, []);
+});
+await scenario('🧪 with no guest sign-in, the QR says to sign in rather than spin', async (page, errors) => {
+  await bootShare(page, '/index.html?app=ca_t1&owner=teacher', { denyAnon: true });
+  await page.waitForFunction(() => /Sign in to open this app/.test(document.getElementById('appShareBody')?.textContent || ''), null, { timeout: 20000 });
+  assert.deepEqual(errors, []);
+});
+await scenario('🧪 a QR to an app that has gone says so', async (page, errors) => {
+  await bootShare(page, '/index.html?app=ca_gone&owner=teacher');
+  await page.waitForFunction(() => /taken down/.test(document.getElementById('appShareBody')?.textContent || ''));
   assert.deepEqual(errors, []);
 });
 

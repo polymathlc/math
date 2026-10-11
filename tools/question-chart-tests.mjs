@@ -56,7 +56,8 @@ const M = new Function(`
            QC_APP_MODELS, QC_APP_SIZES,
            QC_BREAK_MIN, QC_BREAK_MAX, qcBreakdownPrompt, qcBreakdownParts, qcBreakdownQuestion,
            qcStepTarget, qcStepsUnder, qcMoveStepOrder,
-           QC_SHEET_MAX_PAGES, QC_SHEET_GUIDE, qcBranchPlan, qcBranchNotes, qcBranchPageText };
+           QC_SHEET_MAX_PAGES, QC_SHEET_GUIDE, qcBranchPlan, qcBranchPlanMany, qcBranchNotes, qcBranchPageText,
+           qcAppsByQuestion, qcAppShareUrl };
 `)();
 // The frame attributes and the edge writer sit further down; cut them alone.
 const W = new Function('M', `
@@ -657,9 +658,72 @@ test('the booklet prints through the ONE worksheet renderer, with no covers', ()
   ok(/if \(!_isAdmin\(\)\) return;/.test(fn), 'teacher only');
   ok(/id="wsBranchSheetBtn"/.test(src) && /on\("wsBranchSheetBtn"/.test(src), 'reachable from 📝 Create Worksheet');
 });
-test('the version is v1.102.0 or later', () => {
+// ---- 🧩 Show related questions, and 🧪 a QR to each app (v1.103.0) ------------------------------
+// A second chart: t ← u; u ← d (d is also on BOOK, under a and b).
+const TWO = () => M.qcNormalizeChart({ nodes: {
+  'q:t': { x: 0, y: 0 }, 'q:u': { x: 0, y: 230 }, 'q:d': { x: 0, y: 460 }, 'app:y': { x: 300, y: 230 },
+  'q:h': { x: 0, y: -230, tier: 'harder' } },
+  edges: [{ from: 'q:u', to: 'q:t' }, { from: 'q:d', to: 'q:u' }, { from: 'app:y', to: 'q:u' }, { from: 'app:x', to: 'q:u' }] }, 't');
+test('many questions: all chosen ones on page 1, each one\'s steps from its own chart', () => {
+  const p = M.qcBranchPlanMany([{ chart: BOOK(), rootId: 'r' }, { chart: TWO(), rootId: 't' }, { chart: null, rootId: 'z' }]);
+  eq(p.pages[0].keys, ['q:r', 'q:t', 'q:z'], 'the teacher\'s order, a question with no chart included');
+  eq(p.pages.map(g => [g.kind, g.forKey || '', g.keys]), [
+    ['start', '', ['q:r', 'q:t', 'q:z']], ['steps', 'q:r', ['q:a', 'q:b', 'q:c']], ['steps', 'q:t', ['q:u']],
+    ['steps', 'q:a', ['q:d']], ['steps', 'q:b', []], ['steps', 'q:u', []], ['next', '', ['q:s', 'q:n', 'q:h']]]);
+  eq(p.pages[5].refs, ['q:d'], 'a step shared ACROSS two charts is printed once');
+  eq(Object.keys(p.numbers).length, p.order.length, 'one number per printed question');
+  eq(p.numbers.t, '2'); eq(p.stepsPage['q:t'], 3);
+});
+test('many questions: ✓ walks down page 1, and the last one goes on to the next challenge', () => {
+  const p = M.qcBranchPlanMany([{ chart: BOOK(), rootId: 'r' }, { chart: TWO(), rootId: 't' }, { chart: null, rootId: 'z' }]);
+  eq(M.qcBranchNotes(p, 'q:r').right, '✓ Right? Go on to Question 2 below.');
+  eq(M.qcBranchNotes(p, 'q:t').wrong, '✗ Wrong, or stuck? Turn to Page 3. The questions there break Question 2 into smaller steps.');
+  eq(M.qcBranchNotes(p, 'q:z'), { wrong: '✗ Wrong, or stuck? Ask your teacher to go through it with you.',
+    right: '✓ Right? Well done! Go on to Page 7 for your next challenge.' });
+  eq(M.qcBranchPageText(p, p.pages[2]).foot, 'Finished these steps? Go back to Page 1 and try Question 2 again.');
+});
+test('many questions: a chosen question that is also a step stays on page 1, and repeats are dropped', () => {
+  const p = M.qcBranchPlanMany([{ chart: BOOK(), rootId: 'r' }, { chart: null, rootId: 'a' }, { chart: BOOK(), rootId: 'r' }], null, { next: false });
+  eq(p.pages[0].keys, ['q:r', 'q:a']);
+  eq(p.pages[1].keys, ['q:b', 'q:c'], 'a is not printed twice');
+  eq(p.pages[1].refs, ['q:a']);
+  eq(M.qcBranchPlanMany([], null).pages, []);
+  eq(M.qcBranchPlanMany([{ chart: null, rootId: 'z' }], id => id !== 'z').pages, [], 'nothing printable, no booklet');
+  eq(M.qcBranchPlan(BOOK(), 'r'), M.qcBranchPlanMany([{ chart: BOOK(), rootId: 'r' }]), 'one chart is the same plan as before');
+});
+test('🧪 apps are found by their arrow into a question, on every chart', () => {
+  const by = M.qcAppsByQuestion({ r: BOOK(), t: TWO() });
+  eq(by, { r: ['x'], u: ['y'] }, 'an arrow from an app that is not on that chart is dropped by the normaliser');
+  const both = M.qcNormalizeChart({ nodes: { 'q:t': {}, 'q:u': {}, 'app:x': {}, 'app:y': {} },
+    edges: [{ from: 'app:y', to: 'q:u' }, { from: 'app:x', to: 'q:u' }, { from: 'app:y', to: 'q:u' }] }, 't');
+  eq(M.qcAppsByQuestion({ r: BOOK(), t: both }), { r: ['x'], u: ['y', 'x'] }, 'each app once per question');
+  eq(M.qcAppsByQuestion({ r: BOOK(), t: both }, id => id !== 'y'), { r: ['x'], u: ['x'] }, 'a deleted app prints no QR');
+  eq(M.qcAppsByQuestion(null), {});
+  eq(M.qcAppShareUrl('https://polymathlc.github.io/math/', 'ca_1_ab', 'U1'), 'https://polymathlc.github.io/math/?app=ca_1_ab&owner=U1');
+});
+test('🧪 the app QR prints through the one renderer, and only the teacher builds it', () => {
+  ok(/function wsQuestionChunkHtml\(q, n, qrSvg, reserveMm, noBracket, objBoxAll, exam, appQr\)/.test(src), 'the chunk takes the app QR');
+  ok(/const qr = appQr \? `<div class="ws-qrs">\$\{markQr\}\$\{appQr\}<\/div>` : markQr;/.test(src), 'no app → the chunk is what it always was');
+  ok(/if \(opts\.appLinks\) \{/.test(src), 'wsBuildDocumentHtml makes the codes');
+  ok(/related: _isAdmin\(\) && /.test(src) && /appQr: _isAdmin\(\) && /.test(src), 'teacher only');
+  ok(/function qcAppLinksFor\(questions\) \{\s*if \(!qcLoaded\) return null;/.test(src), 'no charts, no codes');
+  ok(/qrFilter: q => !qIsFoundation\(q\)/.test(src), 'no AI-mark QR on a step a pupil could never open');
+  ok(/includeRelated: !!opts\.related/.test(src) && /ws\.includeRelated && _isAdmin\(\)/.test(src), 'saved with the sheet and honoured on reprint');
+});
+test('🧪 a scanned app QR opens the app alone, sealed, without a login', () => {
+  const blk = cutFrom(src, 'const APP_SHARE_LAYER_ID', 'let guestSignInTried = false;', 'app share');
+  ok(/f\.setAttribute\("sandbox", qcAppFrameAttrs\(app\)\.sandbox\)/.test(blk), 'the same sealed frame');
+  ok(!/allow-same-origin/.test(blk), 'never allow-same-origin');
+  ok(/signInAnonymously\(auth\)/.test(blk), 'the guest sign-in the question QR uses');
+  ok(/APP_SHARE_ID_RE\.test\(owner\)/.test(blk), 'the owner is checked before it goes into a path');
+  ok(/const APP_SHARE_ID_RE = \/\^\[A-Za-z0-9_-\]\{1,80\}\$\/;/.test(src), 'id shape');
+  ok(/pendingShareApp && _appShareWaitAuth\) appShareLoad\(true\)/.test(src), 'retries once somebody is signed in');
+  ok(/appShareStart\(\);\n<\/script>/.test(src), 'started LAST, after the chart block\'s consts');
+  ok(/document\.body\.appendChild\(el\)/.test(blk), 'a direct child of <body>');
+});
+test('the version is v1.103.0 or later', () => {
   const v = src.match(/const APP_VERSION = "v(\d+)\.(\d+)\.(\d+)/);
-  ok(v && (Number(v[1]) > 1 || (Number(v[1]) === 1 && Number(v[2]) >= 100)), 'APP_VERSION is v1.100.0 or later');
+  ok(v && (Number(v[1]) > 1 || (Number(v[1]) === 1 && Number(v[2]) >= 103)), 'APP_VERSION is v1.103.0 or later');
 });
 
 // ---- runner ------------------------------------------------------------------------------------------

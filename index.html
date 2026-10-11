@@ -751,6 +751,17 @@ body.arcade-ui .sidebar-level :is(select, #studentLevelSelect) option { color: #
   background: var(--surface);
   max-width: 760px;
 }
+/* 🧩 the line under the extras saying what "Show related questions" adds */
+.ws-related-note { max-width: 760px; margin: -6px auto 18px; padding: 12px 18px; border-radius: var(--radius-lg); background: var(--surface-2, rgba(74,124,89,0.08)); border: 1px dashed var(--border); font-size: 0.86rem; line-height: 1.55; text-align: center; color: var(--text); }
+/* 🧪 the app opened from a printed QR: the whole screen, nothing else */
+html.app-share-open, html.app-share-open body { overflow: hidden; }
+.app-share-layer { position: fixed; inset: 0; z-index: 100000; display: flex; flex-direction: column; background: #f7f5f0; color: #2c2a27; }
+.app-share-bar { display: flex; align-items: center; gap: 12px; padding: max(10px, env(safe-area-inset-top)) 16px 10px; background: #2f5a3b; color: #fff; }
+.app-share-title { flex: 1; min-width: 0; font: 600 1rem/1.35 system-ui, sans-serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-share-close { flex: 0 0 auto; border: 1.5px solid rgba(255,255,255,0.7); background: transparent; color: #fff; border-radius: 999px; padding: 6px 16px; font: 600 0.9rem/1 system-ui, sans-serif; cursor: pointer; }
+.app-share-body { flex: 1; min-height: 0; display: flex; }
+.app-share-frame { flex: 1; width: 100%; height: 100%; border: 0; background: #fff; }
+.app-share-msg { margin: auto; max-width: 420px; padding: 28px 24px; text-align: center; font: 500 1rem/1.6 system-ui, sans-serif; color: #4a453f; }
 .ws-extras-label { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
 .ws-extras label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.88rem; font-weight: 500; }
 .ws-extras input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--primary); }
@@ -5710,10 +5721,18 @@ body.role-employee #emailBellBtn { display: none !important; }
           <label title="Print a blank rounded box at the foot of every question for the student to write their own learning objectives in. A question that already has a 🎯 Learning objectives block keeps its own box instead.">
             <input type="checkbox" id="wsIncludeObjBox"> 🎯 Learning-objectives box
           </label>
+          <label class="admin-only" title="Print the chosen questions on page 1 with a booklet behind them: the smaller step questions from each question's dependency chart, with a ✗ line under every question telling the pupil which page to turn to if they got it wrong. Saved with the worksheet.">
+            <input type="checkbox" id="wsIncludeRelated"> 🧩 Show related questions
+          </label>
+          <label class="admin-only" title="A QR beside every question that has a 🧪 app on a dependency chart. Scanned on a phone or tablet, it opens that app on its own, with no sign-in.">
+            <input type="checkbox" id="wsIncludeAppQr" checked> 🧪 QR to each question's app
+          </label>
           <label title="Saved with the worksheet: whether students opening its overview page may see the worked solutions and videos, or only the questions">
             <input type="checkbox" id="wsShareSolutions" checked> 🎬 Students see solutions on the overview page
           </label>
         </div>
+
+        <div class="ws-related-note admin-only" id="wsRelatedNote" hidden></div>
 
         <div class="ws-actions-bar">
           <button class="btn btn-ghost" id="wsPreviewBtn" title="See the sheet before you commit paper to it">👁️ Preview</button>
@@ -5739,6 +5758,7 @@ body.role-employee #emailBellBtn { display: none !important; }
         <label title="Print a QR code beside each question for AI marking"><input type="checkbox" id="mwIncludeQr" checked> 📱 QR per question</label>
         <label title="Print one QR for the WHOLE sheet — it opens the overview page carrying every question, video and answer key"><input type="checkbox" id="mwIncludeSheetQr" checked> 📄 One QR for the whole sheet</label>
         <label title="Print a blank rounded box at the foot of every question for the student to write their own learning objectives in. A question that already has a 🎯 Learning objectives block keeps its own box instead."><input type="checkbox" id="mwIncludeObjBox"> 🎯 Learning-objectives box on every question</label>
+        <label class="admin-only" title="A QR beside every question that has a 🧪 app on a dependency chart. Scanned on a phone or tablet, it opens that app on its own, with no sign-in."><input type="checkbox" id="mwIncludeAppQr" checked> 🧪 QR to each question's app</label>
       </div>
       <div class="ws-saved-grid" id="savedWsGrid"></div>
     </div>
@@ -6496,6 +6516,7 @@ body.role-employee #emailBellBtn { display: none !important; }
         <label><input type="checkbox" id="qcPrintFields" checked> ✍️ Name / Class / Date line</label>
         <label><input type="checkbox" id="qcPrintNext" checked> ⏭ Next questions at the end</label>
         <label><input type="checkbox" id="qcPrintAnswers"> 🔑 Answer key at the back (keep this copy for yourself)</label>
+        <label title="A QR beside every question that has a 🧪 app on a chart. Scanned on a phone or tablet, it opens that app on its own, with no sign-in."><input type="checkbox" id="qcPrintAppQr" checked> 🧪 QR to each question's app</label>
       </div>
       <div class="qc-print-summary" id="qcPrintSummary"></div>
       <div class="qc-print-actions">
@@ -10123,6 +10144,19 @@ let pendingShareWs = (() => {
     return id ? { id, owner: p.get("owner") || "" } : null;
   } catch (_) { return null; }
 })();
+// 🧪 An APP deep link from the QR printed beside a question (v1.103.0):
+// ?app=<appId>&owner=<bankOwnerUid>. It opens that one app full-screen on a
+// phone or tablet — see appShareStart. Both values are checked for shape
+// here, because they go straight into a document path.
+const APP_SHARE_ID_RE = /^[A-Za-z0-9_-]{1,80}$/;
+let pendingShareApp = (() => {
+  try {
+    const p = new URLSearchParams(location.search);
+    const id = p.get("app") || "", owner = p.get("owner") || "";
+    if (!APP_SHARE_ID_RE.test(id)) return null;
+    return { id, owner: APP_SHARE_ID_RE.test(owner) ? owner : "" };
+  } catch (_) { return null; }
+})();
 let aiMarkingSettings = { instructions: "", strictness: 3 };
 let aiGenSettings = { instructions: "" };
 let studentProgress = {};        // per-question spaced-review state for students
@@ -10267,6 +10301,139 @@ const hadesMathBeta = installHadesMathBeta({
 });
 window.openHadesMathBeta = () => { pirateRiftPortal.close(); grandLinePortal.close(); if (_isEmployee()) return; return hadesMathBeta.open(); };
 
+// =====================================================================
+// 🧪 THE APP, OPENED FROM A PRINTED QR — on a pupil's phone, no sign-in (v1.103.0)
+// =====================================================================
+// A worksheet prints a QR beside every question that has an app on a
+// dependency chart (wsAppQrHtml). Scanned, it lands HERE: a full-screen layer
+// holding the app and nothing else — no menu, no practice page, no sign-in
+// card — because a pupil holding a phone over a worksheet wants the picture
+// that explains the question, not this whole app on a five-inch screen.
+//
+// HOW IT GETS IN WITHOUT A LOGIN. The app document is read straight away; the
+// rules let any reader have the charts and apps today. When that read is
+// refused, the layer waits for the anonymous guest sign-in the question QR
+// already uses (`signInAnonymously`, below), and reads again as that guest. A
+// pupil already signed in on the device simply reads as themselves.
+//
+// THE SAME SEALED FRAME AS THE TEACHER'S VIEWER: a generated page runs with
+// `sandbox="allow-scripts"` and never `allow-same-origin`, so it cannot read
+// this origin's storage, which holds the ChatGPT key all four portals share. A
+// LINKED app (an https page somebody else made) is simply opened in place —
+// it is that site's page, at that site's address, and runs as nobody here.
+const APP_SHARE_LAYER_ID = "appShareLayer";
+let _appShareWaitAuth = false;
+const APP_SHARE_SIGNIN_MSG = "Sign in to open this app: press Done, sign in with your school account, then scan the QR again.";
+let _appShareDone = false;
+let _appShareBusy = false;
+function appShareLayer() {
+  let el = document.getElementById(APP_SHARE_LAYER_ID);
+  if (el) return el;
+  el = document.createElement("div");
+  el.id = APP_SHARE_LAYER_ID;
+  el.className = "app-share-layer";
+  el.innerHTML = `<div class="app-share-bar"><span class="app-share-title" id="appShareTitle">🧪 Opening the app…</span>` +
+    `<button type="button" class="app-share-close" id="appShareClose" title="Close the app">Done</button></div>` +
+    `<div class="app-share-body" id="appShareBody"><div class="app-share-msg">Opening the app…</div></div>`;
+  // A direct child of <body>, appended AFTER everything else — never inside an
+  // overlay, which is what once hid the subject switcher for nine versions.
+  document.body.appendChild(el);
+  el.querySelector("#appShareClose").addEventListener("click", appShareClose);
+  return el;
+}
+function appShareSay(msg) {
+  appShareLayer();
+  const body = document.getElementById("appShareBody");
+  if (body) body.innerHTML = `<div class="app-share-msg">${escapeHtml(msg)}</div>`;
+}
+function appShareClose() {
+  const el = document.getElementById(APP_SHARE_LAYER_ID);
+  if (el) el.remove();
+  document.documentElement.classList.remove("app-share-open");
+  pendingShareApp = null;
+  _appShareWaitAuth = false;
+  // Take ?app= out of the address so a refresh opens the app proper.
+  try {
+    const p = new URLSearchParams(location.search);
+    p.delete("app"); p.delete("owner");
+    const qs = p.toString();
+    history.replaceState(null, "", location.pathname + (qs ? "?" + qs : "") + location.hash);
+  } catch (_) {}
+}
+function appShareStart() {
+  if (!pendingShareApp) return;
+  document.documentElement.classList.add("app-share-open");
+  appShareLayer();
+  appShareLoad(false);
+}
+// `afterAuth`: this is the retry once somebody (a pupil, or the anonymous
+// guest) is signed in, so a refusal now is final.
+async function appShareLoad(afterAuth) {
+  const t = pendingShareApp;
+  if (!t || _appShareDone || _appShareBusy) return;
+  _appShareBusy = true;
+  try {
+    let owner = t.owner;
+    if (!owner) {
+      const cfg = await getDoc(doc(db, "config", "mathAdmin"));
+      owner = cfg.exists() ? String((cfg.data() || {}).uid || "") : "";
+    }
+    if (!APP_SHARE_ID_RE.test(owner)) { appShareSay("This QR code is missing part of its link. Ask your teacher for a new copy of the worksheet."); return; }
+    const snap = await getDoc(doc(db, "users", owner, "mathQuestionGraph", qcAppDocId(t.id)));
+    if (!snap.exists()) { appShareSay("This app has been taken down. Ask your teacher about it."); _appShareDone = true; return; }
+    const app = qcNormalizeApp(snap.data() || {}, t.id);
+    _appShareDone = true;
+    _appShareWaitAuth = false;
+    appShareShow(app);
+  } catch (e) {
+    if (!afterAuth) {
+      // Refused before anyone signed in. Somebody already is → read again as
+      // them. Nobody is → sign in as the anonymous guest the question QR uses;
+      // the retry is in onAuthStateChanged. The sign-in screen may already be
+      // up behind this layer (auth can answer "nobody" before the read fails),
+      // so the guest sign-in is started from here too, not only from there.
+      _appShareWaitAuth = true;
+      if (auth.currentUser) { setTimeout(() => appShareLoad(true), 0); return; }
+      if (!guestSignInTried) {
+        guestSignInTried = true;
+        signInAnonymously(auth).catch(err => {
+          console.warn("guest sign-in unavailable (enable Anonymous in Firebase Auth)", err);
+          appShareSay(APP_SHARE_SIGNIN_MSG);
+        });
+      }
+      return;
+    }
+    console.warn("app share load", e);
+    appShareSay("This app could not be opened here. Check the internet connection, or ask your teacher to open it for you.");
+  } finally {
+    _appShareBusy = false;
+  }
+}
+function appShareShow(app) {
+  const title = document.getElementById("appShareTitle");
+  if (title) title.textContent = "🧪 " + (app.title || "App");
+  try { document.title = (app.title || "App") + " · Polymath"; } catch (_) {}
+  if (!app.html && app.url && /^https:\/\//i.test(app.url)) {
+    // A linked page belongs to its own site: go there, in this tab.
+    location.replace(app.url);
+    return;
+  }
+  if (!app.html) { appShareSay("This app has nothing in it yet. Ask your teacher about it."); return; }
+  const body = document.getElementById("appShareBody");
+  if (!body) return;
+  body.innerHTML = "";
+  const f = document.createElement("iframe");
+  f.className = "app-share-frame";
+  f.setAttribute("sandbox", qcAppFrameAttrs(app).sandbox);
+  f.setAttribute("referrerpolicy", "no-referrer");
+  f.setAttribute("title", app.title || "App");
+  f.srcdoc = app.html;
+  body.appendChild(f);
+}
+// appShareStart() is called at the very END of this module, not here: the
+// document path is built by qcAppDocId, whose prefix is a `const` in the chart
+// block far below — reached from here it is still in its temporal dead zone.
+
 let guestSignInTried = false;
 onAuthStateChanged(auth, async (user) => {
   const authEpoch = ++_studentAuthEpoch;
@@ -10282,6 +10449,9 @@ onAuthStateChanged(auth, async (user) => {
   // of its copy here. The session itself stays in localStorage under its own
   // uid, and wkInit picks it back up when that account signs in again.
   try { wkReset(); } catch (e) { console.warn("work session reset", e); }
+  // 🧪 A printed app QR whose first read was refused retries as whoever has
+  // just signed in — the pupil on their own device, or the anonymous guest.
+  if (user && pendingShareApp && _appShareWaitAuth) appShareLoad(true);
   if (user) { await enterApp(user, authEpoch); }
   else {
     currentUser = null;
@@ -10302,11 +10472,14 @@ onAuthStateChanged(auth, async (user) => {
     // if the bank owner has enabled Anonymous sign-in. onAuthStateChanged then
     // fires again with the guest user. If it's not enabled, fall back to the
     // normal sign-in screen with the question still pending.
-    if ((pendingShareQ || pendingShareWs) && !guestSignInTried) {
+    if ((pendingShareQ || pendingShareWs || (pendingShareApp && _appShareWaitAuth)) && !guestSignInTried) {
       guestSignInTried = true;
       try { await signInAnonymously(auth); return; }
       catch (e) { console.warn("guest sign-in unavailable (enable Anonymous in Firebase Auth)", e); }
     }
+    // 🧪 No guest sign-in on this project, and the app could not be read
+    // without one: say so on the layer rather than leave it spinning.
+    if (pendingShareApp && _appShareWaitAuth) appShareSay(APP_SHARE_SIGNIN_MSG);
     $("appShell").classList.remove("show");
     $("authScreen").style.display = "flex";
   }
@@ -23407,6 +23580,7 @@ function toggleWsSelectAll(on) {
 function updateWsCount() {
   const el = $("wsSelectedCount");
   if (el) el.textContent = `${wsSelectedIds.size} selected`;
+  wsSyncRelatedUi();
   const all = $("wsSelectAll");
   if (all) {
     const shown = wsFilteredQuestions();
@@ -23420,8 +23594,50 @@ function wsCurrentOptions() {
     withAnswers: !!($("wsIncludeAnswers") || {}).checked,
     withQr: !!($("wsIncludeQr") || {}).checked,
     objBox: !!($("wsIncludeObjBox") || {}).checked,
-    shareSolutions: !!($("wsShareSolutions") || { checked: true }).checked
+    shareSolutions: !!($("wsShareSolutions") || { checked: true }).checked,
+    // 🧩 / 🧪 are the TEACHER's: only their browser has the charts loaded.
+    related: _isAdmin() && !!($("wsIncludeRelated") || {}).checked,
+    appQr: _isAdmin() && !!($("wsIncludeAppQr") || { checked: true }).checked
   };
+}
+// =====================================================================
+// 🧩 SHOW RELATED QUESTIONS, and 🧪 a QR to each question's app (v1.103.0)
+// =====================================================================
+// Ticking 🧩 Show related questions turns the sheet into the chart's own
+// step-by-step booklet, built from MANY questions at once: the chosen ones on
+// page 1, in the order they were picked, and the steps of each from its own
+// dependency chart on the pages behind (qcRelatedDocumentOpts). The flag is
+// saved with the worksheet, so 🖨️ from 📄 My Worksheets prints the same thing.
+//
+// The two ticks are the teacher's alone: an employee is an author too, but
+// only the teacher's browser loads the charts, and a tick that does nothing is
+// a tick nobody can trust.
+function wsSyncRelatedUi() {
+  const admin = _isAdmin();
+  ["wsIncludeRelated", "wsIncludeAppQr", "mwIncludeAppQr"].forEach(id => {
+    const box = $(id), lab = box && box.closest("label");
+    if (lab) lab.style.display = admin ? "" : "none";
+  });
+  const note = $("wsRelatedNote");
+  if (!note) return;
+  const on = admin && !!($("wsIncludeRelated") || {}).checked;
+  if (!on) { note.hidden = true; note.textContent = ""; return; }
+  note.hidden = false;
+  const ids = wsOrder.filter(id => wsSelectedIds.has(id));
+  if (!ids.length) { note.textContent = "🧩 Pick some questions, and their step questions from each dependency chart will print behind them."; return; }
+  if (!qcLoaded) { note.textContent = "🧩 The dependency charts are still loading…"; return; }
+  const x = qcRelatedExtra(ids, { next: true });
+  note.textContent = x.added
+    ? `🧩 ${x.added} related question${x.added === 1 ? "" : "s"} from the dependency charts will print behind these ${ids.length}, as a ${x.pages}-page step-by-step booklet.`
+    : "🧩 None of these questions has steps on its dependency chart yet, so the sheet prints them on their own with a ✗ line saying to ask the teacher.";
+}
+// The worksheet options a print asks for, turned into the booklet's when the
+// sheet is to show its related questions. `null` = nothing printable.
+function wsRelatedBuild(ids, title, o) {
+  return qcRelatedDocumentOpts(ids, {
+    title, fields: o.fields, cover: o.cover, answers: o.withAnswers, qr: o.withQr,
+    objBox: o.objBox, appQr: o.appQr, next: true,
+  });
 }
 function wsCurrentTitle() {
   return (($("wsTitle") || {}).value || "").trim() || "Math Worksheet";
@@ -23696,8 +23912,19 @@ function wsAnswerBlankHtml(q, exam) {
 // answer sheet, so a box on the paper is a mark a child looks for and cannot
 // find. Absent — every other print in this app — the box is there exactly as
 // it always was.
-function wsQuestionChunkHtml(q, n, qrSvg, reserveMm, noBracket, objBoxAll, exam) {
-  const qr = qrSvg ? `<div class="ws-qr">${qrSvg}<div class="ws-qr-cap">📱 Scan to AI-mark<br>&amp; watch the solution</div></div>` : "";
+// 🧪 One app QR, as printed beside a question. The caption names the app,
+// clipped, because a pupil holding two codes needs to know which is which.
+const WS_APP_QR_TITLE_MAX = 34;
+function wsAppQrHtml(svg, title) {
+  const t = String(title || "").replace(/\s+/g, " ").trim();
+  const clip = t.length > WS_APP_QR_TITLE_MAX ? t.slice(0, WS_APP_QR_TITLE_MAX - 1).trimEnd() + "…" : t;
+  return `<div class="ws-qr ws-qr-app">${svg}<div class="ws-qr-cap">🧪 Scan to open the app${clip ? `<br><b>${escapeHtml(clip)}</b>` : ""}</div></div>`;
+}
+function wsQuestionChunkHtml(q, n, qrSvg, reserveMm, noBracket, objBoxAll, exam, appQr) {
+  const markQr = qrSvg ? `<div class="ws-qr">${qrSvg}<div class="ws-qr-cap">📱 Scan to AI-mark<br>&amp; watch the solution</div></div>` : "";
+  // With an app, the codes stack in ONE column on the right rather than
+  // floating side by side and eating the width of the question.
+  const qr = appQr ? `<div class="ws-qrs">${markQr}${appQr}</div>` : markQr;
   // Only written when the picture has actually had to give way, so an ordinary
   // question carries no inline style and prints at the CSS cap exactly as it
   // always did.
@@ -23869,6 +24096,11 @@ function wsPrintCss() {
     .ws-qr { float: right; width: 26mm; text-align: center; margin: 0 0 3mm 4mm; }
     .ws-qr svg { width: 23mm !important; height: 23mm !important; display: block; margin: 0 auto; }
     .ws-qr-cap { font-size: 5.6pt; color: #8d887f; line-height: 1.3; margin-top: 1mm; }
+    .ws-qrs { float: right; width: 28mm; margin: 0 0 3mm 4mm; }
+    .ws-qrs .ws-qr { float: none; margin: 0 auto 2.5mm; }
+    .ws-qr-app { border: 0.8pt solid #4a7c59; border-radius: 2mm; padding: 1.2mm 0.6mm 1mm; }
+    .ws-qr-app .ws-qr-cap { color: #2f5a3b; }
+    .ws-qr-app .ws-qr-cap b { font-weight: 700; }
     /* Answer key */
     .ws-ak h2 { font-size: 16pt; margin: 0 0 2mm; }
     .ws-ak-warn { font-size: 9pt; color: #d94f4f; margin: 0 0 6mm; }
@@ -24039,7 +24271,28 @@ function wsScoreTableHtml(segments, opts) {
 async function wsBuildDocumentHtml(questions, title, opts) {
   if (opts.paper && opts.paper.psle) return cpbBuildPsleDocumentHtml(questions, title, opts);
   let qrMap = {};
-  if (opts.withQr) { try { qrMap = await buildQrMap(questions); } catch (e) { console.warn("qr map failed", e); } }
+  if (opts.withQr) {
+    // `qrFilter` (the step booklet) leaves out a question a pupil's link could
+    // never open; every other print passes none and gets a QR on everything.
+    const qrList = typeof opts.qrFilter === "function" ? questions.filter(opts.qrFilter) : questions;
+    try { qrMap = await buildQrMap(qrList); } catch (e) { console.warn("qr map failed", e); }
+  }
+  // 🧪 `appLinks` { qid: [{ url, title }] }: a QR to each question's app,
+  // scanned on a phone or tablet to open the app alone (see appShareStart).
+  // Absent — every print but the teacher's — nothing below changes.
+  const appQrMap = {};
+  if (opts.appLinks) {
+    for (const q of questions) {
+      const links = opts.appLinks[q.id];
+      if (!Array.isArray(links) || !links.length) continue;
+      const parts = [];
+      for (const l of links) {
+        try { parts.push(wsAppQrHtml(await makeQrSvg(l.url), l.title)); }
+        catch (e) { console.warn("app qr failed", e); }
+      }
+      if (parts.length) appQrMap[q.id] = parts.join("");
+    }
+  }
   // The whole-sheet QR, printed ONCE: on the cover if there is one, otherwise
   // in the sheet header. `sheetUrl` is only set for a saved worksheet, since an
   // unsaved selection has no overview page to point at.
@@ -24093,7 +24346,7 @@ async function wsBuildDocumentHtml(questions, title, opts) {
   // nothing to any question, so ticking it changes no document.
   const objBoxAll = !!opts.objBox;
   const chunk = (q, i, reserve) =>
-    wsQuestionChunkHtml(q, (numbers && numbers[q.id]) || String(i + 1), qrMap[q.id] || "", reserve, noBracket(q), objBoxAll);
+    wsQuestionChunkHtml(q, (numbers && numbers[q.id]) || String(i + 1), qrMap[q.id] || "", reserve, noBracket(q), objBoxAll, undefined, appQrMap[q.id] || "");
   // 📄 A PAPER: each booklet's cover is its own page section (so it starts a
   // sheet of its own), then its lead line and its questions. 📝 EVERYTHING
   // ELSE: the one section this app has always built.
@@ -24210,7 +24463,14 @@ async function wsOpenDocument(questions, title, opts) {
 async function printCurrentWorksheet(autoPrint) {
   const questions = wsSelectedQuestions();
   if (!questions.length) { toast("Select some questions first", "error"); return; }
-  await wsOpenDocument(questions, wsCurrentTitle(), Object.assign(wsCurrentOptions(), { autoPrint }));
+  const o = wsCurrentOptions();
+  if (o.related) {
+    const b = wsRelatedBuild(questions.map(q => q.id), wsCurrentTitle(), o);
+    if (b) { await wsOpenDocument(b.list, b.title, Object.assign(b.opts, { autoPrint: !!autoPrint })); return; }
+  }
+  await wsOpenDocument(questions, wsCurrentTitle(), Object.assign(o, {
+    autoPrint, appLinks: o.appQr ? qcAppLinksFor(questions) : null,
+  }));
 }
 
 // =====================================================================
@@ -26858,6 +27118,9 @@ async function saveCurrentWorksheet() {
     includeFields: opts.fields,
     includeAnswers: opts.withAnswers,
     includeQr: opts.withQr,
+    // 🧩 Printed with its related questions behind it — a property of the
+    // SHEET, so a reprint from 📄 My Worksheets comes out the same.
+    includeRelated: !!opts.related,
     // Whether students opening this sheet's overview page may see its worked
     // solutions and videos. The overview page itself is always open to them —
     // this only gates the answers. Read by getWorksheetSolutions, which is the
@@ -27294,7 +27557,8 @@ function mwPrintOptions() {
     withAnswers: !!($("mwIncludeAnswers") || {}).checked && canManageQuestions(),
     withQr: !!($("mwIncludeQr") || {}).checked,
     withSheetQr: !!($("mwIncludeSheetQr") || { checked: true }).checked,
-    objBox: !!($("mwIncludeObjBox") || {}).checked
+    objBox: !!($("mwIncludeObjBox") || {}).checked,
+    appQr: _isAdmin() && !!($("mwIncludeAppQr") || { checked: true }).checked
   };
 }
 async function openSavedWorksheet(id, autoPrint) {
@@ -27322,8 +27586,17 @@ async function openSavedWorksheet(id, autoPrint) {
   // test must not come out differently depending on which button was pressed.
   const scoreTable = (dgIsTest(ws) && ws.includeScoreTable !== false)
     ? dgTestScoreSegments(ws, questions) : null;
+  const po = mwPrintOptions();
+  // 🧩 A sheet saved with its related questions reprints as the same booklet —
+  // for the teacher, whose browser has the charts. Anyone else gets the
+  // chosen questions on their own, which is the sheet without its extra pages.
+  if (ws.includeRelated && _isAdmin() && qcLoaded) {
+    const b = wsRelatedBuild(questions.map(q => q.id), ws.title || "Math Worksheet", po);
+    if (b) { await wsOpenDocument(b.list, b.title, Object.assign(b.opts, { autoPrint: !!autoPrint })); return; }
+  }
   await wsOpenDocument(questions, ws.title || "Math Worksheet",
-    Object.assign(mwPrintOptions(), {
+    Object.assign(po, {
+      appLinks: po.appQr ? qcAppLinksFor(questions) : null,
       autoPrint, sheetUrl: worksheetShareUrl(ws), scoreTable,
       headerOrg: wsHeaderOrgOf(ws),
       // Only the OWNER may retype the header on the preview: a student can open
@@ -27654,6 +27927,7 @@ function wseRender() {
 $("wsSearch").addEventListener("input", renderWsQuestions);
 $("wsSelectAll").addEventListener("change", e => toggleWsSelectAll(e.target.checked));
 $("wsPreviewBtn").addEventListener("click", () => printCurrentWorksheet(false));
+["wsIncludeRelated", "wsIncludeAppQr"].forEach(id => { const el = $(id); if (el) el.addEventListener("change", wsSyncRelatedUi); });
 $("wsPrintBtn").addEventListener("click", () => printCurrentWorksheet(true));
 $("wsSaveBtn").addEventListener("click", saveCurrentWorksheet);
 $("wsPracticeBtn").addEventListener("click", practiseCurrentWorksheet);
@@ -33627,7 +33901,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.102.0 · 2026-10-11";
+const APP_VERSION = "v1.103.0 · 2026-10-11";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -34976,21 +35250,45 @@ const QC_SHEET_GUIDE = [
 // `has(qid)` says whether a question can be printed at all; one that cannot is
 // skipped as if it were not on the chart, so no line ever points at a gap.
 function qcBranchPlan(chart, rootId, has, opts) {
+  const empty = { pages: [], order: [], numbers: {}, pageOf: {}, stepsPage: {}, nextPage: 0 };
+  if (!chart || !chart.nodes || !chart.nodes[qcKeyQ(rootId)]) return empty;
+  return qcBranchPlanMany([{ chart, rootId }], has, opts);
+}
+// 📝 MANY QUESTIONS AT ONCE (v1.103.0) — "Show related questions" on Create
+// Worksheet. Page 1 holds every chosen question in the teacher's order, and
+// each one's steps come from ITS OWN chart, breadth-first after it, exactly as
+// a single question's booklet does. A question with no chart (or a chart with
+// no steps) is simply printed on page 1 with nowhere to turn to.
+//
+// A question is printed ONCE however many charts it appears on: the key is the
+// question's own id, so a step two questions share is placed under the first
+// and pointed at (`refs`) from the second, and a chosen question that is also
+// a step of another chosen question stays on page 1.
+// items = [{ chart, rootId }]   (chart may be null)
+function qcBranchPlanMany(items, has, opts) {
   const ok = typeof has === "function" ? has : () => true;
   const withNext = !(opts && opts.next === false);
-  const rootKey = qcKeyQ(rootId);
   const plan = { pages: [], order: [], numbers: {}, pageOf: {}, stepsPage: {}, nextPage: 0 };
-  if (!chart || !chart.nodes || !chart.nodes[rootKey] || !ok(String(rootId))) return plan;
+  const roots = (Array.isArray(items) ? items : []).filter(it => it && it.rootId != null && ok(String(it.rootId)));
   const place = (key, n) => {
     plan.pageOf[key] = n;
     plan.order.push(key);
     plan.numbers[qcParseKey(key).id] = String(plan.order.length);
   };
-  plan.pages.push({ n: 1, kind: "start", keys: [rootKey], refs: [] });
-  place(rootKey, 1);
-  const queue = [rootKey];
+  const start = { n: 1, kind: "start", keys: [], refs: [] };
+  const queue = [];
+  roots.forEach(it => {
+    const key = qcKeyQ(it.rootId);
+    if (plan.pageOf[key]) return;
+    if (!start.keys.length) plan.pages.push(start);
+    start.keys.push(key);
+    place(key, 1);
+    if (it.chart && it.chart.nodes && it.chart.nodes[key]) queue.push({ k: key, chart: it.chart });
+  });
+  if (!start.keys.length) return plan;
   while (queue.length && plan.pages.length < QC_SHEET_MAX_PAGES) {
-    const k = queue.shift();
+    const { k, chart } = queue.shift();
+    if (plan.stepsPage[k]) continue;
     const steps = qcStepsUnder(chart, k).filter(s => ok(qcParseKey(s).id));
     if (!steps.length) continue;
     const n = plan.pages.length + 1;
@@ -34998,15 +35296,21 @@ function qcBranchPlan(chart, rootId, has, opts) {
     const refs = steps.filter(s => plan.pageOf[s]);
     plan.pages.push({ n, kind: "steps", forKey: k, backTo: plan.pageOf[k], keys: fresh, refs });
     plan.stepsPage[k] = n;
-    fresh.forEach(s => { place(s, n); queue.push(s); });
+    fresh.forEach(s => { place(s, n); queue.push({ k: s, chart }); });
   }
   if (withNext && plan.pages.length < QC_SHEET_MAX_PAGES) {
     const rank = t => (t === "same" ? 0 : t === "harder" ? 1 : 2);
-    const next = Object.keys(chart.nodes).filter(k => {
-      const nd = chart.nodes[k], p = qcParseKey(k);
-      return nd && nd.tier && p && p.type === "q" && ok(p.id) && !plan.pageOf[k];
-    }).sort((a, b) => (rank(chart.nodes[a].tier) - rank(chart.nodes[b].tier)) ||
-      (chart.nodes[a].x - chart.nodes[b].x) || (a < b ? -1 : a > b ? 1 : 0));
+    const next = [];
+    roots.forEach(it => {
+      const chart = it.chart;
+      if (!chart || !chart.nodes) return;
+      Object.keys(chart.nodes).filter(k => {
+        const nd = chart.nodes[k], p = qcParseKey(k);
+        return nd && nd.tier && p && p.type === "q" && ok(p.id) && !plan.pageOf[k];
+      }).sort((a, b) => (rank(chart.nodes[a].tier) - rank(chart.nodes[b].tier)) ||
+        (chart.nodes[a].x - chart.nodes[b].x) || (a < b ? -1 : a > b ? 1 : 0))
+        .forEach(k => { if (next.indexOf(k) < 0) next.push(k); });
+    });
     if (next.length) {
       const n = plan.pages.length + 1;
       plan.pages.push({ n, kind: "next", keys: next, refs: [] });
@@ -35015,6 +35319,34 @@ function qcBranchPlan(chart, rootId, has, opts) {
     }
   }
   return plan;
+}
+// 🧪 Which apps explain which question. An app is attached on a chart by an
+// arrow app → question, and the same question can sit on several charts (its
+// own, and as a step on another's), so every loaded chart is read. Returns
+// { qid: [appId, …] } with each app once per question, in the order found.
+function qcAppsByQuestion(charts, appExists) {
+  const live = typeof appExists === "function" ? appExists : () => true;
+  const out = {};
+  Object.keys(charts || {}).forEach(root => {
+    const c = charts[root];
+    if (!c || !Array.isArray(c.edges)) return;
+    c.edges.forEach(e => {
+      const from = qcParseKey(e && e.from), to = qcParseKey(e && e.to);
+      if (!from || !to || from.type !== "app" || to.type !== "q" || !live(from.id)) return;
+      const list = out[to.id] || (out[to.id] = []);
+      if (list.indexOf(from.id) < 0) list.push(from.id);
+    });
+  });
+  return out;
+}
+// The link a printed app QR carries: THIS page, with the app and the bank
+// owner named, so a pupil's phone opens the app alone — no menu and no
+// sign-in screen in front of it (see appShareStart).
+function qcAppShareUrl(base, appId, ownerUid) {
+  const p = new URLSearchParams();
+  p.set("app", String(appId || ""));
+  if (ownerUid) p.set("owner", String(ownerUid));
+  return String(base || "") + "?" + p.toString();
 }
 // The two lines printed under one question, as plain text (the caller escapes).
 // The LAST step on a page gets no ✓ line: the page's own foot says where to go
@@ -35037,7 +35369,11 @@ function qcBranchNotes(plan, key) {
     : pg.kind === "start"
       ? "✗ Wrong, or stuck? Ask your teacher to go through it with you."
       : "✗ Stuck? Read your working again, then ask your teacher.";
-  if (pg.kind === "start") {
+  const at = pg.keys.indexOf(key);
+  if (pg.kind === "start" && at >= 0 && at < pg.keys.length - 1) {
+    // 📝 Several questions on page 1: each one sends the pupil to the next.
+    out.right = "✓ Right? Go on to Question " + num(pg.keys[at + 1]) + " below.";
+  } else if (pg.kind === "start") {
     out.right = plan.nextPage
       ? "✓ Right? Well done! Go on to Page " + plan.nextPage + " for your next challenge."
       : "✓ Right? Well done, you have finished this worksheet.";
@@ -36246,14 +36582,40 @@ function qcPrintableQ(id) {
   return q && (q.blocks || []).length ? q : null;
 }
 function qcBranchDocumentOpts(rootId, o) {
-  const chart = qcCharts[rootId];
-  const plan = qcBranchPlan(chart, rootId, id => !!qcPrintableQ(id), { next: o.next !== false });
-  if (!plan.order.length) return null;
+  const plan = qcBranchPlan(qcCharts[rootId], rootId, id => !!qcPrintableQ(id), { next: o.next !== false });
   const root = qcPrintableQ(rootId);
   const title = String(o.title || "").trim() || (((root && root.title) || "Question") + " — step by step");
+  return qcBookletDocumentOpts(plan, title, o);
+}
+// 📝 "Show related questions" on Create Worksheet (v1.103.0): every chosen
+// question on page 1, in the teacher's order, and the steps of each one from
+// its own chart on the pages after. The SAME booklet as the chart's 🖨, so a
+// pupil reads one set of ✗ / ✓ lines however the sheet was made.
+function qcRelatedPlan(ids, o) {
+  const items = (ids || []).map(id => ({ chart: qcCharts[id] || null, rootId: id }));
+  return qcBranchPlanMany(items, id => !!qcPrintableQ(id), { next: !o || o.next !== false });
+}
+function qcRelatedDocumentOpts(ids, o) {
+  const plan = qcRelatedPlan(ids, o);
+  return qcBookletDocumentOpts(plan, String(o.title || "").trim() || "Math Worksheet", o);
+}
+// How many questions the related pages ADD to the ones the teacher picked —
+// the line under the tick box, so nobody prints eleven pages by surprise.
+function qcRelatedExtra(ids, o) {
+  const plan = qcRelatedPlan(ids, o);
+  const first = plan.pages[0] ? plan.pages[0].keys.length : 0;
+  return { added: Math.max(0, plan.order.length - first), pages: plan.pages.length };
+}
+// The ONE place a plan becomes worksheet options, for one chart or many.
+function qcBookletDocumentOpts(plan, title, o) {
+  if (!plan || !plan.order.length) return null;
   const list = plan.order.map(k => qcPrintableQ(qcParseKey(k).id));
+  const many = plan.pages[0] && plan.pages[0].keys.length > 1;
+  const guideLines = many
+    ? ["Start with Question 1 on this page and work down the page in order. Try each question on your own first and show all your working."].concat(QC_SHEET_GUIDE.slice(1))
+    : QC_SHEET_GUIDE;
   const label = (n, words) => `<div class="qcb-label"><b>Page ${n}</b><span>${escapeHtml(words)}</span></div>`;
-  const guide = `<div class="qcb-guide"><h2>How to use this worksheet</h2><ol>${QC_SHEET_GUIDE.map(g => `<li>${escapeHtml(g)}</li>`).join("")}</ol>` +
+  const guide = `<div class="qcb-guide"><h2>How to use this worksheet</h2><ol>${guideLines.map(g => `<li>${escapeHtml(g)}</li>`).join("")}</ol>` +
     `<div class="qcb-path">Pages I went to:${"<span></span>".repeat(6)}</div></div>`;
   const after = {};
   plan.order.forEach(k => {
@@ -36278,10 +36640,36 @@ function qcBranchDocumentOpts(rootId, o) {
   return {
     plan, list, title,
     opts: {
-      cover: false, fields: !!o.fields, withQr: false, withAnswers: !!o.answers, autoPrint: !!o.autoPrint,
+      cover: !!o.cover, fields: !!o.fields, withQr: !!o.qr, withAnswers: !!o.answers, autoPrint: !!o.autoPrint,
+      objBox: !!o.objBox,
+      // A 🔒 step is held out of a pupil's bank, so the "scan to AI-mark" link
+      // could never open for them: only the questions a pupil can reach get one.
+      qrFilter: q => !qIsFoundation(q),
+      appLinks: o.appQr ? qcAppLinksFor(list) : null,
       paper: { groups, numbers: plan.numbers, after },
     },
   };
+}
+// 🧪 { qid: [{ url, title }] } for every question in `questions` that has an
+// app on any chart — what wsBuildDocumentHtml turns into the app QR codes.
+// Only the teacher has the charts loaded, so for anyone else this is empty
+// and the sheet prints exactly as it always did.
+const QC_APP_QR_PER_Q = 2;
+function qcAppLinksFor(questions) {
+  if (!qcLoaded) return null;
+  const owner = qcOwnerUid();
+  if (!owner) return null;
+  const by = qcAppsByQuestion(qcCharts, id => !!qcApps[id]);
+  const base = location.origin + location.pathname;
+  const out = {};
+  let any = false;
+  (questions || []).forEach(q => {
+    const ids = q && by[q.id];
+    if (!ids || !ids.length) return;
+    out[q.id] = ids.slice(0, QC_APP_QR_PER_Q).map(id => ({ url: qcAppShareUrl(base, id, owner), title: qcApps[id].title || "App" }));
+    any = true;
+  });
+  return any ? out : null;
 }
 // Every question whose chart has something to print beyond the question itself.
 function qcPrintableRoots() {
@@ -36309,6 +36697,7 @@ function qcPrintReadOpts() {
     fields: !!($("qcPrintFields") || {}).checked,
     next: !!($("qcPrintNext") || {}).checked,
     answers: !!($("qcPrintAnswers") || {}).checked,
+    appQr: !!($("qcPrintAppQr") || { checked: true }).checked,
   };
 }
 // From the chart page (this chart) or from 📝 Create Worksheet (any chart).
@@ -36376,7 +36765,7 @@ async function qcPrintGo(autoPrint) {
   on("wsBranchSheetBtn", () => qcOpenPrintSheet(qcRoot));
   on("qcPrintPreviewBtn", () => qcPrintGo(false));
   on("qcPrintGoBtn", () => qcPrintGo(true));
-  ["qcPrintFields", "qcPrintNext", "qcPrintAnswers"].forEach(id => { const el = $(id); if (el) el.addEventListener("change", qcPrintSummary); });
+  ["qcPrintFields", "qcPrintNext", "qcPrintAnswers", "qcPrintAppQr"].forEach(id => { const el = $(id); if (el) el.addEventListener("change", qcPrintSummary); });
   const printRoot = $("qcPrintRoot");
   if (printRoot) printRoot.addEventListener("change", () => { qcPrintRoot = printRoot.value || null; qcPrintSyncTitle(); qcPrintSummary(); });
   on("qcPickStepBtn", () => qcOpenPicker(qcKeyQ(qcRoot), ""));
@@ -54968,6 +55357,9 @@ window.cpbNewPaper = cpbNewPaper;
 window.cpbDraftTake = cpbDraftTake;
 window.cpbDraftDiscard = cpbDraftDiscard;
 
+// 🧪 A printed app QR: open the app alone. LAST, so every const it reaches
+// (the chart block's prefixes and caps) has been initialised.
+appShareStart();
 </script>
 <div id="tcgExpAnnounce" style="display:none;position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:1201;width:min(680px,calc(100vw - 28px));background:radial-gradient(120% 100% at 50% -30%,rgba(77,227,255,0.18),transparent 60%),linear-gradient(150deg,#16264f,#0b1230 60%,#080c1e);border:1px solid rgba(77,227,255,0.55);border-radius:18px;padding:26px 28px;box-shadow:0 22px 60px rgba(0,0,0,0.55);color:#e6f4ff;font-family:'DM Sans',system-ui,sans-serif;">
   <button id="tcgExpAnnounceClose" title="Dismiss" style="position:absolute;top:10px;right:12px;background:none;border:none;color:#93a4cd;font-size:1.1rem;cursor:pointer;padding:4px;">✕</button>
