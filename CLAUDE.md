@@ -3203,6 +3203,45 @@ in the helper section), `qcBranchDocumentOpts` / `qcOpenPrintSheet` /
   with the code in it rather than regenerating over the teacher's work. No AI
   call is made anywhere on this path.
 
+### 🧩 Show related questions on Create Worksheet, and 🧪 a QR to each app (v1.103.0)
+
+`qcBranchPlanMany` / `qcRelatedPlan` / `qcRelatedDocumentOpts` /
+`qcBookletDocumentOpts` / `qcAppsByQuestion` / `qcAppLinksFor` /
+`qcAppShareUrl`, `wsSyncRelatedUi` / `wsRelatedBuild` / `wsAppQrHtml`, the
+`appShare*` block above `onAuthStateChanged`, and the 🧩 / 🧪 ticks on 📝 Create
+Worksheet, 📄 My Worksheets and the 🖨 booklet dialog.
+
+- **🧩 Show related questions turns the sheet into the chart booklet for MANY
+  questions**: every chosen question on page 1 in the order picked, each one's
+  steps from ITS OWN chart on the pages behind. `qcBranchPlan` is now
+  `qcBranchPlanMany` with one item, so the single-chart booklet is the same
+  plan as before (the harness pins that). A question shared by two charts
+  prints once; a chosen question that is also a step stays on page 1.
+- **`includeRelated` is saved on the worksheet**, so 🖨️ from 📄 My Worksheets
+  prints the same booklet — for the teacher. Only the teacher's browser loads
+  the charts, so the ticks are `_isAdmin()` in the handlers and hidden for
+  everyone else; anyone else reprints the chosen questions on their own.
+- **The booklet's AI-mark QR skips a 🔒 step** (`qrFilter`): a pupil's bank
+  holds it back, so the link could never open for them.
+- **🧪 A question with an app on any chart gets an app QR** beside it, on an
+  ordinary sheet, a booklet and a reprint (`appLinks` on
+  `wsBuildDocumentHtml`, absent everywhere else). An app is found by its arrow
+  app → question; up to `QC_APP_QR_PER_Q` per question. With an app the codes
+  stack in one `.ws-qrs` column; with none the chunk is byte-for-byte what it
+  was.
+- **The QR is `?app=<appId>&owner=<adminUid>` on this page, and opens the app
+  ALONE** (`appShareStart`): a full-screen layer, a direct child of `<body>`,
+  appended by JS. It reads the app document straight away (the live rules are
+  open); if that is refused it signs in as the anonymous guest the question QR
+  already uses and reads again; with no guest sign-in it says to sign in rather
+  than spin. A generated page runs in the same `sandbox="allow-scripts"` frame
+  as the teacher's viewer, never `allow-same-origin`; a linked https app is
+  opened in place. Both query values are checked against `APP_SHARE_ID_RE`
+  before they go into a document path.
+- **`appShareStart()` is called on the LAST line of the module**: the document
+  path comes from `qcAppDocId`, whose prefix is a `const` far below the share
+  block, and the TDZ would throw if it ran earlier.
+
 ## ✨ Answer with AI — the answer and guide from the question AS IT IS NOW (v1.101.0)
 
 `QAA_IMG_MAX` / `qaaPrompt` / `qaaFromReply` / `qaaAnswerWithAi` /
@@ -3229,7 +3268,7 @@ question exactly as the editor holds it and writes both again.
 
 ## House rules
 - After touching **🧩 question charts** (`qcNormalizeChart`, `qcChartPayload`,
-  `qcAddEdge`, `qcRelink`, `qcMoveStepOrder`, `qcAfterStepMove`, the 🖨 booklet (`qcBranchPlan`, `qcBranchNotes`, `qcBranchDocumentOpts`), `qcAttachNew`, `qcSpawnEditor`, `qcOnQuestionSaved`, the 🧩 break-down
+  `qcAddEdge`, `qcRelink`, `qcMoveStepOrder`, `qcAfterStepMove`, the 🖨 booklet (`qcBranchPlan`, `qcBranchPlanMany`, `qcBranchNotes`, `qcBranchDocumentOpts`, `qcBookletDocumentOpts`), 🧩 Show related questions (`qcRelatedDocumentOpts`, `wsRelatedBuild`, `includeRelated`), the 🧪 app QR (`qcAppsByQuestion`, `qcAppLinksFor`, `wsAppQrHtml`, the `appShare*` viewer), `qcAttachNew`, `qcSpawnEditor`, `qcOnQuestionSaved`, the 🧩 break-down
   (`qcBreakdownPrompt`, `qcBreakdownParts`, `qcBreakdownQuestion`, `qcBreakAdd`), the
   🔒 after-a-miss hold (`qIsFoundation`, `foundationStepsFor`, `loadBank`'s
   foundation line, `maybeServeFoundationOnMiss`, `qcToggleFoundation`), the
@@ -3241,7 +3280,7 @@ question exactly as the editor holds it and writes both again.
   `node tools/question-chart-browser-tests.mjs`. Every failure is silent: store
   a question's wording or answer on a chart and every pupil can read it; give an
   app frame `allow-same-origin` and a generated page can read the ChatGPT key;
-  let a loop through and the later phases have no top to walk from; let the
+  let a loop through and the later phases have no top to walk from; give the phone viewer `allow-same-origin` or call `appShareStart()` before the chart block's consts and every printed app QR is a security hole or a blank screen; let the
   app prompt drift back to "use your own numbers" and pupils are handed a
   twin problem to translate instead of their own question solved.
 - After touching **👩‍💻 the employee role or ⏱️ the work-session clock**
