@@ -33492,7 +33492,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.99.0 · 2026-10-11";
+const APP_VERSION = "v1.100.0 · 2026-10-11";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -34554,28 +34554,67 @@ function qcAppHtmlFrom(text) {
   if (!/<(?:html|body|div|svg|canvas|main)[\s>]/i.test(t)) return "";
   return t.slice(0, QC_APP_HTML_MAX);
 }
-// The brief a teacher starts from: what the step checks, and the question it
-// builds towards. The QUESTION'S ANSWER IS NEVER IN IT — the app is for the
-// pupil, and an app that worked the real question would hand them the answer.
+// ---- 🧪 The app WORKS THE QUESTION ITSELF (v1.100.0) ----
+// A pupil who has just got a question wrong cannot carry a lesson across from a
+// made-up twin ("now imagine 5 bags of 12 sweets…") back to the question in
+// front of them — that parallel thinking is a second problem on top of the
+// first. So the app solves THE question: its own names, objects and numbers,
+// built up as a bar model, groups or a diagram the pupil moves, one step at a
+// time, ending on the question's real answer.
+//
+//  • `qcAppQuestionFacts` is the ONE place a question becomes what the prompt
+//    is told: the wording (tables included), the numbered MCQ options, and the
+//    teacher's own answer and marking guide so the app's final answer AGREES
+//    with the key. The answer-key PICTURE's address is never sent.
+//  • The question rides in the PROMPT, not in the brief, so it is always the
+//    question as it is NOW — an edit to the wording after the brief was typed
+//    still reaches the next regenerate.
+//  • A brief saved under the old rule ("use different numbers; do not solve
+//    it") is rewritten on the way in (`qcAppBriefUpgrade`), or one regenerate
+//    of an old app would ask the model for the opposite of what it is told.
+const QC_APP_TEXT_MAX = 2500;
+const QC_APP_KEY_MAX = 1500;
+const QC_APP_OLD_BRIEF_RE = /use different numbers|do not solve it|own friendly numbers|Let the pupil change the numbers/i;
+function qcAppClip(v, n) { return String(v == null ? "" : v).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, n); }
+function qcAppQuestionFacts(q) {
+  if (!q) return { text: "", options: [], answer: "", working: "" };
+  const text = qcAppClip(graphPlainText(q.blocks || []), QC_APP_TEXT_MAX);
+  const options = Array.isArray(q.options) ? q.options.map(o => qcAppClip(o && typeof o === "object" ? (o.text || o.label || "") : o, 300)).filter(Boolean).slice(0, 8) : [];
+  const ci = Number.isInteger(q.correctOption) ? q.correctOption : -1;
+  let answer = qcAppClip(q.expected, QC_APP_KEY_MAX);
+  if (options.length && ci >= 0 && ci < options.length) answer = "option " + (ci + 1) + ") " + options[ci] + (answer ? " — " + answer : "");
+  return { text, options, answer, working: qcAppClip(q.markingGuide, QC_APP_KEY_MAX) };
+}
+// The brief a teacher starts from: what this step checks, and how the app
+// should solve the question. The question itself is added by the prompt.
 function qcDefaultBrief(q, checks) {
-  const qt = q ? graphPlainText(q.blocks).slice(0, 600) : "";
   const lines = [];
-  if (checks) lines.push("Help a pupil SEE this step: " + checks + ".");
-  if (qt) lines.push("It builds towards this question (use different numbers; do not solve it): " + qt);
-  lines.push("Let the pupil change the numbers and watch the model update.");
+  if (checks) lines.push("This step checks: " + checks + ".");
+  lines.push("Solve THIS question step by step, using its own names, objects and numbers. Do not invent a different story or different numbers.");
+  lines.push("Let the pupil build the answer: drag or tap to fill a bar model, make equal groups, or move parts of a diagram, one step at a time, then show the final answer.");
   return lines.join("\n");
 }
-// The prompt the generator sends. Built from the brief, the level and the
-// Polymath design brief — and deliberately from nothing on the admin-only half
-// of a question (`expected`, `markingGuide`, the answer key).
-function qcAppPrompt({ title, brief, level, size }) {
+function qcAppBriefUpgrade(brief, q, checks) {
+  const b = String(brief || "");
+  if (!QC_APP_OLD_BRIEF_RE.test(b)) return b;
+  const keep = b.split("\n").filter(l => !QC_APP_OLD_BRIEF_RE.test(l) && !/^It builds towards this question/i.test(l) && !/^Help a pupil SEE this step/i.test(l));
+  return [qcDefaultBrief(q, checks)].concat(keep.filter(l => l.trim())).join("\n");
+}
+// The prompt the generator sends: the question as it is now, the teacher's key
+// so the answer agrees, the brief, the level and the Polymath design brief.
+function qcAppPrompt({ title, brief, level, size, question }) {
   const sz = QC_APP_SIZES[size] || QC_APP_SIZES[QC_APP_DEFAULT_SIZE];
+  const f = question || { text: "", options: [], answer: "", working: "" };
   return [
-    "Build ONE self-contained interactive web page that helps a Singapore primary-school pupil understand a maths step visually.",
+    "Build ONE self-contained interactive web page that walks a Singapore primary-school pupil through solving THE QUESTION BELOW, visually and step by step.",
     "",
     "TITLE: " + String(title || "").slice(0, QC_APP_TITLE_MAX),
     level ? "LEVEL: " + level : "",
-    "WHAT IT MUST SHOW:",
+    f.text ? "THE QUESTION (solve exactly this one):\n" + f.text : "",
+    f.options && f.options.length ? "ANSWER OPTIONS:\n" + f.options.map((o, i) => (i + 1) + ") " + o).join("\n") : "",
+    f.answer ? "THE TEACHER'S ANSWER (your final answer must agree with it):\n" + f.answer : "",
+    f.working ? "THE TEACHER'S WORKING (follow this method where it helps):\n" + f.working : "",
+    "WHAT THE TEACHER WANTS:",
     String(brief || "").slice(0, QC_APP_BRIEF_MAX),
     "",
     "SIZE: " + sz.label + " — " + sz.hint + ".",
@@ -34583,10 +34622,14 @@ function qcAppPrompt({ title, brief, level, size }) {
     "RULES:",
     "- Return ONLY the complete HTML document, from <!DOCTYPE html> to </html>. No commentary, no markdown fence.",
     "- Everything inline: one <style>, one <script>. No external scripts, stylesheets, fonts or fetches. The page runs in a sandbox with no network and no storage, so never use localStorage, cookies or alert().",
-    "- Teach by letting the pupil change something and see it change: sliders, steppers, draggable bar models, fraction bars, number lines, area grids. Every value change animates smoothly and the numbers update live.",
-    "- Never solve the original exam question or print its final answer. Use your own friendly numbers.",
+    "- Solve THIS question directly. Use its own names, objects, units and numbers everywhere: in the words, the labels and the models. Never set up a different, hypothetical or 'similar' situation, and never swap in other numbers. A pupil must not have to translate from one story to another.",
+    "- Show the question at the top in a card, so the pupil can always see what is being solved.",
+    "- Break the solution into its steps, in solving order. Each step is something the pupil DOES: drag blocks into a bar model, tap to make equal groups, split a bar into units, fill a part of a diagram, move a marker on a number line. After each action, show the number sentence for that step (e.g. 7 × 24 = 168) and let them go on to the next step.",
+    "- Pick the model that fits the question: bar models (part–whole and comparison) for fractions, ratio, percentage and 'more than / less than'; equal groups or arrays for multiplication and sharing; a labelled diagram for area, perimeter, angles and volume; a number line for time and measures.",
+    "- Every change animates smoothly and the numbers update live. Give a gentle hint when an action is wrong, never a dead end.",
+    "- The last step states the final answer to the question in a full sentence with its unit" + (f.options && f.options.length ? ", and names the correct option number" : "") + ". Do not reveal it before the pupil reaches that step.",
     "- Design (Polymath style): light and minimal; background #FAFAFA; text #222; font-family 'Century Gothic', CenturyGothic, AppleGothic, sans-serif; ONE soft green accent #C8E6C9 (hover #A5D6A7) used sparingly; cards with box-shadow 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06); rounded corners 14px; generous spacing; prose max-width 720px, centred.",
-    "- Flow: a short friendly explanation, then the interactive, then a one-line reflection, then a boxed Key Takeaway.",
+    "- Flow: the question card, a step tracker (Step 1 of N), the interactive model for the current step, the number sentence so far, and finally a boxed Answer with a one-line Key Takeaway about the method.",
     "- Works on a phone (single column under 600px, touch-friendly controls of at least 44px) and on a laptop.",
     "- Short sentences a 10-year-old can read. British spelling. Use $ for money and SI units."
   ].filter(s => s !== "").join("\n");
@@ -35862,7 +35905,7 @@ function qcOpenAppDialog(targetKey, editAppId) {
   qcAppDraft = { editingId: editing ? editing.id : null, html: "", model: "", effort: "", size: "" };
   $("qcAppHeading").textContent = editing ? "Regenerate “" + editing.title + "”" : "Add a visual app" + (q ? " for “" + (q.title || "this step") + "”" : "");
   $("qcAppTitle").value = editing ? editing.title : ((checks || (q && q.title) || "Step") + "").slice(0, 80);
-  $("qcAppBrief").value = editing ? (editing.brief || "") : qcDefaultBrief(q, checks);
+  $("qcAppBrief").value = editing ? qcAppBriefUpgrade(editing.brief, q, checks) : qcDefaultBrief(q, checks);
   const shape = qcAppRequestShape(editing && editing.model, editing && editing.effort, editing && editing.size);
   document.querySelectorAll('input[name="qcAppModel"]').forEach(r => { r.checked = r.value === shape.model; });
   $("qcAppEffort").value = shape.effort || QC_APP_DEFAULT_EFFORT;
@@ -35905,8 +35948,10 @@ async function qcGenerateApp() {
   if (!brief) { toast("Say what the app should show first", "error"); return; }
   const model = (document.querySelector('input[name="qcAppModel"]:checked') || {}).value;
   const shape = qcAppRequestShape(model, $("qcAppEffort").value, $("qcAppSize").value);
-  const q = graphFindQ(qcRoot);
-  const prompt = qcAppPrompt({ title: title || "Maths step", brief, level: q && q.level, size: shape.size });
+  // The question the app is for — the step it is attached to, or the chart's own question.
+  const tp = qcAppTarget ? qcParseKey(qcAppTarget) : null;
+  const q = (tp && tp.type === "q" && graphFindQ(tp.id)) || graphFindQ(qcRoot);
+  const prompt = qcAppPrompt({ title: title || "Maths step", brief, level: q && q.level, size: shape.size, question: qcAppQuestionFacts(q) });
   const st = $("qcAppStatus"), btn = $("qcAppGenBtn");
   qcAppBusy = true; btn.disabled = true; $("qcAppSaveBtn").disabled = true;
   st.className = "qc-app-status busy";
