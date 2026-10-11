@@ -3184,6 +3184,25 @@ in the helper section), `qcBranchDocumentOpts` / `qcOpenPrintSheet` /
   the prompt on every regenerate of an app made before this.
 - No server change: `generateChartApp` sends the page's prompt as it is.
 
+### ⌨ Paste your own code, and 🧪 on every step card (v1.102.0)
+
+`qcPastedAppHtml` / `qcRunPastedCode` / `qcAppTab`, the `#qcAppTab-code` tab and
+`#qcAppCodeFrame` in the app dialog, and `flex-wrap` on `.gnode-foot`.
+
+- **The 🧪 button was always on a step card; the footer cut it off.** Step cards
+  carry more buttons than the root, so `.gnode-foot` wraps now. Never hide a
+  button by letting a row overflow.
+- **⌨ Paste code saves the teacher's own page instead of a generated one.**
+  `qcPastedAppHtml` is the ONE place pasted text becomes a page: a full
+  document is kept, a fragment is wrapped, text with no tag is treated as
+  JavaScript inside a `<script>` (with `</script` escaped), a markdown fence is
+  stripped, and the result is capped at `QC_APP_HTML_MAX`.
+- **It runs in the SAME sealed frame** (`sandbox="allow-scripts"`, never
+  `allow-same-origin`) — a pasted page is no more trusted than a generated one.
+- **`source: "pasted"` marks it**, so ⌨ on the app card reopens the code tab
+  with the code in it rather than regenerating over the teacher's work. No AI
+  call is made anywhere on this path.
+
 ## ✨ Answer with AI — the answer and guide from the question AS IT IS NOW (v1.101.0)
 
 `QAA_IMG_MAX` / `qaaPrompt` / `qaaFromReply` / `qaaAnswerWithAi` /
@@ -3216,7 +3235,7 @@ question exactly as the editor holds it and writes both again.
   foundation line, `maybeServeFoundationOnMiss`, `qcToggleFoundation`), the
   `qcSpawn` clears in `resetEditor` / `loadQuestionIntoEditor`,
   `qcWouldCycle`, `qcSeedFromBoard`, `qcNormalizeApp`,
-  `qcAppPrompt`, `qcDefaultBrief`, `qcAppFrameAttrs`, the `qcApp*` overlay, or
+  `qcAppPrompt`, `qcDefaultBrief`, `qcPastedAppHtml`, `qcAppFrameAttrs`, the `qcApp*` overlay, or
   `generateChartApp` / `chartAppShape` / `chartAppHtml`), run
   `node tools/question-chart-tests.mjs` and
   `node tools/question-chart-browser-tests.mjs`. Every failure is silent: store

@@ -52,7 +52,7 @@ const M = new Function(`
   ${cutFrom(src, '// 🧩 QUESTION CHARTS', '// ---- Firestore ----', 'qc helpers')}
   return { QC_MAX_NODES, QC_CHECKS_MAX, QC_ROWH, QC_COLW, QC_TIERS, qcTierOf, qcKeyQ, qcKeyApp, qcParseKey, qcChartDocId, qcAppDocId,
            qcNormalizeChart, qcWouldCycle, qcChartPayload, qcSeedFromBoard, qcLayout, qcDepths,
-           qcNormalizeApp, qcAppRequestShape, qcAppMetaLabel, qcAppHtmlFrom, qcDefaultBrief, qcAppPrompt, qcAppQuestionFacts, qcAppBriefUpgrade,
+           qcNormalizeApp, qcAppRequestShape, qcAppMetaLabel, qcAppHtmlFrom, qcDefaultBrief, qcAppPrompt, qcAppQuestionFacts, qcAppBriefUpgrade, qcPastedAppHtml, QC_APP_HTML_MAX,
            QC_APP_MODELS, QC_APP_SIZES,
            QC_BREAK_MIN, QC_BREAK_MAX, qcBreakdownPrompt, qcBreakdownParts, qcBreakdownQuestion,
            qcStepTarget, qcStepsUnder, qcMoveStepOrder,
@@ -550,6 +550,35 @@ test('an old brief is rewritten so a regenerate solves the real question', () =>
   eq(M.qcAppBriefUpgrade('Use a bar model.', null, ''), 'Use a bar model.', 'a new brief is left alone');
 });
 
+test('⌨ pasted code becomes a page: a document kept, HTML wrapped, plain JavaScript put in a script', () => {
+  const doc = '<!DOCTYPE html><html><body><p>Hi</p></body></html>';
+  eq(M.qcPastedAppHtml('  ' + doc + '\n'), doc, 'a whole document as it is');
+  const frag = M.qcPastedAppHtml('<div id="bar"></div><script>bar.textContent = 7 * 24;</script>');
+  ok(/^<!DOCTYPE html>/.test(frag) && /<body>\n<div id="bar"><\/div><script>/.test(frag) && /<\/html>$/.test(frag), frag);
+  const js = M.qcPastedAppHtml('document.body.textContent = 6 / 2 < 4 ? "yes" : "no";');
+  ok(/<script>\ndocument\.body\.textContent = 6 \/ 2 < 4/.test(js), 'a bare comparison is still JavaScript: ' + js);
+  eq((M.qcPastedAppHtml('var s = "</script>";').match(/<\/script>/gi) || []).length, 1, 'a closing script tag inside the code cannot end the wrapper');
+  const fenced = M.qcPastedAppHtml('```html\n<p>x</p>\n```');
+  ok(fenced.includes('<p>x</p>') && !fenced.includes('```'), 'a markdown fence is taken off');
+  eq(M.qcPastedAppHtml('   '), '', 'nothing');
+  eq(M.qcPastedAppHtml(null), '', 'null');
+  ok(M.qcPastedAppHtml('<!DOCTYPE html>' + 'x'.repeat(M.QC_APP_HTML_MAX + 50)).length <= M.QC_APP_HTML_MAX, 'capped');
+});
+test('a pasted app is marked as the teacher\'s code, and only a page can be', () => {
+  const a = M.qcNormalizeApp({ title: 'Mine', html: '<html></html>', source: 'pasted' }, 'a1');
+  eq(a.source, 'pasted'); eq(M.qcAppMetaLabel(a), 'Your code');
+  eq(M.qcNormalizeApp({ title: 'x', html: '<html></html>', source: 'evil' }, 'a2').source, '', 'unknown source');
+  eq(M.qcNormalizeApp({ title: 'x', url: 'https://x.org', source: 'pasted' }, 'a3').source, '', 'a link is not pasted code');
+  ok(M.qcAppMetaLabel(M.qcNormalizeApp({ title: 'x', html: '<html></html>', model: 'gpt-6.1-sol' }, 'a4')) !== 'Your code', 'a generated app');
+});
+test('the paste-code frame is sandboxed like a generated one, and its tab is wired', () => {
+  ok(/<iframe class="qc-app-frame" id="qcAppCodeFrame" sandbox="allow-scripts"/.test(src), 'sandbox');
+  ok(/\["gen", "code", "url", "reuse"\]\.forEach\(t => on\("qcAppTab-"/.test(src), 'tab wired');
+  ok(/on\("qcAppCodeRunBtn", qcRunPastedCode\)/.test(src), 'run wired');
+  ok(/source: "pasted"/.test(src.slice(src.indexOf('async function qcSaveGeneratedApp('), src.indexOf('async function qcSaveUrlApp('))), 'saved as pasted');
+  ok(/\.gnode-foot \{ display: flex; flex-wrap: wrap;/.test(src), 'a step card\'s buttons wrap instead of cutting off 🧪');
+});
+
 // ---- wiring read as text ----------------------------------------------------------------
 test('no app frame ever gets allow-same-origin', () => {
   const frames = src.match(/<iframe[^>]*qc-app-frame[^>]*>/g) || [];
@@ -628,7 +657,7 @@ test('the booklet prints through the ONE worksheet renderer, with no covers', ()
   ok(/if \(!_isAdmin\(\)\) return;/.test(fn), 'teacher only');
   ok(/id="wsBranchSheetBtn"/.test(src) && /on\("wsBranchSheetBtn"/.test(src), 'reachable from 📝 Create Worksheet');
 });
-test('the version is v1.101.0 or later', () => {
+test('the version is v1.102.0 or later', () => {
   const v = src.match(/const APP_VERSION = "v(\d+)\.(\d+)\.(\d+)/);
   ok(v && (Number(v[1]) > 1 || (Number(v[1]) === 1 && Number(v[2]) >= 100)), 'APP_VERSION is v1.100.0 or later');
 });
