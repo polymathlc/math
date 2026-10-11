@@ -55,7 +55,8 @@ const M = new Function(`
            qcNormalizeApp, qcAppRequestShape, qcAppMetaLabel, qcAppHtmlFrom, qcDefaultBrief, qcAppPrompt,
            QC_APP_MODELS, QC_APP_SIZES,
            QC_BREAK_MIN, QC_BREAK_MAX, qcBreakdownPrompt, qcBreakdownParts, qcBreakdownQuestion,
-           qcStepTarget, qcStepsUnder, qcMoveStepOrder };
+           qcStepTarget, qcStepsUnder, qcMoveStepOrder,
+           QC_SHEET_MAX_PAGES, QC_SHEET_GUIDE, qcBranchPlan, qcBranchNotes, qcBranchPageText };
 `)();
 // The frame attributes and the edge writer sit further down; cut them alone.
 const W = new Function('M', `
@@ -559,9 +560,56 @@ test('charts and apps live under rules that already exist', () => {
   ok(/const QC_DOC_PREFIX = "chart__";/.test(src) && /const QC_APP_PREFIX = "app__";/.test(src), 'prefixes');
   ok(!/"mathQuestionCharts"|"mathChartApps"/.test(src), 'no new collection that would need a rules deploy');
 });
-test('the version is v1.98.0 or later', () => {
+// ---- 🖨 the step-by-step booklet (v1.99.0) -------------------------------------------------------
+// r ← a, b, c (left to right); a ← d; b ← d (shared); next: n (harder), s (same).
+const BOOK = () => M.qcNormalizeChart({ nodes: {
+  'q:r': { x: 0, y: 0 }, 'q:a': { x: 0, y: 230 }, 'q:b': { x: 290, y: 230 }, 'q:c': { x: 580, y: 230 },
+  'q:d': { x: 0, y: 460 }, 'app:x': { x: 870, y: 230 },
+  'q:n': { x: 0, y: -230, tier: 'harder' }, 'q:s': { x: 400, y: -230, tier: 'same' } },
+  edges: [{ from: 'q:c', to: 'q:r' }, { from: 'q:a', to: 'q:r' }, { from: 'q:b', to: 'q:r' },
+          { from: 'q:d', to: 'q:a' }, { from: 'q:d', to: 'q:b' }, { from: 'app:x', to: 'q:r' }] }, 'r');
+test('the booklet: question on page 1, its steps next in left-to-right order, next questions last', () => {
+  const p = M.qcBranchPlan(BOOK(), 'r');
+  eq(p.pages.map(g => [g.n, g.kind, g.keys]), [
+    [1, 'start', ['q:r']], [2, 'steps', ['q:a', 'q:b', 'q:c']], [3, 'steps', ['q:d']], [4, 'steps', []], [5, 'next', ['q:s', 'q:n']]]);
+  eq(p.numbers, { r: '1', a: '2', b: '3', c: '4', d: '5', s: '6', n: '7' }, 'one number per question, in page order');
+  eq(p.stepsPage, { 'q:r': 2, 'q:a': 3, 'q:b': 4 });
+  eq(p.pages[3].refs, ['q:d'], 'a shared step is printed once and pointed at the second time');
+  eq(p.pages[1].backTo, 1); eq(p.pages[2].backTo, 2); eq(p.nextPage, 5);
+  ok(!p.order.includes('app:x'), 'an app is not printed');
+});
+test('the booklet skips what cannot be printed, and can leave the next questions out', () => {
+  const p = M.qcBranchPlan(BOOK(), 'r', id => id !== 'a', { next: false });
+  eq(p.pages.map(g => g.keys), [['q:r'], ['q:b', 'q:c'], ['q:d']], 'a missing question is as if it were not there');
+  eq(p.nextPage, 0);
+  eq(M.qcBranchPlan(BOOK(), 'r', id => id !== 'r').pages, [], 'no question, no booklet');
+  eq(M.qcBranchPlan(null, 'r').order, []);
+});
+test('✗ sends a pupil to the steps page, ✓ onwards, and a steps page back up', () => {
+  const p = M.qcBranchPlan(BOOK(), 'r');
+  eq(M.qcBranchNotes(p, 'q:r'), { wrong: '✗ Wrong, or stuck? Turn to Page 2. The questions there break Question 1 into smaller steps.',
+    right: '✓ Right? Well done! Go on to Page 5 for your next challenge.' });
+  eq(M.qcBranchNotes(p, 'q:a').wrong, '✗ Wrong, or stuck? Turn to Page 3. The questions there break Question 2 into smaller steps.');
+  eq(M.qcBranchNotes(p, 'q:a').right, '✓ Right? Go on to Question 3 below.');
+  eq(M.qcBranchNotes(p, 'q:c'), { wrong: '✗ Stuck? Read your working again, then ask your teacher.', right: '' }, 'the last step leaves ✓ to the page foot');
+  eq(M.qcBranchPageText(p, p.pages[1]).foot, 'Finished these steps? Go back to Page 1 and try Question 1 again.');
+  eq(M.qcBranchPageText(p, p.pages[2]).foot, 'Finished these steps? Go back to Page 2 and try Question 2 again.');
+  eq(M.qcBranchPageText(p, p.pages[3]).refs, ['Question 5 on Page 3 is one of these steps too. Do it first if you have not yet.']);
+  const lone = M.qcBranchPlan(M.qcNormalizeChart({ nodes: { 'q:r': {} }, edges: [] }, 'r'), 'r');
+  eq(M.qcBranchNotes(lone, 'q:r').right, '✓ Right? Well done, you have finished this worksheet.');
+  ok(M.QC_SHEET_GUIDE.length >= 5 && M.QC_SHEET_GUIDE.some(g => /✗/.test(g)) && M.QC_SHEET_GUIDE.some(g => /try it again/.test(g)), 'the guidelines explain ✗ and coming back');
+});
+test('the booklet prints through the ONE worksheet renderer, with no covers', () => {
+  ok(/\.\.\.\(g\.cover \? \[g\.cover\] : \[\]\)/.test(src), 'a group with no cover is one page section');
+  ok(/\(\(after && after\[q\.id\]\) \|\| ""\)/.test(src), 'the ✗ / ✓ lines print under their question');
+  const fn = src.slice(src.indexOf('async function qcPrintGo('), src.indexOf('(function wireQuestionCharts()'));
+  ok(/wsOpenDocument\(b\.list, b\.title/.test(fn), 'wsOpenDocument, never a renderer of its own');
+  ok(/if \(!_isAdmin\(\)\) return;/.test(fn), 'teacher only');
+  ok(/id="wsBranchSheetBtn"/.test(src) && /on\("wsBranchSheetBtn"/.test(src), 'reachable from 📝 Create Worksheet');
+});
+test('the version is v1.99.0 or later', () => {
   const v = src.match(/const APP_VERSION = "v(\d+)\.(\d+)\.(\d+)/);
-  ok(v && (Number(v[1]) > 1 || (Number(v[1]) === 1 && Number(v[2]) >= 98)), 'APP_VERSION is v1.98.0 or later');
+  ok(v && (Number(v[1]) > 1 || (Number(v[1]) === 1 && Number(v[2]) >= 99)), 'APP_VERSION is v1.99.0 or later');
 });
 
 // ---- runner ------------------------------------------------------------------------------------------

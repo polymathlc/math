@@ -667,6 +667,51 @@ await scenario('dragging a step onto its own step is refused and put back', asyn
   assert.deepEqual(errors, []);
 });
 
+// ---- v1.99.0: the chart printed as a step-by-step booklet ---------------------------------------
+const BOOK_DB = Object.assign({}, ORDER_DB, {
+  'users/teacher/mathQuestions/s3': { id: 's3', title: 'Times table', level: 'P3', topics: ['Whole numbers'], foundationOf: 's1', createdAt: '2026-10-11T10:00:03.000Z', blocks: [{ id: 'x3', type: 'text', content: '8 × 2 = ?' }] },
+  'users/teacher/mathQuestionGraph/chart__q1': { root: 'q1', nodes: { 'q:q1': { x: 0, y: 0 }, 'q:s1': { x: -300, y: 230 }, 'q:s2': { x: 0, y: 230 }, 'q:s3': { x: -300, y: 460 }, 'q:q2': { x: 0, y: -230, tier: 'harder' } },
+    edges: [{ id: 'e1', from: 'q:s1', to: 'q:q1' }, { id: 'e2', from: 'q:s2', to: 'q:q1' }, { id: 'e3', from: 'q:s3', to: 'q:s1' }] }
+});
+await scenario('🖨 prints the chart as a booklet: wrong? turn to the steps page, then back up', async (page, errors) => {
+  await boot(page, TEACHER, BOOK_DB);
+  await openChart(page);
+  await page.click('#qcPrintBtn');
+  await page.waitForSelector('#qcPrintOverlay.show');
+  assert.match(await page.textContent('#qcPrintSummary'), /4 pages · the question, 3 steps, 1 next question/);
+  await page.uncheck('#qcPrintNext');
+  assert.match(await page.textContent('#qcPrintSummary'), /3 pages/);
+  await page.check('#qcPrintNext');
+  const [sheet] = await Promise.all([page.context().waitForEvent('page'), page.click('#qcPrintPreviewBtn')]);
+  await sheet.waitForSelector('.qcb-label', { timeout: 15000 });
+  const text = (await sheet.evaluate(() => document.querySelector('.ws-sheet').innerText)).replace(/\s+/g, ' ');
+  assert.match(text, /How to use this worksheet/);
+  assert.match(text, /Page 1 Start here/);
+  assert.match(text, /✗ Wrong, or stuck\? Turn to Page 2\. The questions there break Question 1 into smaller steps\./);
+  assert.match(text, /✓ Right\? Well done! Go on to Page 4 for your next challenge\./);
+  assert.match(text, /Page 2 Steps for Question 1/);
+  assert.match(text, /✗ Wrong, or stuck\? Turn to Page 3\. The questions there break Question 2 into smaller steps\./, 'a step with steps of its own');
+  assert.match(text, /Finished these steps\? Go back to Page 1 and try Question 1 again\./);
+  assert.match(text, /Page 3 Steps for Question 2/);
+  assert.match(text, /Go back to Page 2 and try Question 2 again\./);
+  assert.match(text, /Page 4 Your next challenge/);
+  assert.ok(text.indexOf('8 × 22') < text.indexOf('176 ÷ 4'), 'steps print in the chart\'s left-to-right order');
+  assert.ok(!/Answer key/i.test(text), 'no answer key unless asked');
+  assert.equal(await sheet.$$eval('.ws-doc > tbody > tr', rows => rows.length), 4, 'one page section per page, no covers');
+  // The popup is not routed, so its web fonts never arrive: a picture is a nice-to-have, never a failure.
+  if (process.env.QC_SHOTS) await sheet.screenshot({ path: path.join(process.env.QC_SHOTS, '16-branch-sheet.png'), fullPage: true, timeout: 5000 }).catch(() => {});
+  if (process.env.QC_SHEET_HTML) fs.writeFileSync(process.env.QC_SHEET_HTML, await sheet.content());
+  await sheet.close();
+  // The same dialog from 📝 Create Worksheet, with the chart chosen there.
+  await page.click('#qcPrintOverlay [data-close]');
+  await page.click('.nav-item[data-page="worksheet"]');
+  await page.waitForSelector('#page-worksheet.active');
+  await page.click('#wsBranchSheetBtn');
+  await page.waitForSelector('#qcPrintOverlay.show');
+  assert.equal(await page.$eval('#qcPrintRoot', s => s.value), 'q1');
+  assert.deepEqual(errors, []);
+});
+
 await scenario('a pupil never reaches the chart page', async (page, errors) => {
   await boot(page, { uid: 'kid', email: 'kid@example.com', displayName: 'Kid' }, BOARD);
   assert.equal(await page.isVisible('#page-qchart'), false);

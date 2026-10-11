@@ -2059,6 +2059,14 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .gnode-level.qc-next-chip { background: #fbe7c0; color: #8a5a0e; }
 .qc-next-line { fill: none; stroke: #c9861a; stroke-width: 2.4; stroke-dasharray: 6 6; pointer-events: none; }
 .qc-next-card { max-width: 560px; }
+.qc-print-card { max-width: 600px; }
+.qc-print-opts { display: flex; flex-direction: column; gap: 10px; margin: 6px 0 18px; font-size: 0.9rem; }
+.qc-print-opts label { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.qc-print-opts input { width: 16px; height: 16px; accent-color: var(--primary); }
+.qc-print-summary { padding: 12px 16px; border-radius: 12px; background: var(--surface-2, #f4f1ec); font-size: 0.86rem; line-height: 1.5; margin-bottom: 18px; }
+.qc-print-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.ws-branch-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 18px; padding: 14px 18px; border: 1.5px dashed var(--border); border-radius: 14px; font-size: 0.86rem; line-height: 1.5; }
+.ws-branch-row span { flex: 1 1 260px; }
 .qc-next-intro { margin: 0 0 18px; font-size: 0.9rem; line-height: 1.6; color: var(--text-muted); }
 .qc-next-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
 .qc-next-choice { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 18px 18px 16px; text-align: left;
@@ -5704,6 +5712,10 @@ body.role-employee #emailBellBtn { display: none !important; }
           <button class="btn btn-primary" id="wsPrintBtn">🖨️ Print / Save PDF</button>
           <button class="btn btn-blue" id="wsPracticeBtn" title="Practise these questions on screen, in this order">✍️ Practise</button>
         </div>
+        <div class="ws-branch-row admin-only">
+          <span>🧩 <b>Step-by-step worksheet.</b> Print a question with its foundational steps from its dependency chart. A pupil who gets it wrong is told which page of smaller steps to turn to, then comes back to try it again.</span>
+          <button class="btn btn-outline btn-sm" id="wsBranchSheetBtn" type="button">🖨 From a dependency chart</button>
+        </div>
       </div>
     </div>
 
@@ -5794,6 +5806,7 @@ body.role-employee #emailBellBtn { display: none !important; }
           <button class="btn btn-outline btn-sm" id="qcAddNextBtn" type="button" title="A question to try AFTER this one: same level or harder">⏭ Next question</button>
           <button class="btn btn-ghost btn-sm" id="qcPickStepBtn" type="button" title="Pick an existing bank question as an easier step">📚 From bank</button>
           <button class="btn btn-outline btn-sm" id="qcAddAppBtn" type="button">🧪 Add app</button>
+          <button class="btn btn-outline btn-sm" id="qcPrintBtn" type="button" title="Print this chart as a step-by-step worksheet: wrong? turn to the page of smaller steps">🖨 Worksheet</button>
           <button class="btn btn-ghost btn-sm" id="qcTidyBtn" type="button" title="Put the question on top and its steps below by depth">🧹 Tidy up</button>
           <button class="btn btn-ghost btn-sm" id="qcFitBtn" type="button" title="Zoom to fit everything">🔍 Fit</button>
           <div class="spacer"></div>
@@ -6458,6 +6471,27 @@ body.role-employee #emailBellBtn { display: none !important; }
       <div class="qc-next-bank">or pick one already in the bank:
         <button type="button" class="btn btn-ghost btn-sm" data-qc-next="same" data-qc-bank>📚 Same level</button>
         <button type="button" class="btn btn-ghost btn-sm" data-qc-next="harder" data-qc-bank>📚 Harder</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="qcPrintOverlay">
+  <div class="overlay-card qc-print-card">
+    <div class="overlay-head"><h3>🖨 Step-by-step worksheet</h3><button class="close" data-close="qcPrintOverlay">×</button></div>
+    <div class="overlay-body">
+      <p class="qc-next-intro">Prints a question's chart as a booklet. Page 1 has the guidelines and the question. Under every question, a ✗ line tells the pupil which page of smaller steps to turn to if they got it wrong, and a ✓ line tells them where to go if they got it right. Each steps page sends them back to try the bigger question again.</p>
+      <div class="editor-field"><label for="qcPrintRoot">Question</label><select id="qcPrintRoot"></select></div>
+      <div class="editor-field"><label for="qcPrintTitle">Title</label><input id="qcPrintTitle" type="text" maxlength="120"></div>
+      <div class="qc-print-opts">
+        <label><input type="checkbox" id="qcPrintFields" checked> ✍️ Name / Class / Date line</label>
+        <label><input type="checkbox" id="qcPrintNext" checked> ⏭ Next questions at the end</label>
+        <label><input type="checkbox" id="qcPrintAnswers"> 🔑 Answer key at the back (keep this copy for yourself)</label>
+      </div>
+      <div class="qc-print-summary" id="qcPrintSummary"></div>
+      <div class="qc-print-actions">
+        <button class="btn btn-outline" type="button" id="qcPrintPreviewBtn">👁 Preview</button>
+        <button class="btn btn-primary" type="button" id="qcPrintGoBtn">🖨 Print</button>
       </div>
     </div>
   </div>
@@ -23774,6 +23808,24 @@ function wsPrintCss() {
     .ws-sc-lo b { font-family: 'Courier New', monospace; }
     .ws-sc-sub td { font-weight: 700; font-size: 10pt; }
     .ws-sc-total td { font-weight: 700; font-size: 12pt; background: #f1eee9; }
+    /* 🖨 The chart's step-by-step booklet (qcBranchDocumentOpts). */
+    .qcb-label { display: flex; align-items: baseline; gap: 4mm; margin: 0 0 4mm; padding: 0 0 2.5mm; border-bottom: 1.5pt solid #2c2a27; }
+    .qcb-label b { font: 700 20pt/1.1 Arial, sans-serif; letter-spacing: 0.01em; }
+    .qcb-label span { font: 600 11pt/1.3 Arial, sans-serif; color: #4a453f; }
+    .qcb-intro { font-size: 11pt; line-height: 1.5; color: #3a3631; margin: 0 0 6mm; }
+    .qcb-guide { border: 1.2pt solid #4a7c59; border-radius: 4mm; padding: 4mm 5mm; margin: 0 0 7mm; background: #f4f9f5; break-inside: avoid; page-break-inside: avoid; }
+    .qcb-guide h2 { font: 700 13pt/1.2 Arial, sans-serif; margin: 0 0 2.5mm; color: #2f5a3b; }
+    .qcb-guide ol { margin: 0; padding-left: 6mm; font-size: 10.5pt; line-height: 1.5; }
+    .qcb-guide li { margin: 0 0 1mm; }
+    .qcb-path { margin-top: 3mm; font-size: 10.5pt; }
+    .qcb-path span { display: inline-block; width: 9mm; height: 7mm; border: 1pt solid #514d47; border-radius: 1.5mm; margin-left: 2mm; vertical-align: middle; }
+    .qcb-note { margin: -5mm 0 9mm; padding: 3mm 4mm; border: 1pt dashed #8a8379; border-radius: 3mm; font-size: 10.5pt; line-height: 1.5; break-inside: avoid; page-break-inside: avoid; break-before: avoid; page-break-before: avoid; }
+    .qcb-note div + div { margin-top: 1.2mm; }
+    .qcb-wrong { color: #8a2f2f; }
+    .qcb-right { color: #2f5a3b; }
+    .qcb-note b { font-weight: 700; }
+    .qcb-foot { margin: 2mm 0 0; padding: 4mm 5mm; border-radius: 4mm; background: #f1eee9; font: 700 12pt/1.4 Arial, sans-serif; text-align: center; break-inside: avoid; page-break-inside: avoid; }
+    .qcb-refs { font-size: 10.5pt; color: #4a453f; margin: -2mm 0 6mm; }
     /* On-screen preview only: show the paper edges, and mark where each page
        break will fall so the preview is readable as pages, not one long strip. */
     @media screen {
@@ -23884,6 +23936,14 @@ async function wsBuildDocumentHtml(questions, title, opts) {
   const numbers = (paper && paper.numbers) || null;
   const noBracketIds = (paper && paper.noBracketIds) || null;
   const noBracket = q => !!(noBracketIds && noBracketIds.has && noBracketIds.has(q.id));
+  // 🖨 The chart's step-by-step booklet adds three things a paper never sets:
+  //   after      { qid: html }  printed straight under that question (the
+  //              "✗ wrong? turn to page N" / "✓ right?" lines)
+  //   g.reserveMm  what the group's own lead takes off its first question's page
+  //   g.foot     printed after the group's last question
+  // and leaves `g.cover` out, so a group with no cover is ONE page section.
+  // A paper sets none of them, so nothing below changes for it.
+  const after = (paper && paper.after) || null;
   // 📝 An optional instruction line above question 1, on an ORDINARY
   // worksheet. It rides in the same page section as the header, so it shares a
   // sheet with question 1 rather than being forced onto one of its own.
@@ -23910,8 +23970,8 @@ async function wsBuildDocumentHtml(questions, title, opts) {
         const list = (g.questions || []).filter(q => questions.indexOf(q) >= 0);
         if (!list.length) return out;
         return out.concat([
-          g.cover,
-          `<section class="ws-page">${g.lead || ""}${list.map(q => chunk(q, questions.indexOf(q), 0)).join("")}</section>`,
+          ...(g.cover ? [g.cover] : []),
+          `<section class="ws-page">${g.lead || ""}${list.map((q, j) => chunk(q, questions.indexOf(q), j === 0 ? (g.reserveMm || 0) : 0) + ((after && after[q.id]) || "")).join("")}${g.foot || ""}</section>`,
         ]);
       }, []).concat(paper.tail ? [paper.tail] : [])
     : [
@@ -33432,7 +33492,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.98.0 · 2026-10-11";
+const APP_VERSION = "v1.99.0 · 2026-10-11";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -34684,6 +34744,128 @@ function qcMoveStepOrder(chart, key, dir) {
   return target;
 }
 
+// ---- 🖨 A step-by-step worksheet: the chart printed as a booklet -----------
+// A pupil works through it on paper: Page 1 holds the guidelines and the
+// question. Under every question a ✗ line says which page to turn to when it
+// went wrong — the page holding that question's steps, in the chart's own
+// left-to-right order — and a ✓ line says where to go when it went right. A
+// steps page ends by sending the pupil BACK to the question it builds up to,
+// which is the whole point: the steps are a way back up, not a detour.
+//
+// The pages are laid out breadth-first from the question: its steps come
+// next, then their steps, and the ⏭ next questions (if any) last. Each
+// question is printed ONCE, on the first page that reaches it — a step shared
+// by two questions is pointed at from the second page rather than printed
+// twice, so one number on the sheet is always one question and the answer key
+// stays one row per question.
+//
+// A "page" is a labelled page SECTION: it starts on a fresh sheet and carries
+// its number in large type, so "turn to Page 3" lands on the right heading even
+// when a long section runs onto a second sheet.
+const QC_SHEET_MAX_PAGES = 40;
+const QC_SHEET_GUIDE = [
+  "Start with Question 1 on this page. Try it on your own first and show all your working.",
+  "Check your answer with your teacher, or with the answers if your teacher has given them to you.",
+  "Right? Follow the ✓ line under the question.",
+  "Wrong, or stuck? Follow the ✗ line. It sends you to a page of smaller questions that break the big question into its parts.",
+  "Do the smaller questions in order. Each one is one part of the big question and helps you with the next.",
+  "When you have done them, go back to the big question and try it again. You will be ready for it this time.",
+  "Needing the smaller steps is fine. That is how everyone gets better, one step at a time.",
+];
+// plan = { pages: [{ n, kind: "start"|"steps"|"next", keys, refs, forKey?, backTo? }],
+//          order: [key], numbers: { qid: "1" }, pageOf: { key: n },
+//          stepsPage: { key: n }, nextPage: n }
+// `has(qid)` says whether a question can be printed at all; one that cannot is
+// skipped as if it were not on the chart, so no line ever points at a gap.
+function qcBranchPlan(chart, rootId, has, opts) {
+  const ok = typeof has === "function" ? has : () => true;
+  const withNext = !(opts && opts.next === false);
+  const rootKey = qcKeyQ(rootId);
+  const plan = { pages: [], order: [], numbers: {}, pageOf: {}, stepsPage: {}, nextPage: 0 };
+  if (!chart || !chart.nodes || !chart.nodes[rootKey] || !ok(String(rootId))) return plan;
+  const place = (key, n) => {
+    plan.pageOf[key] = n;
+    plan.order.push(key);
+    plan.numbers[qcParseKey(key).id] = String(plan.order.length);
+  };
+  plan.pages.push({ n: 1, kind: "start", keys: [rootKey], refs: [] });
+  place(rootKey, 1);
+  const queue = [rootKey];
+  while (queue.length && plan.pages.length < QC_SHEET_MAX_PAGES) {
+    const k = queue.shift();
+    const steps = qcStepsUnder(chart, k).filter(s => ok(qcParseKey(s).id));
+    if (!steps.length) continue;
+    const n = plan.pages.length + 1;
+    const fresh = steps.filter(s => !plan.pageOf[s]);
+    const refs = steps.filter(s => plan.pageOf[s]);
+    plan.pages.push({ n, kind: "steps", forKey: k, backTo: plan.pageOf[k], keys: fresh, refs });
+    plan.stepsPage[k] = n;
+    fresh.forEach(s => { place(s, n); queue.push(s); });
+  }
+  if (withNext && plan.pages.length < QC_SHEET_MAX_PAGES) {
+    const rank = t => (t === "same" ? 0 : t === "harder" ? 1 : 2);
+    const next = Object.keys(chart.nodes).filter(k => {
+      const nd = chart.nodes[k], p = qcParseKey(k);
+      return nd && nd.tier && p && p.type === "q" && ok(p.id) && !plan.pageOf[k];
+    }).sort((a, b) => (rank(chart.nodes[a].tier) - rank(chart.nodes[b].tier)) ||
+      (chart.nodes[a].x - chart.nodes[b].x) || (a < b ? -1 : a > b ? 1 : 0));
+    if (next.length) {
+      const n = plan.pages.length + 1;
+      plan.pages.push({ n, kind: "next", keys: next, refs: [] });
+      plan.nextPage = n;
+      next.forEach(k => place(k, n));
+    }
+  }
+  return plan;
+}
+// The two lines printed under one question, as plain text (the caller escapes).
+// The LAST step on a page gets no ✓ line: the page's own foot says where to go
+// next, in larger type, and the same sentence twice reads as two instructions.
+function qcBranchNotes(plan, key) {
+  const out = { wrong: "", right: "" };
+  const n = plan && plan.pageOf ? plan.pageOf[key] : 0;
+  if (!n) return out;
+  const pg = plan.pages[n - 1];
+  const num = k => plan.numbers[qcParseKey(k).id];
+  const sp = plan.stepsPage[key];
+  if (pg.kind === "next") {
+    const i = pg.keys.indexOf(key);
+    if (i < pg.keys.length - 1) out.right = "✓ Done? Go on to Question " + num(pg.keys[i + 1]) + " below.";
+    out.wrong = "✗ Stuck? Look back at Question 1 on Page 1, then ask your teacher.";
+    return out;
+  }
+  out.wrong = sp
+    ? "✗ Wrong, or stuck? Turn to Page " + sp + ". The questions there break Question " + num(key) + " into smaller steps."
+    : pg.kind === "start"
+      ? "✗ Wrong, or stuck? Ask your teacher to go through it with you."
+      : "✗ Stuck? Read your working again, then ask your teacher.";
+  if (pg.kind === "start") {
+    out.right = plan.nextPage
+      ? "✓ Right? Well done! Go on to Page " + plan.nextPage + " for your next challenge."
+      : "✓ Right? Well done, you have finished this worksheet.";
+  } else {
+    const i = pg.keys.indexOf(key);
+    if (i >= 0 && i < pg.keys.length - 1) out.right = "✓ Right? Go on to Question " + num(pg.keys[i + 1]) + " below.";
+  }
+  return out;
+}
+// The heading line and the closing line of one page, as plain text.
+function qcBranchPageText(plan, pg) {
+  const num = k => plan.numbers[qcParseKey(k).id];
+  if (pg.kind === "start") return { label: "Start here", intro: "", foot: "" };
+  if (pg.kind === "next") return {
+    label: "Your next challenge",
+    intro: "You can do Question 1. Now try these on your own.",
+    foot: "You have finished the worksheet. Well done!",
+  };
+  return {
+    label: "Steps for Question " + num(pg.forKey),
+    intro: "These smaller questions break Question " + num(pg.forKey) + " into its parts. Do them in order.",
+    foot: "Finished these steps? Go back to Page " + pg.backTo + " and try Question " + num(pg.forKey) + " again.",
+    refs: (pg.refs || []).map(k => "Question " + num(k) + " on Page " + plan.pageOf[k] + " is one of these steps too. Do it first if you have not yet."),
+  };
+}
+
 // ---- Firestore ------------------------------------------------------------
 function qcOwnerUid() { return _isAdmin() ? (currentUser && currentUser.uid) : adminUid; }
 async function qcLoadAll(uid) {
@@ -35824,6 +36006,115 @@ function qcOpenAppViewer(appId) {
 }
 
 // ---- Wiring -----------------------------------------------------------------------
+// ---- 🖨 Printing the booklet -------------------------------------------------
+// It goes through wsOpenDocument → wsBuildDocumentHtml, the ONE worksheet
+// renderer, so every question prints exactly as it does on any other sheet:
+// the same chunk, the same working space and answer line, the same footer and
+// answer key. Only the page sections, the numbers and the ✗ / ✓ lines are
+// this booklet's own (`opts.paper`, with no covers).
+let qcPrintRoot = null;
+function qcPrintableQ(id) {
+  const q = graphFindQ(id);
+  return q && (q.blocks || []).length ? q : null;
+}
+function qcBranchDocumentOpts(rootId, o) {
+  const chart = qcCharts[rootId];
+  const plan = qcBranchPlan(chart, rootId, id => !!qcPrintableQ(id), { next: o.next !== false });
+  if (!plan.order.length) return null;
+  const root = qcPrintableQ(rootId);
+  const title = String(o.title || "").trim() || (((root && root.title) || "Question") + " — step by step");
+  const list = plan.order.map(k => qcPrintableQ(qcParseKey(k).id));
+  const label = (n, words) => `<div class="qcb-label"><b>Page ${n}</b><span>${escapeHtml(words)}</span></div>`;
+  const guide = `<div class="qcb-guide"><h2>How to use this worksheet</h2><ol>${QC_SHEET_GUIDE.map(g => `<li>${escapeHtml(g)}</li>`).join("")}</ol>` +
+    `<div class="qcb-path">Pages I went to:${"<span></span>".repeat(6)}</div></div>`;
+  const after = {};
+  plan.order.forEach(k => {
+    const t = qcBranchNotes(plan, k);
+    if (!t.wrong && !t.right) return;
+    after[qcParseKey(k).id] = `<div class="qcb-note">${t.wrong ? `<div class="qcb-wrong">${escapeHtml(t.wrong)}</div>` : ""}${t.right ? `<div class="qcb-right">${escapeHtml(t.right)}</div>` : ""}</div>`;
+  });
+  const groups = plan.pages.map(pg => {
+    const tx = qcBranchPageText(plan, pg);
+    const refs = (tx.refs || []).map(r => `<div class="qcb-refs">↪ ${escapeHtml(r)}</div>`).join("");
+    const first = pg.n === 1;
+    return {
+      lead: (first ? wsHeaderHtml(title, !o.fields, "", WS_HEADER_ORG) + guide : "") + label(pg.n, tx.label) +
+        (tx.intro ? `<p class="qcb-intro">${escapeHtml(tx.intro)}</p>` : "") + refs,
+      questions: pg.keys.map(k => qcPrintableQ(qcParseKey(k).id)).filter(Boolean),
+      // The lead sits above the page's first question, so that question has
+      // less than a page to itself; the guidelines box is the tall one.
+      reserveMm: first ? wsHeadEstimateMm({ fields: !!o.fields }) + 62 : 24,
+      foot: tx.foot ? `<div class="qcb-foot">${escapeHtml(tx.foot)}</div>` : "",
+    };
+  });
+  return {
+    plan, list, title,
+    opts: {
+      cover: false, fields: !!o.fields, withQr: false, withAnswers: !!o.answers, autoPrint: !!o.autoPrint,
+      paper: { groups, numbers: plan.numbers, after },
+    },
+  };
+}
+// Every question whose chart has something to print beyond the question itself.
+function qcPrintableRoots() {
+  return Object.keys(qcCharts).filter(id => {
+    const c = qcCharts[id];
+    if (!c || !qcPrintableQ(id)) return false;
+    return Object.keys(c.nodes).some(k => k !== qcKeyQ(id) && (qcParseKey(k) || {}).type === "q");
+  }).map(id => ({ id, title: (graphFindQ(id) || {}).title || "Question" }))
+    .sort((a, b) => a.title.localeCompare(b.title));
+}
+function qcPrintSummary() {
+  const el = $("qcPrintSummary"); if (!el) return;
+  const id = qcPrintRoot;
+  const b = id && qcCharts[id] ? qcBranchDocumentOpts(id, qcPrintReadOpts()) : null;
+  if (!b) { el.textContent = id ? "This chart has nothing to print yet." : "Choose a question first."; return; }
+  const steps = b.plan.pages.filter(p => p.kind === "steps").reduce((n, p) => n + p.keys.length, 0);
+  const next = b.plan.nextPage ? b.plan.pages[b.plan.nextPage - 1].keys.length : 0;
+  el.textContent = b.plan.pages.length + " page" + (b.plan.pages.length === 1 ? "" : "s") + " · the question, " +
+    steps + " step" + (steps === 1 ? "" : "s") + (next ? ", " + next + " next question" + (next === 1 ? "" : "s") : "") +
+    (steps ? "" : ". Add steps to the chart so the ✗ line has a page to send pupils to.");
+}
+function qcPrintReadOpts() {
+  return {
+    title: ($("qcPrintTitle") || {}).value || "",
+    fields: !!($("qcPrintFields") || {}).checked,
+    next: !!($("qcPrintNext") || {}).checked,
+    answers: !!($("qcPrintAnswers") || {}).checked,
+  };
+}
+// From the chart page (this chart) or from 📝 Create Worksheet (any chart).
+function qcOpenPrintSheet(rootId) {
+  if (!_isAdmin()) return;
+  const roots = qcPrintableRoots();
+  const sel = $("qcPrintRoot");
+  qcPrintRoot = rootId && qcCharts[rootId] ? String(rootId) : (roots[0] ? roots[0].id : null);
+  if (sel) {
+    const opts = roots.slice();
+    if (qcPrintRoot && !opts.some(r => r.id === qcPrintRoot)) opts.unshift({ id: qcPrintRoot, title: (graphFindQ(qcPrintRoot) || {}).title || "Question" });
+    sel.innerHTML = opts.length
+      ? opts.map(r => `<option value="${escapeHtml(r.id)}"${r.id === qcPrintRoot ? " selected" : ""}>${escapeHtml(r.title)}</option>`).join("")
+      : '<option value="">No question has steps on its chart yet</option>';
+    sel.disabled = !opts.length;
+  }
+  const t = $("qcPrintTitle"); if (t) t.value = "";
+  qcPrintSyncTitle();
+  qcPrintSummary();
+  $("qcPrintOverlay").classList.add("show");
+}
+function qcPrintSyncTitle() {
+  const t = $("qcPrintTitle"); if (!t) return;
+  const q = qcPrintRoot ? graphFindQ(qcPrintRoot) : null;
+  t.placeholder = ((q && q.title) || "Question") + " — step by step";
+}
+async function qcPrintGo(autoPrint) {
+  if (!_isAdmin()) return;
+  if (!qcPrintRoot || !qcCharts[qcPrintRoot]) { toast("Choose a question first", "error"); return; }
+  const b = qcBranchDocumentOpts(qcPrintRoot, qcPrintReadOpts());
+  if (!b) { toast("That chart has nothing to print yet", "error"); return; }
+  await wsOpenDocument(b.list, b.title, Object.assign(b.opts, { autoPrint: !!autoPrint }));
+}
+
 (function wireQuestionCharts() {
   const vp = $("qcViewport"); if (!vp) return;
   vp.addEventListener("wheel", e => { e.preventDefault(); const r = vp.getBoundingClientRect(); qcZoomAt(e.clientX - r.left, e.clientY - r.top, e.deltaY < 0 ? 1.1 : 1 / 1.1); }, { passive: false });
@@ -35853,6 +36144,13 @@ function qcOpenAppViewer(appId) {
   }
   on("qcAddStepBtn", () => qcSpawnEditor(qcKeyQ(qcRoot), ""));
   on("qcAddNextBtn", qcOpenNextChooser);
+  on("qcPrintBtn", () => qcOpenPrintSheet(qcRoot));
+  on("wsBranchSheetBtn", () => qcOpenPrintSheet(qcRoot));
+  on("qcPrintPreviewBtn", () => qcPrintGo(false));
+  on("qcPrintGoBtn", () => qcPrintGo(true));
+  ["qcPrintFields", "qcPrintNext", "qcPrintAnswers"].forEach(id => { const el = $(id); if (el) el.addEventListener("change", qcPrintSummary); });
+  const printRoot = $("qcPrintRoot");
+  if (printRoot) printRoot.addEventListener("change", () => { qcPrintRoot = printRoot.value || null; qcPrintSyncTitle(); qcPrintSummary(); });
   on("qcPickStepBtn", () => qcOpenPicker(qcKeyQ(qcRoot), ""));
   const nextOv = $("qcNextOverlay");
   if (nextOv) nextOv.addEventListener("click", e => {

@@ -3140,9 +3140,32 @@ a step card and the `.qc-drop` outline.
 - `qcStepTarget` answers "" for anything that is not a non-tier QUESTION node;
   an app or a next question with an arrow is not a step.
 
+### 🖨 The chart printed as a step-by-step booklet (v1.99.0)
+
+`QC_SHEET_GUIDE` / `qcBranchPlan` / `qcBranchNotes` / `qcBranchPageText` (pure,
+in the helper section), `qcBranchDocumentOpts` / `qcOpenPrintSheet` /
+`qcPrintGo`, `#qcPrintOverlay`, 🖨 **Worksheet** on the chart toolbar and
+🖨 **From a dependency chart** on 📝 Create Worksheet.
+
+- **Page 1 is the guidelines and the question; the ✗ line under every
+  question names the page holding its steps** (in the chart's left-to-right
+  order), the ✓ line says where to go next, and every steps page ends by
+  sending the pupil BACK to the question it builds up to. Next questions are
+  the last page.
+- **Breadth-first, and each question prints ONCE** — a step shared by two
+  questions is pointed at (`refs`) from the second page, so one number is one
+  question and the answer key stays one row each.
+- **A "page" is a labelled page section** that starts a fresh sheet; a long
+  one can run onto a second sheet and still carries its big "Page N" heading.
+- **It prints through `wsOpenDocument` → `wsBuildDocumentHtml`**, the one
+  renderer, via `opts.paper` with three additions a paper never sets: a group
+  with no `cover`, `g.reserveMm` / `g.foot`, and `paper.after` (html under a
+  question). With none of them set nothing changes for Custom Paper.
+- Teacher only (`_isAdmin()` in the handlers). Nothing is written anywhere.
+
 ## House rules
 - After touching **🧩 question charts** (`qcNormalizeChart`, `qcChartPayload`,
-  `qcAddEdge`, `qcRelink`, `qcMoveStepOrder`, `qcAfterStepMove`, `qcAttachNew`, `qcSpawnEditor`, `qcOnQuestionSaved`, the 🧩 break-down
+  `qcAddEdge`, `qcRelink`, `qcMoveStepOrder`, `qcAfterStepMove`, the 🖨 booklet (`qcBranchPlan`, `qcBranchNotes`, `qcBranchDocumentOpts`), `qcAttachNew`, `qcSpawnEditor`, `qcOnQuestionSaved`, the 🧩 break-down
   (`qcBreakdownPrompt`, `qcBreakdownParts`, `qcBreakdownQuestion`, `qcBreakAdd`), the
   🔒 after-a-miss hold (`qIsFoundation`, `foundationStepsFor`, `loadBank`'s
   foundation line, `maybeServeFoundationOnMiss`, `qcToggleFoundation`), the
