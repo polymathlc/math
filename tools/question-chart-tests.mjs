@@ -54,15 +54,16 @@ const M = new Function(`
            qcNormalizeChart, qcWouldCycle, qcChartPayload, qcSeedFromBoard, qcLayout, qcDepths,
            qcNormalizeApp, qcAppRequestShape, qcAppMetaLabel, qcAppHtmlFrom, qcDefaultBrief, qcAppPrompt,
            QC_APP_MODELS, QC_APP_SIZES,
-           QC_BREAK_MIN, QC_BREAK_MAX, qcBreakdownPrompt, qcBreakdownParts, qcBreakdownQuestion };
+           QC_BREAK_MIN, QC_BREAK_MAX, qcBreakdownPrompt, qcBreakdownParts, qcBreakdownQuestion,
+           qcStepTarget, qcStepsUnder, qcMoveStepOrder };
 `)();
 // The frame attributes and the edge writer sit further down; cut them alone.
 const W = new Function('M', `
-  const { qcKeyQ, qcParseKey, qcWouldCycle, qcTierOf, QC_MAX_NODES, QC_ROWH, QC_COLW } = M;
+  const { qcKeyQ, qcParseKey, qcWouldCycle, qcTierOf, QC_MAX_NODES, QC_ROWH, QC_COLW, qcStepTarget } = M;
   const QC_COMMENT_MAX = 200;
   ${cutFrom(src, 'function qcAddEdge(', '\nfunction qcLinkComplete(', 'qcAddEdge')}
   ${cutFrom(src, 'function qcAppFrameAttrs(', '\nfunction qcOpenAppViewer(', 'qcAppFrameAttrs')}
-  return { qcAddEdge, qcAttachNew, qcAppFrameAttrs };
+  return { qcAddEdge, qcAttachNew, qcRelink, qcAppFrameAttrs };
 `)(M);
 const S = new Function(`
   ${cutFrom(fnSrc, 'const CHART_APP_MODELS', '\nconst CHART_APP_SLOT', 'server consts')}
@@ -312,7 +313,8 @@ test('the break-down flow: teacher only, checked, nothing saved before Add, stal
 
 // ---- 🔒 foundational steps only after a miss (v1.96.0) ----------------------------------------
 const F = new Function(`
-  ${cutFrom(src, 'function qIsFoundation(', 'String(a.id).localeCompare(String(b.id)));', 'qIsFoundation')}String(a.id).localeCompare(String(b.id)));
+  ${cutFrom(src, 'function qIsFoundation(', '\n    });\n}', 'qIsFoundation')}
+    });
   }
   return { qIsFoundation, foundationStepsFor };
 `)();
@@ -392,6 +394,57 @@ test('✏️ edits in the real editor and comes back; the chart page is a front 
   ok(!/!qcRoot\) \{ navigateTo\("bank"\)/.test(page), 'no bounce to the bank without a question');
   ok(/data-page="qchart"/.test(src.match(/<div class="nav-item admin-only" data-page="qchart"[^>]*>/)[0]), 'a teacher-only nav item');
   ok(/if \(qcPickerOpenMode\) \{ closeOverlay\("qcPickerOverlay"\); openQuestionChart\(q\.id\); \}/.test(src), '📂 opens, never adds');
+});
+
+// ---- ◀ ▶ order and drag-to-relink (v1.98.0) -----------------------------------------------------
+const ORD = () => M.qcNormalizeChart({ nodes: {
+  'q:r': { x: 0, y: 0 }, 'q:a': { x: 0, y: 230 }, 'q:b': { x: 290, y: 230 }, 'q:c': { x: 580, y: 230 },
+  'q:d': { x: 0, y: 460 }, 'app:x': { x: 870, y: 230 }, 'q:n': { x: 0, y: -230, tier: 'harder' } },
+  edges: [{ from: 'q:b', to: 'q:r' }, { from: 'q:a', to: 'q:r' }, { from: 'q:c', to: 'q:r' }, { from: 'q:d', to: 'q:a' }, { from: 'app:x', to: 'q:r' }] }, 'r');
+test('steps are done left to right; apps and next questions are not steps', () => {
+  const c = ORD();
+  eq(M.qcStepsUnder(c, 'q:r'), ['q:a', 'q:b', 'q:c'], 'by x, not by when they were linked');
+  eq(M.qcStepsUnder(c, 'q:a'), ['q:d'], 'a step\'s own steps');
+  eq(M.qcStepTarget(c, 'q:d'), 'q:a'); eq(M.qcStepTarget(c, 'q:r'), '', 'the root leads nowhere'); eq(M.qcStepTarget(c, 'app:x'), '', 'an app is not a step');
+});
+test('◀ ▶ swap a step with its neighbour, and refuse at the ends', () => {
+  const c = ORD();
+  eq(M.qcMoveStepOrder(c, 'q:b', -1), 'q:r');
+  eq(M.qcStepsUnder(c, 'q:r'), ['q:b', 'q:a', 'q:c'], 'b first now');
+  eq(M.qcMoveStepOrder(c, 'q:b', -1), '', 'already first');
+  eq(M.qcMoveStepOrder(c, 'q:c', 1), '', 'already last');
+  eq(M.qcMoveStepOrder(c, 'q:d', 1), '', 'an only step has nothing to swap with');
+  const s = M.qcNormalizeChart({ nodes: { 'q:r': {}, 'q:a': { x: 5, y: 9 }, 'q:b': { x: 5, y: 9 } }, edges: [{ from: 'q:a', to: 'q:r' }, { from: 'q:b', to: 'q:r' }] }, 'r');
+  const first = M.qcStepsUnder(s, 'q:r')[0];
+  M.qcMoveStepOrder(s, first, 1);
+  ok(M.qcStepsUnder(s, 'q:r')[1] === first, 'stacked cards still swap');
+});
+test('a step dropped on another question is re-linked there; a loop or a next question is refused', () => {
+  const c = ORD();
+  eq(W.qcRelink(c, 'q:c', 'q:a'), { why: '', from: 'q:r' });
+  ok(c.edges.some(e => e.from === 'q:c' && e.to === 'q:a') && !c.edges.some(e => e.from === 'q:c' && e.to === 'q:r'), 'moved, old arrow gone');
+  const before = JSON.stringify(c.edges);
+  ok(/loop/.test(W.qcRelink(c, 'q:a', 'q:d').why), 'a step cannot go under its own step');
+  ok(W.qcRelink(c, 'q:a', 'q:n').why, 'never under a next question');
+  ok(W.qcRelink(c, 'q:r', 'q:a').why, 'the question itself is not a step');
+  eq(JSON.stringify(c.edges), before, 'a refusal changes nothing');
+  eq(W.qcRelink(c, 'q:c', 'q:a').same, true, 'dropping on its own question is no change');
+});
+test('pupils get a question\'s steps in the teacher\'s order', () => {
+  const pool = {
+    a: { id: 'a', foundationOf: 'q1', createdAt: '1' }, b: { id: 'b', foundationOf: 'q1', createdAt: '2', foundationRank: 1 },
+    c: { id: 'c', foundationOf: 'q1', createdAt: '3', foundationRank: 0 }, d: { id: 'd', foundationOf: 'q1', createdAt: '0', foundationRank: 'x' }
+  };
+  eq(F.foundationStepsFor('q1', pool).map(q => q.id), ['c', 'b', 'd', 'a'], 'ranked first by rank, then the rest as made');
+  const fn = cutFrom(src, 'async function qcAfterStepMove(', '\n}\n', 'qcAfterStepMove');
+  ok(/if \(!_isAdmin\(\)\) return;/.test(fn), 'teacher only');
+  ok(/qcStepsUnder\(chart, t\)\.forEach\(\(k, i\) =>/.test(fn), 'the rank IS the left-to-right position');
+  ok(/q\.foundationOf\.trim\(\) !== String\(tid\)/.test(fn), 'only steps held back for THAT question');
+  ok(/moved\.foundationOf = qcParseKey\(toTarget\)\.id;/.test(fn), 'a held-back step moved under another question follows it');
+  ok(/\{ merge: true \}/.test(fn), 'merged, one field at a time');
+  ok(/else if \(act === "left" \|\| act === "right"\) qcMoveStep\(key, act === "left" \? -1 : 1\);/.test(src), '◀ ▶ wired');
+  const keys = src.match(/const QUESTION_KEY_FIELDS = \[[^\]]*\]/);
+  ok(!/foundationRank/.test(keys[0]), 'the rank stays in the student-readable half');
 });
 
 // ---- seeding from the board -------------------------------------------------------------
@@ -506,9 +559,9 @@ test('charts and apps live under rules that already exist', () => {
   ok(/const QC_DOC_PREFIX = "chart__";/.test(src) && /const QC_APP_PREFIX = "app__";/.test(src), 'prefixes');
   ok(!/"mathQuestionCharts"|"mathChartApps"/.test(src), 'no new collection that would need a rules deploy');
 });
-test('the version is v1.97.0 or later', () => {
+test('the version is v1.98.0 or later', () => {
   const v = src.match(/const APP_VERSION = "v(\d+)\.(\d+)\.(\d+)/);
-  ok(v && (Number(v[1]) > 1 || (Number(v[1]) === 1 && Number(v[2]) >= 97)), 'APP_VERSION is v1.97.0 or later');
+  ok(v && (Number(v[1]) > 1 || (Number(v[1]) === 1 && Number(v[2]) >= 98)), 'APP_VERSION is v1.98.0 or later');
 });
 
 // ---- runner ------------------------------------------------------------------------------------------

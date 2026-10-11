@@ -2076,6 +2076,10 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .qc-empty h3 { margin: 0 0 12px; font-size: 1.2rem; }
 .qc-empty p { margin: 0 0 24px; font-size: 0.92rem; line-height: 1.7; color: var(--text-muted); }
 .qc-empty-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.qc-order { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; font-size: 0.76rem; font-weight: 600; color: var(--text-muted); }
+.qc-order .gnode-act { padding: 2px 8px; }
+.qc-order .gnode-act[disabled] { opacity: 0.3; cursor: default; }
+.qc-node.qc-drop { outline: 3px dashed #3a9e5f; outline-offset: 4px; }
 .qc-found { margin: 0 0 8px; font-size: 0.74rem; line-height: 1.45; color: var(--text-light, #9ca3af); }
 .qc-found.on { color: #3b5b8c; }
 .gnode-act.on { background: #e8eefb; border-radius: 8px; }
@@ -5782,7 +5786,7 @@ body.role-employee #emailBellBtn { display: none !important; }
       <div class="graph-wrap">
         <div class="graph-toolbar">
           <button class="btn btn-ghost btn-sm" id="qcBackBtn" type="button" title="Back to the Question Bank">← Bank</button>
-          <span class="graph-title"><span id="qcTitle">🧩 Question</span><small>Arrow A → B means “A is an easier step towards B”. 🧩 Foundational questions breaks the question into its parts. Purple arrows are visual apps. Amber cards on top are what to try next.</small></span>
+          <span class="graph-title"><span id="qcTitle">🧩 Question</span><small>Arrow A → B means “A is an easier step towards B”. 🧩 Foundational questions breaks the question into its parts. Steps are done left to right: ◀ ▶ or drag to reorder, drop a step on another card to move it there. Purple arrows are visual apps. Amber cards on top are what to try next.</small></span>
           <button class="btn btn-outline btn-sm" id="qcOpenBtn" type="button" title="Open another question's chart">📂 Open question</button>
           <button class="btn btn-outline btn-sm" id="qcNewBtn" type="button" title="Write a brand-new question; Save opens its chart">＋ New question</button>
           <button class="btn btn-primary btn-sm" id="qcBreakBtn" type="button" title="Break this question into its parts: one short question for each step, to add as easier steps">🧩 Foundational questions</button>
@@ -12011,13 +12015,23 @@ function qIsFoundation(q) {
   const v = q && q.foundationOf;
   return typeof v === "string" && !!v.trim() && v.trim() !== String(q.id);
 }
-// The steps of `qid` a pupil has not mastered, in the order they were made —
-// which is solving order, because 🧩 saves its parts one after another.
+// The steps of `qid` a pupil has not mastered, in the order the teacher set
+// on the chart (`foundationRank`, written by ◀ ▶ and drag), and otherwise in
+// the order they were made — solving order, because 🧩 saves its parts one
+// after another. A ranked step always comes before an unranked one.
+function foundationRankOf(q) {
+  const r = q && q.foundationRank;
+  return Number.isInteger(r) && r >= 0 ? r : Infinity;
+}
 function foundationStepsFor(qid, pool, mastered) {
   qid = String(qid || "");
   return Object.values(pool || {})
     .filter(x => x && qIsFoundation(x) && x.foundationOf.trim() === qid && !(mastered && mastered(x)))
-    .sort((a, b) => String(a.createdAt || "").localeCompare(String(b.createdAt || "")) || String(a.id).localeCompare(String(b.id)));
+    .sort((a, b) => {
+      const ra = foundationRankOf(a), rb = foundationRankOf(b);
+      if (ra !== rb) return ra < rb ? -1 : 1;
+      return String(a.createdAt || "").localeCompare(String(b.createdAt || "")) || String(a.id).localeCompare(String(b.id));
+    });
 }
 function qReleaseLabel(on) {
   const iso = String(on || "");
@@ -33418,7 +33432,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.97.0 · 2026-10-11";
+const APP_VERSION = "v1.98.0 · 2026-10-11";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -34635,6 +34649,41 @@ function qcBreakdownQuestion(part, root, id, nowIso, by) {
   };
 }
 
+// ---- ◀ ▶ The ORDER of a question's steps (v1.98.0) --------------------------
+// Steps under the same question are done LEFT TO RIGHT: the card furthest
+// left is tried first. The chart's x positions ARE the order — there is no
+// second list to drift from what the teacher sees — and ◀ ▶ or a drag is all
+// it takes to change it. `qcAfterStepMove` (below) copies the order onto
+// each held-back step as `foundationRank`, because a pupil's app never loads
+// the chart and serves the steps from the questions alone.
+// The question key a step leads to: its first arrow into a question.
+function qcStepTarget(chart, key) {
+  const p = qcParseKey(key);
+  if (!chart || !p || p.type !== "q" || !chart.nodes[key] || chart.nodes[key].tier) return "";
+  const e = chart && chart.edges.find(x => x.from === key && (qcParseKey(x.to) || {}).type === "q");
+  return e ? e.to : "";
+}
+// The QUESTION steps leading to `targetKey`, left to right — the order a pupil
+// does them in. Apps and ⏭ next questions are not steps.
+function qcStepsUnder(chart, targetKey) {
+  if (!chart || !targetKey) return [];
+  const keys = chart.edges.filter(e => e.to === targetKey).map(e => e.from)
+    .filter((k, i, a) => a.indexOf(k) === i && chart.nodes[k] && !chart.nodes[k].tier && (qcParseKey(k) || {}).type === "q");
+  return keys.sort((a, b) => (chart.nodes[a].x - chart.nodes[b].x) || (chart.nodes[a].y - chart.nodes[b].y) || (a < b ? -1 : a > b ? 1 : 0));
+}
+// ◀ (dir -1) or ▶ (dir +1): swap places with the neighbouring step. Returns
+// the target whose order changed, or "" when there was nothing to swap.
+function qcMoveStepOrder(chart, key, dir) {
+  const target = qcStepTarget(chart, key);
+  const sibs = qcStepsUnder(chart, target);
+  const i = sibs.indexOf(key), j = i + (dir < 0 ? -1 : 1);
+  if (i < 0 || j < 0 || j >= sibs.length) return "";
+  const a = chart.nodes[key], b = chart.nodes[sibs[j]];
+  if (a.x === b.x) b.x += dir < 0 ? -QC_COLW : QC_COLW;   // stacked cards still swap
+  const ax = a.x, ay = a.y; a.x = b.x; a.y = b.y; b.x = ax; b.y = ay;
+  return target;
+}
+
 // ---- Firestore ------------------------------------------------------------
 function qcOwnerUid() { return _isAdmin() ? (currentUser && currentUser.uid) : adminUid; }
 async function qcLoadAll(uid) {
@@ -34773,10 +34822,21 @@ function qcNodeHtml(key, node, isRoot) {
         '<button class="gnode-act del" data-act="remove" title="Remove from this chart (the question stays in the bank)">✕</button>' +
       '</div>';
   }
+  // ◀ ▶ and "Do 1st of 3" — only where there is an order to show.
+  const chartNow = qcCharts[qcRoot];
+  const sibs = isRoot ? [] : qcStepsUnder(chartNow, qcStepTarget(chartNow, key));
+  const pos = sibs.indexOf(key);
+  const ordinal = n => n + (n % 10 === 1 && n % 100 !== 11 ? "st" : n % 10 === 2 && n % 100 !== 12 ? "nd" : n % 10 === 3 && n % 100 !== 13 ? "rd" : "th");
+  const orderHtml = sibs.length > 1 && pos >= 0
+    ? '<div class="qc-order"><button class="gnode-act" data-act="left" title="Do this one earlier"' + (pos === 0 ? " disabled" : "") + '>◀</button>' +
+      '<span>Do ' + ordinal(pos + 1) + ' of ' + sibs.length + '</span>' +
+      '<button class="gnode-act" data-act="right" title="Do this one later"' + (pos === sibs.length - 1 ? " disabled" : "") + '>▶</button></div>'
+    : '';
   return '<div class="gnode-head">' +
       (isRoot ? '<span class="gnode-level qc-root-chip">Question</span>' : '<span class="gnode-level">' + escapeHtml((q && q.level) || "—") + '</span>') +
       '<span class="gnode-title">' + escapeHtml((q && q.title) || "Missing question") + '</span></div>' +
     '<div class="gnode-body">' +
+      orderHtml +
       (node.checks ? '<div class="qc-checks">' + escapeHtml(node.checks) + '</div>'
         : (isRoot ? '' : '<div class="qc-checks empty">No “checks” line yet — press ✎</div>')) +
       (!isRoot && q ? (qIsFoundation(q) ? '<div class="qc-found on">🔒 Pupils see it only after getting a question above it wrong</div>'
@@ -34935,12 +34995,91 @@ function qcOnNodePointerDown(e, el) {
     el.style.left = chart.nodes[key].x + "px"; el.style.top = chart.nodes[key].y + "px";
     qcRedrawEdges();
   };
-  const up = () => {
+  // A STEP dragged onto another question card is re-linked under it; the
+  // card it would land on is lit up while it is held there.
+  const isStep = !!qcStepTarget(chart, key);
+  let over = null;
+  const dropUnder = ev => {
+    const hit = document.elementsFromPoint(ev.clientX, ev.clientY).map(n => n.closest && n.closest(".qc-node")).find(n => n && n !== el);
+    const k = hit && hit.dataset.key;
+    return k && chart.nodes[k] && !chart.nodes[k].tier && (qcParseKey(k) || {}).type === "q" ? hit : null;
+  };
+  const mvDrop = ev => {
+    if (!isStep || !moved) return;
+    const t = dropUnder(ev);
+    if (t !== over) { if (over) over.classList.remove("qc-drop"); over = t; if (over) over.classList.add("qc-drop"); }
+  };
+  el.addEventListener("pointermove", mvDrop);
+  const up = ev => {
     try { el.releasePointerCapture(e.pointerId); } catch (_) {}
-    el.removeEventListener("pointermove", mv); el.removeEventListener("pointerup", up); el.removeEventListener("pointercancel", up);
-    if (moved) qcScheduleSave();
+    el.removeEventListener("pointermove", mv); el.removeEventListener("pointermove", mvDrop); el.removeEventListener("pointerup", up); el.removeEventListener("pointercancel", up);
+    if (over) over.classList.remove("qc-drop");
+    if (!moved) return;
+    const target = over && over.dataset.key;
+    over = null;
+    if (isStep && target && target !== qcStepTarget(chart, key)) {
+      const r = qcRelink(chart, key, target);
+      if (r.why) {
+        chart.nodes[key].x = start.x; chart.nodes[key].y = start.y;
+        toast(r.why, "error"); qcRender(); return;
+      }
+      // Under its new question, to the right of the steps already there.
+      const t = chart.nodes[target], rowY = Math.round(t.y + QC_ROWH);
+      const xs = qcStepsUnder(chart, target).filter(k => k !== key).map(k => chart.nodes[k].x);
+      chart.nodes[key].x = xs.length ? Math.max.apply(null, xs) + QC_COLW : t.x;
+      chart.nodes[key].y = rowY;
+      qcRender(); qcScheduleSave();
+      qcAfterStepMove(key, r.from, target);
+      toast("Now a step towards “" + (((graphFindQ(qcParseKey(target).id) || {}).title) || "that question") + "”", "success");
+      return;
+    }
+    qcScheduleSave();
+    // Dropped in open space: the left-to-right order may have changed.
+    if (isStep) { qcRender(); qcAfterStepMove(key, "", qcStepTarget(chart, key)); }
   };
   el.addEventListener("pointermove", mv); el.addEventListener("pointerup", up); el.addEventListener("pointercancel", up);
+}
+// ◀ ▶ on a step: swap it with the step beside it.
+function qcMoveStep(key, dir) {
+  const chart = qcCharts[qcRoot]; if (!chart) return;
+  const target = qcMoveStepOrder(chart, key, dir);
+  if (!target) return;
+  qcRender(); qcScheduleSave();
+  qcAfterStepMove(key, "", target);
+}
+// After a step moved: the held-back steps of every question whose order
+// changed get their `foundationRank`, and a held-back step that moved under a
+// different question becomes a foundation of THAT one. One merged field per
+// question, written only when it differs; a failed write is reported, and
+// the chart (which IS the order) is still saved.
+async function qcAfterStepMove(key, fromTarget, toTarget) {
+  if (!_isAdmin()) return;
+  const chart = qcCharts[qcRoot]; if (!chart) return;
+  const writes = [];
+  const moved = graphFindQ((qcParseKey(key) || {}).id);
+  if (moved && fromTarget && toTarget && fromTarget !== toTarget && qIsFoundation(moved)) {
+    moved.foundationOf = qcParseKey(toTarget).id;
+    writes.push([moved, { foundationOf: moved.foundationOf }]);
+  }
+  [fromTarget, toTarget].filter((t, i, a) => t && a.indexOf(t) === i).forEach(t => {
+    const tid = qcParseKey(t).id;
+    qcStepsUnder(chart, t).forEach((k, i) => {
+      const q = graphFindQ(qcParseKey(k).id);
+      if (!q || !qIsFoundation(q) || q.foundationOf.trim() !== String(tid) || q.foundationRank === i) return;
+      q.foundationRank = i;
+      const w = writes.find(x => x[0] === q);
+      if (w) w[1].foundationRank = i; else writes.push([q, { foundationRank: i }]);
+    });
+  });
+  if (!writes.length) return;
+  qcRender();
+  try {
+    const owner = _bankOwnerOrThrow();
+    for (const [q, patch] of writes) await setDoc(doc(db, "users", owner, "mathQuestions", q.id), patch, { merge: true });
+  } catch (e) {
+    console.warn("step order", e);
+    toast("The chart is saved, but pupils may still get these steps in the old order: " + (e.message || e), "error");
+  }
 }
 function qcOnNodeClick(e, el) {
   const b = e.target.closest(".gnode-act"); if (!b) return;
@@ -34950,6 +35089,7 @@ function qcOnNodeClick(e, el) {
   else if (act === "note") qcOpenNode(key);
   else if (act === "breakdown") qcOpenBreakdown(key);
   else if (act === "editq") qcEditQuestion(key);
+  else if (act === "left" || act === "right") qcMoveStep(key, act === "left" ? -1 : 1);
   else if (act === "found") qcToggleFoundation(key);
   else if (act === "addstep") qcSpawnEditor(key, "");
   else if (act === "pickstep") qcOpenPicker(key, "");
@@ -35016,6 +35156,21 @@ function qcAttachNew(chart, qid, spot) {
   const why = qcAddEdge(chart, key, target, "");
   if (why) { delete chart.nodes[key]; return why; }
   return "";
+}
+// Drag a step onto another question: it now leads THERE instead. Its arrow
+// to its old question is replaced (any other arrows it has are left alone),
+// through qcAddEdge so a loop, an app or a next question is refused. Returns
+// { why, from } — `from` is the question it used to lead to.
+function qcRelink(chart, key, newTarget) {
+  const old = qcStepTarget(chart, key);
+  if (!old) return { why: "Only a step can be moved under another question.", from: "" };
+  if (newTarget === old) return { why: "", from: old, same: true };
+  const kept = chart.edges.filter(e => !(e.from === key && e.to === old));
+  const trial = { root: chart.root, nodes: chart.nodes, edges: kept };
+  const why = qcAddEdge(trial, key, newTarget, "");
+  if (why) return { why, from: old };
+  chart.edges = trial.edges;
+  return { why: "", from: old };
 }
 function qcLinkComplete(targetKey) {
   const from = qcLinkFrom; qcLinkCancel(true);

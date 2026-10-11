@@ -603,6 +603,70 @@ await scenario('📂 Open question switches to another question\'s chart', async
   assert.deepEqual(errors, []);
 });
 
+// ---- v1.98.0: ◀ ▶ and drag set which step is done first, and where it leads ----------------------
+const ORDER_DB = Object.assign({}, BOARD, {
+  'users/teacher/mathQuestions/s1': { id: 's1', title: 'Multiply first', level: 'P4', topics: ['Whole numbers'], foundationOf: 'q1', createdAt: '2026-10-11T10:00:01.000Z', blocks: [{ id: 'x1', type: 'text', content: '8 × 22 = ?' }] },
+  'users/teacher/mathQuestions/s2': { id: 's2', title: 'Then divide', level: 'P4', topics: ['Whole numbers'], foundationOf: 'q1', createdAt: '2026-10-11T10:00:02.000Z', blocks: [{ id: 'x2', type: 'text', content: '176 ÷ 4 = ?' }] },
+  'users/teacher/mathQuestionGraph/chart__q1': { root: 'q1', nodes: { 'q:q1': { x: 0, y: 0 }, 'q:s1': { x: -300, y: 230 }, 'q:s2': { x: 0, y: 230 }, 'q:q2': { x: 300, y: 230 } },
+    edges: [{ id: 'e1', from: 'q:s1', to: 'q:q1' }, { id: 'e2', from: 'q:s2', to: 'q:q1' }, { id: 'e3', from: 'q:q2', to: 'q:q1' }] }
+});
+await scenario('▶ moves a step later, and pupils get the steps in the new order', async (page, errors) => {
+  await boot(page, TEACHER, ORDER_DB);
+  await openChart(page);
+  assert.match(await page.textContent('[data-key="q:s1"] .qc-order'), /Do 1st of 3/);
+  assert.equal(await page.isDisabled('[data-key="q:s1"] [data-act="left"]'), true, 'nothing before the first');
+  await page.click('[data-key="q:s1"] [data-act="right"]');
+  await page.waitForFunction(() => /Do 2nd of 3/.test(document.querySelector('[data-key="q:s1"] .qc-order').textContent));
+  assert.match(await page.textContent('[data-key="q:s2"] .qc-order'), /Do 1st of 3/);
+  await page.waitForTimeout(1000);
+  const s1 = await page.evaluate(() => window.__fx.db.get('users/teacher/mathQuestions/s1'));
+  const s2 = await page.evaluate(() => window.__fx.db.get('users/teacher/mathQuestions/s2'));
+  assert.deepEqual([s2.foundationRank, s1.foundationRank], [0, 1], 'the order is on the held-back steps');
+  assert.equal(s1.title, 'Multiply first', 'only the order field was written');
+  const q2 = await page.evaluate(() => window.__fx.db.get('users/teacher/mathQuestions/q2'));
+  assert.ok(!('foundationRank' in q2), 'an ordinary question is left alone');
+  const chart = await page.evaluate(() => window.__fx.db.get('users/teacher/mathQuestionGraph/chart__q1'));
+  assert.ok(chart.nodes['q:s2'].x < chart.nodes['q:s1'].x, 'the chart itself is the order');
+  await shot(page, '15-step-order');
+  assert.deepEqual(errors, []);
+});
+await scenario('dragging a step onto another card makes it a step of that question', async (page, errors) => {
+  await boot(page, TEACHER, ORDER_DB);
+  await openChart(page);
+  const from = await page.$eval('[data-key="q:s2"]', el => { const r = el.getBoundingClientRect(); return { x: r.left + 40, y: r.top + 14 }; });
+  const to = await page.$eval('[data-key="q:q2"]', el => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move((from.x + to.x) / 2, (from.y + to.y) / 2, { steps: 6 });
+  await page.mouse.move(to.x, to.y, { steps: 6 });
+  assert.ok(await page.$('[data-key="q:q2"].qc-drop'), 'the card it will land on is lit');
+  await page.mouse.up();
+  await page.waitForTimeout(1100);
+  const chart = await page.evaluate(() => window.__fx.db.get('users/teacher/mathQuestionGraph/chart__q1'));
+  assert.ok(chart.edges.some(e => e.from === 'q:s2' && e.to === 'q:q2'), 'now under q2');
+  assert.ok(!chart.edges.some(e => e.from === 'q:s2' && e.to === 'q:q1'), 'its old arrow is gone');
+  assert.ok(chart.nodes['q:s2'].y > chart.nodes['q:q2'].y, 'placed below its new question');
+  const s2 = await page.evaluate(() => window.__fx.db.get('users/teacher/mathQuestions/s2'));
+  assert.equal(s2.foundationOf, 'q2', 'held back for its new question now');
+  assert.deepEqual(errors, []);
+});
+await scenario('dragging a step onto its own step is refused and put back', async (page, errors) => {
+  await boot(page, TEACHER, Object.assign({}, ORDER_DB, {
+    'users/teacher/mathQuestionGraph/chart__q1': { root: 'q1', nodes: { 'q:q1': { x: 0, y: 0 }, 'q:s1': { x: 0, y: 230 }, 'q:s2': { x: 0, y: 460 } },
+      edges: [{ id: 'e1', from: 'q:s1', to: 'q:q1' }, { id: 'e2', from: 'q:s2', to: 'q:s1' }] }
+  }));
+  await openChart(page);
+  const from = await page.$eval('[data-key="q:s1"]', el => { const r = el.getBoundingClientRect(); return { x: r.left + 40, y: r.top + 14 }; });
+  const to = await page.$eval('[data-key="q:s2"]', el => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height - 20 }; });
+  await page.mouse.move(from.x, from.y); await page.mouse.down();
+  await page.mouse.move(to.x, to.y, { steps: 8 }); await page.mouse.up();
+  await page.waitForTimeout(500);
+  assert.match(await page.textContent('#toast'), /loop/);
+  const n = await page.$eval('[data-key="q:s1"]', el => [parseInt(el.style.left), parseInt(el.style.top)]);
+  assert.deepEqual(n, [0, 230], 'back where it was');
+  assert.deepEqual(errors, []);
+});
+
 await scenario('a pupil never reaches the chart page', async (page, errors) => {
   await boot(page, { uid: 'kid', email: 'kid@example.com', displayName: 'Kid' }, BOARD);
   assert.equal(await page.isVisible('#page-qchart'), false);
