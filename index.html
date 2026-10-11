@@ -2071,6 +2071,11 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 @media (max-width: 520px) { .qc-next-choices { grid-template-columns: 1fr; } }
 /* 🧩 Foundational questions: the parts, for checking before they are added. */
 .qc-break-card { max-width: 760px; }
+.qc-empty { max-width: 640px; margin: 64px auto; padding: 32px 36px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); text-align: center; }
+.qc-empty[hidden] { display: none; }
+.qc-empty h3 { margin: 0 0 12px; font-size: 1.2rem; }
+.qc-empty p { margin: 0 0 24px; font-size: 0.92rem; line-height: 1.7; color: var(--text-muted); }
+.qc-empty-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 .qc-found { margin: 0 0 8px; font-size: 0.74rem; line-height: 1.45; color: var(--text-light, #9ca3af); }
 .qc-found.on { color: #3b5b8c; }
 .gnode-act.on { background: #e8eefb; border-radius: 8px; }
@@ -4982,6 +4987,7 @@ body.role-employee #emailBellBtn { display: none !important; }
       <div class="nav-item admin-only" data-page="answerkeys" title="Photograph the worked answers you have written by hand — each one finds the question it answers and files itself as that question's answer key"><span class="ico">🔑</span> Answer Keys</div>
       <div class="nav-item admin-only" data-page="bin" title="Questions you deleted, from the bank or from vetting. Restore one within 7 days — after that it is deleted forever"><span class="ico">🗑️</span> Bin <span class="nav-count" id="navBinCount" style="display:none;"></span></div>
       <div class="nav-item admin-only" data-page="graph" title="Map prerequisite links between questions — the AI reads this when guiding practice"><span class="ico">🕸️</span> Dependency Board</div>
+      <div class="nav-item admin-only" data-page="qchart" title="Each question's own chart: add questions, their foundational steps and what to try next, all from here"><span class="ico">🧩</span> Dependency Charts</div>
       <div class="nav-item admin-only" data-page="students"><span class="ico">🎓</span> Student Results</div>
       <div class="nav-item admin-only" data-page="diagnostic" title="Build a test one learning objective at a time, print it, then read the class's score objective by objective"><span class="ico">🩺</span> Diagnostic</div>
       <div class="nav-item admin-only" data-page="custompaper" title="Custom Paper — build a mock exam paper OR an ordinary worksheet from scratch. Paste the question screenshots in and they are read as one run. In paper mode they are sorted into Booklet A (multiple choice) and Booklet B (open-ended), numbered straight through and printed with a cover for each booklet; in worksheet mode they print as one numbered list on an ordinary worksheet. Everything sent to the bank is held back from students until you release it."><span class="ico">🗂️</span> Custom Paper</div>
@@ -5777,6 +5783,8 @@ body.role-employee #emailBellBtn { display: none !important; }
         <div class="graph-toolbar">
           <button class="btn btn-ghost btn-sm" id="qcBackBtn" type="button" title="Back to the Question Bank">← Bank</button>
           <span class="graph-title"><span id="qcTitle">🧩 Question</span><small>Arrow A → B means “A is an easier step towards B”. 🧩 Foundational questions breaks the question into its parts. Purple arrows are visual apps. Amber cards on top are what to try next.</small></span>
+          <button class="btn btn-outline btn-sm" id="qcOpenBtn" type="button" title="Open another question's chart">📂 Open question</button>
+          <button class="btn btn-outline btn-sm" id="qcNewBtn" type="button" title="Write a brand-new question; Save opens its chart">＋ New question</button>
           <button class="btn btn-primary btn-sm" id="qcBreakBtn" type="button" title="Break this question into its parts: one short question for each step, to add as easier steps">🧩 Foundational questions</button>
           <button class="btn btn-outline btn-sm" id="qcAddStepBtn" type="button" title="Open a copy of this question in the editor, let the AI change it, then save it as a step">➕ From a copy</button>
           <button class="btn btn-outline btn-sm" id="qcAddNextBtn" type="button" title="A question to try AFTER this one: same level or harder">⏭ Next question</button>
@@ -5790,6 +5798,14 @@ body.role-employee #emailBellBtn { display: none !important; }
             <button id="qcZoomOut" type="button" title="Zoom out">−</button>
             <span id="qcZoomLabel">100%</span>
             <button id="qcZoomIn" type="button" title="Zoom in">+</button>
+          </div>
+        </div>
+        <div class="qc-empty" id="qcEmpty" hidden>
+          <h3>🧩 Dependency charts</h3>
+          <p>Every question gets its own chart: the foundational steps a pupil tries after getting it wrong, and what to try next. Start with a question.</p>
+          <div class="qc-empty-row">
+            <button class="btn btn-primary" type="button" data-qc-empty="new">＋ New question</button>
+            <button class="btn btn-outline" type="button" data-qc-empty="open">📂 Open a question from the bank</button>
           </div>
         </div>
         <div class="graph-viewport" id="qcViewport">
@@ -16646,7 +16662,7 @@ function collectQuestion() {
   // 🧩 A foundational step stays one through an edit, and a NEW easier step
   // made on a chart with ➕ is born one — a part of the question it sits under.
   // A ⏭ next question is not: it comes after the question, not after a miss.
-  const foundationOf = String(existing.foundationOf || (!currentEditingId && qcSpawn && !qcSpawn.tier ? qcParseKey(qcSpawn.target).id : "") || "").trim();
+  const foundationOf = String(existing.foundationOf || (!currentEditingId && qcSpawn && !qcSpawn.tier && qcSpawn.target ? qcParseKey(qcSpawn.target).id : "") || "").trim();
   if (foundationOf && foundationOf !== q.id) q.foundationOf = foundationOf;
   // MCQ: include the options (public) + correct index (private) when present.
   const mcq = collectEditorOptions();
@@ -33402,7 +33418,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.96.0 · 2026-10-11";
+const APP_VERSION = "v1.97.0 · 2026-10-11";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -34697,7 +34713,19 @@ function openQuestionChart(qid) {
   navigateTo("qchart");
 }
 function renderQuestionChartPage() {
-  if (!_isAdmin() || !qcRoot) { navigateTo("bank"); return; }
+  if (!_isAdmin()) { navigateTo("bank"); return; }
+  // With no question chosen yet (the 🧩 nav item, or a chart whose question
+  // has gone) the page is a front door, not a bounce back to the bank: every
+  // question is reachable and creatable from here.
+  const empty = !qcRoot || !graphFindQ(qcRoot);
+  if (empty) qcRoot = null;
+  const emptyEl = $("qcEmpty"), vp = $("qcViewport");
+  if (emptyEl) emptyEl.hidden = !empty;
+  if (vp) vp.style.display = empty ? "none" : "";
+  document.querySelectorAll("#page-qchart .graph-toolbar button[id^='qc']").forEach(b => {
+    if (b.id !== "qcBackBtn" && b.id !== "qcOpenBtn" && b.id !== "qcNewBtn") b.disabled = empty;
+  });
+  if (empty) { const t = $("qcTitle"); if (t) t.textContent = "🧩 Dependency charts"; return; }
   const q = graphFindQ(qcRoot);
   const t = $("qcTitle"); if (t) t.textContent = "🧩 " + ((q && q.title) || "Question");
   qcRender();
@@ -34739,6 +34767,7 @@ function qcNodeHtml(key, node, isRoot) {
       '</div>' +
       '<div class="gnode-foot">' +
         '<button class="gnode-act" data-act="preview" title="Preview the question">👁</button>' +
+        (q ? '<button class="gnode-act" data-act="editq" title="Edit this question — Save or Cancel brings you back here">✏️</button>' : '') +
         '<button class="gnode-act" data-act="note" title="What this question stretches">✎</button>' +
         '<span class="spacer"></span>' +
         '<button class="gnode-act del" data-act="remove" title="Remove from this chart (the question stays in the bank)">✕</button>' +
@@ -34756,6 +34785,7 @@ function qcNodeHtml(key, node, isRoot) {
     '</div>' +
     '<div class="gnode-foot">' +
       '<button class="gnode-act" data-act="preview" title="Preview the question">👁</button>' +
+      (q ? '<button class="gnode-act" data-act="editq" title="Edit this question — Save or Cancel brings you back here">✏️</button>' : '') +
       (isRoot ? '' : '<button class="gnode-act" data-act="note" title="What this step checks">✎</button>') +
       (isRoot || !q ? '' : '<button class="gnode-act' + (qIsFoundation(q) ? ' on' : '') + '" data-act="found" title="' +
         (qIsFoundation(q) ? 'Shown only after a miss. Press to put it in ordinary practice too' : 'In ordinary practice. Press to show it only after a miss') + '">' + (qIsFoundation(q) ? '🔒' : '🔓') + '</button>') +
@@ -34919,6 +34949,7 @@ function qcOnNodeClick(e, el) {
   if (act === "preview") { const q = graphFindQ(p.id); if (q) openQuestionPreview(q, "Question preview"); }
   else if (act === "note") qcOpenNode(key);
   else if (act === "breakdown") qcOpenBreakdown(key);
+  else if (act === "editq") qcEditQuestion(key);
   else if (act === "found") qcToggleFoundation(key);
   else if (act === "addstep") qcSpawnEditor(key, "");
   else if (act === "pickstep") qcOpenPicker(key, "");
@@ -35070,11 +35101,14 @@ function qcDeleteEdge() {
 // ---- Adding step questions ---------------------------------------------------
 let qcPickerTarget = null;
 let qcPickerTier = "";       // "" = an easier step; "same" / "harder" = a ⏭ next question
-function qcOpenPicker(targetKey, tier) {
-  qcPickerTarget = targetKey || qcKeyQ(qcRoot);
-  qcPickerTier = qcTierOf(tier);
+let qcPickerOpenMode = false;  // 📂 Open question: the pick OPENS that question's chart instead of adding it
+function qcOpenPicker(targetKey, tier, openMode) {
+  qcPickerOpenMode = !!openMode;
+  qcPickerTarget = qcPickerOpenMode ? null : (targetKey || qcKeyQ(qcRoot));
+  qcPickerTier = qcPickerOpenMode ? "" : qcTierOf(tier);
   const h = $("qcPickerHeading");
-  if (h) h.textContent = qcPickerTier ? "⏭ Pick a next question (" + QC_TIERS[qcPickerTier].toLowerCase() + ")" : "📚 Pick an easier step from the bank";
+  if (h) h.textContent = qcPickerOpenMode ? "📂 Open a question's chart"
+    : qcPickerTier ? "⏭ Pick a next question (" + QC_TIERS[qcPickerTier].toLowerCase() + ")" : "📚 Pick an easier step from the bank";
   const s = $("qcPickerSearch"); if (s) s.value = "";
   qcRenderPicker("");
   $("qcPickerOverlay").classList.add("show");
@@ -35082,16 +35116,20 @@ function qcOpenPicker(targetKey, tier) {
 }
 function qcRenderPicker(term) {
   term = String(term || "").toLowerCase().trim();
-  const list = $("qcPickerList"), chart = qcCharts[qcRoot]; if (!list || !chart) return;
-  const items = (questionBank || []).filter(q => q && !chart.nodes[qcKeyQ(q.id)])
+  const list = $("qcPickerList"), chart = qcCharts[qcRoot]; if (!list || (!chart && !qcPickerOpenMode)) return;
+  const items = (questionBank || []).filter(q => q && (qcPickerOpenMode ? String(q.id) !== String(qcRoot) : !chart.nodes[qcKeyQ(q.id)]))
     .filter(q => !term || ((q.title || "") + " " + (q.level || "") + " " + (q.topic || "") + " " + graphPlainText(q.blocks).slice(0, 200)).toLowerCase().includes(term));
   if (!items.length) { list.innerHTML = '<div class="graph-picker-empty">No matching questions.</div>'; return; }
   list.innerHTML = "";
   items.slice(0, 150).forEach(q => {
     const it = document.createElement("button");
     it.type = "button"; it.className = "graph-picker-item";
-    it.innerHTML = '<span class="gp-title">' + escapeHtml(q.title || "Untitled") + '</span><span class="gp-meta">' + escapeHtml([q.level, studentTopicsLabel(q)].filter(Boolean).join(" · ")) + '</span>';
-    it.addEventListener("click", () => qcAddStep(q.id));
+    const steps = qcPickerOpenMode ? qcStepCount(q.id) : 0;
+    it.innerHTML = '<span class="gp-title">' + escapeHtml(q.title || "Untitled") + '</span><span class="gp-meta">' + escapeHtml([q.level, studentTopicsLabel(q), steps ? "🧩 " + steps + " on its chart" : ""].filter(Boolean).join(" · ")) + '</span>';
+    it.addEventListener("click", () => {
+      if (qcPickerOpenMode) { closeOverlay("qcPickerOverlay"); openQuestionChart(q.id); }
+      else qcAddStep(q.id);
+    });
     list.appendChild(it);
   });
 }
@@ -35129,7 +35167,7 @@ function qcAddStep(qid) {
 //  • NO `variantOf` IS WRITTEN. Practice serves a variant of a question a
 //    pupil got wrong, and a HARDER next question must never be served as the
 //    retry for the question it follows. The chart is the link.
-var qcSpawn = null;   // { root, target, tier, want, rootTitle, sourceTitle }
+var qcSpawn = null;   // { root, target, tier, want, rootTitle, sourceTitle } — or { newRoot: true } for ＋ New question
 function qcSpawnWant(tier) { return tier === "same" ? "same" : tier === "harder" ? "harder" : "easier"; }
 function qcSpawnHeading(sp) {
   return sp.tier ? "⏭ New next question · " + QC_TIERS[sp.tier].toLowerCase() : "➕ New easier step";
@@ -35169,6 +35207,15 @@ function qcSpawnSync() {
   if (!bar) return;
   const sp = qcSpawn;
   if (!sp) { bar.hidden = true; bar.innerHTML = ""; return; }
+  if (sp.newRoot) {
+    bar.innerHTML =
+      '<div class="qc-spawn-head"><b>＋ New question</b> for the dependency charts</div>' +
+      '<p class="qc-spawn-text">Write it, or build it from a screenshot with ✨ Build with AI. 💾 Save puts it in the bank and opens its own chart, ready for 🧩 Foundational questions.</p>' +
+      '<div class="qc-spawn-row"><span class="qc-spawn-gap"></span>' +
+        '<button type="button" class="btn btn-ghost btn-sm" data-qc-back>↩ Back to the chart</button></div>';
+    bar.hidden = false;
+    return;
+  }
   const btn = (diff, label) =>
     '<button type="button" class="btn btn-sm ' + (sp.want === diff ? "btn-primary" : "btn-ghost") + '" data-qc-regen="' + diff + '">' + label + '</button>';
   bar.innerHTML =
@@ -35190,6 +35237,15 @@ function qcOnQuestionSaved(q, isNew) {
   const sp = qcSpawn;
   qcSpawn = null;
   if (!sp || !q || !isNew || !_isAdmin()) return null;
+  if (sp.newRoot) {
+    // ＋ New question: it becomes a chart of its own, and qEditLeave lands on it.
+    qcRoot = String(q.id);
+    if (!qcCharts[qcRoot]) {
+      qcCharts[qcRoot] = qcSeedFromBoard(qcRoot, graphEdges);
+      qcScheduleSave();
+    }
+    return { text: "Saved — this is its chart. Press 🧩 Foundational questions to break it into its parts", tone: "success" };
+  }
   const chart = qcCharts[sp.root];
   if (!chart) return null;
   const why = qcAttachNew(chart, q.id, { target: sp.target, tier: sp.tier });
@@ -35197,6 +35253,30 @@ function qcOnQuestionSaved(q, isNew) {
   qcRoot = sp.root;
   qcScheduleSave();
   return { text: sp.tier ? "Saved, and added to the chart as a next question" : "Saved, and added to the chart as an easier step", tone: "success" };
+}
+// ＋ New question, from the chart page: a blank editor whose Save opens the
+// new question's own chart, and whose Cancel comes back to the chart it was
+// started from. Rides on `qcSpawn` so every route into the editor clears it.
+function qcNewQuestion() {
+  if (!_isAdmin()) { toast("Only the teacher's account can edit dependency charts", "error"); return; }
+  resetEditor();                         // clears qEditReturn and qcSpawn — both are set below
+  $("createHeading").textContent = "New question for the dependency charts";
+  $("saveQBtn").textContent = "💾 Save and open its chart";
+  $("cancelEditBtn").style.display = "";
+  navigateTo("create");
+  qEditReturn = { page: "qchart" };
+  qcSpawn = { newRoot: true, root: null, target: "", tier: "", want: "same", rootTitle: "", sourceTitle: "" };
+  qcSpawnSync();
+}
+// ✏️ on any card: the real editor on that question, and Save or Cancel
+// comes back to this chart.
+function qcEditQuestion(key) {
+  if (!_isAdmin()) { toast("Only the teacher's account can edit dependency charts", "error"); return; }
+  const p = qcParseKey(key); if (!p || p.type !== "q") return;
+  const q = graphFindQ(p.id);
+  if (!q) { toast("That question isn't in the bank any more", "error"); return; }
+  loadQuestionIntoEditor(q);             // clears qEditReturn — set straight after
+  qEditReturn = { page: "qchart" };
 }
 // ⏭ Same level or harder — the small chooser the toolbar and the question's
 // own ⏭ open. The default is a NEW question out of this one; the bank list is
@@ -35596,6 +35676,13 @@ function qcOpenAppViewer(appId) {
   const on = (id, fn) => { const el = $(id); if (el) el.addEventListener("click", fn); };
   on("qcBackBtn", () => navigateTo("bank"));
   on("qcBreakBtn", () => qcOpenBreakdown(qcKeyQ(qcRoot)));
+  on("qcNewBtn", qcNewQuestion);
+  on("qcOpenBtn", () => qcOpenPicker(null, "", true));
+  const empty = $("qcEmpty");
+  if (empty) empty.addEventListener("click", e => {
+    const b = e.target.closest("[data-qc-empty]"); if (!b) return;
+    if (b.dataset.qcEmpty === "new") qcNewQuestion(); else qcOpenPicker(null, "", true);
+  });
   on("qcBreakAddBtn", qcBreakAdd);
   on("qcBreakRetryBtn", () => { if (qcBreak && !qcBreak.busy && !qcBreak.saving) qcBreakGenerate(); });
   const breakOv = $("qcBreakOverlay");

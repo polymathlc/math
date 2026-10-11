@@ -3102,6 +3102,24 @@ step from the working, and the climb back up come next.
 - `qIsFoundation` is strict (a non-empty string that is not the question's own
   id) so a junk value can never hide a question.
 
+### 🏠 Every question from the chart page (v1.97.0)
+
+`qcNewQuestion` / `qcEditQuestion` / `qcPickerOpenMode`, the `#qcEmpty` front
+door, and the 🧩 **Dependency Charts** nav item (teacher only).
+
+- **The page is a front door, never a bounce.** With no question chosen it
+  shows ＋ New question and 📂 Open a question; the chart tools wait.
+- **＋ New question rides on `qcSpawn` (`newRoot: true`)**, so every route into
+  the editor clears it like any other chart trip. Save puts it in the bank and
+  opens its OWN chart (`qcOnQuestionSaved`); it is never `foundationOf`
+  anything (`collectQuestion` needs `qcSpawn.target`). Cancel returns to the
+  chart it was started from.
+- **✏️ on any card opens the real editor on that question** and sets
+  `qEditReturn = { page: "qchart" }` AFTER `loadQuestionIntoEditor`, so Save
+  and Cancel both come back to the chart.
+- **📂 Open question is the step picker in open mode**: a pick opens that
+  question's chart and never adds it to this one.
+
 ## House rules
 - After touching **🧩 question charts** (`qcNormalizeChart`, `qcChartPayload`,
   `qcAddEdge`, `qcAttachNew`, `qcSpawnEditor`, `qcOnQuestionSaved`, the 🧩 break-down

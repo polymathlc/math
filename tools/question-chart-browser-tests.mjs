@@ -522,6 +522,87 @@ await scenario('🔒 on a bank-picked step keeps it for after a miss, and 🔓 p
   assert.deepEqual(errors, []);
 });
 
+// ---- v1.97.0: every question, from the chart page; Save and Cancel come back to it ----------
+await scenario('🧩 nav opens the chart page; ＋ New question saves and lands on its own chart', async (page, errors) => {
+  page.on('dialog', d => d.accept());
+  await boot(page, TEACHER, BOARD);
+  await page.evaluate(() => document.querySelector('.nav-item[data-page="qchart"]').click());
+  await page.waitForSelector('#page-qchart.active #qcEmpty:not([hidden])');
+  assert.equal(await page.isVisible('#qcViewport'), false, 'no chart drawn with no question chosen');
+  assert.equal(await page.isDisabled('#qcBreakBtn'), true, 'chart tools wait for a question');
+  await shot(page, '14-chart-front-door');
+  const before = await bankIds(page);
+  await page.click('#qcEmpty [data-qc-empty="new"]');
+  await page.waitForSelector('#page-create.active #qcSpawnBar:not([hidden])');
+  assert.match(await page.textContent('#qcSpawnBar'), /New question/);
+  assert.equal(await page.textContent('#saveQBtn'), '💾 Save and open its chart');
+  await page.fill('#qTitleInput', 'Fruit tarts on trays');
+  await page.click('#page-create .block-body [contenteditable="true"]');
+  await page.keyboard.type('Xiao Ming bought 7 boxes of 24 fruit tarts and shared them equally on 4 trays. How many were on each tray?');
+  await page.fill('#qExpectedInput', '42');
+  await page.click('#saveQBtn');
+  await page.waitForSelector('#page-qchart.active #qcViewport .qc-node.qc-root');
+  assert.match(await page.textContent('#qcTitle'), /Fruit tarts on trays/, 'its own chart');
+  const added = (await bankIds(page)).filter(id => !before.includes(id));
+  assert.equal(added.length, 1, 'one new bank question');
+  const nq = await page.evaluate(id => window.__fx.db.get('users/teacher/mathQuestions/' + id), added[0]);
+  assert.ok(!nq.foundationOf, 'a main question is not a foundational step');
+  await page.waitForTimeout(900);
+  assert.ok(await page.evaluate(id => !!window.__fx.db.get('users/teacher/mathQuestionGraph/chart__' + id), added[0]), 'its chart is saved');
+  assert.equal(await page.isDisabled('#qcBreakBtn'), false, 'ready for 🧩');
+  assert.deepEqual(errors, []);
+});
+
+await scenario('＋ New question then Cancel goes back to the chart it came from, adding nothing', async (page, errors) => {
+  await boot(page, TEACHER, BOARD);
+  await openChart(page);
+  const before = await bankIds(page);
+  await page.click('#qcNewBtn');
+  await page.waitForSelector('#page-create.active');
+  await page.click('#cancelEditBtn');
+  await page.waitForSelector('#page-qchart.active');
+  assert.match(await page.textContent('#qcTitle'), /Sharing sweets/);
+  assert.deepEqual(await bankIds(page), before);
+  assert.equal(await page.isVisible('#qcSpawnBar'), false);
+  assert.deepEqual(errors, []);
+});
+
+await scenario('✏️ on a card edits that question; Save and Cancel both come back to the chart', async (page, errors) => {
+  page.on('dialog', d => d.accept());
+  await boot(page, TEACHER, Object.assign({}, BOARD, { 'users/teacher/mathQuestionKeys/q2': { expected: '12' } }));
+  await openChart(page);
+  await page.click('[data-key="q:q2"] [data-act="editq"]');
+  await page.waitForSelector('#page-create.active');
+  assert.equal(await page.inputValue('#qTitleInput'), 'Fraction of 30');
+  await page.click('#cancelEditBtn');
+  await page.waitForSelector('#page-qchart.active');
+  await page.click('[data-key="q:q2"] [data-act="editq"]');
+  await page.waitForSelector('#page-create.active');
+  await page.fill('#qTitleInput', 'Two fifths of 30');
+  await page.click('#saveQBtn');
+  await page.waitForSelector('#page-qchart.active');
+  await page.waitForTimeout(300);
+  assert.match(await page.textContent('[data-key="q:q2"] .gnode-title'), /Two fifths of 30/, 'the card shows the edit');
+  const q2 = await page.evaluate(() => window.__fx.db.get('users/teacher/mathQuestions/q2'));
+  assert.equal(q2.title, 'Two fifths of 30', 'saved over the same question, not a copy');
+  assert.match(await page.textContent('#qcTitle'), /Sharing sweets/, 'the same chart');
+  assert.deepEqual(errors, []);
+});
+
+await scenario('📂 Open question switches to another question\'s chart', async (page, errors) => {
+  await boot(page, TEACHER, BOARD);
+  await openChart(page);
+  await page.click('#qcOpenBtn');
+  await page.waitForSelector('#qcPickerOverlay.show');
+  assert.match(await page.textContent('#qcPickerHeading'), /Open a question's chart/);
+  assert.doesNotMatch(await page.textContent('#qcPickerList'), /Sharing sweets/, 'not the one already open');
+  await page.fill('#qcPickerSearch', 'Fraction');
+  await page.click('#qcPickerList .graph-picker-item');
+  await page.waitForSelector('#page-qchart.active .qc-node.qc-root[data-key="q:q2"]');
+  assert.match(await page.textContent('#qcTitle'), /Fraction of 30/);
+  assert.deepEqual(errors, []);
+});
+
 await scenario('a pupil never reaches the chart page', async (page, errors) => {
   await boot(page, { uid: 'kid', email: 'kid@example.com', displayName: 'Kid' }, BOARD);
   assert.equal(await page.isVisible('#page-qchart'), false);
