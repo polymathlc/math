@@ -3028,9 +3028,40 @@ step from the working, and the climb back up come next.
   **`node tools/question-chart-browser-tests.mjs`** (Playwright, the employee
   harness's Firebase stand-ins) after touching any of it.
 
+### ➕ A step made OUT OF the question, and ⏭ what to try next (v1.94.0)
+
+`qcSpawn` / `qcSpawnEditor` / `qcSpawnSync` / `qcOnQuestionSaved` /
+`qcAttachNew` / `QC_TIERS` / `qcTierOf` / `qcOpenNextChooser`, the
+`#qcSpawnBar` on top of the editor and `#qcNextOverlay`.
+
+- **➕ opens the EDITOR, not a list.** A copy of the question the ➕ was
+  pressed on (the question itself at the top) opens with a bar offering
+  🔄 Easier / Same level / Harder — the editor's own
+  `regenerateQuestionVariant`, so the checker pass is the same — and
+  💾 Save files it in the bank, joins it to the chart through
+  `qcAttachNew` and comes back (`qEditReturn = { page: "qchart" }`).
+  📚 is the bank list, still there as the second door.
+- **The copy is a NEW question from the first moment** (`currentEditingId`
+  nulled after `loadQuestionIntoEditor`), so no save can overwrite its
+  source. Its answer-key picture, video and amendments are dropped; the
+  typed answer stays so it can be saved.
+- **No `variantOf` is written.** Practice serves a variant on a miss, and a
+  HARDER next question must never be the retry for the question it follows.
+- **`qcSpawn` is `var`** (resetEditor runs during module evaluation) and is
+  cleared in `resetEditor` AND `loadQuestionIntoEditor`; `qcSpawnEditor`
+  sets it straight after. Leave it set and the next question saved anywhere
+  joins this chart.
+- **⏭ Next questions are a node `tier`** (`"same"` | `"harder"`), drawn on a
+  row ABOVE the question with an amber dashed line that is not an edge.
+  They are never part of the step arrows: the normaliser drops any edge
+  touching one and `qcAddEdge` refuses one. Phase 4 serves them after the
+  question is solved.
+
 ## House rules
 - After touching **🧩 question charts** (`qcNormalizeChart`, `qcChartPayload`,
-  `qcAddEdge`, `qcWouldCycle`, `qcSeedFromBoard`, `qcNormalizeApp`,
+  `qcAddEdge`, `qcAttachNew`, `qcSpawnEditor`, `qcOnQuestionSaved`, the
+  `qcSpawn` clears in `resetEditor` / `loadQuestionIntoEditor`,
+  `qcWouldCycle`, `qcSeedFromBoard`, `qcNormalizeApp`,
   `qcAppPrompt`, `qcDefaultBrief`, `qcAppFrameAttrs`, the `qcApp*` overlay, or
   `generateChartApp` / `chartAppShape` / `chartAppHtml`), run
   `node tools/question-chart-tests.mjs` and

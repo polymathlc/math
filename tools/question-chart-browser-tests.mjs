@@ -247,7 +247,7 @@ await scenario('a step question is added under the root and linked; a loop is re
     'users/teacher/mathQuestions/q3': { id: 'q3', title: 'Ratio basics', level: 'P5', topics: ['Ratio'], blocks: [{ id: 'b3', type: 'text', content: 'Share 10 in the ratio 2 : 3.' }], createdAt: '2026-10-01T00:00:00.000Z' }
   }));
   await openChart(page);
-  await page.click('[data-key="q:q2"] [data-act="addstep"]');
+  await page.click('[data-key="q:q2"] [data-act="pickstep"]');
   await page.fill('#qcPickerSearch', 'Ratio basics');
   await page.click('#qcPickerList .graph-picker-item');
   await page.waitForSelector('[data-key="q:q3"]');
@@ -259,6 +259,134 @@ await scenario('a step question is added under the root and linked; a loop is re
   await page.waitForTimeout(900);
   chart = await page.evaluate(() => window.__fx.db.get('users/teacher/mathQuestionGraph/chart__q1'));
   assert.ok(!chart.edges.some(e => e.from === 'q:q2' && e.to === 'q:q3'), 'loop refused');
+  assert.deepEqual(errors, []);
+});
+
+// ---- v1.94.0: ➕ and ⏭ open a COPY in the editor, and Save comes back -------------------
+const bankIds = page => page.evaluate(() => [...window.__fx.db.keys()]
+  .filter(k => /^users\/teacher\/mathQuestions\//.test(k)).map(k => k.split('/').pop()).sort());
+const editorOpen = async page => {
+  await page.waitForSelector('#page-create.active #qcSpawnBar:not([hidden])');
+  await page.waitForTimeout(200);
+};
+
+await scenario('➕ opens a copy of the question in the editor; Save adds it as a step and comes back', async (page, errors) => {
+  page.on('dialog', d => d.accept());           // the duplicate warning, if the copy is close enough to ask
+  await boot(page, TEACHER, BOARD);
+  await openChart(page);
+  const before = await bankIds(page);
+  await page.click('[data-key="q:q1"] [data-act="addstep"]');
+  await editorOpen(page);
+  assert.equal(await page.isVisible('#qcPickerOverlay'), false, 'no list by default');
+  assert.equal(await page.inputValue('#qTitleInput'), 'Sharing sweets', 'a copy of the question');
+  assert.match(await page.textContent('#qcSpawnBar'), /New easier step[\s\S]*Sharing sweets/);
+  assert.equal(await page.getAttribute('#qcSpawnBar [data-qc-regen="easier"]', 'class'), 'btn btn-sm btn-primary', 'easier is the suggested regenerate');
+  assert.equal(await page.textContent('#saveQBtn'), '💾 Save and add to the chart');
+  await shot(page, '7-editor-copy');
+  await page.fill('#qTitleInput', 'Sharing stickers');
+  await page.click('#saveQBtn');
+  await page.waitForSelector('#page-qchart.active');
+  assert.match(await page.textContent('#toast'), /added to the chart as an easier step/);
+  await page.waitForTimeout(900);
+  const after = await bankIds(page);
+  const added = after.filter(id => !before.includes(id));
+  assert.equal(added.length, 1, 'one new bank question: ' + JSON.stringify(after));
+  assert.notEqual(added[0], 'q1');
+  const orig = await page.evaluate(() => window.__fx.db.get('users/teacher/mathQuestions/q1'));
+  assert.equal(orig.title, 'Sharing sweets', 'the original is untouched');
+  const copy = await page.evaluate(id => window.__fx.db.get('users/teacher/mathQuestions/' + id), added[0]);
+  assert.equal(copy.title, 'Sharing stickers');
+  assert.ok(!copy.variantOf, 'no variantOf on a chart step');
+  const chart = await page.evaluate(() => window.__fx.db.get('users/teacher/mathQuestionGraph/chart__q1'));
+  assert.ok(chart.edges.some(e => e.from === 'q:' + added[0] && e.to === 'q:q1'), 'new step → question: ' + JSON.stringify(chart.edges));
+  assert.ok(await page.isVisible('[data-key="q:' + added[0] + '"]'), 'drawn on the chart');
+  await shot(page, '8-chart-after-step');
+  assert.deepEqual(errors, []);
+});
+
+await scenario('➕ on a step copies THAT step and files the new one under it', async (page, errors) => {
+  page.on('dialog', d => d.accept());
+  await boot(page, TEACHER, Object.assign({}, BOARD, { 'users/teacher/mathQuestionKeys/q2': { expected: '12' } }));
+  await openChart(page);
+  const before = await bankIds(page);
+  await page.click('[data-key="q:q2"] [data-act="addstep"]');
+  await editorOpen(page);
+  assert.equal(await page.inputValue('#qTitleInput'), 'Fraction of 30');
+  await page.fill('#qTitleInput', 'Fraction of 20');
+  await page.click('#saveQBtn');
+  await page.waitForSelector('#page-qchart.active');
+  await page.waitForTimeout(900);
+  const added = (await bankIds(page)).filter(id => !before.includes(id));
+  const chart = await page.evaluate(() => window.__fx.db.get('users/teacher/mathQuestionGraph/chart__q1'));
+  assert.ok(chart.edges.some(e => e.from === 'q:' + added[0] && e.to === 'q:q2'), 'under q2');
+  assert.deepEqual(errors, []);
+});
+
+await scenario('⏭ harder makes a next question above the question, with no arrow into the steps', async (page, errors) => {
+  page.on('dialog', d => d.accept());
+  await boot(page, TEACHER, BOARD);
+  await openChart(page);
+  const before = await bankIds(page);
+  await page.click('#qcAddNextBtn');
+  await page.waitForSelector('#qcNextOverlay.show');
+  await shot(page, '9-next-chooser');
+  await page.click('#qcNextOverlay .qc-next-choice[data-qc-next="harder"]');
+  await editorOpen(page);
+  assert.match(await page.textContent('#qcSpawnBar'), /next question · harder/);
+  assert.equal(await page.getAttribute('#qcSpawnBar [data-qc-regen="harder"]', 'class'), 'btn btn-sm btn-primary', 'harder is the suggested regenerate');
+  await page.fill('#qTitleInput', 'Sharing sweets three ways');
+  await page.click('#saveQBtn');
+  await page.waitForSelector('#page-qchart.active');
+  await page.waitForTimeout(900);
+  const added = (await bankIds(page)).filter(id => !before.includes(id));
+  assert.equal(added.length, 1);
+  const chart = await page.evaluate(() => window.__fx.db.get('users/teacher/mathQuestionGraph/chart__q1'));
+  const key = 'q:' + added[0];
+  assert.equal(chart.nodes[key].tier, 'harder');
+  assert.ok(chart.nodes[key].y < chart.nodes['q:q1'].y, 'above the question');
+  assert.ok(!chart.edges.some(e => e.from === key || e.to === key), 'not a step');
+  assert.ok(await page.isVisible('[data-key="' + key + '"].qc-next'), 'drawn as a next question');
+  assert.equal(await page.$$eval('#qcEdges .qc-next-line', els => els.length), 1, 'one dashed line up to it');
+  await shot(page, '10-chart-with-next');
+  assert.deepEqual(errors, []);
+});
+
+await scenario('⏭ from the bank adds an existing question as a same-level next question', async (page, errors) => {
+  await boot(page, TEACHER, Object.assign({}, BOARD, {
+    'users/teacher/mathQuestions/q3': { id: 'q3', title: 'Sharing marbles', level: 'P5', topics: ['Ratio'], blocks: [{ id: 'b3', type: 'text', content: 'Share 40 marbles in the ratio 3 : 5.' }], createdAt: '2026-10-01T00:00:00.000Z' }
+  }));
+  await openChart(page);
+  await page.click('[data-key="q:q1"] [data-act="addnext"]');
+  await page.click('#qcNextOverlay [data-qc-next="same"][data-qc-bank]');
+  await page.waitForSelector('#qcPickerOverlay.show');
+  assert.match(await page.textContent('#qcPickerHeading'), /next question \(same level\)/);
+  await page.fill('#qcPickerSearch', 'marbles');
+  await page.click('#qcPickerList .graph-picker-item');
+  await page.waitForSelector('[data-key="q:q3"].qc-next');
+  await page.waitForTimeout(900);
+  const chart = await page.evaluate(() => window.__fx.db.get('users/teacher/mathQuestionGraph/chart__q1'));
+  assert.equal(chart.nodes['q:q3'].tier, 'same');
+  assert.deepEqual(errors, []);
+});
+
+await scenario('↩ Back to the chart adds nothing and leaves no chart step behind in the editor', async (page, errors) => {
+  page.on('dialog', d => d.accept());
+  await boot(page, TEACHER, BOARD);
+  await openChart(page);
+  await page.click('#qcAddStepBtn');
+  await editorOpen(page);
+  await page.click('#qcSpawnBar [data-qc-back]');
+  await page.waitForSelector('#page-qchart.active');
+  assert.equal(await page.isVisible('#qcSpawnBar'), false, 'the bar is gone');
+  await page.waitForTimeout(900);
+  let chart = await page.evaluate(() => window.__fx.db.get('users/teacher/mathQuestionGraph/chart__q1'));
+  const nodesBefore = Object.keys(chart.nodes).sort();
+  // A plain new question typed into the editor afterwards is just a question.
+  await page.evaluate(() => document.querySelector('.nav-item[data-page="create"]').click());
+  await page.waitForSelector('#page-create.active');
+  assert.equal(await page.isVisible('#qcSpawnBar'), false);
+  chart = await page.evaluate(() => window.__fx.db.get('users/teacher/mathQuestionGraph/chart__q1'));
+  assert.deepEqual(Object.keys(chart.nodes).sort(), nodesBefore, 'nothing joined the chart');
   assert.deepEqual(errors, []);
 });
 
