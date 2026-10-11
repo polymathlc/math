@@ -744,6 +744,45 @@ await scenario('✨ Answer with AI fills the answer and guide from the edited qu
   assert.deepEqual(errors, []);
 });
 
+// ---- v1.102.0: 🧪 on a step card, and ⌨ Paste code --------------------------------------------
+await scenario('🧪 on an easier step is in view, and ⌨ Paste code runs and saves the teacher\'s own page', async (page, errors) => {
+  await boot(page, TEACHER, BOARD);
+  await openChart(page);
+  const fits = await page.evaluate(() => {
+    const card = document.querySelector('[data-key="q:q2"]'), btn = card.querySelector('[data-act="addapp"]');
+    const c = card.getBoundingClientRect(), b = btn.getBoundingClientRect();
+    return b.width > 0 && b.left >= c.left - 1 && b.right <= c.right + 1 && b.bottom <= c.bottom + 1;
+  });
+  assert.ok(fits, 'the 🧪 button sits inside the step card, not cut off');
+  await page.click('[data-key="q:q2"] [data-act="addapp"]');
+  await page.click('#qcAppTab-code');
+  assert.ok(await page.isVisible('#qcAppPane-code'));
+  assert.equal(await page.isDisabled('#qcAppSaveBtn'), true, 'nothing to save yet');
+  await page.fill('#qcAppCodeTitle', 'My fraction bars');
+  await page.fill('#qcAppCode', '<h1 id="t">Two fifths of 30</h1><script>document.getElementById("t").textContent += " = " + (30 / 5 * 2);</script>');
+  await page.click('#qcAppCodeRunBtn');
+  await page.waitForSelector('#qcAppCodePreviewWrap', { state: 'visible' });
+  assert.equal(await page.getAttribute('#qcAppCodeFrame', 'sandbox'), 'allow-scripts');
+  const ran = await page.frameLocator('#qcAppCodeFrame').locator('#t').textContent();
+  assert.equal(ran, 'Two fifths of 30 = 12', 'the pasted script ran');
+  await shot(page, '17-paste-code');
+  await page.click('#qcAppSaveBtn');
+  await page.waitForSelector('.qc-node.qc-app');
+  const app = await page.evaluate(() => { const k = [...window.__fx.db.keys()].find(x => x.includes('/app__')); return window.__fx.db.get(k); });
+  assert.equal(app.source, 'pasted'); assert.equal(app.title, 'My fraction bars');
+  assert.match(app.html, /^<!DOCTYPE html>[\s\S]*<h1 id="t">/);
+  assert.equal(await page.evaluate(() => window.__fx.calls.filter(c => c.op === 'gen').length), 0, 'no AI call');
+  await page.waitForTimeout(900);
+  const chart = await page.evaluate(() => window.__fx.db.get('users/teacher/mathQuestionGraph/chart__q1'));
+  assert.ok(chart.edges.some(e => e.from.startsWith('app:') && e.to === 'q:q2'), 'linked to the easier step');
+  // ⌨ on the saved app opens its code again.
+  await page.click('.qc-node.qc-app [data-act="regen"]');
+  assert.ok(await page.isVisible('#qcAppPane-code'), 'opens on the code tab');
+  assert.match(await page.inputValue('#qcAppCode'), /Two fifths of 30/);
+  assert.equal(await page.isVisible('#qcAppTab-url'), false, 'editing hides link / reuse');
+  assert.deepEqual(errors, []);
+});
+
 await scenario('a pupil never reaches the chart page', async (page, errors) => {
   await boot(page, { uid: 'kid', email: 'kid@example.com', displayName: 'Kid' }, BOARD);
   assert.equal(await page.isVisible('#page-qchart'), false);

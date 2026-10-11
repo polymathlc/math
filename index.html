@@ -1992,7 +1992,8 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .gnode-topic { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 6px; }
 .gnode-topic .chip { font-size: 0.55rem; padding: 2px 7px; }
 .gnode-snippet { font-size: 0.78rem; color: var(--text-muted); line-height: 1.4; max-height: 3.9em; overflow: hidden; }
-.gnode-foot { display: flex; gap: 2px; padding: 6px 8px; border-top: 1px solid var(--border); background: var(--surface-alt); }
+.gnode-foot { display: flex; flex-wrap: wrap; gap: 2px; padding: 6px 8px; border-top: 1px solid var(--border); background: var(--surface-alt); }   /* wrap: a step card carries more buttons than fit on one line, and the last ones (🧪) were cut off */
+.editor-field textarea.qc-code, #qcAppCode { width: 100%; min-height: 260px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.82rem; line-height: 1.5; tab-size: 2; white-space: pre; overflow: auto; }
 .gnode-foot .spacer { flex: 1; }
 .gnode-act { border: 0; background: transparent; cursor: pointer; padding: 5px 7px; border-radius: var(--radius-sm); font-size: 0.95rem; line-height: 1; color: var(--text); transition: background 0.15s; }
 .gnode-act:hover { background: var(--primary-light); }
@@ -6544,6 +6545,7 @@ body.role-employee #emailBellBtn { display: none !important; }
     <div class="overlay-body">
       <div class="qc-tabs" id="qcAppTabs">
         <button type="button" class="qc-tab active" id="qcAppTab-gen">✨ Generate with AI</button>
+        <button type="button" class="qc-tab" id="qcAppTab-code">⌨ Paste code</button>
         <button type="button" class="qc-tab" id="qcAppTab-url">🔗 Link an app</button>
         <button type="button" class="qc-tab" id="qcAppTab-reuse">📚 Use an existing app</button>
       </div>
@@ -6551,7 +6553,7 @@ body.role-employee #emailBellBtn { display: none !important; }
         <div class="editor-field"><label>App title</label><input type="text" id="qcAppTitle" maxlength="120" placeholder="e.g. Finding a fraction of an amount"></div>
         <div class="editor-field"><label>What should the app show?</label>
           <textarea id="qcAppBrief" maxlength="4000" style="min-height:120px;"></textarea>
-          <div class="hint">The answer key and marking guide are never sent. The app uses its own numbers so it can't give the question away.</div>
+          <div class="hint">The app solves this question with its own names and numbers. Your answer and marking guide are sent so its answer agrees; the answer-key picture is not.</div>
         </div>
         <div class="qc-gen-row">
           <div class="editor-field"><label>Model</label>
@@ -6584,6 +6586,20 @@ body.role-employee #emailBellBtn { display: none !important; }
         </div>
         <div id="qcAppPreviewWrap" style="display:none;">
           <iframe class="qc-app-frame" id="qcAppFrame" sandbox="allow-scripts" referrerpolicy="no-referrer" title="App preview"></iframe>
+        </div>
+      </div>
+      <div id="qcAppPane-code" style="display:none;">
+        <div class="editor-field"><label>App title</label><input type="text" id="qcAppCodeTitle" maxlength="120" placeholder="e.g. Bar model for the pens question"></div>
+        <div class="editor-field"><label>Your code</label>
+          <textarea id="qcAppCode" class="qc-code" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="Paste a whole web page (&lt;!DOCTYPE html&gt; … &lt;/html&gt;), a piece of HTML, or plain JavaScript."></textarea>
+          <div class="hint">It runs exactly like a generated app: in a sealed frame with no access to this site, its storage or the internet. A piece of HTML or plain JavaScript is wrapped into a page for you.</div>
+        </div>
+        <div class="qc-gen-actions">
+          <button class="btn btn-ghost" type="button" id="qcAppCodeRunBtn">▶ Run</button>
+          <span class="qc-app-status" id="qcAppCodeStatus"></span>
+        </div>
+        <div id="qcAppCodePreviewWrap" style="display:none;">
+          <iframe class="qc-app-frame" id="qcAppCodeFrame" sandbox="allow-scripts" referrerpolicy="no-referrer" title="Your code running"></iframe>
         </div>
       </div>
       <div id="qcAppPane-url" style="display:none;">
@@ -33611,7 +33627,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.101.0 · 2026-10-11";
+const APP_VERSION = "v1.102.0 · 2026-10-11";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -34636,6 +34652,8 @@ function qcNormalizeApp(raw, id) {
     model: QC_APP_MODELS[raw.model] ? raw.model : "",
     effort: QC_APP_EFFORTS.includes(raw.effort) ? raw.effort : "",
     size: QC_APP_SIZES[raw.size] ? raw.size : "",
+    // "pasted" — the teacher's own code from ⌨ Paste code, not a generated page.
+    source: html && raw.source === "pasted" ? "pasted" : "",
     createdFor: String(raw.createdFor || ""),
     createdAt: String(raw.createdAt || ""),
     updatedAt: String(raw.updatedAt || "")
@@ -34654,6 +34672,7 @@ function qcAppRequestShape(model, effort, size) {
 function qcAppMetaLabel(app) {
   if (!app) return "";
   if (!app.html) return "Linked page";
+  if (app.source === "pasted") return "Your code";
   const bits = [];
   if (app.model && QC_APP_MODELS[app.model]) bits.push(QC_APP_MODELS[app.model].label);
   if (app.effort) bits.push(app.effort);
@@ -34672,6 +34691,23 @@ function qcAppHtmlFrom(text) {
   if (end >= 0) t = t.slice(0, end + 7);
   if (!/<(?:html|body|div|svg|canvas|main)[\s>]/i.test(t)) return "";
   return t.slice(0, QC_APP_HTML_MAX);
+}
+// ⌨ PASTED CODE becomes a page here, and only here (v1.102.0). A whole
+// document is kept as it is; a piece of HTML is put inside one; anything with
+// no tag in it is taken as JavaScript and put in a <script>. Whatever comes
+// out runs in exactly the sandbox a generated page does — `allow-scripts`
+// with no `allow-same-origin` — so pasted code can no more read the ChatGPT
+// key the portals share than a model's can.
+function qcPastedAppHtml(code) {
+  let t = String(code || "").replace(/^﻿/, "").trim();
+  if (!t) return "";
+  const fence = /^```[a-z]*\s*\n([\s\S]*?)\n?```$/i.exec(t);
+  if (fence) t = fence[1].trim();
+  if (!t) return "";
+  const head = '<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">';
+  if (/<!doctype html|<html[\s>]/i.test(t)) return t.slice(0, QC_APP_HTML_MAX);
+  if (/<[a-z!][^>]*>/i.test(t)) return ("<!DOCTYPE html>\n<html><head>" + head + "</head><body>\n" + t + "\n</body></html>").slice(0, QC_APP_HTML_MAX);
+  return ("<!DOCTYPE html>\n<html><head>" + head + "</head><body>\n<script>\n" + t.replace(/<\/script/gi, "<\\/script") + "\n<\/script>\n</body></html>").slice(0, QC_APP_HTML_MAX);
 }
 // ---- 🧪 The app WORKS THE QUESTION ITSELF (v1.100.0) ----
 // A pupil who has just got a question wrong cannot carry a lesson across from a
@@ -35139,7 +35175,7 @@ function qcNodeHtml(key, node, isRoot) {
       '</div>' +
       '<div class="gnode-foot">' +
         '<button class="gnode-act" data-act="open" title="Open the app">▶</button>' +
-        (app && app.html ? '<button class="gnode-act" data-act="regen" title="Change the brief and generate it again">✨</button>' : '') +
+        (app && app.html ? '<button class="gnode-act" data-act="regen" title="' + (app.source === "pasted" ? 'Edit the code, or generate it with AI instead' : 'Change the brief and generate it again, or paste your own code') + '">' + (app.source === "pasted" ? '⌨' : '✨') + '</button>' : '') +
         '<button class="gnode-act" data-act="note" title="What this app helps with">✎</button>' +
         '<span class="spacer"></span>' +
         '<button class="gnode-act link' + armed + '" data-act="link" title="Link this app to the step it helps with">🔗</button>' +
@@ -35999,13 +36035,27 @@ async function qcBreakAdd() {
 }
 
 // ---- Apps: dialog, generator, viewer ----------------------------------------------
+var qcAppTab = "gen";
 function qcSetAppTab(tab) {
-  ["gen", "url", "reuse"].forEach(t => {
+  qcAppTab = tab;
+  ["gen", "code", "url", "reuse"].forEach(t => {
     const b = $("qcAppTab-" + t), p = $("qcAppPane-" + t);
     if (b) b.classList.toggle("active", t === tab);
     if (p) p.style.display = t === tab ? "" : "none";
   });
   if (tab === "reuse") qcRenderReuseList();
+  // 💾 Save to chart saves what the open tab made: a generated page, or the code in the box.
+  const save = $("qcAppSaveBtn");
+  if (save) save.disabled = tab === "gen" ? !(qcAppDraft && qcAppDraft.html) : tab === "code" ? !$("qcAppCode").value.trim() : true;
+}
+function qcRunPastedCode() {
+  const html = qcPastedAppHtml($("qcAppCode").value), st = $("qcAppCodeStatus");
+  if (!html) { st.className = "qc-app-status err"; st.textContent = "Paste some code first."; return; }
+  $("qcAppCodeFrame").srcdoc = html;
+  $("qcAppCodePreviewWrap").style.display = "";
+  const long = $("qcAppCode").value.length > QC_APP_HTML_MAX;
+  st.className = "qc-app-status " + (long ? "err" : "ok");
+  st.textContent = long ? "This is longer than an app can hold (" + Math.round(QC_APP_HTML_MAX / 1024) + " KB) and was cut short." : "Running · " + (html.length / 1024).toFixed(1) + " KB. Try it below, then save it to the chart.";
 }
 function qcSyncAppControls() {
   const model = (document.querySelector('input[name="qcAppModel"]:checked') || {}).value || QC_APP_DEFAULT_MODEL;
@@ -36022,7 +36072,13 @@ function qcOpenAppDialog(targetKey, editAppId) {
   const q = tp.type === "q" ? graphFindQ(tp.id) : graphFindQ(qcRoot);
   const checks = chart.nodes[tk] ? chart.nodes[tk].checks : "";
   qcAppDraft = { editingId: editing ? editing.id : null, html: "", model: "", effort: "", size: "" };
-  $("qcAppHeading").textContent = editing ? "Regenerate “" + editing.title + "”" : "Add a visual app" + (q ? " for “" + (q.title || "this step") + "”" : "");
+  const pastedEdit = !!(editing && editing.source === "pasted");
+  $("qcAppHeading").textContent = editing ? (pastedEdit ? "Edit the code of “" : "Regenerate “") + editing.title + "”" : "Add a visual app" + (q ? " for “" + (q.title || "this step") + "”" : "");
+  $("qcAppCodeTitle").value = editing ? editing.title : ((checks || (q && q.title) || "Step") + "").slice(0, 80);
+  $("qcAppCode").value = pastedEdit ? editing.html : "";
+  $("qcAppCodeStatus").textContent = ""; $("qcAppCodeStatus").className = "qc-app-status";
+  $("qcAppCodePreviewWrap").style.display = "none";
+  $("qcAppCodeFrame").removeAttribute("srcdoc");
   $("qcAppTitle").value = editing ? editing.title : ((checks || (q && q.title) || "Step") + "").slice(0, 80);
   $("qcAppBrief").value = editing ? qcAppBriefUpgrade(editing.brief, q, checks) : qcDefaultBrief(q, checks);
   const shape = qcAppRequestShape(editing && editing.model, editing && editing.effort, editing && editing.size);
@@ -36034,8 +36090,10 @@ function qcOpenAppDialog(targetKey, editAppId) {
   $("qcAppPreviewWrap").style.display = "none";
   $("qcAppFrame").removeAttribute("srcdoc");
   $("qcAppSaveBtn").disabled = true;
-  $("qcAppTabs").style.display = editing ? "none" : "";
-  qcSetAppTab("gen");
+  // Editing keeps the two tabs that can REPLACE an app's page: generate it again, or paste code over it.
+  $("qcAppTabs").style.display = "";
+  ["url", "reuse"].forEach(t => { const b = $("qcAppTab-" + t); if (b) b.style.display = editing ? "none" : ""; });
+  qcSetAppTab(pastedEdit ? "code" : "gen");
   qcSyncAppControls();
   $("qcAppOverlay").classList.add("show");
 }
@@ -36081,7 +36139,7 @@ async function qcGenerateApp() {
     qcAppDraft = { ...qcAppDraft, html: res.html, model: shape.model, effort: shape.effort, size: shape.size, title, brief };
     $("qcAppFrame").srcdoc = res.html;
     $("qcAppPreviewWrap").style.display = "";
-    $("qcAppSaveBtn").disabled = false;
+    if (qcAppTab === "gen") $("qcAppSaveBtn").disabled = false;
     st.className = "qc-app-status ok";
     st.textContent = "Ready in " + Math.round((Date.now() - t0) / 1000) + "s · " + Math.round(res.html.length / 1024) + " KB. Try it below, then save it to the chart.";
   } catch (e) {
@@ -36104,14 +36162,20 @@ function qcAttachApp(app) {
   qcRender(); qcScheduleSave();
 }
 async function qcSaveGeneratedApp() {
-  if (!qcAppDraft || !qcAppDraft.html) return;
+  const pasted = qcAppTab === "code";
+  const html = pasted ? qcPastedAppHtml($("qcAppCode").value) : (qcAppDraft && qcAppDraft.html);
+  if (!html) { if (pasted) toast("Paste some code first", "error"); return; }
   const btn = $("qcAppSaveBtn"); btn.disabled = true;
   try {
-    const prev = qcAppDraft.editingId ? qcApps[qcAppDraft.editingId] : null;
-    const app = await qcSaveApp({
+    const prev = qcAppDraft && qcAppDraft.editingId ? qcApps[qcAppDraft.editingId] : null;
+    const app = await qcSaveApp(pasted ? {
+      id: prev ? prev.id : qcNewAppId(),
+      title: $("qcAppCodeTitle").value.trim() || "Maths step", brief: prev ? prev.brief : "",
+      html, source: "pasted", createdFor: qcRoot, createdAt: prev ? prev.createdAt : ""
+    } : {
       id: prev ? prev.id : qcNewAppId(),
       title: $("qcAppTitle").value.trim() || "Maths step", brief: $("qcAppBrief").value.trim(),
-      html: qcAppDraft.html, model: qcAppDraft.model, effort: qcAppDraft.effort, size: qcAppDraft.size,
+      html, model: qcAppDraft.model, effort: qcAppDraft.effort, size: qcAppDraft.size,
       createdFor: qcRoot, createdAt: prev ? prev.createdAt : ""
     });
     if (!prev) qcAttachApp(app); else qcRender();
@@ -36345,7 +36409,17 @@ async function qcPrintGo(autoPrint) {
   on("qcAppGenBtn", qcGenerateApp);
   on("qcAppSaveBtn", qcSaveGeneratedApp);
   on("qcAppUrlSaveBtn", qcSaveUrlApp);
-  ["gen", "url", "reuse"].forEach(t => on("qcAppTab-" + t, () => qcSetAppTab(t)));
+  ["gen", "code", "url", "reuse"].forEach(t => on("qcAppTab-" + t, () => qcSetAppTab(t)));
+  on("qcAppCodeRunBtn", qcRunPastedCode);
+  const code = $("qcAppCode");
+  if (code) {
+    code.addEventListener("input", () => { if (qcAppTab === "code") $("qcAppSaveBtn").disabled = !code.value.trim(); });
+    // Tab indents inside the code box rather than leaving it.
+    code.addEventListener("keydown", e => {
+      if (e.key !== "Tab" || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+      e.preventDefault(); document.execCommand("insertText", false, "  ");
+    });
+  }
   document.querySelectorAll('input[name="qcAppModel"]').forEach(r => r.addEventListener("change", qcSyncAppControls));
   const size = $("qcAppSize"); if (size) size.addEventListener("change", qcSyncAppControls);
   const search = $("qcPickerSearch"); if (search) search.addEventListener("input", e => qcRenderPicker(e.target.value));
