@@ -305,6 +305,7 @@ await scenario('➕ opens a copy of the question in the editor; Save adds it as 
   const copy = await page.evaluate(id => window.__fx.db.get('users/teacher/mathQuestions/' + id), added[0]);
   assert.equal(copy.title, 'Sharing stickers');
   assert.ok(!copy.variantOf, 'no variantOf on a chart step');
+  assert.equal(copy.foundationOf, 'q1', 'a ➕ step is a foundation of the question it sits under');
   const chart = await page.evaluate(() => window.__fx.db.get('users/teacher/mathQuestionGraph/chart__q1'));
   assert.ok(chart.edges.some(e => e.from === 'q:' + added[0] && e.to === 'q:q1'), 'new step → question: ' + JSON.stringify(chart.edges));
   assert.ok(await page.isVisible('[data-key="q:' + added[0] + '"]'), 'drawn on the chart');
@@ -351,6 +352,8 @@ await scenario('⏭ harder makes a next question above the question, with no arr
   const chart = await page.evaluate(() => window.__fx.db.get('users/teacher/mathQuestionGraph/chart__q1'));
   const key = 'q:' + added[0];
   assert.equal(chart.nodes[key].tier, 'harder');
+  const nq = await page.evaluate(id => window.__fx.db.get('users/teacher/mathQuestions/' + id), added[0]);
+  assert.ok(!nq.foundationOf, 'a next question is not held back for a miss');
   assert.ok(chart.nodes[key].y < chart.nodes['q:q1'].y, 'above the question');
   assert.ok(!chart.edges.some(e => e.from === key || e.to === key), 'not a step');
   assert.ok(await page.isVisible('[data-key="' + key + '"].qc-next'), 'drawn as a next question');
@@ -450,6 +453,7 @@ await scenario('🧩 breaks the question into its parts, and Add files each one 
   assert.equal(byTitle['Packets of candies'].level, 'P5', 'the question\'s level');
   assert.ok(qs.every(q => !q.variantOf), 'no variantOf');
   assert.ok(qs.every(q => !('checks' in q)), 'the checks line is on the chart, not the question');
+  assert.ok(qs.every(q => q.foundationOf === 'q1'), 'each part is shown only after a miss on the question');
   const chart = await page.evaluate(() => window.__fx.db.get('users/teacher/mathQuestionGraph/chart__q1'));
   for (const q of qs) assert.ok(chart.edges.some(e => e.from === 'q:' + q.id && e.to === 'q:q1'), q.title + ' → the question');
   assert.equal(chart.nodes['q:' + byTitle['Packets of candies'].id].checks, 'multiplies a 2-digit number by a 1-digit number');
@@ -478,6 +482,8 @@ await scenario('🧩 on a step breaks THAT step down, and an unticked part is no
   assert.equal(added.length, 1);
   const chart = await page.evaluate(() => window.__fx.db.get('users/teacher/mathQuestionGraph/chart__q1'));
   assert.ok(chart.edges.some(e => e.from === 'q:' + added[0] && e.to === 'q:q2'), 'under the step');
+  const part = await page.evaluate(id => window.__fx.db.get('users/teacher/mathQuestions/' + id), added[0]);
+  assert.equal(part.foundationOf, 'q2', 'a foundation of the step it was broken out of');
   assert.deepEqual(errors, []);
 });
 
@@ -494,6 +500,25 @@ await scenario('🧩 closed before the AI answers writes nothing and fills nothi
   assert.equal(await page.isVisible('#qcBreakOverlay'), false);
   assert.equal(await page.$$eval('#qcBreakList .qc-break-part', els => els.length), 0, 'the late reply filled nothing');
   assert.deepEqual(await bankIds(page), before, 'nothing saved');
+  assert.deepEqual(errors, []);
+});
+
+await scenario('🔒 on a bank-picked step keeps it for after a miss, and 🔓 puts it back', async (page, errors) => {
+  await boot(page, TEACHER, BOARD);
+  await openChart(page);
+  assert.match(await page.textContent('[data-key="q:q2"] .qc-found'), /ordinary practice/, 'a board step starts in ordinary practice');
+  await page.click('[data-key="q:q2"] [data-act="found"]');
+  await page.waitForSelector('[data-key="q:q2"] .qc-found.on');
+  await page.waitForTimeout(300);
+  let q2 = await page.evaluate(() => window.__fx.db.get('users/teacher/mathQuestions/q2'));
+  assert.equal(q2.foundationOf, 'q1');
+  assert.equal(q2.title, 'Fraction of 30', 'only the one field was written');
+  await shot(page, '13-locked-step');
+  await page.click('[data-key="q:q2"] [data-act="found"]');
+  await page.waitForSelector('[data-key="q:q2"] .qc-found:not(.on)');
+  await page.waitForTimeout(300);
+  q2 = await page.evaluate(() => window.__fx.db.get('users/teacher/mathQuestions/q2'));
+  assert.ok(!('foundationOf' in q2), 'cleared');
   assert.deepEqual(errors, []);
 });
 

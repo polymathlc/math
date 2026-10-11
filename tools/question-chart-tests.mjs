@@ -27,6 +27,9 @@
 //    (v1.95.0). The break-down prompt must ask for ONE PART per question,
 //    chained, at the original's size — and nothing is saved before the
 //    teacher has read the parts.
+//  • A FOUNDATIONAL STEP IN ORDINARY PRACTICE (v1.96.0). A step made on a
+//    chart is `foundationOf` the question above it; a pupil's load holds it
+//    aside and it is served ONLY straight after a miss on that question.
 import fs from 'fs';
 
 const PAGE = new URL('../index.html', import.meta.url).pathname;
@@ -307,6 +310,70 @@ test('the break-down flow: teacher only, checked, nothing saved before Add, stal
   ok(/if \(document\.activeElement && list\.contains\(document\.activeElement\)\) \{ st\.stale = true; return; \}/.test(src), 'never rebuilt under the caret');
 });
 
+// ---- 🔒 foundational steps only after a miss (v1.96.0) ----------------------------------------
+const F = new Function(`
+  ${cutFrom(src, 'function qIsFoundation(', 'String(a.id).localeCompare(String(b.id)));', 'qIsFoundation')}String(a.id).localeCompare(String(b.id)));
+  }
+  return { qIsFoundation, foundationStepsFor };
+`)();
+test('qIsFoundation is strict: only a real id that is not the question\'s own', () => {
+  ok(F.qIsFoundation({ id: 'a', foundationOf: 'q1' }), 'flagged');
+  ok(!F.qIsFoundation({ id: 'a' }), 'no field');
+  ok(!F.qIsFoundation({ id: 'a', foundationOf: '  ' }), 'blank');
+  ok(!F.qIsFoundation({ id: 'a', foundationOf: 'a' }), 'its own id');
+  ok(!F.qIsFoundation({ id: 'a', foundationOf: true }), 'not a string');
+  ok(!F.qIsFoundation({ id: 'a', foundationOf: ['q1'] }), 'not a string');
+  ok(!F.qIsFoundation(null), 'null');
+});
+test('foundationStepsFor gives that question\'s unmastered steps in the order they were made', () => {
+  const pool = {
+    b: { id: 'b', foundationOf: 'q1', createdAt: '2026-10-11T10:00:02Z' },
+    a: { id: 'a', foundationOf: 'q1', createdAt: '2026-10-11T10:00:01Z' },
+    c: { id: 'c', foundationOf: 'q1', createdAt: '2026-10-11T10:00:03Z' },
+    x: { id: 'x', foundationOf: 'q9', createdAt: '2026-10-11T10:00:00Z' },
+    n: { id: 'n', createdAt: '2026-10-11T10:00:00Z' }
+  };
+  eq(F.foundationStepsFor('q1', pool).map(q => q.id), ['a', 'b', 'c'], 'solving order');
+  eq(F.foundationStepsFor('q1', pool, q => q.id === 'b').map(q => q.id), ['a', 'c'], 'mastered ones skipped');
+  eq(F.foundationStepsFor('q2', pool), [], 'another question has none');
+  eq(F.foundationStepsFor('q1', null), [], 'no pool');
+});
+test('a pupil\'s load holds foundational steps aside; an author keeps them', () => {
+  const load = cutFrom(src, 'async function loadBank(uid) {', '\n    if (canManageQuestions()) {', 'loadBank');
+  ok(/foundationQuestions = \{\};/.test(load), 'emptied on every load');
+  ok(/if \(!canManageQuestions\(\) && qIsFoundation\(q\)\) \{\n\s*foundationQuestions\[String\(q\.id\)\] = q;\n\s*return;\n\s*\}\n\s*questionBank\.push\(q\);/.test(load), 'held aside, not pushed');
+  const keys = src.match(/const QUESTION_KEY_FIELDS = \[[^\]]*\]/);
+  ok(keys && !/foundationOf/.test(keys[0]), 'foundationOf stays in the student-readable half');
+});
+test('a miss serves the steps first, and they reach a pupil nowhere else', () => {
+  ok(/if \(!maybeServeFoundationOnMiss\(q, v\) && !maybeServePrerequisiteOnMiss\(q, v\)/.test(src), 'first in the miss chain');
+  const fn = cutFrom(src, 'function maybeServeFoundationOnMiss(', '\nfunction maybeServeEasierOnMiss(', 'maybeServeFoundationOnMiss');
+  ok(/=== "correct"\) return false;/.test(fn), 'never on a correct answer');
+  ok(/_practiceAutomatic\(\)/.test(fn), 'a pupil\'s automatic practice only');
+  ok(/foundationStepsFor\(q\.id, foundationQuestions,/.test(fn), 'the held steps of THIS question');
+  ok(/questionBank\.splice\(qIndex \+ 1, 0, \.\.\.steps\)/.test(fn), 'straight after it, all of them in order');
+  // Every READ of the held steps: the miss handler, and a sheet the teacher
+  // built by hand. A third reader is a third way a step reaches a pupil.
+  const reads = src.split('\n').filter(l => /foundationQuestions/.test(l) && !/^\s*\/\//.test(l) && !/foundationQuestions(\[String\(q\.id\)\])? = /.test(l));
+  eq(reads.map(l => l.trim()), ['|| foundationQuestions[String(id)]', 'const steps = foundationStepsFor(q.id, foundationQuestions, x => questionMastered(studentProgress[x.id]));'], 'the only readers');
+});
+test('every step made ON a chart is born foundational; a next question and a bank pick are not', () => {
+  const collect = cutFrom(src, 'function collectQuestion() {', '\n$("saveQBtn")', 'collectQuestion');
+  ok(/existing\.foundationOf \|\| \(!currentEditingId && qcSpawn && !qcSpawn\.tier \? qcParseKey\(qcSpawn\.target\)\.id : ""\)/.test(collect), '➕ step flagged, ⏭ not, an edit keeps it');
+  const q = M.qcBreakdownQuestion({ questionText: 'Q' }, { id: 'q1', level: 'P5' }, 'mq_9', 't', '');
+  eq(q.foundationOf, 'q1', '🧩 parts are foundations of the question they came from');
+  const add = cutFrom(src, 'async function qcBreakAdd(', '\n}\n', 'qcBreakAdd');
+  ok(/const root = graphFindQ\(qcParseKey\(st\.target\)\.id\) \|\| graphFindQ\(st\.root\) \|\| \{\};/.test(add), 'the step 🧩 was pressed on');
+  ok(!/foundationOf/.test(cutFrom(src, 'function qcAddStep(', '\n}', 'qcAddStep')), '📚 bank picks are left alone');
+});
+test('the 🔒 toggle is the teacher\'s, writes one field and rolls back', () => {
+  const fn = cutFrom(src, 'async function qcToggleFoundation(', '\nfunction qcRemoveNode(', 'qcToggleFoundation');
+  ok(/if \(!_isAdmin\(\)\)/.test(fn), 'teacher only');
+  ok(/setDoc\(doc\(db, "users", _bankOwnerOrThrow\(\), "mathQuestions", q\.id\), \{ foundationOf: on \? parent : deleteField\(\) \}, \{ merge: true \}\)/.test(fn), 'one field, merged');
+  ok(/catch \(e\) \{\n\s*if \(prev === undefined\) delete q\.foundationOf; else q\.foundationOf = prev;/.test(fn), 'rolled back');
+  ok(/else if \(act === "found"\) qcToggleFoundation\(key\);/.test(src), 'wired');
+});
+
 // ---- seeding from the board -------------------------------------------------------------
 test('a new chart starts from the board: prerequisites, easier and harder', () => {
   const c = M.qcSeedFromBoard('r', [
@@ -419,9 +486,9 @@ test('charts and apps live under rules that already exist', () => {
   ok(/const QC_DOC_PREFIX = "chart__";/.test(src) && /const QC_APP_PREFIX = "app__";/.test(src), 'prefixes');
   ok(!/"mathQuestionCharts"|"mathChartApps"/.test(src), 'no new collection that would need a rules deploy');
 });
-test('the version is v1.95.0 or later', () => {
+test('the version is v1.96.0 or later', () => {
   const v = src.match(/const APP_VERSION = "v(\d+)\.(\d+)\.(\d+)/);
-  ok(v && (Number(v[1]) > 1 || (Number(v[1]) === 1 && Number(v[2]) >= 95)), 'APP_VERSION is v1.95.0 or later');
+  ok(v && (Number(v[1]) > 1 || (Number(v[1]) === 1 && Number(v[2]) >= 96)), 'APP_VERSION is v1.96.0 or later');
 });
 
 // ---- runner ------------------------------------------------------------------------------------------

@@ -3080,10 +3080,34 @@ step from the working, and the climb back up come next.
 - 🧩 is on the toolbar (the chart's question) and on every step (that step).
   ➕ is now "From a copy".
 
+### 🔒 A foundational step is served ONLY after a miss (v1.96.0)
+
+`foundationOf` / `qIsFoundation` / `foundationStepsFor` (beside `qReleased`),
+`foundationQuestions` (beside `lockedQuestions`), `maybeServeFoundationOnMiss`
+(first in the miss chain) and `qcToggleFoundation` (🔒 / 🔓 on a step node).
+
+- **A step made ON a chart is born foundational**: ➕ From a copy (not a ⏭
+  next question) through `collectQuestion`, and every 🧩 part through
+  `qcBreakdownQuestion`. `foundationOf` is the id of the question it sits
+  under, kept through an edit, in the STUDENT-READABLE half (never in
+  `QUESTION_KEY_FIELDS` — the pupil's client acts on it). A 📚 bank pick is
+  left alone: it was an ordinary question first; 🔒 flags it by hand.
+- **The gate is the LOAD, like the release gate**: a pupil's `loadBank` holds a
+  foundational step in `foundationQuestions` instead of `questionBank`, so
+  practice, the games and every pool built from the bank never see it.
+- **`maybeServeFoundationOnMiss` is the one place it reaches a pupil**: on a
+  wrong answer in automatic practice, every unmastered step of THAT question
+  goes in next, in the order they were made. The only other reader is
+  `wsQuestionById`, so a sheet the teacher built by hand still resolves it.
+- `qIsFoundation` is strict (a non-empty string that is not the question's own
+  id) so a junk value can never hide a question.
+
 ## House rules
 - After touching **🧩 question charts** (`qcNormalizeChart`, `qcChartPayload`,
   `qcAddEdge`, `qcAttachNew`, `qcSpawnEditor`, `qcOnQuestionSaved`, the 🧩 break-down
   (`qcBreakdownPrompt`, `qcBreakdownParts`, `qcBreakdownQuestion`, `qcBreakAdd`), the
+  🔒 after-a-miss hold (`qIsFoundation`, `foundationStepsFor`, `loadBank`'s
+  foundation line, `maybeServeFoundationOnMiss`, `qcToggleFoundation`), the
   `qcSpawn` clears in `resetEditor` / `loadQuestionIntoEditor`,
   `qcWouldCycle`, `qcSeedFromBoard`, `qcNormalizeApp`,
   `qcAppPrompt`, `qcDefaultBrief`, `qcAppFrameAttrs`, the `qcApp*` overlay, or
