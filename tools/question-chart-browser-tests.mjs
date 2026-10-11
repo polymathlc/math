@@ -87,7 +87,15 @@ const stubs = {
       };
     }`,
   'firebase-ai.js': `export function getAI() { return {}; }
-    export function getGenerativeModel() { return { generateContent: async () => { throw new Error('no AI in this test'); }, startChat() { return { sendMessage: async () => { throw new Error('no AI'); } }; } }; }
+    // A scenario that sets window.__fx.ai answers text calls itself; every other scenario has no AI.
+    export function getGenerativeModel() { return { generateContent: async req => {
+      const fx = window.__fx;
+      if (!fx || !fx.ai) throw new Error('no AI in this test');
+      const prompt = req.contents[0].parts[0].text;
+      fx.calls.push({ op: 'ai', prompt });
+      const text = String(await fx.ai(prompt));
+      return { response: { text: () => text } };
+    }, startChat() { return { sendMessage: async () => { throw new Error('no AI'); } }; } }; }
     export class GoogleAIBackend {} export const ResponseModality = { TEXT: 'TEXT', IMAGE: 'IMAGE' };`,
   'firebase-storage.js': `export function getStorage() { return {}; } export function ref() { return {}; }
     export async function uploadString() { return {}; } export async function getDownloadURL() { return 'https://example.invalid/x.png'; }`
@@ -387,6 +395,105 @@ await scenario('↩ Back to the chart adds nothing and leaves no chart step behi
   assert.equal(await page.isVisible('#qcSpawnBar'), false);
   chart = await page.evaluate(() => window.__fx.db.get('users/teacher/mathQuestionGraph/chart__q1'));
   assert.deepEqual(Object.keys(chart.nodes).sort(), nodesBefore, 'nothing joined the chart');
+  assert.deepEqual(errors, []);
+});
+
+// ---- v1.95.0: 🧩 Foundational questions — the question broken into its parts ----------------
+const PARTS = JSON.stringify({ parts: [
+  { title: 'Packets of candies', questionText: 'Xiao Hua bought 8 packets of candies. Each packet contains 22 candies. How many candies did he buy?', expected: '176', markingGuide: '8 × 22 = 176', checks: 'multiplies a 2-digit number by a 1-digit number' },
+  { title: 'Candies in each bag', questionText: 'Xiao Hua has 176 candies. He packed his candies into 4 bags. How many candies are there in each bag?', expected: '44', markingGuide: '176 ÷ 4 = 44', checks: 'divides a 3-digit number by a 1-digit number' }
+] });
+// The AI stand-in: the break-down prompt gets the parts, the checker agrees
+// with the first part and flags the second, anything else gets an empty reply.
+const fakeAi = page => page.evaluate(parts => {
+  window.__fx.ai = async prompt => {
+    if (/FOUNDATIONAL questions/.test(prompt)) { await new Promise(r => setTimeout(r, window.__fx.aiDelay || 50)); return parts; }
+    if (/meticulous Singapore primary-school math checker/.test(prompt)) {
+      return /8 packets/.test(prompt)
+        ? JSON.stringify({ makesSense: true, issues: '', expected: '176 candies', markingGuide: '8 × 22 = 176 candies' })
+        : JSON.stringify({ makesSense: false, issues: 'Say whether every bag has the same number.', expected: '44', markingGuide: '176 ÷ 4 = 44' });
+    }
+    return '{}';
+  };
+}, PARTS);
+
+await scenario('🧩 breaks the question into its parts, and Add files each one as a step under it', async (page, errors) => {
+  page.on('dialog', d => d.accept());   // "1 of these was flagged — add anyway?"
+  await boot(page, TEACHER, BOARD);
+  await fakeAi(page);
+  await openChart(page);
+  const before = await bankIds(page);
+  await page.click('#qcBreakBtn');
+  await page.waitForSelector('#qcBreakOverlay.show');
+  await page.waitForSelector('#qcBreakList .qc-break-part:nth-child(2)');
+  await page.waitForFunction(() => document.querySelectorAll('#qcBreakList .qc-break-badge.ok, #qcBreakList .qc-break-badge.flag').length === 2);
+  const sent = await page.evaluate(() => window.__fx.calls.filter(c => c.op === 'ai' && /FOUNDATIONAL/.test(c.prompt)).map(c => c.prompt));
+  assert.equal(sent.length, 1, 'one break-down call');
+  assert.match(sent[0], /Ali and Ben share 30 sweets/, 'the question is in the prompt');
+  assert.match(sent[0], /Xiao Hua has 176 candies/, 'the worked example is in the prompt');
+  assert.match(sent[0], /not because the numbers are small/);
+  assert.equal(await page.inputValue('#qcBreakList .qc-break-part:nth-child(1) [data-f="expected"]'), '176 candies', 'the checker\'s verified answer');
+  assert.match(await page.textContent('#qcBreakList .qc-break-part:nth-child(2)'), /Check this one[\s\S]*same number/);
+  assert.equal(await page.textContent('#qcBreakAddBtn'), 'Add 2 to the bank and chart');
+  await shot(page, '11-foundational-review');
+  await page.fill('#qcBreakList .qc-break-part:nth-child(2) [data-f="questionText"]', 'Xiao Hua has 176 candies. He packed them equally into 4 bags. How many candies are there in each bag?');
+  await page.click('#qcBreakAddBtn');
+  await page.waitForSelector('#qcBreakOverlay', { state: 'hidden' });
+  await page.waitForTimeout(1000);
+  const added = (await bankIds(page)).filter(id => !before.includes(id));
+  assert.equal(added.length, 2, 'two new bank questions');
+  const qs = await page.evaluate(ids => ids.map(id => Object.assign({}, window.__fx.db.get('users/teacher/mathQuestions/' + id), window.__fx.db.get('users/teacher/mathQuestionKeys/' + id) || {})), added);
+  const byTitle = Object.fromEntries(qs.map(q => [q.title, q]));
+  assert.ok(byTitle['Packets of candies'] && byTitle['Candies in each bag'], JSON.stringify(qs.map(q => q.title)));
+  assert.equal(byTitle['Candies in each bag'].blocks[0].content, 'Xiao Hua has 176 candies. He packed them equally into 4 bags. How many candies are there in each bag?', 'the teacher\'s edit was saved');
+  assert.equal(byTitle['Packets of candies'].expected, '176 candies');
+  assert.equal(byTitle['Packets of candies'].level, 'P5', 'the question\'s level');
+  assert.ok(qs.every(q => !q.variantOf), 'no variantOf');
+  assert.ok(qs.every(q => !('checks' in q)), 'the checks line is on the chart, not the question');
+  const chart = await page.evaluate(() => window.__fx.db.get('users/teacher/mathQuestionGraph/chart__q1'));
+  for (const q of qs) assert.ok(chart.edges.some(e => e.from === 'q:' + q.id && e.to === 'q:q1'), q.title + ' → the question');
+  assert.equal(chart.nodes['q:' + byTitle['Packets of candies'].id].checks, 'multiplies a 2-digit number by a 1-digit number');
+  assert.ok(chart.nodes['q:' + byTitle['Packets of candies'].id].x < chart.nodes['q:' + byTitle['Candies in each bag'].id].x, 'in solving order, left to right');
+  await shot(page, '12-chart-with-foundational');
+  assert.deepEqual(errors, []);
+});
+
+await scenario('🧩 on a step breaks THAT step down, and an unticked part is not added', async (page, errors) => {
+  await boot(page, TEACHER, BOARD);
+  await fakeAi(page);
+  await openChart(page);
+  const before = await bankIds(page);
+  await page.click('[data-key="q:q2"] [data-act="breakdown"]');
+  await page.waitForSelector('#qcBreakList .qc-break-part:nth-child(2)');
+  assert.match(await page.textContent('#qcBreakHeading'), /Fraction of 30/);
+  const sent = await page.evaluate(() => window.__fx.calls.filter(c => c.op === 'ai' && /FOUNDATIONAL/.test(c.prompt)).map(c => c.prompt));
+  assert.match(sent[0], /Find 2\/5 of 30/, 'the step\'s own wording');
+  await page.waitForFunction(() => document.querySelectorAll('#qcBreakList .qc-break-badge.ok, #qcBreakList .qc-break-badge.flag').length === 2);
+  await page.click('#qcBreakList .qc-break-part:nth-child(2) [data-f="include"]');
+  assert.equal(await page.textContent('#qcBreakAddBtn'), 'Add 1 to the bank and chart');
+  await page.click('#qcBreakAddBtn');
+  await page.waitForSelector('#qcBreakOverlay', { state: 'hidden' });
+  await page.waitForTimeout(1000);
+  const added = (await bankIds(page)).filter(id => !before.includes(id));
+  assert.equal(added.length, 1);
+  const chart = await page.evaluate(() => window.__fx.db.get('users/teacher/mathQuestionGraph/chart__q1'));
+  assert.ok(chart.edges.some(e => e.from === 'q:' + added[0] && e.to === 'q:q2'), 'under the step');
+  assert.deepEqual(errors, []);
+});
+
+await scenario('🧩 closed before the AI answers writes nothing and fills nothing', async (page, errors) => {
+  await boot(page, TEACHER, BOARD);
+  await fakeAi(page);
+  await page.evaluate(() => { window.__fx.aiDelay = 800; });
+  await openChart(page);
+  const before = await bankIds(page);
+  await page.click('#qcBreakBtn');
+  await page.waitForSelector('#qcBreakStatus.busy');
+  await page.click('#qcBreakOverlay [data-close="qcBreakOverlay"].close');
+  await page.waitForTimeout(1300);
+  assert.equal(await page.isVisible('#qcBreakOverlay'), false);
+  assert.equal(await page.$$eval('#qcBreakList .qc-break-part', els => els.length), 0, 'the late reply filled nothing');
+  assert.deepEqual(await bankIds(page), before, 'nothing saved');
   assert.deepEqual(errors, []);
 });
 

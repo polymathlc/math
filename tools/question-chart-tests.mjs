@@ -23,6 +23,10 @@
 //    an "easier step", and the climb-back phase would walk into it.
 //  • A CHART STEP THAT OUTLIVES ITS TRIP TO THE EDITOR. `qcSpawn` left set
 //    puts the NEXT question saved anywhere onto this chart.
+//  • A "FOUNDATIONAL" QUESTION THAT IS JUST THE QUESTION WITH SMALLER NUMBERS
+//    (v1.95.0). The break-down prompt must ask for ONE PART per question,
+//    chained, at the original's size — and nothing is saved before the
+//    teacher has read the parts.
 import fs from 'fs';
 
 const PAGE = new URL('../index.html', import.meta.url).pathname;
@@ -46,7 +50,8 @@ const M = new Function(`
   return { QC_MAX_NODES, QC_CHECKS_MAX, QC_ROWH, QC_COLW, QC_TIERS, qcTierOf, qcKeyQ, qcKeyApp, qcParseKey, qcChartDocId, qcAppDocId,
            qcNormalizeChart, qcWouldCycle, qcChartPayload, qcSeedFromBoard, qcLayout, qcDepths,
            qcNormalizeApp, qcAppRequestShape, qcAppMetaLabel, qcAppHtmlFrom, qcDefaultBrief, qcAppPrompt,
-           QC_APP_MODELS, QC_APP_SIZES };
+           QC_APP_MODELS, QC_APP_SIZES,
+           QC_BREAK_MIN, QC_BREAK_MAX, qcBreakdownPrompt, qcBreakdownParts, qcBreakdownQuestion };
 `)();
 // The frame attributes and the edge writer sit further down; cut them alone.
 const W = new Function('M', `
@@ -230,6 +235,78 @@ test('the bar\'s 🔄 is the editor\'s own regenerator, one at a time', () => {
   ok(/<div class="qc-spawn" id="qcSpawnBar" hidden><\/div>/.test(src), 'the bar is in the editor');
 });
 
+// ---- 🧩 foundational questions (v1.95.0) ----------------------------------------------------
+const SRC = { title: 'Fruit tarts', level: 'P4', topic: 'Whole numbers', text: 'Xiao Ming bought 7 boxes of fruit tarts. Each box contained 24. She placed them equally on 4 trays. (a) How many? (b) How many on each tray?', expected: '(a) 168 (b) 42', markingGuide: '7 × 24 = 168; 168 ÷ 4 = 42' };
+test('the break-down prompt asks for ONE PART per question, chained, at the original size', () => {
+  const p = M.qcBreakdownPrompt(SRC, '');
+  ok(p.includes(SRC.text), 'the question');
+  ok(/NOT the same problem with smaller numbers/.test(p), 'not smaller numbers');
+  ok(/ONE short question for each step/.test(p), 'one part each');
+  ok(/between 2 and 5 questions/.test(p), 'how many');
+  ok(/Chain the numbers/.test(p) && /must equal the earlier question's answer exactly/.test(p), 'chained');
+  ok(/not because the numbers are small/.test(p), 'original size');
+  ok(/SAME new person and objects/.test(p), 'one new story');
+  ok(/Never write "from part \(a\)"/.test(p), 'each stands alone');
+  ok(/Xiao Hua bought 8 packets of candies[\s\S]*Xiao Hua has 176 candies/.test(p), 'Zhi Kai\'s worked example');
+  ok(/"parts":\[\{"title"/.test(p) && /"checks"/.test(p), 'reply shape');
+  ok(!/attached figure/.test(p), 'no figure line without a figure');
+  ok(!/REJECTED/.test(p), 'no fix note on a first try');
+});
+test('the prompt numbers MCQ options, names a figure, and carries a fix note', () => {
+  const p = M.qcBreakdownPrompt(Object.assign({}, SRC, { options: ['168', '42', '28'], correctOption: 1, hasDiagram: true }), 'only one part came back');
+  ok(/Options: 1\) 168; 2\) 42; 3\) 28 \(the correct one is option 2\)/.test(p), 'numbered, never lettered');
+  ok(/attached figure[\s\S]*put every value a question needs into its words/.test(p), 'figure line');
+  ok(/REJECTED because: only one part came back/.test(p), 'fix note');
+});
+test('qcBreakdownParts reads parts, trims and caps, and refuses a single part', () => {
+  eq(M.qcBreakdownParts(null), [], 'junk');
+  eq(M.qcBreakdownParts({ parts: [{ questionText: 'Only one' }] }), [], 'one part is just the question again');
+  const two = M.qcBreakdownParts([{ question: '  A?  ', answer: ' 1 ', working: 'w', skill: 'adds\n  two numbers' }, { title: 'B', questionText: 'B?', expected: '2' }, { title: 'empty' }, 'junk']);
+  eq(two.length, 2, 'bare array, aliases, the blank one dropped');
+  eq(two[0], { title: 'Part 1', questionText: 'A?', expected: '1', markingGuide: 'w', checks: 'adds two numbers' }, 'first');
+  eq(two[1].title, 'B', 'own title kept');
+  const many = M.qcBreakdownParts({ parts: Array.from({ length: 9 }, (_, i) => ({ questionText: 'Q' + i, checks: 'x'.repeat(500) })) });
+  eq(many.length, M.QC_BREAK_MAX, 'capped');
+  eq(many[0].checks.length, M.QC_CHECKS_MAX, 'checks capped to one line');
+});
+test('a part becomes an ordinary bank question: root level and topics, no variant, no checks', () => {
+  const q = M.qcBreakdownQuestion({ title: 'Packets', questionText: 'Q?', expected: '176', markingGuide: '8 × 22', checks: 'multiplies' },
+    { level: 'P5', topics: ['Ratio', 'Whole numbers'], los: ['P5.RAT.1.1'], variantOf: 'x', concept: 'secret' }, 'mq_1', '2026-10-11T00:00:00.000Z', 'Mr Chung');
+  eq(q.id, 'mq_1'); eq(q.level, 'P5'); eq(q.topics, ['Ratio', 'Whole numbers']); eq(q.topic, 'Ratio, Whole numbers');
+  eq(q.blocks, [{ id: 'mq_1_b1', type: 'text', content: 'Q?' }], 'one text block');
+  eq(q.expected, '176'); eq(q.markingGuide, '8 × 22');
+  eq(q.los, [], 'filed on its own words later, not the root\'s objectives');
+  ok(!('variantOf' in q), 'never a variant: practice must not serve it as the retry');
+  ok(!('checks' in q), 'the checks line belongs on the chart node');
+  eq(q.concept, '', 'the root\'s concept is not copied');
+  eq(M.qcBreakdownQuestion({ questionText: 'Q' }, { topic: 'A, B' }, 'id', 't', '').topics, ['A', 'B'], 'topics from the string');
+});
+test('qcAttachNew puts several steps side by side on the row under the target', () => {
+  const c = M.qcNormalizeChart({ nodes: { 'q:r': { x: 100, y: 0 } } }, 'r');
+  eq(W.qcAttachNew(c, 'a', {}), ''); eq(W.qcAttachNew(c, 'b', {}), ''); eq(W.qcAttachNew(c, 'c', {}), '');
+  eq([c.nodes['q:a'].x, c.nodes['q:b'].x, c.nodes['q:c'].x], [100, 100 + M.QC_COLW, 100 + 2 * M.QC_COLW], 'in order, a column apart');
+  ok([c.nodes['q:a'], c.nodes['q:b'], c.nodes['q:c']].every(n => n.y === M.QC_ROWH), 'one row down');
+});
+test('the break-down flow: teacher only, checked, nothing saved before Add, stale replies dropped', () => {
+  const open = cutFrom(src, 'function qcOpenBreakdown(', '\nfunction qcBreakClose(', 'qcOpenBreakdown');
+  ok(/if \(!_isAdmin\(\)\)/.test(open), 'teacher only');
+  ok(!/saveQuestionDoc/.test(cutFrom(src, 'function qcOpenBreakdown(', '\nasync function qcBreakAdd(', 'before Add')), 'nothing is saved before Add');
+  const gen = cutFrom(src, 'async function qcBreakGenerate(', '\nfunction qcBreakRender(', 'qcBreakGenerate');
+  ok(/qcBreakdownParts\(parseAIJson\(reply\)\)/.test(gen), 'the one reader');
+  ok(/verifyGeneratedQuestion\(/.test(gen), 'the ordinary checker');
+  ok((gen.match(/if \(!live\(\)\) return;/g) || []).length >= 3, 'a stale reply is dropped at every await');
+  const add = cutFrom(src, 'async function qcBreakAdd(', '\n}\n', 'qcBreakAdd');
+  ok(/if \(!_isAdmin\(\)\)/.test(add), 'teacher only in the handler');
+  ok(/qcBreakdownQuestion\(/.test(add) && /await saveQuestionDoc\(q\);/.test(add), 'the one builder, the one save door');
+  ok(/qcAttachNew\(chart, q\.id, \{ target: st\.target \}\)/.test(add), 'the one attach door, as a step');
+  ok(/\.checks = String\(p\.checks/.test(add), 'checks on the node');
+  ok(!/pendingVariantOf|variantOf/.test(add), 'no variant link');
+  ok(/else if \(act === "breakdown"\) qcOpenBreakdown\(key\);/.test(src), 'node 🧩');
+  ok(/on\("qcBreakBtn", \(\) => qcOpenBreakdown\(qcKeyQ\(qcRoot\)\)\);/.test(src), 'toolbar 🧩');
+  ok(/breakOv\.querySelectorAll\("\[data-close\]"\)\.forEach\(b => b\.addEventListener\("click", \(\) => \{ qcBreakRun\+\+; qcBreak = null; \}\)\);/.test(src), 'closing drops the reply on its way');
+  ok(/if \(document\.activeElement && list\.contains\(document\.activeElement\)\) \{ st\.stale = true; return; \}/.test(src), 'never rebuilt under the caret');
+});
+
 // ---- seeding from the board -------------------------------------------------------------
 test('a new chart starts from the board: prerequisites, easier and harder', () => {
   const c = M.qcSeedFromBoard('r', [
@@ -342,9 +419,9 @@ test('charts and apps live under rules that already exist', () => {
   ok(/const QC_DOC_PREFIX = "chart__";/.test(src) && /const QC_APP_PREFIX = "app__";/.test(src), 'prefixes');
   ok(!/"mathQuestionCharts"|"mathChartApps"/.test(src), 'no new collection that would need a rules deploy');
 });
-test('the version is v1.94.0 or later', () => {
+test('the version is v1.95.0 or later', () => {
   const v = src.match(/const APP_VERSION = "v(\d+)\.(\d+)\.(\d+)/);
-  ok(v && (Number(v[1]) > 1 || (Number(v[1]) === 1 && Number(v[2]) >= 94)), 'APP_VERSION is v1.94.0 or later');
+  ok(v && (Number(v[1]) > 1 || (Number(v[1]) === 1 && Number(v[2]) >= 95)), 'APP_VERSION is v1.95.0 or later');
 });
 
 // ---- runner ------------------------------------------------------------------------------------------

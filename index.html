@@ -2069,6 +2069,27 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .qc-next-icon { font-size: 1.3rem; line-height: 1; }
 .qc-next-bank { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 0.84rem; color: var(--text-muted); }
 @media (max-width: 520px) { .qc-next-choices { grid-template-columns: 1fr; } }
+/* 🧩 Foundational questions: the parts, for checking before they are added. */
+.qc-break-card { max-width: 760px; }
+.qc-break-intro { margin: 0 0 16px; font-size: 0.9rem; line-height: 1.65; color: var(--text-muted); }
+.qc-break-status { margin-bottom: 18px; font-size: 0.86rem; line-height: 1.6; color: var(--text-muted); display: flex; align-items: center; gap: 10px; }
+.qc-break-status.error { color: var(--danger, #b42318); }
+.qc-break-list { display: flex; flex-direction: column; gap: 18px; }
+.qc-break-part { border: 1px solid var(--border); border-left: 4px solid var(--primary, #4a7c59); border-radius: 14px; padding: 18px 20px; background: var(--surface); }
+.qc-break-part.off { opacity: 0.55; border-left-color: var(--border); }
+.qc-break-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.qc-break-pick { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.95rem; }
+.qc-break-pick input { appearance: auto; width: 18px; height: 18px; }
+.qc-break-badge { font-size: 0.76rem; padding: 4px 10px; border-radius: 999px; background: var(--bg, #f3f4f6); color: var(--text-muted); white-space: nowrap; }
+.qc-break-badge.ok { background: #e3f3e6; color: #276738; }
+.qc-break-badge.flag { background: #fdf1d9; color: #8a5a0e; }
+.qc-break-issue { margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; background: #fffaf0; font-size: 0.82rem; line-height: 1.55; color: #8a5a0e; }
+.qc-break-label { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; font-size: 0.78rem; font-weight: 600; color: var(--text-muted); flex: 1 1 0; min-width: 0; }
+.qc-break-label input, .qc-break-label textarea, .qc-break-guide textarea { width: 100%; box-sizing: border-box; padding: 9px 12px; border: 1px solid var(--border);
+  border-radius: 10px; font: inherit; font-size: 0.9rem; font-weight: 400; line-height: 1.55; color: var(--text); background: var(--surface); resize: vertical; }
+.qc-break-row { display: flex; gap: 14px; }
+.qc-break-guide summary { cursor: pointer; font-size: 0.82rem; color: var(--text-muted); margin-bottom: 8px; }
+@media (max-width: 600px) { .qc-break-row { flex-direction: column; gap: 0; } }
 /* 🧩 The bar on top of the editor while a chart's ➕ / ⏭ has a copy open. */
 .qc-spawn { background: var(--surface, #fff); border: 1px solid var(--border, #e2e8f0); border-left: 4px solid #c9861a;
             border-radius: 14px; padding: 18px 22px; margin-bottom: 22px; max-width: 880px; }
@@ -5752,8 +5773,9 @@ body.role-employee #emailBellBtn { display: none !important; }
       <div class="graph-wrap">
         <div class="graph-toolbar">
           <button class="btn btn-ghost btn-sm" id="qcBackBtn" type="button" title="Back to the Question Bank">← Bank</button>
-          <span class="graph-title"><span id="qcTitle">🧩 Question</span><small>Arrow A → B means “A is an easier step towards B”. Purple arrows are visual apps. Amber cards on top are what to try next.</small></span>
-          <button class="btn btn-primary btn-sm" id="qcAddStepBtn" type="button" title="Open a copy of this question in the editor, let the AI make it easier, then save it as a step">➕ Easier step</button>
+          <span class="graph-title"><span id="qcTitle">🧩 Question</span><small>Arrow A → B means “A is an easier step towards B”. 🧩 Foundational questions breaks the question into its parts. Purple arrows are visual apps. Amber cards on top are what to try next.</small></span>
+          <button class="btn btn-primary btn-sm" id="qcBreakBtn" type="button" title="Break this question into its parts: one short question for each step, to add as easier steps">🧩 Foundational questions</button>
+          <button class="btn btn-outline btn-sm" id="qcAddStepBtn" type="button" title="Open a copy of this question in the editor, let the AI change it, then save it as a step">➕ From a copy</button>
           <button class="btn btn-outline btn-sm" id="qcAddNextBtn" type="button" title="A question to try AFTER this one: same level or harder">⏭ Next question</button>
           <button class="btn btn-ghost btn-sm" id="qcPickStepBtn" type="button" title="Pick an existing bank question as an easier step">📚 From bank</button>
           <button class="btn btn-outline btn-sm" id="qcAddAppBtn" type="button">🧪 Add app</button>
@@ -6381,6 +6403,22 @@ body.role-employee #emailBellBtn { display: none !important; }
     <div class="overlay-body">
       <input type="search" id="qcPickerSearch" class="bank-search" placeholder="Search by title, level, topic or wording…" autocomplete="off">
       <div class="graph-picker-list" id="qcPickerList"></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="qcBreakOverlay">
+  <div class="overlay-card qc-break-card">
+    <div class="overlay-head"><h3 id="qcBreakHeading">🧩 Foundational questions</h3><button class="close" data-close="qcBreakOverlay">×</button></div>
+    <div class="overlay-body">
+      <p class="qc-break-intro">Each one is a single part of the question, asked on its own with a new name, new objects and new numbers. A later part starts from an earlier part's answer, so pupils learn to divide and conquer.</p>
+      <div class="qc-break-status" id="qcBreakStatus"></div>
+      <div class="qc-break-list" id="qcBreakList"></div>
+    </div>
+    <div class="overlay-foot">
+      <button class="btn btn-ghost" id="qcBreakRetryBtn" type="button">🔄 Try again</button>
+      <button class="btn btn-ghost" data-close="qcBreakOverlay" type="button">Cancel</button>
+      <button class="btn btn-primary" id="qcBreakAddBtn" type="button" disabled>Add to the bank and chart</button>
     </div>
   </div>
 </div>
@@ -33315,7 +33353,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.94.0 · 2026-10-11";
+const APP_VERSION = "v1.95.0 · 2026-10-11";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -34397,6 +34435,121 @@ function qcAppPrompt({ title, brief, level, size }) {
   ].filter(s => s !== "").join("\n");
 }
 
+// ---- 🧩 Foundational questions: the question broken into its PARTS (v1.95.0) ----
+// An easier step is not the same question with smaller numbers. It is ONE PART
+// of the problem asked on its own — the fruit-tart sum (7 boxes × 24, shared
+// onto 4 trays) becomes "8 packets × 22 candies, how many?" and then "176
+// candies into 4 bags, how many in each?" — so a pupil learns to divide and
+// conquer. These helpers are pure: the prompt, the ONE reader of the reply and
+// the ONE builder of a bank question from a part. The flow that calls the AI,
+// shows the parts for checking and saves them is further down.
+//
+//  • THE PARTS CHAIN. A later part GIVES an earlier part's answer as a fact
+//    (the 176), so each one stands alone and the set still tells one story.
+//  • THE NUMBERS STAY THE ORIGINAL'S SIZE. A part is easier because it is one
+//    step, not because the numbers shrank.
+//  • A PART IS AN ORDINARY BANK QUESTION: open-ended, the root's level and
+//    topics, no `variantOf` (practice must never serve it as the retry for
+//    the question it is a part of), and its `checks` line goes on the chart
+//    node, never on the question.
+const QC_BREAK_MIN = 2, QC_BREAK_MAX = 5;
+const QC_BREAK_TITLE_MAX = 80, QC_BREAK_TEXT_MAX = 1500, QC_BREAK_ANS_MAX = 240, QC_BREAK_GUIDE_MAX = 3000;
+const QC_BREAK_EXAMPLE =
+  `EXAMPLE\n` +
+  `Problem sum: "Xiao Ming bought 7 boxes of fruit tarts for a party. Each box contained 24 fruit tarts. Then she unpacked all the fruit tarts and placed them equally on 4 trays. (a) How many fruit tarts did Xiao Ming buy? (b) How many fruit tarts were on each tray?"\n` +
+  `Foundational questions:\n` +
+  `1. "Xiao Hua bought 8 packets of candies. Each packet contains 22 candies. How many candies did he buy?" (answer: 176)\n` +
+  `2. "Xiao Hua has 176 candies. He packed his candies into 4 bags. How many candies are there in each bag?" (answer: 44)\n` +
+  `Notice: one step each, a new person and new objects, numbers about as big as the original's, and question 2 starts from question 1's answer, given as a fact.\n`;
+// `src` is { title, level, topic, concept, text, options, correctOption,
+// expected, markingGuide, hasDiagram } — the caller flattens the question.
+function qcBreakdownPrompt(src, fixNote) {
+  src = src || {};
+  const opts = Array.isArray(src.options) && src.options.length >= 2
+    ? `Options: ${src.options.map((o, i) => (i + 1) + ") " + o).join("; ")}` +
+      (Number.isInteger(src.correctOption) ? ` (the correct one is option ${src.correctOption + 1})` : "") + `\n`
+    : "";
+  return [
+    `You are helping a Singapore primary-school maths teacher make FOUNDATIONAL questions for one of their problem sums.`,
+    `A foundational question is NOT the same problem with smaller numbers. It is ONE PART of the problem, asked on its own, so a pupil who cannot do the whole problem learns to divide and conquer: do one part, then the next.`,
+    ``,
+    `THE PROBLEM SUM`,
+    `Title: ${src.title || "(none)"}`,
+    `Level: ${src.level || "(unspecified)"}`,
+    `Topics: ${src.topic || "(unspecified)"}`,
+    src.concept ? `Concept (teacher-only): ${src.concept}` : ``,
+    `Question:`,
+    String(src.text || "(the question is carried by the attached figure)"),
+    opts.trim(),
+    src.expected ? `Answer (reference only): ${src.expected}` : ``,
+    src.markingGuide ? `Worked solution (reference only): ${src.markingGuide}` : ``,
+    ``,
+    `WHAT TO DO`,
+    `1. Work out the steps a pupil must take to solve it, in order. Labelled parts (a), (b)… are at least one step each; an answer that needs several calculations is several steps.`,
+    `2. Write ONE short question for each step: between ${QC_BREAK_MIN} and ${QC_BREAK_MAX} questions, in the order a pupil solves them. Each asks for exactly one thing and needs only that one step.`,
+    `3. Change the person's name, the objects and the numbers from the original. Use the SAME new person and objects in every question, so they read as one story.`,
+    `4. Chain the numbers: when a step uses the result of an earlier step, the later question GIVES that result as a fact (for example "Xiao Hua has 176 candies"), and it must equal the earlier question's answer exactly.`,
+    `5. Keep the numbers about as large and as friendly as the original's. A foundational question is easier because it is one step, not because the numbers are small. Every answer must work out cleanly (whole numbers wherever things are counted).`,
+    `6. Each question must make complete sense on its own. Never write "from part (a)", "the previous question" or "the answer above". These are open questions, not multiple choice.`,
+    src.hasDiagram ? `7. The problem relies on the attached figure, but the foundational questions have NO figure, so put every value a question needs into its words.` : ``,
+    ``,
+    QC_BREAK_EXAMPLE,
+    `Then check every question yourself: solve it, confirm the numbers chain, and write its final answer and a short worked solution.`,
+    fixNote ? `A previous attempt was REJECTED because: ${fixNote}. Fix exactly that.` : ``,
+    ``,
+    `Return ONLY valid JSON in this exact shape, with line breaks inside strings escaped as \\n and no markdown fences:`,
+    `{"parts":[{"title":"<short title>","questionText":"<the question>","expected":"<final answer, with units>","markingGuide":"<short worked solution>","checks":"<one line: the one skill this question checks, e.g. multiplies a 2-digit number by a 1-digit number>"}]}`
+  ].filter(s => s !== "").join("\n");
+}
+// The ONE reader of the reply. Accepts `{parts:[…]}` or a bare array, keeps the
+// parts that carry a question, trims and caps every field, and keeps at most
+// QC_BREAK_MAX. Fewer than QC_BREAK_MIN usable parts is not a break-down —
+// a single "part" is just the question again — so that is [] for the caller to
+// retry or report.
+function qcBreakdownParts(reply) {
+  const raw = Array.isArray(reply) ? reply : (reply && Array.isArray(reply.parts) ? reply.parts : []);
+  const clip = (v, n) => String(v == null ? "" : v).replace(/\r/g, "").trim().slice(0, n);
+  const one = v => clip(v, 400).replace(/\s+/g, " ");
+  const parts = raw
+    .filter(p => p && typeof p === "object")
+    .map(p => ({
+      title: one(p.title).slice(0, QC_BREAK_TITLE_MAX),
+      questionText: clip(p.questionText || p.question || p.text, QC_BREAK_TEXT_MAX),
+      expected: one(p.expected || p.answer).slice(0, QC_BREAK_ANS_MAX),
+      markingGuide: clip(p.markingGuide || p.working || p.solution, QC_BREAK_GUIDE_MAX),
+      checks: one(p.checks || p.skill).slice(0, QC_CHECKS_MAX)
+    }))
+    .filter(p => p.questionText)
+    .slice(0, QC_BREAK_MAX)
+    .map((p, i) => Object.assign(p, { title: p.title || ("Part " + (i + 1)) }));
+  return parts.length >= QC_BREAK_MIN ? parts : [];
+}
+// The ONE builder of a bank question from a part. `root` is the question the
+// part was broken out of; its level and topics carry over, its objectives do
+// not (a part tests one skill, so it is filed on its own afterwards), and
+// nothing links it as a variant.
+function qcBreakdownQuestion(part, root, id, nowIso, by) {
+  root = root || {};
+  const topics = Array.isArray(root.topics) ? root.topics.slice() : String(root.topic || "").split(",").map(s => s.trim()).filter(Boolean);
+  return {
+    id: String(id),
+    title: String(part.title || "Part").trim().slice(0, QC_BREAK_TITLE_MAX) || "Part",
+    level: String(root.level || "").trim(),
+    topic: topics.join(", "),
+    topics,
+    concept: "",
+    los: [],
+    blocks: [{ id: String(id) + "_b1", type: "text", content: String(part.questionText || "").trim() }],
+    expected: String(part.expected || "").trim(),
+    markingGuide: String(part.markingGuide || "").trim(),
+    videoExplanationUrl: "",
+    videoOverlays: [],
+    answerKeyImageUrl: "",
+    createdAt: nowIso,
+    createdBy: by || "Admin"
+  };
+}
+
 // ---- Firestore ------------------------------------------------------------
 function qcOwnerUid() { return _isAdmin() ? (currentUser && currentUser.uid) : adminUid; }
 async function qcLoadAll(uid) {
@@ -34533,7 +34686,8 @@ function qcNodeHtml(key, node, isRoot) {
     '<div class="gnode-foot">' +
       '<button class="gnode-act" data-act="preview" title="Preview the question">👁</button>' +
       (isRoot ? '' : '<button class="gnode-act" data-act="note" title="What this step checks">✎</button>') +
-      '<button class="gnode-act" data-act="addstep" title="New easier step: a copy of this question opens in the editor for the AI to change">➕</button>' +
+      '<button class="gnode-act" data-act="breakdown" title="Foundational questions: break this into its parts, one short question per step">🧩</button>' +
+      '<button class="gnode-act" data-act="addstep" title="New step from a copy: this question opens in the editor for the AI to change">➕</button>' +
       '<button class="gnode-act" data-act="pickstep" title="Pick an easier step from the bank">📚</button>' +
       (isRoot ? '<button class="gnode-act" data-act="addnext" title="A question to try next: same level or harder">⏭</button>' : '') +
       '<button class="gnode-act" data-act="addapp" title="Add a visual app for this step">🧪</button>' +
@@ -34691,6 +34845,7 @@ function qcOnNodeClick(e, el) {
   const key = el.dataset.key, act = b.dataset.act, p = qcParseKey(key);
   if (act === "preview") { const q = graphFindQ(p.id); if (q) openQuestionPreview(q, "Question preview"); }
   else if (act === "note") qcOpenNode(key);
+  else if (act === "breakdown") qcOpenBreakdown(key);
   else if (act === "addstep") qcSpawnEditor(key, "");
   else if (act === "pickstep") qcOpenPicker(key, "");
   else if (act === "addnext") qcOpenNextChooser();
@@ -34747,8 +34902,12 @@ function qcAttachNew(chart, qid, spot) {
   const want = spot && spot.target;
   const target = (want && chart.nodes[want] && !chart.nodes[want].tier && (qcParseKey(want) || {}).type === "q") ? want : rootKey;
   const t = chart.nodes[target];
-  const siblings = chart.edges.filter(e => e.to === target).length;
-  chart.nodes[key] = { x: Math.round(t.x + (siblings - 0.5) * 140), y: Math.round(t.y + QC_ROWH), checks: "" };
+  // On the row under the target, to the right of whatever is already on that
+  // row — so several steps added at once (🧩 Foundational questions) sit side
+  // by side in the order they were added, never stacked on each other.
+  const rowY = Math.round(t.y + QC_ROWH);
+  const inRow = Object.keys(chart.nodes).filter(k => Math.abs(chart.nodes[k].y - rowY) < QC_ROWH / 2).map(k => chart.nodes[k].x);
+  chart.nodes[key] = { x: Math.round(inRow.length ? Math.max.apply(null, inRow) + QC_COLW : t.x), y: rowY, checks: "" };
   const why = qcAddEdge(chart, key, target, "");
   if (why) { delete chart.nodes[key]; return why; }
   return "";
@@ -34954,6 +35113,211 @@ function qcNextChoose(tier, fromBank) {
   else qcSpawnEditor(qcKeyQ(qcRoot), tier);
 }
 
+// ---- 🧩 Create foundational questions: the flow (v1.95.0) --------------------------
+// 🧩 on the toolbar breaks the chart's question into its parts; 🧩 on a step
+// breaks THAT step down further. One AI call writes the parts (the helpers
+// above say how), the ordinary checker re-solves each one in parallel, and the
+// parts come up in a window for the teacher to read, change or untick. Only
+// "Add to the bank and chart" writes anything: each part becomes a bank
+// question and joins the chart as an easier step under the question it was
+// broken out of, in solving order, with its "checks" line on the node.
+//
+//  • NOTHING IS SAVED BEFORE THE TEACHER HAS SEEN IT. A wrong chain (176 in
+//    one question and 186 in the next) is exactly the mistake a model makes
+//    and a checker that looks at one part at a time cannot see.
+//  • A STALE REPLY IS DROPPED (`run`). Closing the window or pressing
+//    🔄 Try again bumps it, so an answer arriving late cannot fill a window
+//    that has moved on.
+//  • WHAT IS TYPED LIVES ON THE PART, written on every keystroke, so a
+//    re-render never eats an edit.
+//  • A PART THAT FAILS TO SAVE STOPS THE RUN and says how many landed; the
+//    ones that did are already in the bank AND on the chart, so nothing is
+//    left half-filed.
+let qcBreak = null;   // { root, target, sourceTitle, parts, busy, run, error }
+let qcBreakRun = 0;
+function qcBreakSource(q) {
+  return {
+    title: q.title || "", level: q.level || "", topic: q.topic || (Array.isArray(q.topics) ? q.topics.join(", ") : ""),
+    concept: q.concept || "", text: blocksPlainText(q.blocks || [], "\n\n"),
+    options: Array.isArray(q.options) ? q.options : [], correctOption: q.correctOption,
+    expected: q.expected || "", markingGuide: q.markingGuide || "",
+    hasDiagram: (q.blocks || []).some(b => b && b.type === "image" && String(b.url || "").trim())
+  };
+}
+function qcOpenBreakdown(sourceKey) {
+  if (!_isAdmin()) { toast("Only the teacher's account can edit dependency charts", "error"); return; }
+  const chart = qcRoot && qcCharts[qcRoot]; if (!chart) return;
+  const p = qcParseKey(sourceKey);
+  const key = p && p.type === "q" && chart.nodes[sourceKey] && !chart.nodes[sourceKey].tier ? sourceKey : qcKeyQ(qcRoot);
+  const q = graphFindQ(qcParseKey(key).id);
+  if (!q) { toast("That question isn't in the bank any more", "error"); return; }
+  qcBreak = { root: qcRoot, target: key, sourceTitle: q.title || "this question", parts: [], busy: false, run: 0, error: "" };
+  $("qcBreakHeading").textContent = "🧩 Foundational questions for “" + (q.title || "this question") + "”";
+  $("qcBreakOverlay").classList.add("show");
+  qcBreakGenerate();
+}
+function qcBreakClose() {
+  qcBreakRun++;              // a reply still on its way is now stale
+  qcBreak = null;
+  closeOverlay("qcBreakOverlay");
+}
+async function qcBreakGenerate() {
+  const st = qcBreak; if (!st) return;
+  if (!aiReady()) { st.error = "AI isn't ready yet — try again in a moment."; qcBreakRender(); return; }
+  const q = graphFindQ(qcParseKey(st.target).id);
+  if (!q) { st.error = "That question isn't in the bank any more."; qcBreakRender(); return; }
+  const run = ++qcBreakRun;
+  st.run = run; st.busy = true; st.error = ""; st.parts = [];
+  qcBreakRender();
+  const live = () => qcBreak === st && st.run === run && qcBreakRun === run;
+  try {
+    const src = qcBreakSource(q);
+    const media = [];
+    for (const b of (q.blocks || []).filter(b => b && b.type === "image" && String(b.url || "").trim()).slice(0, 2)) {
+      try { const m = await imageUrlToInlineMedia(b.url); if (m) media.push(m); }
+      catch (e) { console.warn("figure could not be attached for the break-down", e); }
+    }
+    let parts = [], fix = "";
+    for (let attempt = 1; attempt <= 2 && !parts.length; attempt++) {
+      const reply = await askGeminiVision(qcBreakdownPrompt(src, fix), media, { maxOutputTokens: 8192, json: true, models: geminiRegenModels, modelNames: AI_REGEN_MODEL_NAMES, thinkingBudget: -1 });
+      if (!live()) return;
+      parts = qcBreakdownParts(parseAIJson(reply));
+      if (!parts.length) fix = "it did not return at least " + QC_BREAK_MIN + " separate questions";
+    }
+    if (!parts.length) throw new Error("the AI didn't break this question into parts — try again, or add steps with ➕");
+    parts.forEach(p => { p.include = true; p.check = "checking"; p.issues = ""; });
+    st.parts = parts; st.busy = false;
+    qcBreakRender();
+    // The ordinary checker, one part at a time but all at once. A part it
+    // agrees with takes the checker's own re-derived answer and working.
+    await Promise.all(parts.map(async p => {
+      try {
+        const c = await verifyGeneratedQuestion({ title: p.title, questionText: p.questionText, expected: p.expected, markingGuide: p.markingGuide, level: q.level, topic: q.topic, concept: "" }, []);
+        if (!live()) return;
+        const sane = c.makesSense !== false && !String(c.issues || "").trim();
+        p.check = sane ? "ok" : "flag";
+        p.issues = sane ? "" : String(c.issues || "the checker wasn't sure").trim().slice(0, 400);
+        if (sane && !p.edited) {
+          if (String(c.expected || "").trim()) p.expected = String(c.expected).trim().slice(0, QC_BREAK_ANS_MAX);
+          if (String(c.markingGuide || "").trim()) p.markingGuide = String(c.markingGuide).trim().slice(0, QC_BREAK_GUIDE_MAX);
+        }
+      } catch (e) {
+        if (!live()) return;
+        p.check = "flag"; p.issues = "The checker couldn't run: " + aiErrorMessage(e);
+      }
+      qcBreakRender();
+    }));
+  } catch (e) {
+    if (!live()) return;
+    console.error(e);
+    st.busy = false; st.parts = [];
+    st.error = "Couldn't make foundational questions: " + aiErrorMessage(e);
+    qcBreakRender();
+  }
+}
+function qcBreakRender() {
+  const st = qcBreak, list = $("qcBreakList"), status = $("qcBreakStatus"), add = $("qcBreakAddBtn"), again = $("qcBreakRetryBtn");
+  if (!list || !status) return;
+  if (!st) { list.innerHTML = ""; status.textContent = ""; return; }
+  if (st.busy) {
+    status.className = "qc-break-status busy";
+    status.innerHTML = '<span class="spinner dark"></span> Breaking “' + escapeHtml(st.sourceTitle) + '” into its parts…';
+  } else if (st.error) {
+    status.className = "qc-break-status error";
+    status.textContent = st.error;
+  } else {
+    const n = st.parts.filter(p => p.include).length, checking = st.parts.some(p => p.check === "checking");
+    status.className = "qc-break-status";
+    status.textContent = checking ? "Checking each answer…"
+      : n ? "Read them through, change anything you like, then add them. Each one goes under the question as an easier step."
+      : "Tick at least one question to add.";
+  }
+  const n = st.parts.filter(p => p.include).length;
+  if (add) { add.disabled = st.busy || !n || !!st.saving; add.textContent = st.saving ? "Adding…" : n ? "Add " + n + " to the bank and chart" : "Add to the bank and chart"; }
+  if (again) again.disabled = st.busy || !!st.saving;
+  if (document.activeElement && list.contains(document.activeElement)) { st.stale = true; return; }
+  st.stale = false;
+  list.innerHTML = st.parts.map((p, i) => {
+    const badge = p.check === "ok" ? '<span class="qc-break-badge ok">✓ Answer checked</span>'
+      : p.check === "flag" ? '<span class="qc-break-badge flag">⚠ Check this one</span>'
+      : '<span class="qc-break-badge">Checking…</span>';
+    // The list is never rebuilt under the caret — a checker result landing
+    // mid-sentence would take the cursor out of the box. `focusout` repaints.
+    return '<div class="qc-break-part' + (p.include ? "" : " off") + '" data-i="' + i + '">' +
+      '<div class="qc-break-top">' +
+        '<label class="qc-break-pick"><input type="checkbox" data-f="include"' + (p.include ? " checked" : "") + '> <b>Step ' + (i + 1) + '</b></label>' +
+        badge +
+      '</div>' +
+      (p.check === "flag" && p.issues ? '<div class="qc-break-issue">' + escapeHtml(p.issues) + '</div>' : '') +
+      '<label class="qc-break-label">Title<input type="text" data-f="title" maxlength="' + QC_BREAK_TITLE_MAX + '" value="' + escapeHtml(p.title) + '"></label>' +
+      '<label class="qc-break-label">Question<textarea data-f="questionText" rows="3" maxlength="' + QC_BREAK_TEXT_MAX + '">' + escapeHtml(p.questionText) + '</textarea></label>' +
+      '<div class="qc-break-row">' +
+        '<label class="qc-break-label">Answer<input type="text" data-f="expected" maxlength="' + QC_BREAK_ANS_MAX + '" value="' + escapeHtml(p.expected) + '"></label>' +
+        '<label class="qc-break-label">What it checks<input type="text" data-f="checks" maxlength="' + QC_CHECKS_MAX + '" value="' + escapeHtml(p.checks) + '"></label>' +
+      '</div>' +
+      '<details class="qc-break-guide"><summary>Worked solution</summary><textarea data-f="markingGuide" rows="4" maxlength="' + QC_BREAK_GUIDE_MAX + '">' + escapeHtml(p.markingGuide) + '</textarea></details>' +
+    '</div>';
+  }).join("");
+}
+function qcBreakField(e) {
+  const st = qcBreak; if (!st) return;
+  const el = e.target, card = el.closest(".qc-break-part"); if (!card || !el.dataset.f) return;
+  const p = st.parts[Number(card.dataset.i)]; if (!p) return;
+  if (el.dataset.f === "include") {
+    p.include = el.checked; card.classList.toggle("off", !p.include);
+    el.blur(); qcBreakRender(); return;
+  }
+  p[el.dataset.f] = el.value;
+  if (el.dataset.f === "expected" || el.dataset.f === "markingGuide" || el.dataset.f === "questionText") p.edited = true;
+}
+async function qcBreakAdd() {
+  const st = qcBreak; if (!st || st.busy || st.saving) return;
+  if (!_isAdmin()) { toast("Only the teacher's account can edit dependency charts", "error"); return; }
+  const chart = qcCharts[st.root]; if (!chart) return;
+  const picked = st.parts.filter(p => p.include);
+  if (!picked.length) { toast("Tick at least one question to add", "error"); return; }
+  const bad = picked.findIndex(p => !String(p.questionText || "").trim() || !String(p.expected || "").trim());
+  if (bad >= 0) { toast("Step " + (st.parts.indexOf(picked[bad]) + 1) + " needs a question and an answer", "error"); return; }
+  if (Object.keys(chart.nodes).length + picked.length > QC_MAX_NODES) { toast("A chart holds up to " + QC_MAX_NODES + " steps", "error"); return; }
+  const flagged = picked.filter(p => p.check === "flag").length;
+  if (flagged && !confirm(flagged + " of these " + (flagged === 1 ? "was" : "were") + " flagged by the checker. Add anyway?")) return;
+  st.saving = true; qcBreakRender();
+  const root = graphFindQ(st.root) || {};
+  const by = currentUser ? currentUser.name : "Admin";
+  const saved = [];
+  try {
+    for (const p of picked) {
+      const q = qcBreakdownQuestion(p, root, "mq_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6), new Date().toISOString(), by);
+      await saveQuestionDoc(q);
+      questionBank.push(q);
+      const why = qcAttachNew(chart, q.id, { target: st.target });
+      if (why) throw new Error("“" + q.title + "” is in the bank, but not on the chart: " + why);
+      chart.nodes[qcKeyQ(q.id)].checks = String(p.checks || "").replace(/\s+/g, " ").trim().slice(0, QC_CHECKS_MAX);
+      p.saved = true;
+      saved.push(q);
+    }
+  } catch (e) {
+    console.error(e);
+    toast((saved.length ? saved.length + " added, then " : "") + "a save failed: " + (e.message || e), "error");
+  }
+  st.saving = false;
+  if (saved.length) {
+    qcRoot = st.root;
+    qcScheduleSave();
+    qcRender();
+    // Filed on the syllabus map in the background, like ⚡ Rapid add's
+    // questions — a part tests one skill, so it is filed on its own words.
+    saved.forEach(q => sylAutoFileLos(q).then(ids => { if (ids && ids.length) return saveQuestionDoc(q, { quiet: true }); }).catch(e => console.warn("auto-file part", e)));
+  }
+  if (saved.length === picked.length) {
+    qcBreakClose();
+    toast("Added " + saved.length + " foundational question" + (saved.length === 1 ? "" : "s") + " to the bank and the chart", "success");
+  } else {
+    st.parts = st.parts.filter(p => !p.saved);
+    qcBreakRender();
+  }
+}
+
 // ---- Apps: dialog, generator, viewer ----------------------------------------------
 function qcSetAppTab(tab) {
   ["gen", "url", "reuse"].forEach(t => {
@@ -35130,6 +35494,20 @@ function qcOpenAppViewer(appId) {
   vp.addEventListener("pointerdown", qcOnViewportPointerDown);
   const on = (id, fn) => { const el = $(id); if (el) el.addEventListener("click", fn); };
   on("qcBackBtn", () => navigateTo("bank"));
+  on("qcBreakBtn", () => qcOpenBreakdown(qcKeyQ(qcRoot)));
+  on("qcBreakAddBtn", qcBreakAdd);
+  on("qcBreakRetryBtn", () => { if (qcBreak && !qcBreak.busy && !qcBreak.saving) qcBreakGenerate(); });
+  const breakOv = $("qcBreakOverlay");
+  if (breakOv) {
+    // × and Cancel close it through the shared [data-close] handler; this one
+    // also drops the reply still on its way.
+    breakOv.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => { qcBreakRun++; qcBreak = null; }));
+    const list = $("qcBreakList");
+    list.addEventListener("input", qcBreakField);
+    list.addEventListener("focusout", () => setTimeout(() => {
+      if (qcBreak && qcBreak.stale && !(document.activeElement && list.contains(document.activeElement))) qcBreakRender();
+    }, 0));
+  }
   on("qcAddStepBtn", () => qcSpawnEditor(qcKeyQ(qcRoot), ""));
   on("qcAddNextBtn", qcOpenNextChooser);
   on("qcPickStepBtn", () => qcOpenPicker(qcKeyQ(qcRoot), ""));
