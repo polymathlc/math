@@ -574,6 +574,7 @@ body.arcade-ui .sidebar-level :is(select, #studentLevelSelect) option { color: #
   margin: 0 0 18px; padding: 16px 18px;
   border: 1.5px solid var(--primary); border-radius: var(--radius-md, 12px); background: var(--primary-light);
 }
+.aks-carry[hidden] { display: none; }   /* display:flex above would otherwise show an empty scanner banner on every question */
 /* A worked answer is photographed in whatever shape the page was, and a tall
    one would otherwise make the banner taller than the fields it sits over. */
 .aks-carry img { width: 150px; max-width: 40vw; max-height: 200px; object-fit: contain; border-radius: var(--radius-sm); border: 1px solid var(--border); background: #fff; }
@@ -2156,6 +2157,13 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 /* Student clickable options */
 .mcq-area { margin-top: 14px; }
 .mcq-prompt { font-family: 'Space Mono', monospace; font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 9px; }
+/* ✨ Answer with AI (v1.101.0) */
+.qaa-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 10px; }
+.qaa-status { font-size: 0.8rem; color: var(--text-light); line-height: 1.5; }
+.qaa-status.busy { color: var(--primary); }
+.qaa-status.ok { color: #2e7d32; }
+.qaa-status.err { color: #c62828; }
+.qaa-status .qaa-undo { margin-left: 8px; background: none; border: 0; padding: 0; color: var(--primary); font: inherit; text-decoration: underline; cursor: pointer; }
 .mcq-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 @media (max-width: 560px) { .mcq-options { grid-template-columns: 1fr; } }
 .mcq-option { display: flex; align-items: center; gap: 11px; text-align: left; padding: 13px 15px; border: 1.5px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); cursor: pointer; font-family: inherit; font-size: 1rem; color: var(--text); transition: all var(--transition); }
@@ -5291,7 +5299,7 @@ body.role-employee #emailBellBtn { display: none !important; }
           <button class="btn btn-ghost btn-sm" id="addImageBtn">＋ Image / diagram</button>
         </div>
 
-        <div class="editor-field"><label>Correct answer <span style="color:var(--text-light);font-weight:400;">(optional if you attach a guide/image)</span></label><input id="qExpectedInput" type="text" placeholder="e.g. 7/20"><div class="hint">The expected final answer. You can also provide the worked answer in the marking guide or answer key image.</div></div>
+        <div class="editor-field"><label>Correct answer <span style="color:var(--text-light);font-weight:400;">(optional if you attach a guide/image)</span></label><input id="qExpectedInput" type="text" placeholder="e.g. 7/20"><div class="hint">The expected final answer. You can also provide the worked answer in the marking guide or answer key image.</div><div class="qaa-row"><button type="button" class="btn btn-ghost btn-sm" id="qAiAnswerBtn">✨ Answer with AI</button><span class="qaa-status" id="qAiAnswerStatus" aria-live="polite"></span></div></div>
         <div class="editor-field">
           <label>Multiple-choice options <span style="color:var(--text-light);font-weight:400;">(optional — students tap one)</span></label>
           <div class="hint">Add 2–6 options to turn this into a clickable MCQ. Choose the radio for the correct option — it stays private; students only see the choices. Leave empty for a free-response question.</div>
@@ -16594,6 +16602,7 @@ function resetEditor() {
   $("qTitleInput").value = ""; $("qLevelInput").value = ""; $("qTopicInput").value = ""; $("qConceptInput").value = "";
   editorLos = []; sylEditorRender();
   $("qExpectedInput").value = ""; $("qGuideInput").value = "";
+  qaaUndo = null; if (typeof qaaStatus === "function") qaaStatus("", "");
   $("qVideoInput").value = "";
   editorVideoOverlays = []; voSyncButton();
   setAnswerKeyImage("");
@@ -16643,6 +16652,7 @@ function loadQuestionIntoEditor(q) {
   $("qTitleInput").value = q.title || ""; $("qLevelInput").value = q.level || ""; $("qTopicInput").value = adminTopicsLabel(q); $("qConceptInput").value = conceptLabel(q);
   editorLos = qLos(q); sylEditorRender();
   $("qExpectedInput").value = q.expected || ""; $("qGuideInput").value = q.markingGuide || "";
+  qaaUndo = null; qaaStatus("", "");
   $("qVideoInput").value = q.videoExplanationUrl || "";
   editorVideoOverlays = voClean(q.videoOverlays); voSyncButton();
   setAnswerKeyImage(q.answerKeyImageUrl || "");
@@ -22227,6 +22237,115 @@ function setupAdminTextTools() {
   ].forEach(([id, opts]) => attachAiToolsTo(id, opts));
 }
 setupAdminTextTools();
+
+// =====================================================================
+// ✨ ANSWER WITH AI — the answer and the marking guide, from the question
+// AS IT IS NOW (v1.101.0)
+// =====================================================================
+// A question is edited after it is written: 🔄 Regenerate changes the names and
+// numbers, 🪄 the command box rewrites it, a teacher retypes a line. The answer
+// and the marking guide do not follow, so the editor ends up with "Mr Chung
+// needs 6 pens" above a guide still working out "48 ÷ 8 = 6 packets". This
+// button reads the question exactly as the editor holds it this second and
+// writes both again.
+//
+//  • THE OLD ANSWER AND GUIDE ARE NOT SHOWN TO THE MODEL. They are the stale
+//    thing being replaced; shown them, a model talks itself into agreeing.
+//  • IT READS `collectQuestion()` — the same object 💾 Save writes — so tables,
+//    MCQ options and every picture in the question are what it solves.
+//  • IT FILLS BOTH FIELDS and the MCQ radio, and ↩ Undo puts all three back.
+//    The guide is refreshed too because an answer above an old guide is the
+//    exact mismatch this exists to end.
+//  • A REPLY FOR A QUESTION THAT IS NO LONGER OPEN IS DROPPED — `editorBlocks`
+//    is replaced wholesale whenever another question is opened.
+const QAA_IMG_MAX = 4;
+function qaaPrompt(q, imageNote) {
+  const text = blocksPlainText((q && q.blocks) || [], "\n\n");
+  const opts = q && Array.isArray(q.options) && q.options.length >= 2
+    ? "\nThis is a multiple-choice question. The options, as the pupil sees them:\n"
+      + q.options.map((o, i) => mcqLabel(i) + " " + o).join("\n")
+      + "\nPut the NUMBER of the correct option in \"optionNumber\".\n"
+    : "";
+  return "You are a careful Singapore primary-school mathematics teacher writing the answer key for a question.\n"
+    + "Solve the question below completely, from scratch, exactly as it is written now. Use its own names, objects, units and numbers.\n"
+    + (imageNote || "")
+    + "\nTitle: " + ((q && q.title) || "(none)") + "\nLevel: " + ((q && q.level) || "(unspecified)") + "\n"
+    + "Question:\n" + (text || "(the question is carried by the attached image)") + "\n"
+    + opts
+    + "\nReturn:\n"
+    + "- \"answer\": the final answer only, as short as possible, with its unit if there is one (e.g. \"$10\", \"24 m\", \"3/4\"). If the question has parts, give them as \"(a) … (b) …\".\n"
+    + "- \"markingGuide\": the worked solution a teacher marks against, one step per line, each line a short number sentence with a few words saying what it finds (e.g. \"6 ÷ 2 = 3 packets\"), ending with the answer line. Use the method a Singapore primary pupil is taught at this level (bar models, units, unitary method) — no algebra unless the question asks for it. Label parts (a), (b).\n"
+    + "- \"optionNumber\": the correct option number for a multiple-choice question, otherwise null.\n"
+    + "- \"confidence\": \"high\", \"medium\" or \"low\"; \"low\" when the question cannot be worked out as written, and say why in \"issue\".\n"
+    + "Return ONLY valid JSON, no markdown fences, with line breaks in markingGuide escaped as \\n:\n"
+    + "{\"answer\":\"…\",\"markingGuide\":\"…\",\"optionNumber\":null,\"confidence\":\"high\",\"issue\":\"\"}";
+}
+// The ONE reader of the reply. Anything it cannot believe comes back empty
+// rather than as a word typed into the answer box.
+function qaaFromReply(res, optionCount) {
+  const r = res && typeof res === "object" ? res : {};
+  const answer = String(r.answer == null ? "" : r.answer).replace(/\s+/g, " ").trim().slice(0, 300);
+  const guide = String(r.markingGuide == null ? "" : r.markingGuide).replace(/\\n/g, "\n").replace(/\r/g, "").split("\n").map(l => l.trim()).filter(Boolean).join("\n").slice(0, 3000);
+  const n = Number(r.optionNumber);
+  const option = optionCount >= 2 && Number.isInteger(n) && n >= 1 && n <= optionCount ? n - 1 : -1;
+  const confidence = ["high", "medium", "low"].includes(String(r.confidence || "").toLowerCase()) ? String(r.confidence).toLowerCase() : "";
+  return { answer, guide, option, confidence, issue: String(r.issue || "").trim().slice(0, 300) };
+}
+var qaaBusy = false;   // var: resetEditor() reaches these during module evaluation
+var qaaUndo = null;
+function qaaStatus(text, kind, withUndo) {
+  const el = $("qAiAnswerStatus"); if (!el) return;
+  el.className = "qaa-status" + (kind ? " " + kind : "");
+  el.textContent = text || "";
+  if (withUndo) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "qaa-undo"; b.textContent = "↩ Undo";
+    b.addEventListener("click", qaaRestore);
+    el.appendChild(b);
+  }
+}
+function qaaRestore() {
+  if (!qaaUndo || qaaUndo.owner !== editorBlocks) { qaaStatus("", ""); return; }
+  $("qExpectedInput").value = qaaUndo.expected;
+  $("qGuideInput").value = qaaUndo.guide;
+  if (qaaUndo.correctId && editorOptions.some(o => o.id === qaaUndo.correctId)) { editorCorrectId = qaaUndo.correctId; renderEditorOptions(); }
+  qaaUndo = null;
+  qaaStatus("Put the answer and marking guide back.", "");
+}
+async function qaaAnswerWithAi() {
+  if (!canManageQuestions() || qaaBusy) return;
+  const q = collectQuestion();
+  const hasImg = (q.blocks || []).some(b => b.type === "image" && String(b.url || "").trim());
+  if (!blocksPlainText(q.blocks || [], " ").trim() && !hasImg) { toast("Write the question first", "error"); return; }
+  const owner = editorBlocks, btn = $("qAiAnswerBtn");
+  qaaBusy = true; if (btn) btn.disabled = true;
+  qaaStatus("✨ Working out the answer to the question as it is now…", "busy");
+  try {
+    const urls = (q.blocks || []).filter(b => b.type === "image" && String(b.url || "").trim()).map(b => String(b.url).trim()).slice(0, QAA_IMG_MAX);
+    const media = [];
+    for (const u of urls) { try { const m = await imageUrlToInlineMedia(u); if (m) media.push(m); } catch (e) { console.warn("answer with AI: picture not attached", e); } }
+    const note = urls.length ? (media.length
+      ? "Attached: " + media.length + " picture" + (media.length > 1 ? "s" : "") + " from this question. Read every number and label in them — they are part of the question.\n"
+      : "The question has a picture that could not be attached; work from the wording.\n") : "";
+    const raw = await askGeminiVision(qaaPrompt(q, note), media, {
+      maxOutputTokens: 3072, json: true, models: geminiRegenModels, modelNames: AI_REGEN_MODEL_NAMES, thinkingBudget: -1, reasoningEffort: "high"
+    });
+    if (owner !== editorBlocks) return;   // another question was opened meanwhile
+    const r = qaaFromReply(parseAIJson(raw), (q.options || []).length);
+    if (!r.answer && !r.guide) throw new Error("The AI did not give an answer — try again.");
+    qaaUndo = { owner, expected: $("qExpectedInput").value, guide: $("qGuideInput").value, correctId: editorCorrectId };
+    if (r.answer) $("qExpectedInput").value = r.answer;
+    if (r.guide) $("qGuideInput").value = r.guide;
+    const kept = editorOptions.filter(o => (o.text || "").trim());
+    if (r.option >= 0 && kept[r.option]) { editorCorrectId = kept[r.option].id; renderEditorOptions(); }
+    const warn = r.confidence === "low" ? " The AI was not sure" + (r.issue ? ": " + r.issue : "") + " — check it." : " Check it before saving.";
+    qaaStatus("Filled the answer" + (r.guide ? " and marking guide" : "") + (r.option >= 0 ? " and ticked option " + mcqNumber(r.option) : "") + "." + warn, r.confidence === "low" ? "err" : "ok", true);
+  } catch (e) {
+    console.error(e);
+    if (owner === editorBlocks) qaaStatus("Couldn't work out the answer: " + aiErrorMessage(e), "err");
+  } finally { qaaBusy = false; if (btn) btn.disabled = false; }
+}
+$("qAiAnswerBtn").addEventListener("click", qaaAnswerWithAi);
 
 // =====================================================================
 // DRAWING PAD
@@ -33492,7 +33611,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.100.0 · 2026-10-11";
+const APP_VERSION = "v1.101.0 · 2026-10-11";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)

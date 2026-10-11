@@ -714,6 +714,36 @@ await scenario('🖨 prints the chart as a booklet: wrong? turn to the steps pag
   assert.deepEqual(errors, []);
 });
 
+// ---- v1.101.0: ✨ Answer with AI reads the question as it is now -----------------------------
+await scenario('✨ Answer with AI fills the answer and guide from the edited question, and ↩ Undo puts them back', async (page, errors) => {
+  await boot(page, TEACHER);
+  await page.evaluate(() => {
+    window.__fx.ai = async prompt => /writing the answer key for a question/.test(prompt)
+      ? JSON.stringify({ answer: '$10', markingGuide: '6 ÷ 2 = 3 packets\n3 × $3 = $9\nAnswer: $9', optionNumber: null, confidence: 'high', issue: '' })
+      : '{}';
+  });
+  await page.evaluate(() => document.querySelector('.nav-item[data-page="create"]').click());
+  await page.waitForSelector('#page-create.active');
+  await page.click('#page-create .block-body [contenteditable="true"]');
+  await page.keyboard.type('Mr Chung needs 6 pens. Pens are sold in packets of 2 for $3. What is the least he needs to spend?');
+  await page.fill('#qExpectedInput', 'STALE-ANSWER');
+  await page.fill('#qGuideInput', '48 ÷ 8 = 6 packets');
+  await page.click('#qAiAnswerBtn');
+  await page.waitForSelector('#qAiAnswerStatus.ok');
+  const sent = await page.evaluate(() => window.__fx.calls.filter(c => c.op === 'ai' && /answer key for a question/.test(c.prompt)).map(c => c.prompt));
+  assert.equal(sent.length, 1, 'one call');
+  assert.match(sent[0], /Mr Chung needs 6 pens/, 'the question as it is now');
+  assert.doesNotMatch(sent[0], /STALE-ANSWER|48 ÷ 8/, 'the stale answer and guide are not shown to the model');
+  assert.equal(await page.inputValue('#qExpectedInput'), '$10');
+  assert.equal(await page.inputValue('#qGuideInput'), '6 ÷ 2 = 3 packets\n3 × $3 = $9\nAnswer: $9');
+  assert.match(await page.textContent('#qAiAnswerStatus'), /Filled the answer and marking guide/);
+  await shot(page, '16-answer-with-ai');
+  await page.click('#qAiAnswerStatus .qaa-undo');
+  assert.equal(await page.inputValue('#qExpectedInput'), 'STALE-ANSWER');
+  assert.equal(await page.inputValue('#qGuideInput'), '48 ÷ 8 = 6 packets');
+  assert.deepEqual(errors, []);
+});
+
 await scenario('a pupil never reaches the chart page', async (page, errors) => {
   await boot(page, { uid: 'kid', email: 'kid@example.com', displayName: 'Kid' }, BOARD);
   assert.equal(await page.isVisible('#page-qchart'), false);
