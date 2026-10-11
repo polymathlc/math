@@ -1672,6 +1672,103 @@ export const askOpenAi = onCall(OPENAI_OPTS, async (request) => {
 });
 
 // =====================================================================
+// 🧩 generateChartApp — the visual APPS on a question's dependency chart
+// ---------------------------------------------------------------------
+// A chart step can link an app: one self-contained HTML page that lets a
+// pupil SEE the step (a bar model they drag, a fraction bar they split). The
+// teacher writes a brief and picks the engine; this callable writes the page.
+//
+// IT IS ITS OWN CALLABLE, not `askOpenAi`, for one reason: TIME. A Rich page
+// at high effort is a long answer from a reasoning model, and `askOpenAi`
+// gives up at three minutes (its fetch) inside a four-minute function. This
+// one allows nine. Everything else follows `askOpenAi`'s rules:
+//  • THE TEACHER ONLY. A pupil never generates an app, and the bill is the
+//    centre's.
+//  • THE MODEL IS ONE OF TWO, chosen on the client — GPT 6.1 Sol (with a
+//    reasoning effort) or GPT 6 Luna (size only). Anything else is Sol.
+//  • THE SIZE IS A KEY and the token budget is decided HERE, so a client
+//    cannot ask for an unbounded answer. The budget is the page; the effort's
+//    reasoning headroom is added on top, and the whole is clamped to what the
+//    API accepts (a larger number is a 400, not a longer answer).
+//  • ITS OWN THROTTLE FIELDS (`chartAppDay` …), so a morning of generating
+//    apps never closes the text engine for marking, and the other way round.
+// =====================================================================
+const CHART_APP_OPTS = { secrets: [OPENAI_API_KEY], timeoutSeconds: 540, memory: "512MiB", maxInstances: 5, enforceAppCheck: ENFORCE_APP_CHECK };
+const CHART_APP_MODELS = ["gpt-6.1-sol", "gpt-6-luna"];
+const CHART_APP_EFFORTS = ["low", "medium", "high", "xhigh", "max"];
+const CHART_APP_SIZES = { compact: 7000, standard: 14000, rich: 24000 };
+const CHART_APP_REASONING = { low: 3000, medium: 6000, high: 12000, xhigh: 18000, max: 24000 };
+const CHART_APP_MAX_TOKENS = 48000;
+const CHART_APP_HTML_MAX = 600000;
+const CHART_APP_SLOT = { day: "chartAppDay", count: "chartAppCount", last: "lastChartAppAt", interval: 3000, cap: 60 };
+const CHART_APP_SYSTEM = "You are an expert front-end developer and primary-school maths teacher. You write one complete, self-contained, interactive HTML page and nothing else.";
+
+function chartAppShape(d = {}) {
+  const model = CHART_APP_MODELS.includes(d.model) ? d.model : CHART_APP_MODELS[0];
+  const effort = model === "gpt-6-luna" ? "low" : (CHART_APP_EFFORTS.includes(d.effort) ? d.effort : "medium");
+  const size = Object.prototype.hasOwnProperty.call(CHART_APP_SIZES, d.size) ? d.size : "standard";
+  const budget = Math.min(CHART_APP_MAX_TOKENS, CHART_APP_SIZES[size] + CHART_APP_REASONING[effort]);
+  return { model, effort, size, budget };
+}
+// A model asked for a page often wraps it in a fence or says a sentence
+// first: keep the document itself, or nothing.
+function chartAppHtml(text) {
+  let t = String(text || "").trim();
+  const fence = /```(?:html)?\s*([\s\S]*?)```/i.exec(t);
+  if (fence && /<(?:!doctype|html|body|div|svg|script)/i.test(fence[1])) t = fence[1].trim();
+  const start = t.search(/<!doctype html|<html[\s>]/i);
+  if (start > 0) t = t.slice(start);
+  const end = t.toLowerCase().lastIndexOf("</html>");
+  if (end >= 0) t = t.slice(0, end + 7);
+  if (!/<(?:html|body|div|svg|canvas|main)[\s>]/i.test(t)) return "";
+  return t.slice(0, CHART_APP_HTML_MAX);
+}
+
+export const generateChartApp = onCall(CHART_APP_OPTS, async (request) => {
+  const auth = requireAuth(request);
+  if (!isAdminAuth(auth)) throw new HttpsError("permission-denied", "Only the teacher's account can generate chart apps.");
+  const key = (OPENAI_API_KEY.value() || "").trim();
+  if (!key) throw new HttpsError("failed-precondition", "No OpenAI key is configured on the server.");
+  const d = request.data || {};
+  const prompt = cleanText(d.prompt, 20000);
+  if (!prompt) throw new HttpsError("invalid-argument", "Say what the app should show.");
+  const shape = chartAppShape(d);
+  await reserveBackupSlot(auth.uid, CHART_APP_SLOT);
+
+  const body = {
+    model: shape.model,
+    messages: [{ role: "system", content: CHART_APP_SYSTEM }, { role: "user", content: prompt }],
+    max_completion_tokens: shape.budget
+  };
+  if (OPENAI_REASONING_RE.test(shape.model)) body.reasoning_effort = shape.effort;
+
+  let res;
+  try {
+    res = await fetch(OPENAI_URL, {
+      method: "POST",
+      signal: AbortSignal.timeout(520000),
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+      body: JSON.stringify(body)
+    });
+  } catch (e) {
+    throw new HttpsError("unavailable", "Could not reach ChatGPT: " + (e.message || e));
+  }
+  if (!res.ok) {
+    let detail = "";
+    try { const ej = await res.json(); detail = ej && ej.error ? ej.error.message : ""; } catch (_) { /* non-JSON error body */ }
+    throw new HttpsError(res.status === 429 ? "resource-exhausted" : "internal", `ChatGPT API error ${res.status}${detail ? ": " + detail : ""}`);
+  }
+  const data = await res.json();
+  const choice = data && data.choices && data.choices[0];
+  if (choice && choice.finish_reason === "length") {
+    throw new HttpsError("resource-exhausted", "The app ran past its size before it was finished — pick a bigger size or a lower effort.");
+  }
+  const html = chartAppHtml(choice && choice.message && choice.message.content);
+  if (!html) throw new HttpsError("internal", "ChatGPT answered without a web page — try again.");
+  return { html, model: shape.model, effort: shape.effort, size: shape.size };
+});
+
+// =====================================================================
 // 🖼 openAiImage — CHATGPT IMAGES 2.5, WITH THE KEY ON THE SERVER
 // ---------------------------------------------------------------------
 // Every PICTURE the family draws — a trading card, a battle avatar, an

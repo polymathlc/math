@@ -1,0 +1,44 @@
+name: Question chart checks
+on:
+  pull_request:
+    paths: ['index.html', 'functions/index.js', 'firestore.rules', 'tools/question-chart-*.mjs', '.github/workflows/question-charts.yml']
+  push:
+    branches: [main]
+    paths: ['index.html', 'functions/index.js', 'firestore.rules', 'tools/question-chart-*.mjs', '.github/workflows/question-charts.yml']
+permissions:
+  contents: read
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check charts, apps and the app generator
+        run: node tools/question-chart-tests.mjs
+      - name: Check the employee role still holds
+        run: node --test tools/employee-work-session-tests.mjs
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated browser runtime
+        run: |
+          npm install --prefix "$RUNNER_TEMP/qc-browser" --no-audit --no-fund playwright@1.62.1
+          "$RUNNER_TEMP/qc-browser/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Check the chart page in a real browser
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/qc-browser/node_modules/playwright/index.mjs
+          QC_SHOTS: ${{ runner.temp }}/qc-shots
+        run: node tools/question-chart-browser-tests.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: question-chart-browser
+          path: ${{ runner.temp }}/qc-shots
+          retention-days: 7
