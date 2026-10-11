@@ -18,6 +18,11 @@
 //    origin and one localStorage, which holds the ChatGPT key; an app frame
 //    with allow-same-origin can read it.
 //  • AN APP PROMPT THAT CARRIES THE ANSWER KEY to a page the pupil sees.
+//  • A NEXT QUESTION TANGLED INTO THE STEPS (v1.94.0). ⏭ questions are tried
+//    AFTER the question; an arrow to or from one would make a harder question
+//    an "easier step", and the climb-back phase would walk into it.
+//  • A CHART STEP THAT OUTLIVES ITS TRIP TO THE EDITOR. `qcSpawn` left set
+//    puts the NEXT question saved anywhere onto this chart.
 import fs from 'fs';
 
 const PAGE = new URL('../index.html', import.meta.url).pathname;
@@ -38,18 +43,18 @@ const cutFrom = (text, from, to, what) => {
 const M = new Function(`
   const graphPlainText = blocks => (blocks || []).map(b => (b && b.content) || "").join(" ").replace(/<[^>]+>/g, "").trim();
   ${cutFrom(src, '// 🧩 QUESTION CHARTS', '// ---- Firestore ----', 'qc helpers')}
-  return { QC_MAX_NODES, QC_CHECKS_MAX, QC_ROWH, qcKeyQ, qcKeyApp, qcParseKey, qcChartDocId, qcAppDocId,
+  return { QC_MAX_NODES, QC_CHECKS_MAX, QC_ROWH, QC_COLW, QC_TIERS, qcTierOf, qcKeyQ, qcKeyApp, qcParseKey, qcChartDocId, qcAppDocId,
            qcNormalizeChart, qcWouldCycle, qcChartPayload, qcSeedFromBoard, qcLayout, qcDepths,
            qcNormalizeApp, qcAppRequestShape, qcAppMetaLabel, qcAppHtmlFrom, qcDefaultBrief, qcAppPrompt,
            QC_APP_MODELS, QC_APP_SIZES };
 `)();
 // The frame attributes and the edge writer sit further down; cut them alone.
 const W = new Function('M', `
-  const { qcKeyQ, qcParseKey, qcWouldCycle } = M;
+  const { qcKeyQ, qcParseKey, qcWouldCycle, qcTierOf, QC_MAX_NODES, QC_ROWH, QC_COLW } = M;
   const QC_COMMENT_MAX = 200;
   ${cutFrom(src, 'function qcAddEdge(', '\nfunction qcLinkComplete(', 'qcAddEdge')}
   ${cutFrom(src, 'function qcAppFrameAttrs(', '\nfunction qcOpenAppViewer(', 'qcAppFrameAttrs')}
-  return { qcAddEdge, qcAppFrameAttrs };
+  return { qcAddEdge, qcAttachNew, qcAppFrameAttrs };
 `)(M);
 const S = new Function(`
   ${cutFrom(fnSrc, 'const CHART_APP_MODELS', '\nconst CHART_APP_SLOT', 'server consts')}
@@ -128,6 +133,101 @@ test('qcAddEdge refuses each wrong link with a reason, and accepts a right one',
   ok(/loop/.test(W.qcAddEdge(chart, 'q:a', 'q:b', '')), 'a loop');
   eq(W.qcAddEdge(chart, 'app:x', 'q:b', ''), '', 'app shows b');
   eq(chart.edges.length, 3, 'three edges');
+});
+
+// ---- ⏭ next questions (v1.94.0) --------------------------------------------------------
+test('a next question keeps its tier; junk tiers, apps and the root never get one', () => {
+  const c = M.qcNormalizeChart({ nodes: {
+    'q:r': { tier: 'harder' }, 'q:s': { tier: 'same' }, 'q:h': { tier: 'HARDER' },
+    'q:j': { tier: 'impossible' }, 'app:x': { tier: 'same' } } }, 'r');
+  eq(c.nodes['q:s'].tier, 'same', 'same');
+  eq(c.nodes['q:h'].tier, 'harder', 'case folded');
+  ok(!('tier' in c.nodes['q:r']), 'the root is never a next question');
+  ok(!('tier' in c.nodes['q:j']), 'junk tier dropped');
+  ok(!('tier' in c.nodes['app:x']), 'an app is never a next question');
+  eq(M.qcChartPayload(c).nodes['q:s'], { x: 0, y: 0, checks: '', tier: 'same' }, 'stored shape');
+  eq(M.qcChartPayload(c).nodes['q:j'], { x: 0, y: 0, checks: '' }, 'a plain step has no tier field at all');
+});
+test('a next question is never part of the step arrows, stored or drawn', () => {
+  const c = M.qcNormalizeChart({ nodes: { 'q:r': {}, 'q:a': {}, 'q:n': { tier: 'harder' }, 'app:x': {} },
+    edges: [{ from: 'q:n', to: 'q:r' }, { from: 'q:a', to: 'q:n' }, { from: 'app:x', to: 'q:n' }, { from: 'q:a', to: 'q:r' }] }, 'r');
+  eq(c.edges.map(e => e.from + '>' + e.to), ['q:a>q:r'], 'only the real step survives');
+  ok(/after the question/.test(W.qcAddEdge(c, 'q:n', 'q:r', '')), 'refused from a next question');
+  ok(W.qcAddEdge(c, 'q:a', 'q:n', ''), 'refused into a next question');
+  ok(W.qcAddEdge(c, 'app:x', 'q:n', ''), 'an app cannot point at one either');
+  eq(c.edges.length, 1, 'nothing added');
+});
+test('qcAttachNew: a step goes under its target, a next question above the root', () => {
+  const c = M.qcNormalizeChart({ nodes: { 'q:r': { x: 0, y: 0 }, 'q:a': { x: 0, y: 230 }, 'app:x': {}, 'q:n0': { tier: 'same' } },
+    edges: [{ from: 'q:a', to: 'q:r' }] }, 'r');
+  eq(W.qcAttachNew(c, 'b', { target: 'q:a' }), '', 'step under a');
+  ok(c.edges.some(e => e.from === 'q:b' && e.to === 'q:a'), 'b → a');
+  eq(c.nodes['q:b'].y, 230 + M.QC_ROWH, 'a row below its target');
+  eq(W.qcAttachNew(c, 'c', { target: 'app:x' }), '', 'an app target falls back to the root');
+  ok(c.edges.some(e => e.from === 'q:c' && e.to === 'q:r'), 'c → root');
+  eq(W.qcAttachNew(c, 'd', { target: 'q:n0' }), '', 'a next-question target falls back to the root');
+  ok(c.edges.some(e => e.from === 'q:d' && e.to === 'q:r'), 'd → root');
+  eq(W.qcAttachNew(c, 'h', { tier: 'harder', target: 'q:a' }), '', 'next question');
+  eq(c.nodes['q:h'].tier, 'harder', 'tier kept');
+  eq(c.nodes['q:h'].y, -M.QC_ROWH, 'above the root');
+  ok(!c.edges.some(e => e.from === 'q:h' || e.to === 'q:h'), 'no arrows');
+  ok(W.qcAttachNew(c, 'r', {}), 'the root itself is refused');
+  ok(W.qcAttachNew(c, 'a', {}), 'already on the chart');
+  eq(M.qcNormalizeChart(c, 'r').edges.length, c.edges.length, 'everything survives normalising');
+});
+test('qcAttachNew refuses a full chart and leaves it untouched', () => {
+  const nodes = { 'q:r': {} };
+  for (let i = 1; i < M.QC_MAX_NODES; i++) nodes['q:n' + i] = {};
+  const c = M.qcNormalizeChart({ nodes }, 'r');
+  const before = JSON.stringify(c);
+  ok(/up to/.test(W.qcAttachNew(c, 'extra', {})), 'refused');
+  eq(JSON.stringify(c), before, 'untouched');
+});
+test('layout puts next questions on a row above the question, same level first', () => {
+  const c = M.qcNormalizeChart({ nodes: { 'q:r': {}, 'q:a': {}, 'q:h': { tier: 'harder' }, 'q:s': { tier: 'same' } },
+    edges: [{ from: 'q:a', to: 'q:r' }] }, 'r');
+  M.qcLayout(c);
+  eq(c.nodes['q:r'].y, 0, 'root');
+  eq(c.nodes['q:h'].y, -M.QC_ROWH, 'harder above');
+  eq(c.nodes['q:s'].y, -M.QC_ROWH, 'same above');
+  ok(c.nodes['q:s'].x < c.nodes['q:h'].x, 'same level on the left');
+  eq(c.nodes['q:a'].y, M.QC_ROWH, 'steps still below');
+});
+
+// ---- the ➕ / ⏭ trip through the editor (v1.94.0), read as text ------------------------------
+test('➕ opens a copy in the editor, never the list, and the copy is a NEW question', () => {
+  ok(/else if \(act === "addstep"\) qcSpawnEditor\(key, ""\);/.test(src), 'node ➕ opens the editor');
+  ok(/on\("qcAddStepBtn", \(\) => qcSpawnEditor\(qcKeyQ\(qcRoot\), ""\)\);/.test(src), 'toolbar ➕ opens the editor');
+  ok(/else if \(act === "pickstep"\) qcOpenPicker\(key, ""\);/.test(src), 'the bank list is still a door');
+  const fn = cutFrom(src, 'function qcSpawnEditor(', '\nfunction qcSpawnSync(', 'qcSpawnEditor');
+  ok(/if \(!_isAdmin\(\)\)/.test(fn), 'teacher only');
+  ok(/loadQuestionIntoEditor\(copy\);[\s\S]*currentEditingId = null;/.test(fn), 'the copy can never overwrite its source');
+  ok(/setAnswerKeyImage\(""\)/.test(fn) && /qVideoInput"\)\.value = ""/.test(fn) && /editorVideoOverlays = \[\]/.test(fn), 'the original\'s worked picture, video and amendments are dropped');
+  ok(/qEditReturn = \{ page: "qchart" \};/.test(fn), 'save and cancel come back to the chart');
+  ok(fn.indexOf('loadQuestionIntoEditor(copy)') < fn.indexOf('qcSpawn = {'), 'qcSpawn is set AFTER the editor clears it');
+  ok(!/pendingVariantOf/.test(fn), 'no variantOf: a harder next question must never be served as a retry');
+});
+test('qcSpawn is var and cleared on every route into the editor', () => {
+  ok(/\nvar qcSpawn = null;/.test(src), 'var, because resetEditor runs during module evaluation');
+  const reset = cutFrom(src, 'function resetEditor() {', '\n}', 'resetEditor');
+  ok(/qcSpawn = null; qcSpawnSync\(\);/.test(reset), 'resetEditor clears it');
+  const load = cutFrom(src, 'function loadQuestionIntoEditor(q) {', '\n}', 'loadQuestionIntoEditor');
+  ok(/qcSpawn = null; qcSpawnSync\(\);/.test(load), 'loadQuestionIntoEditor clears it');
+  const sync = cutFrom(src, 'function qcSpawnSync() {', '\n}', 'qcSpawnSync');
+  ok(/if \(!sp\) \{ bar\.hidden = true; bar\.innerHTML = ""; return; \}/.test(sync), 'nothing but the DOM is touched when there is no trip');
+});
+test('a save joins the chart once, and only for a new question by the teacher', () => {
+  ok(/graphOnQuestionSaved\(q, isNewQuestion\);\n    const qcSaid = qcOnQuestionSaved\(q, isNewQuestion\);/.test(src), 'the save handler hands it over');
+  ok(/if \(qcSaid\) toast\(qcSaid\.text, qcSaid\.tone\);/.test(src), 'and says where it went');
+  const fn = cutFrom(src, 'function qcOnQuestionSaved(', '\n}', 'qcOnQuestionSaved');
+  ok(/const sp = qcSpawn;\n  qcSpawn = null;/.test(fn), 'consumed before anything can fail');
+  ok(/if \(!sp \|\| !q \|\| !isNew \|\| !_isAdmin\(\)\) return null;/.test(fn), 'new + teacher only');
+  ok(/qcAttachNew\(chart, q\.id, \{ target: sp\.target, tier: sp\.tier \}\)/.test(fn), 'through the one attach door');
+});
+test('the bar\'s 🔄 is the editor\'s own regenerator, one at a time', () => {
+  ok(/if \(\$\("regenQBtn"\)\.disabled\) return;[\s\S]{0,140}regenerateQuestionVariant\(r\.dataset\.qcRegen\);/.test(src), 'guarded, same door');
+  ok(/bar\.querySelectorAll\("\[data-qc-regen\]"\)\.forEach\(b => \{ b\.disabled = !!busy; \}\);/.test(src), 'goes busy with it');
+  ok(/<div class="qc-spawn" id="qcSpawnBar" hidden><\/div>/.test(src), 'the bar is in the editor');
 });
 
 // ---- seeding from the board -------------------------------------------------------------
@@ -242,9 +342,9 @@ test('charts and apps live under rules that already exist', () => {
   ok(/const QC_DOC_PREFIX = "chart__";/.test(src) && /const QC_APP_PREFIX = "app__";/.test(src), 'prefixes');
   ok(!/"mathQuestionCharts"|"mathChartApps"/.test(src), 'no new collection that would need a rules deploy');
 });
-test('the version is v1.93.0 or later', () => {
+test('the version is v1.94.0 or later', () => {
   const v = src.match(/const APP_VERSION = "v(\d+)\.(\d+)\.(\d+)/);
-  ok(v && (Number(v[1]) > 1 || (Number(v[1]) === 1 && Number(v[2]) >= 93)), 'APP_VERSION is v1.93.0 or later');
+  ok(v && (Number(v[1]) > 1 || (Number(v[1]) === 1 && Number(v[2]) >= 94)), 'APP_VERSION is v1.94.0 or later');
 });
 
 // ---- runner ------------------------------------------------------------------------------------------
