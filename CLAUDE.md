@@ -3184,6 +3184,30 @@ in the helper section), `qcBranchDocumentOpts` / `qcOpenPrintSheet` /
   the prompt on every regenerate of an app made before this.
 - No server change: `generateChartApp` sends the page's prompt as it is.
 
+## ✨ Answer with AI — the answer and guide from the question AS IT IS NOW (v1.101.0)
+
+`QAA_IMG_MAX` / `qaaPrompt` / `qaaFromReply` / `qaaAnswerWithAi` /
+`qaaRestore` / `qaaStatus` (search `ANSWER WITH AI`), the `#qAiAnswerBtn` row
+under **Correct answer** and the `.qaa-*` CSS.
+
+🔄 Regenerate, the 🪄 command box and a retyped line all change a question,
+and the answer and marking guide never followed — "Mr Chung needs 6 pens"
+sat above a guide still working "48 ÷ 8 = 6 packets". This button solves the
+question exactly as the editor holds it and writes both again.
+
+- **It reads `collectQuestion()`**, the object 💾 Save writes, so tables,
+  MCQ options and the question's pictures (up to `QAA_IMG_MAX`) are solved.
+- **The old answer and guide are NOT in the prompt.** They are the stale thing
+  being replaced; shown them, a model agrees with them.
+- **It fills the answer, the guide and the MCQ radio; ↩ Undo restores all
+  three.** Nothing is saved until 💾 Save.
+- **`qaaFromReply` is the ONE reader**: an option outside the list is no
+  option, and null is never typed in as the word "null".
+- **A reply for a question that is no longer open is dropped** (the
+  `editorBlocks` owner check), and the state is `var` because `resetEditor()`
+  runs during module evaluation.
+- Run **`node tools/ai-answer-tests.mjs`** after touching any of it.
+
 ## House rules
 - After touching **🧩 question charts** (`qcNormalizeChart`, `qcChartPayload`,
   `qcAddEdge`, `qcRelink`, `qcMoveStepOrder`, `qcAfterStepMove`, the 🖨 booklet (`qcBranchPlan`, `qcBranchNotes`, `qcBranchDocumentOpts`), `qcAttachNew`, `qcSpawnEditor`, `qcOnQuestionSaved`, the 🧩 break-down

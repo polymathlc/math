@@ -628,7 +628,7 @@ test('the booklet prints through the ONE worksheet renderer, with no covers', ()
   ok(/if \(!_isAdmin\(\)\) return;/.test(fn), 'teacher only');
   ok(/id="wsBranchSheetBtn"/.test(src) && /on\("wsBranchSheetBtn"/.test(src), 'reachable from 📝 Create Worksheet');
 });
-test('the version is v1.100.0 or later', () => {
+test('the version is v1.101.0 or later', () => {
   const v = src.match(/const APP_VERSION = "v(\d+)\.(\d+)\.(\d+)/);
   ok(v && (Number(v[1]) > 1 || (Number(v[1]) === 1 && Number(v[2]) >= 100)), 'APP_VERSION is v1.100.0 or later');
 });
