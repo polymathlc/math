@@ -359,7 +359,7 @@ test('a miss serves the steps first, and they reach a pupil nowhere else', () =>
 });
 test('every step made ON a chart is born foundational; a next question and a bank pick are not', () => {
   const collect = cutFrom(src, 'function collectQuestion() {', '\n$("saveQBtn")', 'collectQuestion');
-  ok(/existing\.foundationOf \|\| \(!currentEditingId && qcSpawn && !qcSpawn\.tier \? qcParseKey\(qcSpawn\.target\)\.id : ""\)/.test(collect), '➕ step flagged, ⏭ not, an edit keeps it');
+  ok(/existing\.foundationOf \|\| \(!currentEditingId && qcSpawn && !qcSpawn\.tier && qcSpawn\.target \? qcParseKey\(qcSpawn\.target\)\.id : ""\)/.test(collect), '➕ step flagged, ⏭ not, an edit keeps it');
   const q = M.qcBreakdownQuestion({ questionText: 'Q' }, { id: 'q1', level: 'P5' }, 'mq_9', 't', '');
   eq(q.foundationOf, 'q1', '🧩 parts are foundations of the question they came from');
   const add = cutFrom(src, 'async function qcBreakAdd(', '\n}\n', 'qcBreakAdd');
@@ -372,6 +372,26 @@ test('the 🔒 toggle is the teacher\'s, writes one field and rolls back', () =>
   ok(/setDoc\(doc\(db, "users", _bankOwnerOrThrow\(\), "mathQuestions", q\.id\), \{ foundationOf: on \? parent : deleteField\(\) \}, \{ merge: true \}\)/.test(fn), 'one field, merged');
   ok(/catch \(e\) \{\n\s*if \(prev === undefined\) delete q\.foundationOf; else q\.foundationOf = prev;/.test(fn), 'rolled back');
   ok(/else if \(act === "found"\) qcToggleFoundation\(key\);/.test(src), 'wired');
+});
+
+// ---- every question from the chart page (v1.97.0) ---------------------------------------------
+test('＋ New question rides on qcSpawn, returns to the chart, and becomes a chart of its own', () => {
+  const fn = cutFrom(src, 'function qcNewQuestion(', '\nfunction qcEditQuestion(', 'qcNewQuestion');
+  ok(/if \(!_isAdmin\(\)\)/.test(fn), 'teacher only');
+  ok(fn.indexOf('resetEditor()') < fn.indexOf('qEditReturn = { page: "qchart" }') && fn.indexOf('navigateTo("create")') < fn.indexOf('qcSpawn = {'), 'set AFTER the editor is cleared');
+  ok(/qcSpawn = \{ newRoot: true,/.test(fn), 'a new-root trip');
+  const saved = cutFrom(src, 'function qcOnQuestionSaved(', '\n}', 'qcOnQuestionSaved');
+  ok(/if \(sp\.newRoot\) \{\n[\s\S]*qcRoot = String\(q\.id\);/.test(saved), 'opens its own chart');
+  ok(/qcSpawn && !qcSpawn\.tier && qcSpawn\.target \?/.test(src), 'a new main question is never flagged foundational');
+});
+test('✏️ edits in the real editor and comes back; the chart page is a front door', () => {
+  const fn = cutFrom(src, 'function qcEditQuestion(', '\n}', 'qcEditQuestion');
+  ok(/loadQuestionIntoEditor\(q\);[\s\S]*qEditReturn = \{ page: "qchart" \};/.test(fn), 'return set after the editor clears it');
+  ok(/else if \(act === "editq"\) qcEditQuestion\(key\);/.test(src), 'wired');
+  const page = cutFrom(src, 'function renderQuestionChartPage() {', '\n}', 'renderQuestionChartPage');
+  ok(!/!qcRoot\) \{ navigateTo\("bank"\)/.test(page), 'no bounce to the bank without a question');
+  ok(/data-page="qchart"/.test(src.match(/<div class="nav-item admin-only" data-page="qchart"[^>]*>/)[0]), 'a teacher-only nav item');
+  ok(/if \(qcPickerOpenMode\) \{ closeOverlay\("qcPickerOverlay"\); openQuestionChart\(q\.id\); \}/.test(src), '📂 opens, never adds');
 });
 
 // ---- seeding from the board -------------------------------------------------------------
@@ -486,9 +506,9 @@ test('charts and apps live under rules that already exist', () => {
   ok(/const QC_DOC_PREFIX = "chart__";/.test(src) && /const QC_APP_PREFIX = "app__";/.test(src), 'prefixes');
   ok(!/"mathQuestionCharts"|"mathChartApps"/.test(src), 'no new collection that would need a rules deploy');
 });
-test('the version is v1.96.0 or later', () => {
+test('the version is v1.97.0 or later', () => {
   const v = src.match(/const APP_VERSION = "v(\d+)\.(\d+)\.(\d+)/);
-  ok(v && (Number(v[1]) > 1 || (Number(v[1]) === 1 && Number(v[2]) >= 96)), 'APP_VERSION is v1.96.0 or later');
+  ok(v && (Number(v[1]) > 1 || (Number(v[1]) === 1 && Number(v[2]) >= 97)), 'APP_VERSION is v1.97.0 or later');
 });
 
 // ---- runner ------------------------------------------------------------------------------------------
