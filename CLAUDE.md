@@ -3266,7 +3266,43 @@ question exactly as the editor holds it and writes both again.
   runs during module evaluation.
 - Run **`node tools/ai-answer-tests.mjs`** after touching any of it.
 
+## 📐 Math diagram shapes in ✏️ Touch up (v1.104.0)
+
+The pure geometry sits between `const MSHAPE_MAX` and the
+`// 📐 end of the pure geometry` marker (`MSHAPE_KINDS`, `mshapeUnitPts`,
+`mshapeOps`, `mshapeOpsSvg`, `mshapeClean`, …); the UI follows it
+(`mshapeRender`, `mshapeAdd`, `mshapeAction`, `_msPropsHtml`, `mshapeSyncBar`,
+`openAnnotBlank`). The 📐 Shapes tool (`D`) opens a side panel next to the
+canvas with ＋ Add a shape (triangles of every kind, square, rectangle,
+rhombus, parallelogram, trapeziums, kite, circles, polygons, L-shape, cuboid,
+grid, number line, lines, angle, text) and ✎ Label & style.
+
+- **A shape is LIVE until Apply or ⬇ Flatten.** It is a unit-box outline
+  (`cx, cy, w, h, rot, fx, fy`, kind params `p`, or `free` corners) and its
+  marks (`side[i]`, `ang[i]`, `circ`, names). The SAME op list draws the SVG
+  on screen and the canvas on Apply (`mshapeDrawOps`), so what you see is what
+  is saved. Arcs are sampled into polylines so both match exactly.
+- **Kinds keep their maths.** Square, equilateral, cube and circle lock their
+  aspect (`mshapeAspect`); a rhombus keeps four equal sides (its yellow diamond
+  sets the angle); 🔓 Free corners (`mshapeMakeFree`) turns any polygon into a
+  draggable outline.
+- **Angles are measured INSIDE the outline** (`mshapeAngleAt`): an L-shape's
+  inner corner is 270°, never 90°. Numbers typed as angle labels get `°`.
+- **Undo is one stack.** `_annot.undoKinds` records 'r' (raster) or 's'
+  (shapes) so ↶ undoes whichever came last; Flatten stores the shapes on the
+  raster history entry so undoing it brings them back live.
+- **Reopening a just-applied picture brings its shapes back live**
+  (`mshapeRemember` / `mshapeRecall`, keyed by the uploaded URL, this session
+  only). An empty picture block offers 📐 Draw a diagram (`openAnnotBlank`).
+- **Everything restored is believed only through `mshapeClean`.**
+- Run **`node tools/diagram-shapes-tests.mjs`** and the browser suite
+  (`PLAYWRIGHT_MODULE=… node tools/diagram-shapes-browser-tests.mjs`) after
+  touching any of it.
+
 ## House rules
+- After touching the **📐 diagram shapes** (anything named `mshape*` / `_ms*`, the
+  `#annotShapeBar` panel or the shape hooks in the touch-up editor), run
+  `node tools/diagram-shapes-tests.mjs` and `tools/diagram-shapes-browser-tests.mjs`.
 - After touching **🧩 question charts** (`qcNormalizeChart`, `qcChartPayload`,
   `qcAddEdge`, `qcRelink`, `qcMoveStepOrder`, `qcAfterStepMove`, the 🖨 booklet (`qcBranchPlan`, `qcBranchPlanMany`, `qcBranchNotes`, `qcBranchDocumentOpts`, `qcBookletDocumentOpts`), 🧩 Show related questions (`qcRelatedDocumentOpts`, `wsRelatedBuild`, `includeRelated`), the 🧪 app QR (`qcAppsByQuestion`, `qcAppLinksFor`, `wsAppQrHtml`, the `appShare*` viewer), `qcAttachNew`, `qcSpawnEditor`, `qcOnQuestionSaved`, the 🧩 break-down
   (`qcBreakdownPrompt`, `qcBreakdownParts`, `qcBreakdownQuestion`, `qcBreakAdd`), the

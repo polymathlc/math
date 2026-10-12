@@ -6281,6 +6281,7 @@ body.role-employee #emailBellBtn { display: none !important; }
         <button type="button" class="annot-tool" data-atool="line" title="Drag to draw a straight label line (U) — hold Shift to snap to 45° angles">📏 Line</button>
         <button type="button" class="annot-tool" onclick="annotPasteFromClipboard()" title="Paste a picture in from the clipboard (Ctrl+V / ⌘V) — a screenshot, a photo, a figure from another question. It lands scaled to fit, with the resize handles already on it: drag a corner to size it, drag the middle to move it, then ✓ Apply.">📋 Paste picture</button>
         <button type="button" class="annot-tool" data-atool="text" title="Click to drop a text label (T)">🔤 Text</button>
+        <button type="button" class="annot-tool" data-atool="shape" title="📐 Shapes (D): add a rhombus, parallelogram, trapezium, any triangle, a circle, a cuboid, a number line … as live shapes you can drag, resize, turn and label — angle arcs, right-angle boxes, side lengths, equal-side ticks and parallel arrows. They are burned into the picture on Apply.">📐 Shapes</button>
         <label style="font-size:0.8rem;display:inline-flex;align-items:center;gap:5px;">Colour <input type="color" id="annotColor" value="#e23c3c" oninput="_annotSyncControls()" style="width:34px;height:28px;padding:0;border:1px solid var(--border);border-radius:6px;"></label>
         <label style="font-size:0.8rem;display:inline-flex;align-items:center;gap:5px;" title="Brush size in image pixels — set to 1 to paint a single pixel. The ring around your pointer on the picture IS this size, drawn at the current zoom. [ and ] change it, and you can scroll your mouse wheel over the slider.">Brush <input type="range" id="annotSize" min="1" max="60" value="6" oninput="_annotSyncControls()"><span id="annotSizeVal" style="min-width:30px;font-variant-numeric:tabular-nums;">6&nbsp;px</span></label>
         <label style="font-size:0.8rem;display:inline-flex;align-items:center;gap:5px;" title="How close a colour has to be to count as the same one — used by the magic wand and the paint bucket. Scroll your mouse wheel over the slider to change it.">Match ± <input type="range" id="annotTol" min="0" max="120" value="32" oninput="_annotSyncControls()"><span id="annotTolVal" style="min-width:26px;font-variant-numeric:tabular-nums;">32</span></label>
@@ -6357,9 +6358,22 @@ body.role-employee #emailBellBtn { display: none !important; }
           <button type="button" class="btn btn-ghost" style="padding:5px 12px;font-size:0.8rem;" onclick="annotXformCancel()" title="Put the picture back as it was (Esc)">✕ Cancel</button>
         </span>
       </div>
-      <div id="annotStage"><canvas id="annotCanvas"></canvas><canvas id="annotSelCanvas"></canvas></div>
+      <!-- 📐 Shapes: a side panel BESIDE the picture (never above it, or the
+           shape being labelled is pushed off the screen) with two tabs — the
+           gallery, and the selected shape's labels. Filled by mshapeSyncBar();
+           shown only while 📐 Shapes is the tool. -->
+      <div id="annotWork">
+        <div id="annotStage"><canvas id="annotCanvas"></canvas><canvas id="annotSelCanvas"></canvas></div>
+        <div id="annotShapeBar">
+          <div class="ms-tabs"><button type="button" class="ms-tab" data-mstab="add" onclick="mshapeTab('add')">＋ Add a shape</button><button type="button" class="ms-tab" data-mstab="edit" onclick="mshapeTab('edit')">✎ Label &amp; style</button></div>
+          <div class="ms-gallery" id="annotShapeGallery"></div>
+          <div id="annotShapeProps"></div>
+          <div id="annotShapeFoot"></div>
+        </div>
+      </div>
       <p class="hint" style="margin-top:10px;">Erase / Paint: drag over the image — <b>click then Shift-click</b> joins the two points with a straight line (Photoshop style), and <b>Shift-drag</b> locks the stroke to horizontal / vertical. <b>Fill</b>: click inside a shape to flood it with colour. <b>Clone</b>: click to set the source, then drag to stamp that area elsewhere (Alt+click re-sets the source) — once the source is set, <b>the ring under your pointer shows the exact patch that will be stamped</b>, so you can line it up before you press. <b>History</b>: brush the original picture back by hand. <b>Select / Lasso / Wand</b>: mark out an area, then fill it, move it, use AI content-aware fill, or <b>🗑️ Delete</b> it (Esc deselects).<br><b>🗑️ Cutting a picture out:</b> pick <b>🪄 Wand</b>, click the background, then press <b>🗑️ Delete</b> (or the <kbd>Delete</kbd> key). Those pixels are taken away rather than painted over, so what is left is see-through — shown as a <b>checkerboard</b>, which is nothing, not a grey pattern. Alt+click the wand to take that colour across the whole picture at once, widen <b>Match ±</b> if a fringe is left behind, and <b>Apply</b> saves a <b>PNG with a transparent background</b> — which is what makes a card, avatar, artifact or pack frame sit on the game screens with no white box round it. <b>Move</b>: drag inside a selection to cut it out and drop it anywhere (Alt to copy), or drag a text label to reposition it. <b>Resize</b>: drag the handles round the box to make the selected object bigger or smaller — corners resize both ways, edges one way, and the corner opposite the one you drag stays exactly where it is. Drag inside the box to move it, hold <b>Shift</b> to swap between keeping the shape and stretching it freely, or type a width / height percentage in the panel. <b>Rotate / Skew</b>: turn or slant the selected object — or, with nothing selected, the whole picture, which is how you straighten a page that went into the scanner crooked. Drag on the image (Shift snaps to 15°) or use the sliders, and <b>📐 Straighten</b> lets you trace a line along a crooked edge to level it in one go. Enter applies the turn, Esc cancels it. Line: drag from start to end. Text: click, type, then Enter.<br><b>📋 Paste a picture:</b> press <kbd>Ctrl</kbd>+<kbd>V</kbd> (⌘V) — or the 📋 button — to drop whatever picture is on the clipboard straight onto this one. It lands scaled to fit inside the picture, with the <b>resize handles already on it</b>: drag a corner to size it, drag the middle to move it, turn or slant it if you want, then <b>✓ Apply</b> to burn it in (<b>Esc</b> takes it away again).<br><b>Scroll</b> over the image to zoom (down to single pixels); <b>hold Space</b> (or the middle mouse button) and drag to pan; <b>scroll over either slider</b> to change it. Set the brush to <b>1&nbsp;px</b> for pixel-perfect edits.<br><b>Brush size:</b> Erase, Paint, Clone, History and Line draw a <b>ring around your pointer at the exact size of the mark</b> they will make, at whatever zoom you are on — so you can see the brush before you use it. Change the size with the slider, the wheel over it, or <kbd>[</kbd> and <kbd>]</kbd>, and the size is shown on the picture as you change it. With <b>Clone</b> the ring is <b>filled with the pixels it is about to stamp</b> — move the pointer and the preview moves with it, so a patch is aimed by looking at it rather than by counting across from the source pin.<br><b>✨ Regenerate:</b> type what you want in the purple bar and the AI redraws it. Select an area first and <b>only that area can change</b>; with nothing selected the whole picture is redrawn. It is one step either way, so <b>↶ Undo</b> puts the picture straight back if the AI missed.
-        <br><b>Keys:</b> <kbd>E</kbd> erase · <kbd>B</kbd> paint · <kbd>G</kbd> fill · <kbd>S</kbd> clone · <kbd>Y</kbd> history · <kbd>M</kbd> select · <kbd>L</kbd> lasso · <kbd>W</kbd> wand · <kbd>V</kbd> move · <kbd>R</kbd> rotate · <kbd>K</kbd> skew · <kbd>F</kbd> resize · <kbd>U</kbd> line · <kbd>T</kbd> text · <kbd>[</kbd> <kbd>]</kbd> brush size · <kbd>Delete</kbd> cut the selection out · <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo · <kbd>+</kbd> <kbd>−</kbd> zoom · <kbd>0</kbd> fit · <kbd>Esc</kbd> deselect / cancel the transform · <kbd>Enter</kbd> apply</p>
+        <br><b>📐 Shapes:</b> pick a rhombus, parallelogram, trapezium, kite, any kind of triangle, a circle (with its radius or diameter), a semicircle, a quarter circle, a cuboid, a square grid or a number line and it lands as a <b>live shape</b>: drag it, resize it from the white squares (Shift keeps its shape), turn it with the round knob and re-shape it with the <b>yellow diamond</b>. Under it, give every corner a letter, an <b>angle arc</b> or a <b>right-angle box</b> with a label (type 60 and the ° is added; tick <b>Measure</b> to write the real size), and every side a <b>length</b>, <b>equal-side ticks</b> or <b>parallel arrows</b> — or press ✓ Mark equal sides / right angles / parallel sides. Labels drag anywhere. A square stays square and an equilateral triangle stays equilateral; <b>✎ Make free</b> lets you drag each corner on its own. Shapes stay editable until <b>Apply</b> — and reopening this picture later in the same session brings them back live.
+        <br><b>Keys:</b> <kbd>E</kbd> erase · <kbd>B</kbd> paint · <kbd>G</kbd> fill · <kbd>S</kbd> clone · <kbd>Y</kbd> history · <kbd>M</kbd> select · <kbd>L</kbd> lasso · <kbd>W</kbd> wand · <kbd>V</kbd> move · <kbd>R</kbd> rotate · <kbd>K</kbd> skew · <kbd>F</kbd> resize · <kbd>U</kbd> line · <kbd>T</kbd> text · <kbd>D</kbd> shapes · <kbd>[</kbd> <kbd>]</kbd> brush size · <kbd>Delete</kbd> cut the selection out · <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo · <kbd>+</kbd> <kbd>−</kbd> zoom · <kbd>0</kbd> fit · <kbd>Esc</kbd> deselect / cancel the transform · <kbd>Enter</kbd> apply</p>
     </div>
     <div class="overlay-foot">
       <button class="btn btn-ghost" onclick="closeAnnotTool()" type="button">Cancel</button>
@@ -14304,7 +14318,8 @@ function renderImgEnhanceBar(blockId) {
   const bar = document.getElementById('imgEnhance_' + blockId);
   if (!bar) return;
   const block = editorBlocks.find(b => b.id === blockId);
-  if (!block || !block.url) { bar.innerHTML = ''; return; }
+  // 📐 No picture yet: offer a blank sheet with the shape tools on it.
+  if (!block || !block.url) { bar.innerHTML = block ? mshapeBlankBarHtml(blockId) : ''; return; }
   const st = _imgEnhanceState[blockId];
   const showOriginal = st && st.originalUrl && st.originalUrl !== block.url;
   // While there's an edited version, show the single preview as a side-by-side
@@ -14628,6 +14643,10 @@ function openAnnotTool(blockId) {
   const st = _imgEnhanceState[blockId] || {};
   // Use the stored data URL of the current image (avoids a CORS-blocked fetch);
   // only fall back to fetching the hosted URL if we have nothing cached.
+  // 📐 A picture whose shapes were burned in this session opens on the
+  // picture as it was BEFORE the burn, with the shapes live again on top.
+  const mem = mshapeRecall(block.url);
+  if (mem) { _annotOpenSrc(Promise.resolve(mem.base), { blockId, shapes: mem.shapes }, 'Touch up & label'); return; }
   const srcP = st.currentDataUrl ? Promise.resolve(st.currentDataUrl)
     : st.originalDataUrl ? Promise.resolve(st.originalDataUrl)
     : _urlToDataUrlRobust(transformImageUrl(block.url));
@@ -14684,13 +14703,18 @@ function _annotOpenSrc(srcP, target, title) {
       anchor: null, sel: null, selPts: null, selCanvas, aiFillBusy: false, origSnap: orig, float: null, xform: null, xfStart: null,
       // Where the pointer is, in STAGE coordinates, and how long the size badge
       // stays up after a change — see the brush cursor below.
-      ptr: null, ptrIn: false, hudUntil: 0, hudTimer: null };
+      ptr: null, ptrIn: false, hudUntil: 0, hudTimer: null,
+      // 📐 Live shapes over the picture, their own undo snapshots, and the
+      // order brush strokes and shape edits were made in — see mshapeUndo.
+      shapes: mshapeCleanList(target && target.shapes), shapeSel: null, shapeHist: [], undoKinds: [], msSnap: false, msStyle: null };
     _annotSelSyncBar();
     _annotAiBarInit();
     if (!_annotAntsRunning) _annotAntsLoop();
     _annotSyncControls();
     _annotBindSliderWheel();
-    _annotSetTool('erase');
+    const _msBack = _annot.shapes.length;
+    _annotSetTool((target && target.startTool) || (_msBack ? 'shape' : 'erase'));
+    if (_msBack) showToast('📐 ' + _msBack + ' shape' + (_msBack === 1 ? ' is' : 's are') + ' still live from last time — edit them, then Apply', 'info');
     const ttl = document.querySelector('#annotOverlay .overlay-head h3');
     if (ttl) ttl.textContent = title || '✏️ Touch up & label';
     document.getElementById('annotOverlay').classList.add('show');
@@ -14777,6 +14801,7 @@ function _annotUpdateTransform() {
   if (zl) zl.textContent = Math.round(s * 100) + '%';
   _annotUpdateCloneMarker();   // the source pin rides along with zoom / pan
   _annotUpdateBrushRing();     // ... and so does the brush ring: it is drawn at the zoomed size
+  mshapeRender();              // ... and the live shapes, whose handles are sized on screen
 }
 // A small pin marking the clone-stamp source point, kept aligned under zoom/pan.
 function _annotUpdateCloneMarker() {
@@ -15705,6 +15730,8 @@ function _annotTypingInField(e) {
 function _annotKeyDown(e) {
   if (!_annot) return;
   if (e.code === 'Space' && !_annotTypingInField(e)) { _annot.space = true; const st = document.getElementById('annotStage'); if (st) st.classList.add('canpan'); _annotUpdateBrushRing(); e.preventDefault(); }
+  // 📐 Delete, Esc, the arrows and Ctrl+D act on the selected SHAPE first.
+  if (!_annotTypingInField(e) && mshapeKey(e)) return;
   // Escape backs out of the open transform first, then out of a selection.
   if (e.key === 'Escape' && !_annotTypingInField(e) && _annot.xform) { e.preventDefault(); _annot.drawing = false; annotXformCancel(); return; }
   if (e.key === 'Escape' && !_annotTypingInField(e) && (_annot.sel || _annot.selPts)) { _annot.selPts = null; _annot.drawing = false; annotSelClear(); }
@@ -15749,7 +15776,7 @@ function _annotUnbindZoomListeners() {
   const st = document.getElementById('annotStage');
   if (st) st.classList.remove('canpan', 'panning');
 }
-const ANNOT_CURSORS = { text: 'text', fill: 'cell', wand: 'cell', move: 'move', rotate: 'grab', skew: 'ew-resize', scale: 'move' };
+const ANNOT_CURSORS = { text: 'text', fill: 'cell', wand: 'cell', move: 'move', rotate: 'grab', skew: 'ew-resize', scale: 'move', shape: 'default' };
 function _annotSetTool(t) {
   // Leaving Rotate/Skew/Resize settles the open transform: a real change is
   // kept, an untouched one is dropped. Nothing is ever left half-applied.
@@ -15768,19 +15795,27 @@ function _annotSetTool(t) {
   // discover the panel.
   if (_annot && (t === 'rotate' || t === 'skew' || t === 'scale') && !_annot.xform) _annotXformBegin();
   _annotXformSyncBar();
+  // 📐 The shapes layer takes the pointer only while it is the tool, and its
+  // gallery / labels panel is shown only then.
+  mshapeSyncBar();
+  mshapeRender();
   // Switching to a brush tool should show its size straight away — you should
   // not have to make a mark to find out how big the mark will be.
   if (_annot && ANNOT_RING_TOOLS[t]) _annotBrushFlash(); else _annotUpdateBrushRing();
 }
 // Single-key tool switching, Photoshop's letters where they exist.
-const ANNOT_KEYS = { e: 'erase', b: 'paint', g: 'fill', s: 'clone', y: 'history', m: 'select', l: 'lasso', w: 'wand', v: 'move', u: 'line', t: 'text', r: 'rotate', k: 'skew', f: 'scale' };
+const ANNOT_KEYS = { e: 'erase', b: 'paint', g: 'fill', s: 'clone', y: 'history', m: 'select', l: 'lasso', w: 'wand', v: 'move', u: 'line', t: 'text', r: 'rotate', k: 'skew', f: 'scale', d: 'shape' };
 // A history step remembers the canvas SIZE as well as its pixels: rotating the
 // whole picture grows the canvas, and undoing that has to shrink it back.
-function _annotPushHistory() {
+// `extra.shapes` rides on the step when ⬇ Flatten burns the live shapes in,
+// so the one undo that puts the pixels back puts the shapes back too.
+function _annotPushHistory(extra) {
   if (!_annot) return;
   try {
-    _annot.history.push({ img: _annot.ctx.getImageData(0, 0, _annot.canvas.width, _annot.canvas.height), w: _annot.canvas.width, h: _annot.canvas.height });
-    if (_annot.history.length > 10) _annot.history.shift();
+    _annot.history.push({ img: _annot.ctx.getImageData(0, 0, _annot.canvas.width, _annot.canvas.height), w: _annot.canvas.width, h: _annot.canvas.height,
+      shapes: (extra && typeof extra.shapes === 'string') ? extra.shapes : null });
+    _annotNoteUndo('r');
+    if (_annot.history.length > 10) { _annot.history.shift(); _annotDropUndo('r'); }
   } catch (_) {}
 }
 function annotUndo() {
@@ -15789,19 +15824,30 @@ function annotUndo() {
   // canvas back underneath a live session would leave the two out of step.
   // (Cancel clears the session first, so this never recurses.)
   if (_annot.xform) { annotXformCancel(); return; }
-  if (!_annot.history.length) return;
+  // 📐 Brush strokes and shape edits share one undo, in the order they were
+  // made: the newest entry in undoKinds says which stack to step back.
+  const kinds = _annot.undoKinds || [];
+  if (kinds.length && kinds[kinds.length - 1] === 's' && mshapeUndo()) { kinds.pop(); return; }
+  if (!_annot.history.length) { if (mshapeUndo()) { const si = kinds.lastIndexOf('s'); if (si >= 0) kinds.splice(si, 1); } return; }
+  const ri = kinds.lastIndexOf('r'); if (ri >= 0) kinds.splice(ri, 1);
   const step = _annot.history.pop();
   if (_annot.canvas.width !== step.w || _annot.canvas.height !== step.h) {
     _annotResizeCanvas(step.w, step.h);
     annotZoomFit();
   }
   _annot.ctx.putImageData(step.img, 0, 0);
+  if (step.shapes != null) {
+    try { _annot.shapes = mshapeCleanList(JSON.parse(step.shapes)); } catch (_) {}
+    _annot.shapeSel = null;
+    mshapeRender(); mshapeSyncBar();
+  }
 }
 // Resize the working canvas (and the marching-ants overlay that rides on it).
 function _annotResizeCanvas(w, h) {
   if (!_annot) return;
   _annot.canvas.width = w; _annot.canvas.height = h;
   if (_annot.selCanvas) { _annot.selCanvas.width = w; _annot.selCanvas.height = h; }
+  mshapeRender();
 }
 function _annotPt(e) {
   const c = _annot.canvas, r = c.getBoundingClientRect();
@@ -16631,6 +16677,15 @@ async function applyAnnotTool() {
   // Burn any label that's still being edited so it isn't lost on Apply.
   document.querySelectorAll('#annotStage .annot-textbox-input').forEach(i => i.blur());
   const { blockId, artSlot, canvas } = _annot;
+  // 📐 Burn the live shapes in — with the same ops that drew them on screen —
+  // and keep the picture as it was before the burn, so reopening this
+  // picture in the same session brings the shapes back editable.
+  let msBase = null, msShapes = null;
+  if (_annot.shapes && _annot.shapes.length) {
+    try { msBase = canvas.toDataURL('image/png'); } catch (_) {}
+    msShapes = JSON.parse(JSON.stringify(_annot.shapes));
+    mshapeBurnInto(_annot.ctx, _annot.shapes);
+  }
   const dataUrl = canvas.toDataURL('image/png');
   closeAnnotTool();
   showToast('✏️ Saving touch-ups…', 'info');
@@ -16651,6 +16706,7 @@ async function applyAnnotTool() {
   }
   try {
     const url = await uploadImageDataUrl(dataUrl);
+    if (msShapes && msBase) mshapeRemember(url, msBase, msShapes);
     const block = editorBlocks.find(b => b.id === blockId);
     if (!block) return;
     saveBlockContent(blockId, 'url', url);
@@ -16673,10 +16729,12 @@ function closeAnnotTool() {
   const bh = document.getElementById('annotBrushHud'); if (bh) bh.remove();
   if (_annot) clearTimeout(_annot.hudTimer);
   const sc = document.getElementById('annotSelCanvas'); if (sc) sc.getContext('2d').clearRect(0, 0, sc.width, sc.height);
+  const ms = document.getElementById('annotShapeSvg'); if (ms) ms.remove();
   _annotUnbindZoomListeners();
   _annot = null;
   _annotSelSyncBar();
   _annotXformSyncBar();
+  mshapeSyncBar();
 }
 document.addEventListener('click', function (e) {
   const t = e.target.closest && e.target.closest('[data-atool]');
@@ -16725,6 +16783,1755 @@ document.addEventListener('pointermove', function (e) {
 });
 document.addEventListener('pointerup', function () { _annotPanEnd(); _annotUp(); _annotUpdateBrushRing(); });
 
+// =====================================================================
+// 📐 MATH DIAGRAM SHAPES — live shapes over the picture in ✏️ Touch up
+// =====================================================================
+// A rhombus, a parallelogram, any kind of triangle, a circle with its radius,
+// a cuboid, a number line … dropped onto the picture as LIVE OBJECTS: they
+// can be dragged, resized, rotated, re-shaped by their yellow handles and
+// labelled — angle arcs, right-angle boxes, side lengths, equal-side ticks,
+// parallel arrows and vertex letters — and they stay editable until ✓ Apply
+// (or ⬇ Flatten) burns them into the picture.
+//
+// THIS HALF IS PURE GEOMETRY. Nothing in it touches the DOM, the editor
+// state or the canvas, which is what lets tools/diagram-shapes-tests.mjs run
+// it in node. Everything a shape LOOKS like comes out of ONE function,
+// `mshapeOps`, as a list of drawing operations; the editor turns that list
+// into SVG on screen (`mshapeOpsSvg`) and into canvas strokes on Apply
+// (`mshapeDrawOps`). Two renderers of one list cannot disagree — a shape
+// that was drawn twice by two pieces of code would be burned in a few pixels
+// away from where the teacher placed it.
+//
+// A SHAPE IS A BOX, A TURN AND A UNIT OUTLINE. Every kind describes its
+// outline in a unit box ([-0.5, 0.5] on both axes); the box is `w` × `h`
+// image pixels centred on `cx`, `cy`, turned `rot` degrees and optionally
+// mirrored (`fx` / `fy`). Moving, resizing, rotating and flipping are
+// therefore one piece of code for every kind, and a kind only has to say
+// what its outline is and what its yellow handles do.
+//
+// A KIND THAT PROMISES A PROPERTY KEEPS IT. A square stays square however it
+// is dragged, an equilateral triangle stays equilateral and a rhombus keeps
+// four equal sides while its angle changes — `mshapeAspect` locks the box
+// for exactly those kinds. ✎ Make free hands the outline over to the
+// teacher, vertex by vertex, and from then on nothing is promised.
+// =====================================================================
+const MSHAPE_MAX = 120;             // shapes on one picture
+const MSHAPE_LABEL_MAX = 40;        // characters in any one label
+const MSHAPE_MIN_PX = 6;            // a closed shape never gets narrower than this
+const MSHAPE_MARKS = ['', 'arc', 'arc2', 'arc3', 'right'];
+const MSHAPE_COLOR_RE = /^#[0-9a-f]{6}$/i;
+const MSHAPE_FONT = "'DM Sans', Arial, sans-serif";
+const MSHAPE_CIRCLE_STEPS = 120;    // a circle is drawn as this many straight pieces
+const MSHAPE_EQUAL_TOL = 0.015;     // two sides within 1.5% of each other count as equal
+const MSHAPE_RIGHT_TOL = 0.6;       // an angle within 0.6° of 90° counts as a right angle
+const MSHAPE_NUMLINE_MAX_TICKS = 200;
+const MSHAPE_GRID_MAX = 40;
+
+// Regular polygons in their unit box, apex up. Built once.
+function _msRegularUnit(n) {
+  const raw = [];
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI / 2 + i * 2 * Math.PI / n + (n % 2 === 0 ? Math.PI / n : 0);
+    raw.push([Math.cos(a), Math.sin(a)]);
+  }
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  raw.forEach(([x, y]) => { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); });
+  const w = x1 - x0, h = y1 - y0;
+  return { pts: raw.map(([x, y]) => [(x - x0) / w - 0.5, (y - y0) / h - 0.5]), aspect: h / w };
+}
+const MSHAPE_REGULAR = { 5: _msRegularUnit(5), 6: _msRegularUnit(6), 8: _msRegularUnit(8) };
+
+// ---- The catalogue ----------------------------------------------------
+// group  — which shelf of the gallery it sits on
+// n      — how many vertices its outline has (0 = drawn by its own code)
+// open   — an outline that is not closed (a line, an arrow, an angle)
+// ratio  — the box's height ÷ width when it is first inserted
+// free   — the unit outline a FREE kind starts from (vertices drag one by one)
+// p      — the kind's own parameters, all as fractions of the box or degrees
+// marks  — what a freshly inserted one already carries, so the common case
+//          (an isosceles triangle with its two equal sides ticked) is one tap
+const MSHAPE_KINDS = {
+  equilateral: { label: 'Equilateral triangle', short: 'Equilateral', group: 'tri', n: 3, ratio: Math.sqrt(3) / 2,
+    marks: { ticks: [1, 1, 1] } },
+  isosceles:   { label: 'Isosceles triangle', short: 'Isosceles', group: 'tri', n: 3, ratio: 0.95,
+    marks: { ticks: [1, 0, 1] } },
+  rightTri:    { label: 'Right-angled triangle', short: 'Right-angled', group: 'tri', n: 3, ratio: 0.75,
+    marks: { right: [1] } },
+  obtuseTri:   { label: 'Obtuse triangle', short: 'Obtuse', group: 'tri', n: 3, ratio: 0.55,
+    free: [[-0.5, -0.5], [0.5, 0.5], [-0.15, 0.5]] },
+  triangle:    { label: 'Any triangle (drag its corners)', short: 'Any triangle', group: 'tri', n: 3, ratio: 0.8,
+    free: [[-0.2, -0.5], [0.5, 0.5], [-0.5, 0.5]] },
+  square:      { label: 'Square', short: 'Square', group: 'quad', n: 4, ratio: 1,
+    marks: { right: [0, 1, 2, 3], ticks: [1, 1, 1, 1] } },
+  rectangle:   { label: 'Rectangle', short: 'Rectangle', group: 'quad', n: 4, ratio: 0.6,
+    marks: { right: [0, 1, 2, 3] } },
+  rhombus:     { label: 'Rhombus', short: 'Rhombus', group: 'quad', n: 4, p: { a: 60 },
+    marks: { ticks: [1, 1, 1, 1] } },
+  rhombusD:    { label: 'Rhombus (diamond)', short: 'Rhombus ◇', group: 'quad', n: 4, p: { a: 60 }, as: 'rhombus',
+    marks: { ticks: [1, 1, 1, 1] } },
+  parallelogram: { label: 'Parallelogram', short: 'Parallelogram', group: 'quad', n: 4, ratio: 0.5, p: { k: 0.28 },
+    marks: { par: [1, 2, 1, 2] } },
+  trapezium:   { label: 'Trapezium', short: 'Trapezium', group: 'quad', n: 4, ratio: 0.55, p: { t1: -0.3, t2: 0.36 },
+    marks: { par: [1, 0, 1, 0] } },
+  trapIso:     { label: 'Isosceles trapezium', short: 'Isos. trapezium', group: 'quad', n: 4, ratio: 0.55, p: { t1: -0.28, t2: 0.28 },
+    marks: { par: [1, 0, 1, 0], ticks: [0, 1, 0, 1] } },
+  trapRight:   { label: 'Right-angled trapezium', short: 'Right trapezium', group: 'quad', n: 4, ratio: 0.55, p: { t1: -0.5, t2: 0.18 },
+    marks: { par: [1, 0, 1, 0], right: [0, 3] } },
+  kite:        { label: 'Kite', short: 'Kite', group: 'quad', n: 4, ratio: 1.15, p: { q: 0.3 },
+    marks: { ticks: [1, 2, 2, 1] } },
+  circle:      { label: 'Circle', short: 'Circle', group: 'circ', n: 0, ratio: 1,
+    circ: { centre: true, radius: true } },
+  semicircle:  { label: 'Semicircle', short: 'Semicircle', group: 'circ', n: 0, ratio: 0.5,
+    circ: { centre: true } },
+  quarter:     { label: 'Quarter circle', short: 'Quarter circle', group: 'circ', n: 0, ratio: 1,
+    circ: { centre: true, right: true } },
+  pentagon:    { label: 'Regular pentagon', short: 'Pentagon', group: 'more', n: 5, reg: 5 },
+  hexagon:     { label: 'Regular hexagon', short: 'Hexagon', group: 'more', n: 6, reg: 6 },
+  octagon:     { label: 'Regular octagon', short: 'Octagon', group: 'more', n: 8, reg: 8 },
+  lshape:      { label: 'L-shape (rectilinear figure)', short: 'L-shape', group: 'more', n: 6, ratio: 0.8, p: { a: 0.45, b: 0.45 } },
+  cuboid:      { label: 'Cuboid', short: 'Cuboid', group: 'more', n: 0, ratio: 0.7, p: { d: 0.3 } },
+  cube:        { label: 'Cube', short: 'Cube', group: 'more', n: 0, ratio: 1, p: { d: 0.3 } },
+  grid:        { label: 'Square grid', short: 'Square grid', group: 'more', n: 0 },
+  numberline:  { label: 'Number line', short: 'Number line', group: 'more', n: 0 },
+  segment:     { label: 'Line segment', short: 'Line', group: 'line', n: 2, open: true, free: [[-0.5, 0], [0.5, 0]] },
+  arrow:       { label: 'Arrow', short: 'Arrow', group: 'line', n: 2, open: true, free: [[-0.5, 0], [0.5, 0]] },
+  angle:       { label: 'Angle (two arms)', short: 'Angle', group: 'line', n: 3, open: true, ratio: 0.7,
+    free: [[0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]], marks: { arcs: [1], texts: { 1: 'x' } } },
+  text:        { label: 'Text label', short: 'Text', group: 'line', n: 0 },
+};
+const MSHAPE_GROUPS = [
+  ['tri', 'Triangles'], ['quad', 'Four-sided'], ['circ', 'Circles'], ['more', 'More shapes'], ['line', 'Lines & labels']];
+
+function mshapeKind(s) { return (s && MSHAPE_KINDS[s.kind]) || null; }
+function mshapeIsFree(s) { return !!(s && Array.isArray(s.free) && s.free.length >= 2); }
+function mshapeIsOpen(s) { const k = mshapeKind(s); return !!(k && k.open); }
+function mshapeIsCircle(s) { return !!s && (s.kind === 'circle' || s.kind === 'semicircle' || s.kind === 'quarter'); }
+function mshapeIsSolid(s) { return !!s && (s.kind === 'cuboid' || s.kind === 'cube'); }
+function _msClamp(v, lo, hi) { v = Number(v); return Math.min(hi, Math.max(lo, isFinite(v) ? v : lo)); }
+function _msNum(v, dflt) { v = Number(v); return isFinite(v) ? v : dflt; }
+function _msLabel(v) { return String(v == null ? '' : v).replace(/[\u0000-\u001f]/g, ' ').slice(0, MSHAPE_LABEL_MAX); }
+function _msColor(v, dflt) { return MSHAPE_COLOR_RE.test(String(v || '')) ? String(v).toLowerCase() : dflt; }
+
+// The rhombus box: width s(1 + |cos a|), height s·sin a.
+function mshapeRhombusRatio(a) {
+  const r = _msClamp(a, 20, 160) * Math.PI / 180;
+  return Math.sin(r) / (1 + Math.abs(Math.cos(r)));
+}
+// The height ÷ width a kind is LOCKED to, or 0 when the box stretches freely.
+// This is the one place a kind's promise is kept: a square that could be
+// dragged into a rectangle is a square in name only.
+function mshapeAspect(s) {
+  if (!s || mshapeIsFree(s)) return 0;
+  const k = mshapeKind(s); if (!k) return 0;
+  switch (s.kind) {
+    case 'equilateral': return Math.sqrt(3) / 2;
+    case 'square': case 'cube': case 'circle': case 'quarter': return 1;
+    case 'semicircle': return 0.5;
+    case 'rhombus': case 'rhombusD': return mshapeRhombusRatio(s.p && s.p.a);
+    case 'grid': { const g = s.grid || {}; return _msClamp(g.rows, 1, MSHAPE_GRID_MAX) / _msClamp(g.cols, 1, MSHAPE_GRID_MAX); }
+  }
+  if (k.reg) return MSHAPE_REGULAR[k.reg].aspect;
+  return 0;
+}
+
+// The outline in the unit box, as [x, y] pairs — or null for a kind that is
+// drawn by its own code (circles, solids, the grid, the number line, text).
+function mshapeUnitPts(s) {
+  if (!s) return null;
+  if (mshapeIsFree(s)) return s.free.map(q => [q[0], q[1]]);
+  const p = s.p || {};
+  switch (s.kind) {
+    case 'equilateral': case 'isosceles': return [[0, -0.5], [0.5, 0.5], [-0.5, 0.5]];
+    case 'rightTri': return [[-0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]];
+    case 'square': case 'rectangle': return [[-0.5, 0.5], [0.5, 0.5], [0.5, -0.5], [-0.5, -0.5]];
+    case 'parallelogram': case 'rhombus': case 'rhombusD': {
+      let k;
+      if (s.kind === 'parallelogram') k = _msClamp(p.k, -0.85, 0.85);
+      else { const c = Math.cos(_msClamp(p.a, 20, 160) * Math.PI / 180); k = c / (1 + Math.abs(c)); }
+      const b = 1 - Math.abs(k);
+      const bl = -0.5 + Math.max(0, -k), tl = -0.5 + Math.max(0, k);
+      return [[bl, 0.5], [bl + b, 0.5], [tl + b, -0.5], [tl, -0.5]];
+    }
+    case 'trapezium': case 'trapIso': case 'trapRight': {
+      let t1 = _msClamp(p.t1, -0.5, 0.45), t2 = _msClamp(p.t2, -0.45, 0.5);
+      if (s.kind === 'trapIso') { t2 = Math.abs(t1); t1 = -t2; }
+      if (s.kind === 'trapRight') t1 = -0.5;
+      if (t2 - t1 < 0.04) t2 = Math.min(0.5, t1 + 0.04);
+      return [[-0.5, 0.5], [0.5, 0.5], [t2, -0.5], [t1, -0.5]];
+    }
+    case 'kite': { const q = _msClamp(p.q, -0.3, 0.45); return [[0, -0.5], [0.5, -0.5 + (q + 0.5) * 0.5], [0, 0.5], [-0.5, -0.5 + (q + 0.5) * 0.5]]; }
+    case 'lshape': {
+      const a = _msClamp(p.a, 0.08, 0.92), b = _msClamp(p.b, 0.08, 0.92);
+      return [[-0.5, -0.5], [0.5 - a, -0.5], [0.5 - a, -0.5 + b], [0.5, -0.5 + b], [0.5, 0.5], [-0.5, 0.5]];
+    }
+  }
+  const k = mshapeKind(s);
+  if (k && k.reg) return MSHAPE_REGULAR[k.reg].pts.map(q => [q[0], q[1]]);
+  return null;
+}
+
+// Unit box → image pixels, and back. Flips act in the unit box BEFORE the
+// turn, so a mirrored shape still turns about its own middle.
+function mshapeToWorld(s, ux, uy) {
+  const r = (s.rot || 0) * Math.PI / 180, c = Math.cos(r), n = Math.sin(r);
+  const lx = (s.fx ? -ux : ux) * s.w, ly = (s.fy ? -uy : uy) * s.h;
+  return [s.cx + lx * c - ly * n, s.cy + lx * n + ly * c];
+}
+function mshapeToUnit(s, x, y) {
+  const r = (s.rot || 0) * Math.PI / 180, c = Math.cos(r), n = Math.sin(r);
+  const dx = x - s.cx, dy = y - s.cy;
+  const lx = dx * c + dy * n, ly = -dx * n + dy * c;
+  let ux = s.w ? lx / s.w : 0, uy = s.h ? ly / s.h : 0;
+  if (s.fx) ux = -ux; if (s.fy) uy = -uy;
+  return [ux, uy];
+}
+function mshapeWorldPts(s) {
+  const u = mshapeUnitPts(s);
+  return u ? u.map(q => mshapeToWorld(s, q[0], q[1])) : null;
+}
+// The four corners of the turned box, clockwise from top-left.
+function mshapeBoxCorners(s) {
+  return [[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5]].map(q => mshapeToWorld(s, q[0], q[1]));
+}
+
+// ---- Polygon helpers ----------------------------------------------------
+function mshapeArea(pts) {
+  let a = 0;
+  for (let i = 0; i < pts.length; i++) { const p = pts[i], q = pts[(i + 1) % pts.length]; a += p[0] * q[1] - q[0] * p[1]; }
+  return a / 2;
+}
+function mshapePointInPoly(x, y, pts) {
+  let inside = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const xi = pts[i][0], yi = pts[i][1], xj = pts[j][0], yj = pts[j][1];
+    if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / ((yj - yi) || 1e-12) + xi)) inside = !inside;
+  }
+  return inside;
+}
+function _msUnit(dx, dy) { const L = Math.hypot(dx, dy) || 1; return [dx / L, dy / L]; }
+function mshapeSideLengths(pts, closed) {
+  const out = [];
+  const n = closed ? pts.length : pts.length - 1;
+  for (let i = 0; i < n; i++) { const a = pts[i], b = pts[(i + 1) % pts.length]; out.push(Math.hypot(b[0] - a[0], b[1] - a[1])); }
+  return out;
+}
+// The angle INSIDE the shape at vertex i, in radians, with the two unit
+// vectors along its arms. On a closed outline a vertex that turns against
+// the outline's own direction is REFLEX (the inner corner of an L-shape is
+// 270°, not 90°); on an open one (an angle's two arms) it is the smaller one.
+function mshapeAngleAt(pts, i, closed) {
+  const n = pts.length;
+  const v = pts[i], a = pts[(i - 1 + n) % n], b = pts[(i + 1) % n];
+  const u1 = _msUnit(a[0] - v[0], a[1] - v[1]), u2 = _msUnit(b[0] - v[0], b[1] - v[1]);
+  const dot = Math.max(-1, Math.min(1, u1[0] * u2[0] + u1[1] * u2[1]));
+  let theta = Math.acos(dot);
+  if (closed) {
+    const area = mshapeArea(pts);
+    const e1 = [v[0] - a[0], v[1] - a[1]], e2 = [b[0] - v[0], b[1] - v[1]];
+    const cross = e1[0] * e2[1] - e1[1] * e2[0];
+    if (Math.abs(cross) > 1e-9 && cross * area < 0) theta = 2 * Math.PI - theta;
+  }
+  return { theta, u1, u2, v };
+}
+function mshapeAngleDeg(pts, i, closed) { return mshapeAngleAt(pts, i, closed).theta * 180 / Math.PI; }
+
+// An arc of radius r round v from arm u2 to arm u1 the INTERIOR way, as a
+// polyline — sampled, so the SVG and the canvas draw it identically.
+function _msArcPts(v, r, u1, u2, theta) {
+  const a1 = Math.atan2(u1[1], u1[0]), a2 = Math.atan2(u2[1], u2[0]);
+  let dcw = a1 - a2; while (dcw < 0) dcw += 2 * Math.PI; while (dcw >= 2 * Math.PI) dcw -= 2 * Math.PI;
+  const sweep = Math.abs(dcw - theta) < 1e-3 ? dcw : -(2 * Math.PI - dcw);
+  const steps = Math.max(6, Math.ceil(Math.abs(sweep) / (Math.PI / 24)));
+  const out = [];
+  for (let j = 0; j <= steps; j++) { const t = a2 + sweep * j / steps; out.push([v[0] + Math.cos(t) * r, v[1] + Math.sin(t) * r]); }
+  return { pts: out, mid: a2 + sweep / 2 };
+}
+
+// "60" typed into an angle label means sixty degrees; the ° is added for the
+// teacher. Anything that is not just a number (x, ∠ABC, 2y) is left alone.
+function mshapeAngleText(t) {
+  t = _msLabel(t).trim();
+  return /^-?\d+(\.\d+)?$/.test(t) ? t + '°' : t;
+}
+// A single lower-case letter is a VARIABLE (x, y) and is set in italics, the
+// way every textbook prints it. Vertex letters stay upright.
+function mshapeItalic(t) { return /^[a-z]$/.test(String(t || '')); }
+
+// Approximate text width — the browser passes a real measurer; node has none.
+function _msMeasureApprox(text, size) { return String(text || '').length * size * 0.56; }
+
+// ---- Turning a shape into drawing operations ------------------------------
+// The ONE place a shape's appearance is decided. Returns
+//   { ops: [...], pts: world outline or null, closed: bool }
+// where every op is one of
+//   { t: 'line', pts, close, stroke, lw, dash, fill, fillA }
+//   { t: 'text', x, y, s, size, color, italic, halo, rot, key }
+//   { t: 'dot',  x, y, r, color }
+// `key` names a label so the editor can drag it (s.lo[key] is its offset).
+function mshapeOps(s, opt) {
+  opt = opt || {};
+  const measure = opt.measure || _msMeasureApprox;
+  const ops = [];
+  if (!s || !mshapeKind(s)) return { ops, pts: null, closed: false };
+  const stroke = _msColor(s.stroke, '#111111');
+  const lw = _msClamp(s.lw, 0.5, 40);
+  const font = _msClamp(s.font, 6, 200);
+  const lc = _msColor(s.lc, '#111111');
+  const halo = s.halo !== false;
+  const fill = s.fill ? _msColor(s.fill, '') : '';
+  const fillA = _msClamp(s.fillA == null ? 0.25 : s.fillA, 0, 1);
+  const dash = !!s.dash;
+  const thumb = !!opt.thumb;
+  const lo = s.lo || {};
+  const off = key => { const o = lo[key]; return o ? [_msNum(o.x, 0), _msNum(o.y, 0)] : [0, 0]; };
+  const text = (key, x, y, str, extra) => {
+    if (thumb || !str) return;
+    const o = off(key);
+    ops.push(Object.assign({ t: 'text', x: x + o[0], y: y + o[1], s: str, size: font, color: lc, italic: mshapeItalic(str), halo, rot: 0, key }, extra || {}));
+  };
+  const line = (pts, close, extra) => ops.push(Object.assign({ t: 'line', pts, close: !!close, stroke, lw, dash, fill: '', fillA: 0 }, extra || {}));
+  const markLw = Math.max(1, lw * 0.75);
+
+  // Ticks and parallel arrows on the side a→b. The arrows always point the
+  // same way across the picture (left-to-right, else top-to-bottom), so two
+  // parallel sides of a parallelogram carry arrows that agree.
+  const sideMarks = (a, b, ticks, par) => {
+    const m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    let e = _msUnit(b[0] - a[0], b[1] - a[1]);
+    const nrm = [-e[1], e[0]];
+    const L = font * 0.5, g = font * 0.24;
+    for (let j = 0; j < ticks; j++) {
+      const t = (j - (ticks - 1) / 2) * g;
+      const c = [m[0] + e[0] * t, m[1] + e[1] * t];
+      line([[c[0] - nrm[0] * L / 2, c[1] - nrm[1] * L / 2], [c[0] + nrm[0] * L / 2, c[1] + nrm[1] * L / 2]], false, { lw: markLw, dash: false });
+    }
+    if (par > 0) {
+      if (e[0] < -1e-9 || (Math.abs(e[0]) <= 1e-9 && e[1] < 0)) e = [-e[0], -e[1]];
+      const n2 = [-e[1], e[0]];
+      const c = font * 0.34, shift = ticks > 0 ? font * 0.75 : 0;
+      for (let j = 0; j < par; j++) {
+        const t = (j - (par - 1) / 2) * c * 0.75 + shift;
+        const tip = [m[0] + e[0] * (t + c / 2), m[1] + e[1] * (t + c / 2)];
+        const back = [m[0] + e[0] * (t - c / 2), m[1] + e[1] * (t - c / 2)];
+        line([[back[0] + n2[0] * c / 2, back[1] + n2[1] * c / 2], tip, [back[0] - n2[0] * c / 2, back[1] - n2[1] * c / 2]], false, { lw: markLw, dash: false });
+      }
+    }
+  };
+  // A side's label sits just OUTSIDE the side, far enough out that its own
+  // width clears the line whatever the side's slope.
+  const sideLabel = (key, a, b, str, outline) => {
+    if (!str) return;
+    const m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    const e = _msUnit(b[0] - a[0], b[1] - a[1]);
+    let nrm = [-e[1], e[0]];
+    if (outline) {
+      const probe = [m[0] + nrm[0] * 2, m[1] + nrm[1] * 2];
+      if (mshapePointInPoly(probe[0], probe[1], outline)) nrm = [-nrm[0], -nrm[1]];
+    } else if (nrm[1] > 0 || (Math.abs(nrm[1]) < 1e-9 && nrm[0] < 0)) nrm = [-nrm[0], -nrm[1]];
+    const tw = measure(str, font);
+    const d = font * 0.45 + Math.abs(nrm[0]) * tw / 2 + Math.abs(nrm[1]) * font * 0.55;
+    text(key, m[0] + nrm[0] * d, m[1] + nrm[1] * d, str);
+  };
+  // The marker and label at one vertex.
+  const vertexMarks = (pts, i, closed) => {
+    const am = (s.ang && s.ang[i]) || {};
+    const mark = MSHAPE_MARKS.indexOf(am.m) >= 0 ? am.m : '';
+    const info = mshapeAngleAt(pts, i, closed);
+    const { theta, u1, u2, v } = info;
+    const n = pts.length;
+    const la = Math.hypot(pts[(i - 1 + n) % n][0] - v[0], pts[(i - 1 + n) % n][1] - v[1]);
+    const lb = Math.hypot(pts[(i + 1) % n][0] - v[0], pts[(i + 1) % n][1] - v[1]);
+    const r = Math.max(4, Math.min(font * 1.15, 0.33 * Math.min(la, lb)));
+    let midA;
+    { const arc = _msArcPts(v, r, u1, u2, theta); midA = arc.mid; }
+    const mid = [Math.cos(midA), Math.sin(midA)];
+    let reach = r;
+    if (mark === 'right') {
+      const q = r * 0.62;
+      line([[v[0] + u1[0] * q, v[1] + u1[1] * q], [v[0] + (u1[0] + u2[0]) * q, v[1] + (u1[1] + u2[1]) * q], [v[0] + u2[0] * q, v[1] + u2[1] * q]], false, { lw: markLw, dash: false });
+      reach = q * 1.3;
+    } else if (mark) {
+      const count = mark === 'arc' ? 1 : mark === 'arc2' ? 2 : 3;
+      for (let j = 0; j < count; j++) {
+        const rr = r + j * Math.max(3, font * 0.2);
+        line(_msArcPts(v, rr, u1, u2, theta).pts, false, { lw: markLw, dash: false });
+        reach = rr;
+      }
+    }
+    const label = am.auto ? (Math.round(theta * 180 / Math.PI) + '°') : mshapeAngleText(am.t);
+    if (label) {
+      let d = Math.max(reach + font * 0.75, font * 1.05);
+      if (theta < 50 * Math.PI / 180) d += font * 0.55;
+      if (theta > 200 * Math.PI / 180) d = Math.max(d, font * 1.2);
+      // A narrow corner squeezes the label between its two arms, so slide it
+      // out until the text's half-width fits between them (capped so a long
+      // label never leaves the shape entirely).
+      if (theta < 100 * Math.PI / 180) {
+        const half = measure(label, font) / 2 + font * 0.25;
+        const need = half / Math.max(0.12, Math.sin(theta / 2));
+        d = Math.max(d, Math.min(need, 0.6 * Math.min(la, lb)));
+      }
+      text('a' + i, v[0] + mid[0] * d, v[1] + mid[1] * d, label);
+    }
+    return mid;
+  };
+  // Vertex letters sit OUTSIDE the corner, opposite the angle's label.
+  const vertexNames = (pts, closed) => {
+    if (!s.showNames) return;
+    const names = String(s.names || '');
+    const list = names.indexOf(',') >= 0 ? names.split(',').map(x => x.trim()) : names.replace(/\s+/g, '').split('');
+    for (let i = 0; i < pts.length; i++) {
+      const nm = _msLabel(list[i] || '');
+      if (!nm) continue;
+      const v = pts[i];
+      let dir;
+      if (!closed && (i === 0 || i === pts.length - 1)) {
+        const o = pts[i === 0 ? 1 : pts.length - 2];
+        dir = _msUnit(v[0] - o[0], v[1] - o[1]);
+      } else {
+        const { theta, u1, u2 } = mshapeAngleAt(pts, i, closed);
+        const arc = _msArcPts(v, 1, u1, u2, theta);
+        dir = [-Math.cos(arc.mid), -Math.sin(arc.mid)];
+      }
+      const d = font * 0.85 + lw;
+      text('n' + i, v[0] + dir[0] * d, v[1] + dir[1] * d, nm, { italic: false });
+    }
+  };
+
+  // ---- Text --------------------------------------------------------------
+  if (s.kind === 'text') {
+    const str = _msLabel(s.text);
+    if (!thumb && str) ops.push({ t: 'text', x: s.cx, y: s.cy, s: str, size: font, color: lc, italic: mshapeItalic(str), halo, rot: s.rot || 0, key: 'body' });
+    if (thumb) ops.push({ t: 'text', x: s.cx, y: s.cy, s: 'Aa', size: 16, color: stroke, italic: false, halo: false, rot: 0, key: 'body' });
+    return { ops, pts: null, closed: false };
+  }
+
+  // ---- Circles -----------------------------------------------------------
+  if (mshapeIsCircle(s)) {
+    const c = s.circ || {};
+    let cu, rU, a0, a1, closePts;
+    if (s.kind === 'circle') { cu = [0, 0]; rU = 0.5; a0 = 0; a1 = 2 * Math.PI; }
+    else if (s.kind === 'semicircle') { cu = [0, 0.5]; rU = 0.5; a0 = Math.PI; a1 = 2 * Math.PI; }
+    else { cu = [-0.5, 0.5]; rU = 1; a0 = -Math.PI / 2; a1 = 0; }
+    const steps = Math.max(12, Math.round(MSHAPE_CIRCLE_STEPS * (a1 - a0) / (2 * Math.PI)));
+    const ring = [];
+    for (let j = 0; j <= steps; j++) {
+      const t = a0 + (a1 - a0) * j / steps;
+      ring.push(mshapeToWorld(s, cu[0] + Math.cos(t) * rU, cu[1] + Math.sin(t) * rU * (s.kind === 'semicircle' ? 2 : 1)));
+    }
+    const centre = mshapeToWorld(s, cu[0], cu[1]);
+    if (s.kind === 'circle') { ring.pop(); closePts = ring; }
+    else if (s.kind === 'semicircle') closePts = ring;
+    else closePts = [centre].concat(ring);
+    line(closePts, true, { fill, fillA });
+    const rWorld = Math.hypot(ring[0][0] - centre[0], ring[0][1] - centre[1]);
+    const onRim = deg => {
+      const t = deg * Math.PI / 180;
+      return mshapeToWorld(s, cu[0] + Math.cos(t) * rU, cu[1] + Math.sin(t) * rU * (s.kind === 'semicircle' ? 2 : 1));
+    };
+    if (c.diam && s.kind === 'circle') {
+      const d = _msNum(c.dAng, 0);
+      const p1 = onRim(d), p2 = onRim(d + 180);
+      line([p1, p2], false, { dash: false });
+      if (c.dText) sideLabel('cd', p1, p2, _msLabel(c.dText), null);
+    }
+    if (c.radius) {
+      const ang = s.kind === 'quarter' ? _msClamp(_msNum(c.rAng, -45), -90, 0) : s.kind === 'semicircle' ? _msClamp(_msNum(c.rAng, -60), -180, 0) : _msNum(c.rAng, -35);
+      const p = onRim(ang);
+      line([centre, p], false, { dash: false });
+      if (c.rText) sideLabel('cr', centre, p, _msLabel(c.rText), null);
+    }
+    if (s.kind === 'semicircle' && c.dText) sideLabel('cd', ring[0], ring[ring.length - 1], _msLabel(c.dText), closePts);
+    if (s.kind === 'quarter') {
+      const top = ring[0], right = ring[ring.length - 1];
+      const sides = s.side || [];
+      if (sides[0]) { sideMarks(centre, top, _msClamp(sides[0].ticks, 0, 3) | 0, 0); sideLabel('s0', centre, top, _msLabel(sides[0].t), closePts); }
+      if (sides[1]) { sideMarks(centre, right, _msClamp(sides[1].ticks, 0, 3) | 0, 0); sideLabel('s1', centre, right, _msLabel(sides[1].t), closePts); }
+      if (c.right) {
+        const u1 = _msUnit(top[0] - centre[0], top[1] - centre[1]), u2 = _msUnit(right[0] - centre[0], right[1] - centre[1]);
+        const q = Math.max(4, Math.min(font * 0.75, rWorld * 0.2));
+        line([[centre[0] + u1[0] * q, centre[1] + u1[1] * q], [centre[0] + (u1[0] + u2[0]) * q, centre[1] + (u1[1] + u2[1]) * q], [centre[0] + u2[0] * q, centre[1] + u2[1] * q]], false, { lw: markLw, dash: false });
+      }
+    }
+    if (c.arcText) {
+      const mid = s.kind === 'circle' ? onRim(-90) : s.kind === 'semicircle' ? onRim(-90) : onRim(-45);
+      const dir = _msUnit(mid[0] - centre[0], mid[1] - centre[1]);
+      const tw = measure(_msLabel(c.arcText), font);
+      const d = font * 0.5 + Math.abs(dir[0]) * tw / 2 + Math.abs(dir[1]) * font * 0.55;
+      text('ca', mid[0] + dir[0] * d, mid[1] + dir[1] * d, _msLabel(c.arcText));
+    }
+    if (c.centre) {
+      ops.push({ t: 'dot', x: centre[0], y: centre[1], r: Math.max(2, lw * 1.25), color: stroke });
+      if (c.cName) {
+        const d = font * 0.75;
+        let dir = [-0.7071, 0.7071];
+        // Semicircle: just above the diameter, up-left of the centre (the
+        // diameter label sits below and the radius leans right). Quarter:
+        // outside the right-angle corner, clear of both straight sides' labels.
+        if (s.kind === 'semicircle') { const w = mshapeToWorld(s, cu[0] - 0.1, cu[1] - 0.2); dir = _msUnit(w[0] - centre[0], w[1] - centre[1]); }
+        else if (s.kind === 'quarter') { const w = mshapeToWorld(s, cu[0] - 0.15, cu[1] + 0.15); dir = _msUnit(w[0] - centre[0], w[1] - centre[1]); }
+        text('cn', centre[0] + dir[0] * d, centre[1] + dir[1] * d, _msLabel(c.cName), { italic: false });
+      }
+    }
+    return { ops, pts: closePts, closed: true };
+  }
+
+  // ---- Cuboid / cube -----------------------------------------------------
+  if (mshapeIsSolid(s)) {
+    const d = _msClamp(s.p && s.p.d, 0.08, 0.6);
+    const W = (x, y) => mshapeToWorld(s, x, y);
+    const F0 = W(-0.5, -0.5 + d), F1 = W(0.5 - d, -0.5 + d), F2 = W(0.5 - d, 0.5), F3 = W(-0.5, 0.5);
+    const B0 = W(-0.5 + d, -0.5), B1 = W(0.5, -0.5), B2 = W(0.5, 0.5 - d), B3 = W(-0.5 + d, 0.5 - d);
+    if (fill) {
+      ops.push({ t: 'line', pts: [F0, B0, B1, F1], close: true, stroke, lw: 0, dash: false, fill, fillA: fillA * 0.55 });
+      ops.push({ t: 'line', pts: [F1, B1, B2, F2], close: true, stroke, lw: 0, dash: false, fill, fillA: Math.min(1, fillA * 1.45) });
+    }
+    if (s.hidden !== false) {
+      line([B3, B0], false, { dash: true, lw: Math.max(1, lw * 0.8) });
+      line([B3, B2], false, { dash: true, lw: Math.max(1, lw * 0.8) });
+      line([B3, F3], false, { dash: true, lw: Math.max(1, lw * 0.8) });
+    }
+    line([F0, F1, F2, F3], true, { fill, fillA });
+    line([F0, B0, B1, F1], false);
+    line([B1, B2, F2], false);
+    const sil = [F0, B0, B1, B2, F2, F3];
+    const sides = s.side || [];
+    const lab = (i, a, b) => { const sd = sides[i] || {}; sideMarks(a, b, _msClamp(sd.ticks, 0, 3) | 0, 0); sideLabel('s' + i, a, b, _msLabel(sd.t), sil); };
+    lab(0, F3, F2); lab(1, F2, B2); lab(2, F3, F0);
+    return { ops, pts: sil, closed: true };
+  }
+
+  // ---- Square grid -------------------------------------------------------
+  if (s.kind === 'grid') {
+    const g = s.grid || {};
+    const cols = Math.round(_msClamp(g.cols, 1, MSHAPE_GRID_MAX)), rows = Math.round(_msClamp(g.rows, 1, MSHAPE_GRID_MAX));
+    const inner = Math.max(0.75, lw * 0.45);
+    for (let i = 1; i < cols; i++) { const x = -0.5 + i / cols; line([mshapeToWorld(s, x, -0.5), mshapeToWorld(s, x, 0.5)], false, { lw: inner, dash: false }); }
+    for (let j = 1; j < rows; j++) { const y = -0.5 + j / rows; line([mshapeToWorld(s, -0.5, y), mshapeToWorld(s, 0.5, y)], false, { lw: inner, dash: false }); }
+    const box = mshapeBoxCorners(s);
+    line(box, true, { fill, fillA });
+    return { ops, pts: box, closed: true };
+  }
+
+  // ---- Number line -------------------------------------------------------
+  if (s.kind === 'numberline') {
+    const nl = s.nl || {};
+    const vmin = _msNum(nl.min, 0), vmax = _msNum(nl.max, 10);
+    let step = Math.abs(_msNum(nl.step, 1)) || 1;
+    const span = vmax - vmin;
+    let count = span > 0 ? Math.round(span / step) : 0;
+    if (count > MSHAPE_NUMLINE_MAX_TICKS) { count = MSHAPE_NUMLINE_MAX_TICKS; step = span / count; }
+    const every = Math.max(1, Math.round(_msNum(nl.every, 1)));
+    const a = mshapeToWorld(s, -0.5, 0), b = mshapeToWorld(s, 0.5, 0);
+    line([a, b], false, { dash: false });
+    const e = _msUnit(b[0] - a[0], b[1] - a[1]);
+    const nrm = [-e[1], e[0]];
+    const ah = Math.max(lw * 3.2, font * 0.45);
+    if (nl.arrows !== false) {
+      [[b, e], [a, [-e[0], -e[1]]]].forEach(([p, dir]) => {
+        const back = [p[0] - dir[0] * ah, p[1] - dir[1] * ah];
+        line([[back[0] + nrm[0] * ah * 0.5, back[1] + nrm[1] * ah * 0.5], p, [back[0] - nrm[0] * ah * 0.5, back[1] - nrm[1] * ah * 0.5]], true, { fill: stroke, fillA: 1, dash: false });
+      });
+    }
+    const inset = 0.06;
+    const tickL = font * 0.55;
+    const below = nrm[1] >= 0 ? nrm : [-nrm[0], -nrm[1]];
+    for (let i = 0; i <= count; i++) {
+      const u = count ? -0.5 + inset + (1 - 2 * inset) * i / count : 0;
+      const p = mshapeToWorld(s, u, 0);
+      line([[p[0] - nrm[0] * tickL / 2, p[1] - nrm[1] * tickL / 2], [p[0] + nrm[0] * tickL / 2, p[1] + nrm[1] * tickL / 2]], false, { lw: Math.max(1, lw * 0.85), dash: false });
+      if (i % every === 0) {
+        const val = vmin + step * i;
+        const str = String(Math.round(val * 1000) / 1000);
+        const d = tickL / 2 + font * 0.7;
+        text('t' + i, p[0] + below[0] * d, p[1] + below[1] * d, str, { italic: false });
+      }
+    }
+    return { ops, pts: null, closed: false };
+  }
+
+  // ---- Every outline kind --------------------------------------------------
+  const pts = mshapeWorldPts(s);
+  if (!pts || pts.length < 2) return { ops, pts: null, closed: false };
+  const closed = !mshapeIsOpen(s);
+  line(pts, closed, closed ? { fill, fillA } : {});
+  if (s.kind === 'arrow' || (s.kind === 'segment' && s.arr)) {
+    const arr = s.kind === 'arrow' ? (s.arr === 2 ? 2 : 1) : (_msClamp(s.arr, 0, 2) | 0);
+    const ah = Math.max(lw * 3.4, font * 0.5);
+    const heads = arr === 2 ? [[pts[1], pts[0]], [pts[0], pts[1]]] : arr === 1 ? [[pts[1], pts[0]]] : [];
+    heads.forEach(([tip, from]) => {
+      const e = _msUnit(tip[0] - from[0], tip[1] - from[1]), nrm = [-e[1], e[0]];
+      const back = [tip[0] - e[0] * ah, tip[1] - e[1] * ah];
+      line([[back[0] + nrm[0] * ah * 0.45, back[1] + nrm[1] * ah * 0.45], tip, [back[0] - nrm[0] * ah * 0.45, back[1] - nrm[1] * ah * 0.45]], true, { fill: stroke, fillA: 1, dash: false });
+    });
+  }
+  if (s.kind === 'segment' && s.dots) pts.forEach(p => ops.push({ t: 'dot', x: p[0], y: p[1], r: Math.max(2, lw * 1.3), color: stroke }));
+  // Side marks: every side of a closed outline, the one side of a segment.
+  // An angle's arms are not sides — nobody ticks the arm of an angle.
+  if (s.kind !== 'angle') {
+    const nSides = closed ? pts.length : pts.length - 1;
+    const sides = s.side || [];
+    for (let i = 0; i < nSides; i++) {
+      const sd = sides[i]; if (!sd) continue;
+      const a = pts[i], b = pts[(i + 1) % pts.length];
+      sideMarks(a, b, _msClamp(sd.ticks, 0, 3) | 0, _msClamp(sd.par, 0, 3) | 0);
+      sideLabel('s' + i, a, b, _msLabel(sd.t), closed ? pts : null);
+    }
+  }
+  // Angle marks: every corner of a closed outline; the middle of an angle.
+  if (closed) { for (let i = 0; i < pts.length; i++) if (s.ang && s.ang[i]) vertexMarks(pts, i, true); }
+  else if (s.kind === 'angle' && pts.length === 3) vertexMarks(pts, 1, false);
+  vertexNames(pts, closed);
+  return { ops, pts, closed };
+}
+
+// ---- Smart marks -----------------------------------------------------------
+// ✓ Equal sides: groups the sides by length and ticks each group of two or
+// more with its own count — 1, then 2, then 3 — longest group first.
+function mshapeAutoTicks(s) {
+  const pts = mshapeWorldPts(s);
+  if (!pts || mshapeIsOpen(s)) return s;
+  const lens = mshapeSideLengths(pts, true);
+  const max = Math.max(...lens) || 1;
+  const groups = [];
+  lens.forEach((L, i) => {
+    const g = groups.find(g => Math.abs(g.len - L) <= MSHAPE_EQUAL_TOL * max);
+    if (g) g.idx.push(i); else groups.push({ len: L, idx: [i] });
+  });
+  const multi = groups.filter(g => g.idx.length >= 2).sort((a, b) => b.len - a.len);
+  s.side = lens.map((_, i) => Object.assign({}, (s.side && s.side[i]) || {}, { ticks: 0 }));
+  multi.slice(0, 3).forEach((g, gi) => g.idx.forEach(i => { s.side[i].ticks = gi + 1; }));
+  return s;
+}
+// ✓ Right angles: a box on every corner within MSHAPE_RIGHT_TOL of 90°, and
+// a box taken off any corner that is no longer square.
+function mshapeAutoRight(s) {
+  const pts = mshapeWorldPts(s);
+  if (!pts || mshapeIsOpen(s)) return s;
+  s.ang = pts.map((_, i) => {
+    const am = Object.assign({}, (s.ang && s.ang[i]) || {});
+    const deg = mshapeAngleDeg(pts, i, true);
+    if (Math.abs(deg - 90) <= MSHAPE_RIGHT_TOL) am.m = 'right';
+    else if (am.m === 'right') am.m = '';
+    return am;
+  });
+  return s;
+}
+// ✓ Parallel sides: arrows on every pair of parallel sides, one arrow for
+// the first pair, two for the second.
+function mshapeAutoParallel(s) {
+  const pts = mshapeWorldPts(s);
+  if (!pts || mshapeIsOpen(s)) return s;
+  const n = pts.length;
+  const dirs = [];
+  for (let i = 0; i < n; i++) { const a = pts[i], b = pts[(i + 1) % n]; dirs.push(_msUnit(b[0] - a[0], b[1] - a[1])); }
+  s.side = dirs.map((_, i) => Object.assign({}, (s.side && s.side[i]) || {}, { par: 0 }));
+  let next = 1;
+  for (let i = 0; i < n && next <= 3; i++) {
+    if (s.side[i].par) continue;
+    const mates = [];
+    for (let j = i + 1; j < n; j++) {
+      if (s.side[j].par || j === (i + 1) % n || i === (j + 1) % n) continue;
+      const cr = dirs[i][0] * dirs[j][1] - dirs[i][1] * dirs[j][0];
+      if (Math.abs(cr) < 0.012) mates.push(j);
+    }
+    if (mates.length) { s.side[i].par = next; mates.forEach(j => { s.side[j].par = next; }); next++; }
+  }
+  return s;
+}
+
+// The marks a freshly inserted kind carries.
+function _msApplyKindMarks(s) {
+  const k = mshapeKind(s); if (!k) return s;
+  const m = k.marks || {};
+  const n = k.n || 0;
+  s.side = []; s.ang = [];
+  for (let i = 0; i < n; i++) { s.side.push({ t: '', ticks: 0, par: 0 }); s.ang.push({ m: '', t: '', auto: false }); }
+  (m.ticks || []).forEach((v, i) => { if (s.side[i]) s.side[i].ticks = v; });
+  (m.par || []).forEach((v, i) => { if (s.side[i]) s.side[i].par = v; });
+  (m.right || []).forEach(i => { if (s.ang[i]) s.ang[i].m = 'right'; });
+  (m.arcs || []).forEach(i => { if (s.ang[i]) s.ang[i].m = 'arc'; });
+  Object.keys(m.texts || {}).forEach(i => { if (s.ang[i]) s.ang[i].t = m.texts[i]; });
+  return s;
+}
+
+let _msSeq = 0;
+function mshapeNewId() { _msSeq = (_msSeq + 1) % 1e6; return 'ms' + Date.now().toString(36) + _msSeq.toString(36) + Math.floor(Math.random() * 1e4).toString(36); }
+
+// A new shape of `kind`, `size` image pixels wide, centred on cx, cy. `env`
+// carries the picture's own sizes for the line width and the label size, so
+// a shape dropped onto a 400px thumbnail and onto a 1600px scan both look
+// like they belong there.
+function mshapeCreate(kind, cx, cy, size, env) {
+  const k = MSHAPE_KINDS[kind]; if (!k) return null;
+  env = env || {};
+  const base = Math.max(120, Math.min(_msNum(env.W, 1000), _msNum(env.H, 700)));
+  const s = {
+    id: mshapeNewId(), kind: k.as || kind, cx: _msNum(cx, 0), cy: _msNum(cy, 0), w: Math.max(MSHAPE_MIN_PX, _msNum(size, 200)), h: 0,
+    rot: 0, fx: false, fy: false, p: Object.assign({}, k.p || {}), free: k.free ? k.free.map(q => [q[0], q[1]]) : null,
+    stroke: _msColor(env.stroke, '#111111'), lw: _msNum(env.lw, Math.max(2, Math.round(base / 300))),
+    fill: '', fillA: 0.25, dash: false, font: _msNum(env.font, Math.max(14, Math.round(base / 26))), lc: _msColor(env.lc, '#111111'), halo: true,
+    names: '', showNames: false, ang: [], side: [], lo: {}, circ: null, hidden: true, arr: 0, dots: false, grid: null, nl: null, text: '',
+  };
+  const n = k.n || 0;
+  s.names = n ? 'ABCDEFGH'.slice(0, n) : '';
+  _msApplyKindMarks(s);
+  if (mshapeIsCircle(s)) {
+    const c = k.circ || {};
+    s.circ = { centre: !!c.centre, cName: 'O', radius: !!c.radius, rAng: s.kind === 'quarter' ? -45 : s.kind === 'semicircle' ? -60 : -35, rText: '', diam: false, dAng: 0, dText: '', arcText: '', right: !!c.right };
+    if (s.kind === 'quarter') s.side = [{ t: '', ticks: 0 }, { t: '', ticks: 0 }];
+  }
+  if (kind === 'grid') s.grid = { cols: 6, rows: 4 };
+  if (kind === 'numberline') { s.nl = { min: 0, max: 10, step: 1, every: 1, arrows: true }; }
+  if (kind === 'text') { s.text = 'Label'; s.font = Math.round(s.font * 1.1); }
+  if (kind === 'arrow') s.arr = 1;
+  if (mshapeIsSolid(s)) s.side = [{ t: '', ticks: 0 }, { t: '', ticks: 0 }, { t: '', ticks: 0 }];
+  const asp = mshapeAspect(s);
+  if (kind === 'numberline') s.h = Math.max(MSHAPE_MIN_PX, s.font * 2.6);
+  else if (kind === 'text') { s.h = s.font * 1.25; s.w = Math.max(s.font, _msMeasureApprox(s.text, s.font) + s.font * 0.4); }
+  else if (k.open && kind !== 'angle') s.h = 1;
+  else s.h = Math.max(MSHAPE_MIN_PX, s.w * (asp || k.ratio || 0.75));
+  if (kind === 'rhombusD') {
+    // The same rhombus, turned so its long diagonal lies flat.
+    s.rot = Math.atan2(s.h, s.w) * 180 / Math.PI;
+  }
+  return s;
+}
+
+// Re-fit the box round a free outline after a vertex moved: the turn is
+// kept, the box becomes the outline's own bounds in the shape's frame, and
+// the unit outline is re-normalised into it. A vertex therefore drags
+// exactly where the pointer is, and the box handles go on working after.
+function mshapeRefitFree(s, worldPts) {
+  const r = (s.rot || 0) * Math.PI / 180, c = Math.cos(r), n = Math.sin(r);
+  const loc = worldPts.map(([x, y]) => { const dx = x - s.cx, dy = y - s.cy; return [dx * c + dy * n, -dx * n + dy * c]; });
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  loc.forEach(([x, y]) => { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); });
+  const w = Math.max(1, x1 - x0), h = Math.max(1, y1 - y0);
+  const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+  s.cx = s.cx + mx * c - my * n; s.cy = s.cy + mx * n + my * c;
+  s.w = w; s.h = h;
+  s.free = loc.map(([x, y]) => {
+    let ux = (x - mx) / w, uy = (y - my) / h;
+    if (s.fx) ux = -ux; if (s.fy) uy = -uy;
+    return [Math.round(ux * 1e5) / 1e5, Math.round(uy * 1e5) / 1e5];
+  });
+  return s;
+}
+// ✎ Make free: the outline as it stands becomes the free outline, so the
+// teacher can drag any corner. The kind's own promise is let go of.
+function mshapeMakeFree(s) {
+  const u = mshapeUnitPts(s);
+  if (!u || mshapeIsFree(s)) return s;
+  s.free = u.map(q => [q[0], q[1]]);
+  return s;
+}
+
+// The yellow handles that RE-SHAPE a kind without moving its box: the slant
+// of a parallelogram, the angle of a rhombus, the top of a trapezium, the
+// notch of an L-shape, the depth of a cuboid. In unit coordinates.
+function mshapeAdjHandles(s) {
+  if (!s || mshapeIsFree(s)) return [];
+  const p = s.p || {};
+  switch (s.kind) {
+    case 'parallelogram': case 'rhombus': case 'rhombusD': { const u = mshapeUnitPts(s); return [{ key: 'slant', u: u[3] }]; }
+    case 'trapezium': return [{ key: 't1', u: [_msClamp(p.t1, -0.5, 0.45), -0.5] }, { key: 't2', u: [_msClamp(p.t2, -0.45, 0.5), -0.5] }];
+    case 'trapIso': return [{ key: 'iso', u: [Math.abs(_msClamp(p.t1, -0.5, 0.45)), -0.5] }];
+    case 'trapRight': return [{ key: 't2', u: [_msClamp(p.t2, -0.45, 0.5), -0.5] }];
+    case 'kite': { const u = mshapeUnitPts(s); return [{ key: 'q', u: u[1] }]; }
+    case 'lshape': { const u = mshapeUnitPts(s); return [{ key: 'notch', u: u[2] }]; }
+    case 'cuboid': case 'cube': { const d = _msClamp(p.d, 0.08, 0.6); return [{ key: 'd', u: [-0.5 + d, -0.5] }]; }
+  }
+  return [];
+}
+// Apply a yellow handle dragged to unit point (ux, uy).
+function mshapeAdjSet(s, key, ux, uy) {
+  s.p = s.p || {};
+  const p = s.p;
+  if (key === 'slant') {
+    const u = mshapeUnitPts(s);
+    const bl = u[0][0];
+    let k = _msClamp(ux - bl, -0.85, 0.85);
+    if (s.kind === 'parallelogram') p.k = Math.round(k * 1000) / 1000;
+    else {
+      k = _msClamp(k, -0.75, 0.75);
+      const c = Math.abs(k) / (1 - Math.abs(k)) * Math.sign(k || 1);
+      p.a = Math.round(_msClamp(Math.acos(_msClamp(c, -0.94, 0.94)) * 180 / Math.PI, 20, 160));
+      s.h = Math.max(MSHAPE_MIN_PX, s.w * mshapeRhombusRatio(p.a));
+    }
+  } else if (key === 't1') p.t1 = _msClamp(Math.min(ux, _msNum(p.t2, 0.3) - 0.04), -0.5, 0.45);
+  else if (key === 't2') p.t2 = _msClamp(Math.max(ux, s.kind === 'trapRight' ? -0.46 : _msNum(p.t1, -0.3) + 0.04), -0.45, 0.5);
+  else if (key === 'iso') { const t = _msClamp(Math.abs(ux), 0.02, 0.5); p.t1 = -t; p.t2 = t; }
+  else if (key === 'q') p.q = _msClamp((uy + 0.5) * 2 - 0.5, -0.3, 0.45);
+  else if (key === 'notch') { p.a = _msClamp(0.5 - ux, 0.08, 0.92); p.b = _msClamp(uy + 0.5, 0.08, 0.92); }
+  else if (key === 'd') p.d = _msClamp(ux + 0.5, 0.08, 0.6);
+  return s;
+}
+
+// Everything that comes back out of storage, the undo stack or a session
+// memory is believed only through here: unknown fields are dropped, every
+// number is clamped, every colour checked, every label cut to length.
+function mshapeClean(raw) {
+  if (!raw || typeof raw !== 'object' || !MSHAPE_KINDS[raw.kind] || MSHAPE_KINDS[raw.kind].as) return null;
+  const k = MSHAPE_KINDS[raw.kind];
+  const s = {
+    id: /^[a-z0-9]{2,40}$/i.test(String(raw.id || '')) ? String(raw.id) : mshapeNewId(),
+    kind: raw.kind,
+    cx: _msNum(raw.cx, 0), cy: _msNum(raw.cy, 0),
+    w: _msClamp(raw.w, 1, 20000), h: _msClamp(raw.h, 1, 20000),
+    rot: ((_msNum(raw.rot, 0) % 360) + 540) % 360 - 180,
+    fx: !!raw.fx, fy: !!raw.fy,
+    p: {}, free: null,
+    stroke: _msColor(raw.stroke, '#111111'), lw: _msClamp(raw.lw, 0.5, 40),
+    fill: raw.fill ? _msColor(raw.fill, '') : '', fillA: _msClamp(raw.fillA == null ? 0.25 : raw.fillA, 0, 1),
+    dash: !!raw.dash, font: _msClamp(raw.font, 6, 200), lc: _msColor(raw.lc, '#111111'), halo: raw.halo !== false,
+    names: _msLabel(raw.names), showNames: !!raw.showNames,
+    ang: [], side: [], lo: {}, circ: null, hidden: raw.hidden !== false,
+    arr: _msClamp(raw.arr, 0, 2) | 0, dots: !!raw.dots, grid: null, nl: null, text: _msLabel(raw.text),
+  };
+  const rp = raw.p || {};
+  ['a', 'k', 't1', 't2', 'q', 'b', 'd'].forEach(f => { if (rp[f] != null && isFinite(Number(rp[f]))) s.p[f] = Number(rp[f]); });
+  if (Array.isArray(raw.free) && raw.free.length >= 2 && raw.free.length <= 12) {
+    s.free = raw.free.map(q => [_msClamp(q && q[0], -0.5, 0.5), _msClamp(q && q[1], -0.5, 0.5)]);
+  }
+  (Array.isArray(raw.ang) ? raw.ang : []).slice(0, 12).forEach((a, i) => {
+    a = a || {};
+    s.ang[i] = { m: MSHAPE_MARKS.indexOf(a.m) >= 0 ? a.m : '', t: _msLabel(a.t), auto: !!a.auto };
+  });
+  (Array.isArray(raw.side) ? raw.side : []).slice(0, 12).forEach((d, i) => {
+    d = d || {};
+    s.side[i] = { t: _msLabel(d.t), ticks: _msClamp(d.ticks, 0, 3) | 0, par: _msClamp(d.par, 0, 3) | 0 };
+  });
+  if (raw.lo && typeof raw.lo === 'object') {
+    Object.keys(raw.lo).slice(0, 60).forEach(key => {
+      if (!/^[a-z]{1,4}\d{0,3}$/.test(key)) return;
+      const o = raw.lo[key] || {};
+      s.lo[key] = { x: _msClamp(o.x, -5000, 5000), y: _msClamp(o.y, -5000, 5000) };
+    });
+  }
+  if (mshapeIsCircle(s)) {
+    const c = raw.circ || {};
+    s.circ = { centre: !!c.centre, cName: _msLabel(c.cName), radius: !!c.radius, rAng: _msClamp(c.rAng, -360, 360), rText: _msLabel(c.rText),
+      diam: !!c.diam, dAng: _msClamp(c.dAng, -360, 360), dText: _msLabel(c.dText), arcText: _msLabel(c.arcText), right: !!c.right };
+  }
+  if (s.kind === 'grid') { const g = raw.grid || {}; s.grid = { cols: Math.round(_msClamp(g.cols, 1, MSHAPE_GRID_MAX)), rows: Math.round(_msClamp(g.rows, 1, MSHAPE_GRID_MAX)) }; }
+  if (s.kind === 'numberline') {
+    const nl = raw.nl || {};
+    s.nl = { min: _msClamp(nl.min, -1e6, 1e6), max: _msClamp(nl.max, -1e6, 1e6), step: _msClamp(Math.abs(_msNum(nl.step, 1)) || 1, 1e-6, 1e6), every: Math.round(_msClamp(nl.every, 1, 100)), arrows: nl.arrows !== false };
+  }
+  if (k.free && !s.free) s.free = k.free.map(q => [q[0], q[1]]);
+  const asp = mshapeAspect(s);
+  if (asp) s.h = Math.max(1, s.w * asp);
+  return s;
+}
+function mshapeCleanList(list) {
+  return (Array.isArray(list) ? list : []).map(mshapeClean).filter(Boolean).slice(0, MSHAPE_MAX);
+}
+
+// ---- SVG from ops ---------------------------------------------------------
+function _msEsc(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function _msF(n) { return (Math.round(n * 100) / 100).toString(); }
+function mshapeOpsSvg(ops, opt) {
+  opt = opt || {};
+  let out = '';
+  ops.forEach(op => {
+    if (op.t === 'line') {
+      const pts = op.pts.map(p => _msF(p[0]) + ',' + _msF(p[1])).join(' ');
+      const tag = op.close ? 'polygon' : 'polyline';
+      const fill = op.close && op.fill ? op.fill : 'none';
+      const dash = op.dash ? ' stroke-dasharray="' + _msF(op.lw * 3) + ' ' + _msF(op.lw * 2.2) + '"' : '';
+      const stroke = op.lw > 0 ? ' stroke="' + op.stroke + '" stroke-width="' + _msF(op.lw) + '"' : ' stroke="none"';
+      out += '<' + tag + ' points="' + pts + '" fill="' + fill + '"' + (fill !== 'none' ? ' fill-opacity="' + _msF(op.fillA) + '"' : '') +
+        stroke + dash + ' stroke-linejoin="round" stroke-linecap="round"/>';
+    } else if (op.t === 'dot') {
+      out += '<circle cx="' + _msF(op.x) + '" cy="' + _msF(op.y) + '" r="' + _msF(op.r) + '" fill="' + op.color + '"/>';
+    } else if (op.t === 'text') {
+      const attrs = opt.labelAttrs ? opt.labelAttrs(op) : '';
+      const halo = op.halo ? ' stroke="#ffffff" stroke-width="' + _msF(op.size * 0.22) + '" stroke-linejoin="round" paint-order="stroke"' : '';
+      const rot = op.rot ? ' transform="rotate(' + _msF(op.rot) + ' ' + _msF(op.x) + ' ' + _msF(op.y) + ')"' : '';
+      out += '<text x="' + _msF(op.x) + '" y="' + _msF(op.y) + '" font-size="' + _msF(op.size) + '" font-family="' + _msEsc(MSHAPE_FONT) + '" font-weight="600"' +
+        (op.italic ? ' font-style="italic"' : '') + ' fill="' + op.color + '" text-anchor="middle" dominant-baseline="central"' + halo + rot + attrs + '>' + _msEsc(op.s) + '</text>';
+    }
+  });
+  return out;
+}
+// A small picture of a kind for the gallery, drawn by the same code.
+function mshapeThumbSvg(kind) {
+  const k = MSHAPE_KINDS[kind]; if (!k) return '';
+  const s = mshapeCreate(kind, 20, 20, 32, { W: 400, H: 400, lw: 1.7, font: 7 });
+  if (!s) return '';
+  if (s.h > 30) { const f = 30 / s.h; s.w *= f; s.h = 30; }
+  if (kind === 'segment') s.dots = true;
+  if (kind === 'numberline') s.h = 10;
+  const { ops } = mshapeOps(s, { thumb: true });
+  return '<svg viewBox="0 0 40 40" width="26" height="26" aria-hidden="true">' + mshapeOpsSvg(ops) + '</svg>';
+}
+// 📐 end of the pure geometry
+
+// =====================================================================
+// 📐 MATH DIAGRAM SHAPES — the editor half
+// =====================================================================
+// The shapes live in `_annot.shapes` and are drawn as an SVG layer that
+// rides on the canvas with the same zoom and pan (#annotShapeSvg). The layer
+// only takes the pointer while 📐 Shapes is the tool, so every raster tool
+// underneath behaves exactly as it always did — and the shapes stay on show,
+// so a teacher erasing round a triangle can see the triangle.
+//
+// NOTHING IS BURNED IN UNTIL ✓ APPLY (or ⬇ Flatten). Up to then a shape is
+// data: dragging it is a number changing, and ↶ Undo is a list put back. On
+// Apply the same ops list that drew the SVG is drawn into the canvas by
+// `mshapeDrawOps`, so what is saved is what was on screen.
+//
+// THE SHAPES SURVIVE A ROUND TRIP FOR THE REST OF THE SESSION.
+// `_mshapeMemory` keeps the picture as it was before the burn and the shapes
+// themselves, keyed by the URL Apply uploaded. Reopen ✏️ Touch up on that
+// same picture and the shapes come back live, so "change 12 cm to 15 cm" is
+// an edit to a label, not a redraw. A picture changed any other way since
+// (a crop, an enhance) has a different URL and simply opens as a picture.
+//
+// ONE HISTORY. A shape edit and a brush stroke share ↶ Undo in the order
+// they were made (`_annot.undoKinds`); ⬇ Flatten stores the shapes on the
+// raster step it creates, so one undo brings both the picture and the live
+// shapes back together.
+// =====================================================================
+const MSHAPE_HANDLE_PX = 9;          // handle size on SCREEN, whatever the zoom
+const MSHAPE_ROT_GAP_PX = 30;        // the rotate knob floats this far above the box
+const MSHAPE_HIT_PX = 14;            // how fat an outline is to click, on screen
+const MSHAPE_MEMORY_MAX = 6;         // pictures whose shapes are remembered this session
+const MSHAPE_SHAPE_HIST_MAX = 60;
+const MSHAPE_HANDLE_UNIT = { nw: [-0.5, -0.5], n: [0, -0.5], ne: [0.5, -0.5], e: [0.5, 0], se: [0.5, 0.5], s: [0, 0.5], sw: [-0.5, 0.5], w: [-0.5, 0] };
+const MSHAPE_HANDLE_CURSOR = { nw: 'nwse-resize', se: 'nwse-resize', ne: 'nesw-resize', sw: 'nesw-resize', n: 'ns-resize', s: 'ns-resize', e: 'ew-resize', w: 'ew-resize' };
+const _mshapeMemory = {};
+const _mshapeMemoryOrder = [];
+
+(function injectMshapeStyles() {
+  const css = `
+  #annotShapeSvg { position:absolute; top:0; left:0; transform-origin:0 0; overflow:visible; z-index:3; pointer-events:none; line-height:normal; }
+  #annotShapeSvg * { pointer-events:none; }
+  #annotShapeSvg.active { pointer-events:auto; cursor:default; }
+  #annotShapeSvg.active .ms-hit { pointer-events:all; cursor:move; }
+  #annotShapeSvg.active .ms-label { pointer-events:all; cursor:move; }
+  #annotShapeSvg.active .ms-h { pointer-events:all; }
+  #annotShapeSvg .ms-h-rot { cursor:grab; }
+  #annotShapeSvg .ms-h-v { cursor:crosshair; }
+  #annotShapeSvg .ms-h-a { cursor:pointer; }
+  /* The panel sits BESIDE the picture. Above it, a tall panel pushed the very
+     shape being labelled off the bottom of the screen. */
+  #annotWork { display:flex; gap:12px; justify-content:center; align-items:stretch; }
+  #annotWork.ms-on #annotStage { width:calc(min(86vw, 1080px) - 384px); min-width:300px; margin:0; }
+  #annotShapeBar { display:none; flex-direction:column; gap:12px; width:372px; flex:0 0 372px; box-sizing:border-box; height:56vh; overflow-y:auto; padding:12px 14px; border:1.5px solid #2563eb; background:#f2f6ff; border-radius:12px; text-align:left; line-height:1.4; }
+  #annotShapeBar.show { display:flex; }
+  @media (max-width: 820px) {
+    #annotWork { flex-direction:column; }
+    #annotWork.ms-on #annotStage { width:92vw; height:46vh; }
+    #annotShapeBar { width:auto; flex:0 0 auto; height:auto; max-height:44vh; }
+  }
+  .ms-tabs { display:flex; gap:6px; position:sticky; top:-12px; z-index:2; background:#f2f6ff; padding:2px 0 6px; margin-top:-2px; }
+  .ms-tab { flex:1; padding:7px 8px; border:1.5px solid #c7d4f3; background:#fff; border-radius:9px; cursor:pointer; font-size:0.78rem; font-weight:700; color:#1e3a8a; }
+  .ms-tab.on { background:#2563eb; border-color:#2563eb; color:#fff; }
+  .ms-tab:disabled { opacity:0.45; cursor:default; }
+  .ms-gallery { display:flex; flex-direction:column; gap:10px; }
+  .ms-ggroup { display:flex; flex-direction:column; gap:6px; }
+  .ms-gtitle { font-size:0.68rem; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; color:#1e40af; }
+  .ms-grow { display:grid; grid-template-columns:repeat(auto-fill, minmax(76px, 1fr)); gap:6px; }
+  .ms-gbtn { display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px 4px 5px; border:1.5px solid #c7d4f3; background:#fff; border-radius:9px; cursor:pointer; font-size:0.66rem; line-height:1.15; color:#1f2937; text-align:center; }
+  .ms-gbtn:hover { border-color:#2563eb; background:#eef3ff; }
+  .ms-gbtn svg { display:block; }
+  .ms-props { display:flex; flex-direction:column; gap:12px; }
+  #annotShapeFoot { margin-top:auto; border-top:1px solid #c7d4f3; padding-top:10px; }
+  .ms-row { display:flex; flex-wrap:wrap; gap:8px 12px; align-items:center; }
+  .ms-row label { font-size:0.78rem; display:inline-flex; align-items:center; gap:5px; }
+  .ms-row input[type=text], .ms-row input[type=number], .ms-row select { padding:3px 7px; border:1px solid var(--border,#d6dbe3); border-radius:6px; font-size:0.78rem; background:#fff; color:#111; }
+  .ms-row input[type=number] { width:64px; font-variant-numeric:tabular-nums; }
+  .ms-row input[type=color] { width:32px; height:26px; padding:0; border:1px solid var(--border,#d6dbe3); border-radius:6px; }
+  .ms-row input[type=checkbox] { appearance:auto; width:15px; height:15px; cursor:pointer; }
+  .ms-title { font-size:0.85rem; font-weight:700; color:#1e3a8a; margin-right:4px; }
+  .ms-sep { width:1px; height:20px; background:#c7d4f3; }
+  .ms-tbl { display:grid; grid-template-columns:auto 1fr; gap:6px 12px; align-items:center; }
+  .ms-tbl > .ms-th { font-size:0.72rem; font-weight:700; color:#1e40af; text-transform:uppercase; letter-spacing:0.04em; grid-column:1 / -1; margin-top:4px; }
+  .ms-tbl > .ms-k { font-size:0.78rem; font-weight:600; color:#334155; white-space:nowrap; }
+  .ms-tbl > .ms-v { display:flex; flex-wrap:wrap; gap:6px 10px; align-items:center; }
+  .ms-tbl input[type=text] { width:104px; padding:3px 7px; border:1px solid var(--border,#d6dbe3); border-radius:6px; font-size:0.78rem; background:#fff; color:#111; }
+  .ms-tbl select { padding:3px 6px; border:1px solid var(--border,#d6dbe3); border-radius:6px; font-size:0.78rem; background:#fff; color:#111; }
+  .ms-tbl label { font-size:0.75rem; display:inline-flex; align-items:center; gap:4px; color:#475569; }
+  .ms-tbl input[type=checkbox] { appearance:auto; width:14px; height:14px; cursor:pointer; }
+  .ms-meas { font-size:0.72rem; color:#64748b; font-variant-numeric:tabular-nums; }
+  .ms-tip { font-size:0.8rem; color:#1e3a8a; line-height:1.55; }
+  .ms-btn { padding:5px 10px; border:1.5px solid #c7d4f3; background:#fff; border-radius:8px; cursor:pointer; font-size:0.76rem; color:#1f2937; }
+  .ms-btn:hover { border-color:#2563eb; background:#eef3ff; }
+  .ms-btn.ms-danger { border-color:#e5b4b4; color:#a12b2b; font-weight:700; }
+  .ms-btn.ms-danger:hover { border-color:#c0392b; background:#fdecea; }
+  .ms-btn.ms-strong { border-color:#2563eb; color:#1e40af; font-weight:700; }
+  .ms-blank { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:8px; padding:10px 12px; border:1.5px dashed #c7d4f3; border-radius:10px; background:#f7f9ff; }
+  .ms-blank span { font-size:0.78rem; color:#1e3a8a; font-weight:600; }`;
+  const s = document.createElement('style'); s.textContent = css; document.head.appendChild(s);
+})();
+
+// A real text measurer, so a side label clears its side by its own width.
+let _msMeasureCtx = null;
+function _msMeasure(text, size) {
+  try {
+    if (!_msMeasureCtx) _msMeasureCtx = document.createElement('canvas').getContext('2d');
+    _msMeasureCtx.font = '600 ' + size + 'px ' + MSHAPE_FONT;
+    return _msMeasureCtx.measureText(String(text || '')).width;
+  } catch (_) { return _msMeasureApprox(text, size); }
+}
+function _msShapes() { return (_annot && Array.isArray(_annot.shapes)) ? _annot.shapes : []; }
+function _msSel() {
+  if (!_annot || !_annot.shapeSel) return null;
+  return _msShapes().find(s => s.id === _annot.shapeSel) || null;
+}
+// The picture's own scale, plus whatever style the teacher last picked, so a
+// second shape matches the first without being re-coloured by hand.
+function _msEnv() {
+  const c = _annot && _annot.canvas;
+  const st = (_annot && _annot.msStyle) || {};
+  return Object.assign({ W: c ? c.width : 1000, H: c ? c.height : 700 }, st);
+}
+function _msRememberStyle(s) {
+  if (!_annot || !s) return;
+  _annot.msStyle = { stroke: s.stroke, lw: s.lw, font: s.kind === 'text' ? Math.round(s.font / 1.1) : s.font, lc: s.lc };
+}
+function _msSnapStep() {
+  const c = _annot && _annot.canvas;
+  return Math.max(4, Math.round(Math.min(c ? c.width : 1000, c ? c.height : 700) / 50));
+}
+function _msSnapPt(p) {
+  if (!_annot || !_annot.msSnap) return p;
+  const g = _msSnapStep();
+  return { x: Math.round(p.x / g) * g, y: Math.round(p.y / g) * g };
+}
+
+// ---- One history with the brush strokes ----------------------------------
+function _annotNoteUndo(kind) {
+  if (!_annot) return;
+  (_annot.undoKinds = _annot.undoKinds || []).push(kind);
+  if (_annot.undoKinds.length > 400) _annot.undoKinds.shift();
+}
+function _annotDropUndo(kind) {
+  const k = (_annot && _annot.undoKinds) || [];
+  const i = k.indexOf(kind);
+  if (i >= 0) k.splice(i, 1);
+}
+// Snapshot the shapes BEFORE a change. `tag` coalesces a run of the same
+// edit — typing "12 cm" into a label is one undo step, not five.
+function mshapeHistPush(tag) {
+  if (!_annot) return;
+  const now = Date.now();
+  if (tag && tag === _annot.msLastTag && now - (_annot.msLastAt || 0) < 1500) { _annot.msLastAt = now; return; }
+  _annot.msLastTag = tag || ''; _annot.msLastAt = now;
+  (_annot.shapeHist = _annot.shapeHist || []).push(JSON.stringify(_msShapes()));
+  _annotNoteUndo('s');
+  if (_annot.shapeHist.length > MSHAPE_SHAPE_HIST_MAX) { _annot.shapeHist.shift(); _annotDropUndo('s'); }
+}
+function mshapeUndo() {
+  if (!_annot || !_annot.shapeHist || !_annot.shapeHist.length) return false;
+  const prev = _annot.shapeHist.pop();
+  try { _annot.shapes = mshapeCleanList(JSON.parse(prev)); } catch (_) { _annot.shapes = []; }
+  if (_annot.shapeSel && !_annot.shapes.some(s => s.id === _annot.shapeSel)) _annot.shapeSel = null;
+  _annot.msLastTag = '';
+  mshapeRender(); mshapeSyncBar();
+  return true;
+}
+
+// ---- Drawing -------------------------------------------------------------
+// The canvas half of the one ops list. Used on ✓ Apply and ⬇ Flatten.
+function mshapeDrawOps(ctx, ops) {
+  ops.forEach(op => {
+    ctx.save();
+    if (op.t === 'line') {
+      ctx.beginPath();
+      op.pts.forEach((p, i) => { if (i) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); });
+      if (op.close) ctx.closePath();
+      if (op.close && op.fill) { ctx.globalAlpha = op.fillA; ctx.fillStyle = op.fill; ctx.fill(); ctx.globalAlpha = 1; }
+      if (op.lw > 0) {
+        ctx.lineWidth = op.lw; ctx.strokeStyle = op.stroke; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+        ctx.setLineDash(op.dash ? [op.lw * 3, op.lw * 2.2] : []);
+        ctx.stroke();
+      }
+    } else if (op.t === 'dot') {
+      ctx.beginPath(); ctx.arc(op.x, op.y, op.r, 0, Math.PI * 2); ctx.fillStyle = op.color; ctx.fill();
+    } else if (op.t === 'text') {
+      ctx.translate(op.x, op.y);
+      if (op.rot) ctx.rotate(op.rot * Math.PI / 180);
+      ctx.font = (op.italic ? 'italic ' : '') + '600 ' + op.size + 'px ' + MSHAPE_FONT;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      if (op.halo) { ctx.lineWidth = op.size * 0.22; ctx.strokeStyle = '#ffffff'; ctx.lineJoin = 'round'; ctx.strokeText(op.s, 0, 0); }
+      ctx.fillStyle = op.color; ctx.fillText(op.s, 0, 0);
+    }
+    ctx.restore();
+  });
+}
+function mshapeBurnInto(ctx, shapes) {
+  (shapes || []).forEach(s => mshapeDrawOps(ctx, mshapeOps(s, { measure: _msMeasure }).ops));
+}
+
+function _msSvgEl() {
+  if (!_annot) return null;
+  const st = document.getElementById('annotStage');
+  if (!st) return null;
+  let svg = document.getElementById('annotShapeSvg');
+  if (!svg) {
+    svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('id', 'annotShapeSvg');
+    svg.addEventListener('pointerdown', _msDown);
+    svg.addEventListener('pointermove', _msMove);
+    svg.addEventListener('pointerup', _msUp);
+    svg.addEventListener('pointercancel', _msUp);
+    svg.addEventListener('dblclick', _msDblClick);
+    st.appendChild(svg);
+  }
+  return svg;
+}
+// Redraw the whole layer: every shape, its click target, and — for the one
+// selected — its box, rotate knob, resize handles, corner dots and yellow
+// re-shape diamonds. Cheap enough to run on every pointer move of a drag.
+function mshapeRender() {
+  if (!_annot) return;
+  const svg = _msSvgEl(); if (!svg) return;
+  const c = _annot.canvas;
+  svg.setAttribute('width', c.width); svg.setAttribute('height', c.height);
+  svg.setAttribute('viewBox', '0 0 ' + c.width + ' ' + c.height);
+  svg.style.width = c.width + 'px'; svg.style.height = c.height + 'px';
+  svg.style.transform = c.style.transform;
+  const active = _annot.tool === 'shape';
+  svg.classList.toggle('active', active);
+  const scale = _annotDisplayScale() || 1;
+  const hitW = MSHAPE_HIT_PX / scale;
+  let html = '';
+  _msShapes().forEach(s => {
+    const r = mshapeOps(s, { measure: _msMeasure });
+    html += '<g data-ms="' + s.id + '">';
+    if (active) {
+      const outline = r.pts || mshapeBoxCorners(s);
+      const pts = outline.map(p => _msF(p[0]) + ',' + _msF(p[1])).join(' ');
+      const closed = r.pts ? r.closed : true;
+      html += '<' + (closed ? 'polygon' : 'polyline') + ' class="ms-hit" data-ms-hit="' + s.id + '" points="' + pts + '" fill="none" stroke="transparent" stroke-width="' + _msF(hitW) + '" stroke-linejoin="round"/>';
+    }
+    html += mshapeOpsSvg(r.ops, { labelAttrs: op => (active ? ' class="ms-label" data-ms-label="' + s.id + '|' + op.key + '"' : '') });
+    html += '</g>';
+  });
+  const sel = _msSel();
+  if (active && sel) html += _msSelectionSvg(sel, scale);
+  svg.innerHTML = html;
+}
+function _msSelectionSvg(s, scale) {
+  const hs = MSHAPE_HANDLE_PX / scale, lwSel = 1.4 / scale;
+  const blue = '#2563eb';
+  let out = '';
+  const free = mshapeIsFree(s), open = mshapeIsOpen(s);
+  const boxy = !(open && free);
+  if (boxy) {
+    const box = mshapeBoxCorners(s);
+    out += '<polygon points="' + box.map(p => _msF(p[0]) + ',' + _msF(p[1])).join(' ') + '" fill="none" stroke="' + blue + '" stroke-width="' + _msF(lwSel) + '" stroke-dasharray="' + _msF(5 / scale) + ' ' + _msF(4 / scale) + '"/>';
+    const top = mshapeToWorld(s, 0, -0.5);
+    let dir = _msUnit(top[0] - s.cx, top[1] - s.cy);
+    if (Math.hypot(top[0] - s.cx, top[1] - s.cy) < 1e-6) dir = [0, -1];
+    const rp = [top[0] + dir[0] * MSHAPE_ROT_GAP_PX / scale, top[1] + dir[1] * MSHAPE_ROT_GAP_PX / scale];
+    out += '<line x1="' + _msF(top[0]) + '" y1="' + _msF(top[1]) + '" x2="' + _msF(rp[0]) + '" y2="' + _msF(rp[1]) + '" stroke="' + blue + '" stroke-width="' + _msF(lwSel) + '"/>';
+    out += '<circle class="ms-h ms-h-rot" data-ms-h="rot" cx="' + _msF(rp[0]) + '" cy="' + _msF(rp[1]) + '" r="' + _msF(hs * 0.8) + '" fill="#ffffff" stroke="' + blue + '" stroke-width="' + _msF(lwSel * 1.3) + '"><title>Drag to turn — Shift snaps to 15°</title></circle>';
+    const locked = mshapeAspect(s) > 0 || s.kind === 'text';
+    const names = s.kind === 'numberline' ? ['e', 'w'] : locked ? ['nw', 'ne', 'se', 'sw'] : ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+    names.forEach(nm => {
+      const u = MSHAPE_HANDLE_UNIT[nm], p = mshapeToWorld(s, u[0], u[1]);
+      out += '<rect class="ms-h" data-ms-h="r:' + nm + '" x="' + _msF(p[0] - hs / 2) + '" y="' + _msF(p[1] - hs / 2) + '" width="' + _msF(hs) + '" height="' + _msF(hs) +
+        '" fill="#ffffff" stroke="' + blue + '" stroke-width="' + _msF(lwSel * 1.3) + '" style="cursor:' + MSHAPE_HANDLE_CURSOR[nm] + '"/>';
+    });
+  }
+  if (free) {
+    (mshapeWorldPts(s) || []).forEach((p, i) => {
+      out += '<circle class="ms-h ms-h-v" data-ms-h="v:' + i + '" cx="' + _msF(p[0]) + '" cy="' + _msF(p[1]) + '" r="' + _msF(hs * 0.72) + '" fill="' + blue + '" stroke="#ffffff" stroke-width="' + _msF(lwSel * 1.2) + '"><title>Drag this corner</title></circle>';
+    });
+  }
+  mshapeAdjHandles(s).forEach(h => {
+    const p = mshapeToWorld(s, h.u[0], h.u[1]), d = hs * 0.75;
+    out += '<polygon class="ms-h ms-h-a" data-ms-h="a:' + h.key + '" points="' + _msF(p[0]) + ',' + _msF(p[1] - d) + ' ' + _msF(p[0] + d) + ',' + _msF(p[1]) + ' ' + _msF(p[0]) + ',' + _msF(p[1] + d) + ' ' + _msF(p[0] - d) + ',' + _msF(p[1]) +
+      '" fill="#facc15" stroke="#92400e" stroke-width="' + _msF(lwSel) + '"><title>Drag to re-shape</title></polygon>';
+  });
+  if (mshapeIsCircle(s) && s.circ) {
+    const rim = (deg) => {
+      const cu = s.kind === 'circle' ? [0, 0] : s.kind === 'semicircle' ? [0, 0.5] : [-0.5, 0.5];
+      const rU = s.kind === 'quarter' ? 1 : 0.5, ys = s.kind === 'semicircle' ? 2 : 1, t = deg * Math.PI / 180;
+      return mshapeToWorld(s, cu[0] + Math.cos(t) * rU, cu[1] + Math.sin(t) * rU * ys);
+    };
+    const knob = (key, p) => { out += '<circle class="ms-h ms-h-a" data-ms-h="c:' + key + '" cx="' + _msF(p[0]) + '" cy="' + _msF(p[1]) + '" r="' + _msF(hs * 0.7) + '" fill="#facc15" stroke="#92400e" stroke-width="' + _msF(lwSel) + '"><title>Drag round the circle</title></circle>'; };
+    if (s.circ.radius) knob('rAng', rim(_msNum(s.circ.rAng, -35)));
+    if (s.circ.diam && s.kind === 'circle') knob('dAng', rim(_msNum(s.circ.dAng, 0)));
+  }
+  return out;
+}
+
+// ---- Pointer -------------------------------------------------------------
+let _msDrag = null;
+let _msRaf = 0;
+function _msScheduleRender() {
+  if (_msRaf) return;
+  _msRaf = requestAnimationFrame(() => { _msRaf = 0; mshapeRender(); });
+}
+function _msDown(e) {
+  if (!_annot || _annot.tool !== 'shape') return;
+  if (_annot.space || e.button === 1) { e.preventDefault(); _annotPanStart(e); return; }
+  if (e.button !== 0) return;
+  e.preventDefault(); e.stopPropagation();
+  const svg = _msSvgEl();
+  try { svg.setPointerCapture(e.pointerId); } catch (_) {}
+  const p = _annotPt(e);
+  const t = e.target;
+  const hEl = t && t.closest ? t.closest('[data-ms-h]') : null;
+  const sel = _msSel();
+  if (hEl && sel) {
+    const h = hEl.getAttribute('data-ms-h');
+    _msDrag = { kind: 'handle', h, id: sel.id, start: p, s0: JSON.parse(JSON.stringify(sel)), moved: false };
+    if (h === 'rot') _msDrag.a0 = Math.atan2(p.y - sel.cy, p.x - sel.cx);
+    return;
+  }
+  const lab = t && t.closest ? t.closest('[data-ms-label]') : null;
+  if (lab) {
+    const [id, key] = String(lab.getAttribute('data-ms-label')).split('|');
+    const s = _msShapes().find(x => x.id === id);
+    if (s) {
+      _annot.shapeSel = id; _annot.msTab = 'edit';
+      const o = (s.lo && s.lo[key]) || { x: 0, y: 0 };
+      _msDrag = { kind: s.kind === 'text' && key === 'body' ? 'move' : 'label', id, key, start: p, o0: { x: o.x, y: o.y }, c0: { x: s.cx, y: s.cy }, moved: false };
+      mshapeRender(); mshapeSyncBar();
+      return;
+    }
+  }
+  const hit = t && t.closest ? t.closest('[data-ms-hit]') : null;
+  if (hit) {
+    let s = _msShapes().find(x => x.id === hit.getAttribute('data-ms-hit'));
+    if (s && e.altKey) {
+      // Alt-drag leaves the original where it was and drags a copy away.
+      mshapeHistPush();
+      const copy = JSON.parse(JSON.stringify(s)); copy.id = mshapeNewId();
+      _annot.shapes.push(copy); s = copy;
+    }
+    if (s) {
+      _annot.shapeSel = s.id; _annot.msTab = 'edit';
+      _msDrag = { kind: 'move', id: s.id, start: p, c0: { x: s.cx, y: s.cy }, moved: !!e.altKey };
+      mshapeRender(); mshapeSyncBar();
+      return;
+    }
+  }
+  // Empty picture: let go of the selection.
+  if (_annot.shapeSel) { _annot.shapeSel = null; mshapeRender(); mshapeSyncBar(); }
+}
+function _msMove(e) {
+  if (!_annot || !_msDrag) return;
+  e.preventDefault();
+  const s = _msShapes().find(x => x.id === _msDrag.id);
+  if (!s) { _msDrag = null; return; }
+  const p = _annotPt(e);
+  const d = { x: p.x - _msDrag.start.x, y: p.y - _msDrag.start.y };
+  if (!_msDrag.moved) {
+    if (Math.hypot(d.x, d.y) * (_annotDisplayScale() || 1) < 2) return;   // a click, not a drag
+    _msDrag.moved = true;
+    mshapeHistPush();
+  }
+  if (_msDrag.kind === 'move') {
+    let dx = d.x, dy = d.y;
+    if (e.shiftKey) { if (Math.abs(dx) >= Math.abs(dy)) dy = 0; else dx = 0; }
+    const q = _msSnapPt({ x: _msDrag.c0.x + dx, y: _msDrag.c0.y + dy });
+    s.cx = q.x; s.cy = q.y;
+  } else if (_msDrag.kind === 'label') {
+    s.lo = s.lo || {};
+    s.lo[_msDrag.key] = { x: Math.round(_msDrag.o0.x + d.x), y: Math.round(_msDrag.o0.y + d.y) };
+  } else if (_msDrag.kind === 'handle') {
+    _msHandleDrag(s, _msDrag, p, e);
+  }
+  _msScheduleRender();
+}
+function _msHandleDrag(s, dr, p, e) {
+  const h = dr.h, s0 = dr.s0;
+  if (h === 'rot') {
+    const a = Math.atan2(p.y - s.cy, p.x - s.cx);
+    let deg = s0.rot + (a - dr.a0) * 180 / Math.PI;
+    if (e.shiftKey) deg = Math.round(deg / 15) * 15;
+    else { const near = Math.round(deg / 45) * 45; if (Math.abs(deg - near) < 2.5) deg = near; }
+    s.rot = ((deg % 360) + 540) % 360 - 180;
+    return;
+  }
+  if (h.indexOf('v:') === 0) {
+    const i = parseInt(h.slice(2), 10);
+    const pts = mshapeWorldPts(s); if (!pts || !pts[i]) return;
+    const q = _msSnapPt(p);
+    pts[i] = [q.x, q.y];
+    mshapeRefitFree(s, pts);
+    return;
+  }
+  if (h.indexOf('a:') === 0) {
+    const u = mshapeToUnit(s, p.x, p.y);
+    mshapeAdjSet(s, h.slice(2), u[0], u[1]);
+    return;
+  }
+  if (h.indexOf('c:') === 0 && s.circ) {
+    const u = mshapeToUnit(s, p.x, p.y);
+    const cu = s.kind === 'circle' ? [0, 0] : s.kind === 'semicircle' ? [0, 0.5] : [-0.5, 0.5];
+    const rU = s.kind === 'quarter' ? 1 : 0.5, ys = s.kind === 'semicircle' ? 2 : 1;
+    let deg = Math.atan2((u[1] - cu[1]) / (rU * ys), (u[0] - cu[0]) / rU) * 180 / Math.PI;
+    if (e.shiftKey) deg = Math.round(deg / 15) * 15;
+    if (s.kind === 'semicircle') deg = _msClamp(deg > 90 ? deg - 360 : deg, -180, 0);
+    if (s.kind === 'quarter') deg = _msClamp(deg, -90, 0);
+    s.circ[h.slice(2)] = Math.round(deg);
+    return;
+  }
+  if (h.indexOf('r:') === 0) _msResize(s, s0, h.slice(2), _msSnapPt(p), e.shiftKey);
+}
+// Resize from one handle with the OPPOSITE handle held still. A kind with a
+// locked shape (square, circle, equilateral …) always scales evenly; any
+// other kind scales evenly while Shift is held.
+function _msResize(s, s0, nm, p, shift) {
+  const hu = MSHAPE_HANDLE_UNIT[nm]; if (!hu) return;
+  const r = (s0.rot || 0) * Math.PI / 180, c = Math.cos(r), n = Math.sin(r);
+  const fxs = s0.fx ? -1 : 1, fys = s0.fy ? -1 : 1;
+  const anchorW = mshapeToWorld(s0, -hu[0], -hu[1]);
+  const vx = p.x - anchorW[0], vy = p.y - anchorW[1];
+  const lx = vx * c + vy * n, ly = -vx * n + vy * c;
+  let w = s0.w, h = s0.h;
+  const minW = mshapeIsOpen(s0) ? 1 : MSHAPE_MIN_PX;
+  if (hu[0]) w = Math.max(minW, lx * fxs * Math.sign(hu[0]));
+  if (hu[1]) h = Math.max(minW, ly * fys * Math.sign(hu[1]));
+  const asp = mshapeAspect(s0);
+  const lock = asp > 0 || s0.kind === 'text' || (shift && s0.kind !== 'numberline');
+  if (lock) {
+    const ratio = asp || (s0.h / s0.w);
+    if (hu[0] && hu[1]) { const f = Math.max(w / s0.w, h / s0.h); w = s0.w * f; h = w * ratio; }
+    else if (hu[0]) h = w * ratio;
+    else { w = h / ratio; }
+  }
+  if (s0.kind === 'numberline') h = s0.h;
+  s.w = w; s.h = h;
+  if (s0.kind === 'text') {
+    s.font = _msClamp(Math.round(h / 1.25), 6, 200);
+    s.h = s.font * 1.25;
+    s.w = Math.max(s.font, _msMeasure(s.text, s.font) + s.font * 0.4);
+  }
+  // Put the centre back so the held handle has not moved.
+  const ax = fxs * -hu[0] * s.w, ay = fys * -hu[1] * s.h;
+  s.cx = anchorW[0] - (ax * c - ay * n);
+  s.cy = anchorW[1] - (ax * n + ay * c);
+}
+function _msUp(e) {
+  if (!_msDrag) return;
+  const svg = _msSvgEl();
+  try { svg && svg.releasePointerCapture(e.pointerId); } catch (_) {}
+  const moved = _msDrag.moved;
+  _msDrag = null;
+  if (moved) { const s = _msSel(); if (s && s.kind === 'text') _msRememberStyle(s); mshapeRender(); mshapeSyncBar(); }
+}
+// Double-click a label (or a text box) to type in its box in the panel.
+function _msDblClick(e) {
+  if (!_annot || _annot.tool !== 'shape') return;
+  const lab = e.target && e.target.closest ? e.target.closest('[data-ms-label]') : null;
+  if (!lab) return;
+  const key = String(lab.getAttribute('data-ms-label')).split('|')[1];
+  const field = document.getElementById('msIn_' + (key && key[0] === 'n' ? 'names' : key));
+  if (field) { field.focus(); if (field.select) field.select(); }
+}
+
+// ---- Keys (only while 📐 Shapes is the tool) ------------------------------
+function mshapeKey(e) {
+  if (!_annot || _annot.tool !== 'shape') return false;
+  const s = _msSel();
+  const k = e.key;
+  if ((e.ctrlKey || e.metaKey) && (k === 'd' || k === 'D')) { e.preventDefault(); if (s) mshapeAction('dup'); return true; }
+  if (e.ctrlKey || e.metaKey || e.altKey) return false;
+  if (!s) return false;
+  if (k === 'Delete' || k === 'Backspace') { e.preventDefault(); mshapeAction('del'); return true; }
+  if (k === 'Escape') { e.preventDefault(); mshapeAction('deselect'); return true; }
+  const step = e.shiftKey ? 10 : 1;
+  const mv = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[k];
+  if (mv) { e.preventDefault(); mshapeHistPush('nudge:' + s.id); s.cx += mv[0]; s.cy += mv[1]; mshapeRender(); return true; }
+  return false;
+}
+
+// ---- Adding, and the actions in the panel ---------------------------------
+// The middle of what is on screen, in image pixels, kept inside the picture.
+function _msViewCentre() {
+  const c = _annot.canvas, st = document.getElementById('annotStage');
+  const sc = _annotDisplayScale() || 1;
+  let x = c.width / 2, y = c.height / 2, vw = c.width, vh = c.height;
+  if (st) {
+    const b = st.getBoundingClientRect();
+    x = (b.width / 2 - _annot.panX) / sc; y = (b.height / 2 - _annot.panY) / sc;
+    vw = Math.min(c.width, b.width / sc); vh = Math.min(c.height, b.height / sc);
+  }
+  return { x: _msClamp(x, 0, c.width), y: _msClamp(y, 0, c.height), vw, vh };
+}
+function mshapeAdd(kind) {
+  if (!_annot) return;
+  if (_msShapes().length >= MSHAPE_MAX) { showToast('That is ' + MSHAPE_MAX + ' shapes on one picture — ⬇ Flatten some first', 'info'); return; }
+  const v = _msViewCentre();
+  const size = Math.max(40, Math.round(Math.min(v.vw, v.vh) * (kind === 'numberline' ? 0.75 : kind === 'grid' ? 0.6 : 0.38)));
+  const n = _msShapes().length;
+  const nudge = (n % 5) * Math.round(size * 0.08);   // a second shape does not land exactly on the first
+  const s = mshapeCreate(kind, v.x + nudge, v.y + nudge, size, _msEnv());
+  if (!s) return;
+  mshapeHistPush();
+  _annot.shapes = _msShapes().concat([s]);
+  _annot.shapeSel = s.id; _annot.msTab = 'edit';
+  if (_annot.tool !== 'shape') _annotSetTool('shape');
+  mshapeRender(); mshapeSyncBar();
+}
+function mshapeAction(name) {
+  if (!_annot) return;
+  const s = _msSel();
+  const list = _msShapes();
+  if (name === 'deselect') { _annot.shapeSel = null; mshapeRender(); mshapeSyncBar(); return; }
+  if (name === 'flatten') { mshapeFlatten(); return; }
+  if (name === 'snap') { _annot.msSnap = !_annot.msSnap; mshapeSyncBar(); showToast(_annot.msSnap ? 'Snap to grid on — moves and corners land on a ' + _msSnapStep() + ' px grid' : 'Snap to grid off', 'info'); return; }
+  if (!s) return;
+  const idx = list.indexOf(s);
+  mshapeHistPush();
+  switch (name) {
+    case 'dup': {
+      const copy = JSON.parse(JSON.stringify(s));
+      copy.id = mshapeNewId();
+      const off = Math.max(12, Math.round(Math.min(s.w, s.h || s.w) * 0.12));
+      copy.cx += off; copy.cy += off;
+      list.splice(idx + 1, 0, copy); _annot.shapeSel = copy.id;
+      break;
+    }
+    case 'del': list.splice(idx, 1); _annot.shapeSel = null; break;
+    case 'front': list.splice(idx, 1); list.push(s); break;
+    case 'back': list.splice(idx, 1); list.unshift(s); break;
+    case 'flipx': s.fx = !s.fx; break;
+    case 'flipy': s.fy = !s.fy; break;
+    case 'rotl': s.rot = (((s.rot || 0) - 15) % 360 + 540) % 360 - 180; break;
+    case 'rotr': s.rot = (((s.rot || 0) + 15) % 360 + 540) % 360 - 180; break;
+    case 'rot90': s.rot = (((s.rot || 0) + 90) % 360 + 540) % 360 - 180; break;
+    case 'level': s.rot = 0; break;
+    case 'free': mshapeMakeFree(s); showToast('✎ Corners are free now — drag any blue dot', 'info'); break;
+    case 'ticks': mshapeAutoTicks(s); break;
+    case 'right': mshapeAutoRight(s); break;
+    case 'par': mshapeAutoParallel(s); break;
+    case 'measure': { const pts = mshapeWorldPts(s); if (pts) { s.ang = pts.map((_, i) => Object.assign({ m: 'arc', t: '' }, (s.ang && s.ang[i]) || {}, { auto: true })); s.ang.forEach(a => { if (!a.m) a.m = 'arc'; }); } break; }
+    case 'clear':
+      (s.side || []).forEach(d => { d.ticks = 0; d.par = 0; d.t = ''; });
+      (s.ang || []).forEach(a => { a.m = ''; a.t = ''; a.auto = false; });
+      s.lo = {};
+      break;
+    case 'resetLabels': s.lo = {}; break;
+  }
+  mshapeRender(); mshapeSyncBar();
+}
+// ⬇ Flatten: burn every live shape into the picture now, so the raster tools
+// (erase, fill, clone …) can work on the lines. One undo brings them back.
+function mshapeFlatten() {
+  if (!_annot || !_msShapes().length) return;
+  _annotPushHistory({ shapes: JSON.stringify(_msShapes()) });
+  mshapeBurnInto(_annot.ctx, _msShapes());
+  const n = _msShapes().length;
+  _annot.shapes = []; _annot.shapeSel = null;
+  mshapeRender(); mshapeSyncBar();
+  showToast('⬇ ' + n + ' shape' + (n === 1 ? '' : 's') + ' flattened into the picture — ↶ Undo brings them back', 'success');
+}
+
+// ---- Property setters (the panel's inputs) --------------------------------
+const MSHAPE_REBUILD_ON = { fillOn: 1, showNames: 1, hidden: 1, arr: 1, dots: 1, auto: 1, centre: 1, radius: 1, diam: 1, right: 1, arrows: 1 };
+function mshapeProp(field, val) {
+  const s = _msSel(); if (!s) return;
+  mshapeHistPush('p:' + field + ':' + s.id);
+  switch (field) {
+    case 'stroke': s.stroke = _msColor(val, s.stroke); break;
+    case 'lw': s.lw = _msClamp(val, 0.5, 40); break;
+    case 'dash': s.dash = !!val; break;
+    case 'fillOn': s.fill = val ? (s.fill || '#bfdbfe') : ''; break;
+    case 'fill': s.fill = _msColor(val, '#bfdbfe'); break;
+    case 'fillA': s.fillA = _msClamp(val, 0, 1); break;
+    case 'lc': s.lc = _msColor(val, s.lc); break;
+    case 'font': s.font = _msClamp(val, 6, 200); if (s.kind === 'text') _msFitText(s); break;
+    case 'halo': s.halo = !!val; break;
+    case 'names': s.names = _msLabel(val); break;
+    case 'showNames': s.showNames = !!val; break;
+    case 'rot': s.rot = ((_msNum(val, 0) % 360) + 540) % 360 - 180; break;
+    case 'text': s.text = _msLabel(val); _msFitText(s); break;
+    case 'hidden': s.hidden = !!val; break;
+    case 'arr': s.arr = _msClamp(val, 0, 2) | 0; break;
+    case 'dots': s.dots = !!val; break;
+  }
+  if (field === 'stroke' || field === 'lw' || field === 'font' || field === 'lc') _msRememberStyle(s);
+  mshapeRender();
+  if (MSHAPE_REBUILD_ON[field]) mshapeSyncBar();
+}
+function _msFitText(s) {
+  if (!s || s.kind !== 'text') return;
+  s.h = s.font * 1.25;
+  s.w = Math.max(s.font, _msMeasure(s.text || ' ', s.font) + s.font * 0.4);
+}
+function _msEnsure(arr, i, dflt) { while (arr.length <= i) arr.push(Object.assign({}, dflt)); return arr[i]; }
+function mshapeAngProp(i, field, val) {
+  const s = _msSel(); if (!s) return;
+  mshapeHistPush('a:' + i + field + ':' + s.id);
+  s.ang = s.ang || [];
+  const a = _msEnsure(s.ang, i, { m: '', t: '', auto: false });
+  if (field === 'm') a.m = MSHAPE_MARKS.indexOf(val) >= 0 ? val : '';
+  else if (field === 't') a.t = _msLabel(val);
+  else if (field === 'auto') a.auto = !!val;
+  mshapeRender();
+  if (field === 'auto') mshapeSyncBar();
+}
+function mshapeSideProp(i, field, val) {
+  const s = _msSel(); if (!s) return;
+  mshapeHistPush('s:' + i + field + ':' + s.id);
+  s.side = s.side || [];
+  const d = _msEnsure(s.side, i, { t: '', ticks: 0, par: 0 });
+  if (field === 't') d.t = _msLabel(val);
+  else if (field === 'ticks') d.ticks = _msClamp(val, 0, 3) | 0;
+  else if (field === 'par') d.par = _msClamp(val, 0, 3) | 0;
+  mshapeRender();
+}
+function mshapeCircProp(field, val) {
+  const s = _msSel(); if (!s || !s.circ) return;
+  mshapeHistPush('c:' + field + ':' + s.id);
+  const c = s.circ;
+  if (field === 'centre' || field === 'radius' || field === 'diam' || field === 'right') c[field] = !!val;
+  else if (field === 'rAng' || field === 'dAng') c[field] = _msClamp(val, -360, 360);
+  else if (field === 'cName' || field === 'rText' || field === 'dText' || field === 'arcText') c[field] = _msLabel(val);
+  mshapeRender();
+  if (MSHAPE_REBUILD_ON[field]) mshapeSyncBar();
+}
+function mshapeParam(field, val) {
+  const s = _msSel(); if (!s) return;
+  mshapeHistPush('q:' + field + ':' + s.id);
+  s.p = s.p || {};
+  if (field === 'a') { s.p.a = _msClamp(val, 20, 160); s.h = Math.max(MSHAPE_MIN_PX, s.w * mshapeRhombusRatio(s.p.a)); }
+  else if (field === 'd') s.p.d = _msClamp(val, 0.08, 0.6);
+  else if (field === 'cols' || field === 'rows') {
+    s.grid = s.grid || { cols: 6, rows: 4 };
+    s.grid[field] = Math.round(_msClamp(val, 1, MSHAPE_GRID_MAX));
+    s.h = Math.max(MSHAPE_MIN_PX, s.w * mshapeAspect(s));
+  } else if (s.nl && (field === 'min' || field === 'max' || field === 'step' || field === 'every' || field === 'arrows')) {
+    if (field === 'arrows') s.nl.arrows = !!val;
+    else if (field === 'every') s.nl.every = Math.round(_msClamp(val, 1, 100));
+    else if (field === 'step') s.nl.step = _msClamp(Math.abs(_msNum(val, 1)) || 1, 1e-6, 1e6);
+    else s.nl[field] = _msClamp(val, -1e6, 1e6);
+  }
+  mshapeRender();
+  if (MSHAPE_REBUILD_ON[field]) mshapeSyncBar();
+}
+
+// ---- The panel ------------------------------------------------------------
+function _msNameList(s) {
+  const names = String(s.names || '');
+  return names.indexOf(',') >= 0 ? names.split(',').map(x => x.trim()) : names.replace(/\s+/g, '').split('');
+}
+function _msVName(s, i) { return _msNameList(s)[i] || String(i + 1); }
+function _msBuildGallery() {
+  const g = document.getElementById('annotShapeGallery');
+  if (!g || g.dataset.built === '1') return;
+  g.innerHTML = MSHAPE_GROUPS.map(([key, title]) => {
+    const btns = Object.keys(MSHAPE_KINDS).filter(k => MSHAPE_KINDS[k].group === key).map(k =>
+      '<button type="button" class="ms-gbtn" onclick="mshapeAdd(\'' + k + '\')" title="Add a ' + escapeHtml(MSHAPE_KINDS[k].label.toLowerCase()) + '">' +
+      mshapeThumbSvg(k) + '<span>' + escapeHtml(MSHAPE_KINDS[k].short) + '</span></button>').join('');
+    return '<div class="ms-ggroup"><div class="ms-gtitle">' + escapeHtml(title) + '</div><div class="ms-grow">' + btns + '</div></div>';
+  }).join('');
+  g.dataset.built = '1';
+}
+const _msMarkOpts = [['', 'No mark'], ['arc', '⌒ Arc'], ['arc2', '⌒⌒ Double arc'], ['arc3', '⌒⌒⌒ Triple arc'], ['right', '∟ Right-angle box']];
+function _msOpt(list, cur) { return list.map(([v, t]) => '<option value="' + escapeHtml(String(v)) + '"' + (String(cur) === String(v) ? ' selected' : '') + '>' + escapeHtml(t) + '</option>').join(''); }
+function _msAttr(v) { return escapeHtml(String(v == null ? '' : v)); }
+function _msPropsHtml(s) {
+  const k = mshapeKind(s);
+  const free = mshapeIsFree(s);
+  const pts = mshapeWorldPts(s);
+  const closed = !mshapeIsOpen(s);
+  const rows = [];
+  // ① What it is, and what can be done to it.
+  rows.push('<div class="ms-row"><span class="ms-title">' + escapeHtml(k.label) + (free && !k.free ? ' · free corners' : '') + '</span>' +
+    '<button type="button" class="ms-btn" onclick="mshapeAction(\'dup\')" title="Duplicate (Ctrl+D) — Alt-drag a shape does the same">⧉ Duplicate</button>' +
+    '<button type="button" class="ms-btn" onclick="mshapeAction(\'front\')" title="Bring to front">⬆ Front</button>' +
+    '<button type="button" class="ms-btn" onclick="mshapeAction(\'back\')" title="Send to back">⬇ Back</button>' +
+    '<button type="button" class="ms-btn" onclick="mshapeAction(\'flipx\')" title="Mirror left-to-right">⇄ Flip</button>' +
+    '<button type="button" class="ms-btn" onclick="mshapeAction(\'flipy\')" title="Mirror top-to-bottom">⇅ Flip</button>' +
+    '<button type="button" class="ms-btn" onclick="mshapeAction(\'rotl\')" title="Turn 15° anticlockwise">↺ 15°</button>' +
+    '<button type="button" class="ms-btn" onclick="mshapeAction(\'rotr\')" title="Turn 15° clockwise">↻ 15°</button>' +
+    '<button type="button" class="ms-btn" onclick="mshapeAction(\'rot90\')" title="Quarter turn">↻ 90°</button>' +
+    '<label title="Exact turn in degrees">Turn <input type="number" step="1" min="-180" max="180" value="' + Math.round(s.rot || 0) + '" onchange="mshapeProp(\'rot\', this.value)">°</label>' +
+    (pts && !free && s.kind !== 'text' ? '<button type="button" class="ms-btn" onclick="mshapeAction(\'free\')" title="Let go of the shape\'s rule (equal sides, right angles …) and drag each corner on its own">✎ Make free</button>' : '') +
+    '<button type="button" class="ms-btn ms-danger" onclick="mshapeAction(\'del\')" title="Delete (Delete key)">🗑 Delete</button></div>');
+  // ② Lines, fill and labels.
+  const fillable = s.kind !== 'numberline' && s.kind !== 'text' && closed;
+  rows.push('<div class="ms-row">' +
+    '<label>Line <input type="color" value="' + _msAttr(s.stroke) + '" oninput="mshapeProp(\'stroke\', this.value)"></label>' +
+    (s.kind !== 'text' ? '<label>Thickness <input type="number" min="0.5" max="40" step="0.5" value="' + _msAttr(s.lw) + '" oninput="mshapeProp(\'lw\', this.value)"></label>' +
+      '<label><input type="checkbox"' + (s.dash ? ' checked' : '') + ' onchange="mshapeProp(\'dash\', this.checked)"> Dashed</label>' : '') +
+    (fillable ? '<span class="ms-sep"></span><label><input type="checkbox"' + (s.fill ? ' checked' : '') + ' onchange="mshapeProp(\'fillOn\', this.checked)"> Shade</label>' +
+      (s.fill ? '<input type="color" value="' + _msAttr(s.fill) + '" oninput="mshapeProp(\'fill\', this.value)" title="Shading colour">' +
+        '<label title="How strong the shading is">Strength <input type="range" min="0.05" max="1" step="0.05" value="' + _msAttr(s.fillA) + '" oninput="mshapeProp(\'fillA\', this.value)" style="width:90px;"></label>' : '') : '') +
+    '<span class="ms-sep"></span>' +
+    '<label>Labels <input type="color" value="' + _msAttr(s.lc) + '" oninput="mshapeProp(\'lc\', this.value)"></label>' +
+    '<label>Size <input type="number" min="6" max="200" step="1" value="' + Math.round(s.font) + '" oninput="mshapeProp(\'font\', this.value)"></label>' +
+    '<label title="A thin white outline round every label, so it stays readable over lines and shading"><input type="checkbox"' + (s.halo !== false ? ' checked' : '') + ' onchange="mshapeProp(\'halo\', this.checked)"> White edge</label>' +
+    (Object.keys(s.lo || {}).length ? '<button type="button" class="ms-btn" onclick="mshapeAction(\'resetLabels\')" title="Put every dragged label back in its automatic place">⟲ Label places</button>' : '') +
+    '</div>');
+  // ③ Kind-specific settings.
+  if (s.kind === 'rhombus') rows.push('<div class="ms-row"><label title="The rhombus keeps four equal sides; this is its narrow angle">Angle <input type="number" min="20" max="160" step="1" value="' + Math.round(_msNum(s.p && s.p.a, 60)) + '" oninput="mshapeParam(\'a\', this.value)">°</label><span class="ms-meas">Or drag the yellow diamond.</span></div>');
+  if (mshapeIsSolid(s)) rows.push('<div class="ms-row"><label><input type="checkbox"' + (s.hidden !== false ? ' checked' : '') + ' onchange="mshapeProp(\'hidden\', this.checked)"> Hidden edges dashed</label>' +
+    '<label>Depth <input type="range" min="0.08" max="0.6" step="0.01" value="' + _msAttr(_msNum(s.p && s.p.d, 0.3)) + '" oninput="mshapeParam(\'d\', this.value)" style="width:110px;"></label></div>');
+  if (s.kind === 'grid') rows.push('<div class="ms-row"><label>Columns <input type="number" min="1" max="' + MSHAPE_GRID_MAX + '" value="' + s.grid.cols + '" oninput="mshapeParam(\'cols\', this.value)"></label>' +
+    '<label>Rows <input type="number" min="1" max="' + MSHAPE_GRID_MAX + '" value="' + s.grid.rows + '" oninput="mshapeParam(\'rows\', this.value)"></label><span class="ms-meas">Each square stays a square. Draw on it with 📏 Line or 🖌️ Paint, or place shapes over it.</span></div>');
+  if (s.kind === 'numberline') rows.push('<div class="ms-row"><label>From <input type="number" step="any" value="' + _msAttr(s.nl.min) + '" oninput="mshapeParam(\'min\', this.value)"></label>' +
+    '<label>To <input type="number" step="any" value="' + _msAttr(s.nl.max) + '" oninput="mshapeParam(\'max\', this.value)"></label>' +
+    '<label>Step <input type="number" step="any" min="0" value="' + _msAttr(s.nl.step) + '" oninput="mshapeParam(\'step\', this.value)"></label>' +
+    '<label title="Write a number under every tick, every 2nd tick …">Number every <input type="number" min="1" max="100" value="' + _msAttr(s.nl.every) + '" oninput="mshapeParam(\'every\', this.value)"> ticks</label>' +
+    '<label><input type="checkbox"' + (s.nl.arrows !== false ? ' checked' : '') + ' onchange="mshapeParam(\'arrows\', this.checked)"> Arrow ends</label></div>');
+  if (s.kind === 'text') rows.push('<div class="ms-row"><label style="flex:1 1 320px;">Text <input type="text" id="msIn_body" maxlength="' + MSHAPE_LABEL_MAX + '" value="' + _msAttr(s.text) + '" oninput="mshapeProp(\'text\', this.value)" style="flex:1;min-width:200px;"></label><span class="ms-meas">A single small letter (x, y) is set in italics.</span></div>');
+  if (s.kind === 'segment' || s.kind === 'arrow') rows.push('<div class="ms-row"><label>Arrowheads <select onchange="mshapeProp(\'arr\', this.value)">' +
+    _msOpt(s.kind === 'arrow' ? [[1, 'One end'], [2, 'Both ends']] : [[0, 'None'], [1, 'One end'], [2, 'Both ends']], s.kind === 'arrow' ? (s.arr === 2 ? 2 : 1) : (s.arr || 0)) + '</select></label>' +
+    (s.kind === 'segment' ? '<label><input type="checkbox"' + (s.dots ? ' checked' : '') + ' onchange="mshapeProp(\'dots\', this.checked)"> Dots at the ends</label>' : '') + '</div>');
+  // ④ Labels: letters, angles and sides.
+  const tbl = [];
+  if (pts) {
+    tbl.push('<div class="ms-th">Corner letters</div>');
+    tbl.push('<div class="ms-k"><label><input type="checkbox"' + (s.showNames ? ' checked' : '') + ' onchange="mshapeProp(\'showNames\', this.checked)"> Show</label></div>' +
+      '<div class="ms-v"><input type="text" id="msIn_names" maxlength="' + MSHAPE_LABEL_MAX + '" value="' + _msAttr(s.names) + '" oninput="mshapeProp(\'names\', this.value)" placeholder="e.g. ABCD"><span class="ms-meas">One letter per corner, in order — or commas for longer names (P1,P2,P3).</span></div>');
+  }
+  if (pts && (closed || s.kind === 'angle')) {
+    tbl.push('<div class="ms-th">Angles</div>');
+    const idxs = closed ? pts.map((_, i) => i) : [1];
+    idxs.forEach(i => {
+      const a = (s.ang && s.ang[i]) || {};
+      const deg = mshapeAngleDeg(pts, i, closed);
+      tbl.push('<div class="ms-k">∠' + escapeHtml(_msVName(s, i)) + '</div><div class="ms-v">' +
+        '<select onchange="mshapeAngProp(' + i + ', \'m\', this.value)">' + _msOpt(_msMarkOpts, a.m || '') + '</select>' +
+        '<input type="text" id="msIn_a' + i + '" maxlength="' + MSHAPE_LABEL_MAX + '" value="' + _msAttr(a.t) + '" oninput="mshapeAngProp(' + i + ', \'t\', this.value)" placeholder="60, x, ?"' + (a.auto ? ' disabled' : '') + '>' +
+        '<label title="Write the angle\'s real size instead, and keep it right as the shape changes"><input type="checkbox"' + (a.auto ? ' checked' : '') + ' onchange="mshapeAngProp(' + i + ', \'auto\', this.checked)"> Measure</label>' +
+        '<span class="ms-meas">' + (Math.round(deg * 10) / 10) + '°</span></div>');
+    });
+  }
+  if (pts && s.kind !== 'angle') {
+    const nSides = closed ? pts.length : pts.length - 1;
+    const lens = mshapeSideLengths(pts, closed);
+    tbl.push('<div class="ms-th">Sides</div>');
+    for (let i = 0; i < nSides; i++) {
+      const d = (s.side && s.side[i]) || {};
+      const nm = _msVName(s, i) + _msVName(s, (i + 1) % pts.length);
+      tbl.push('<div class="ms-k">' + escapeHtml(nm) + '</div><div class="ms-v">' +
+        '<input type="text" id="msIn_s' + i + '" maxlength="' + MSHAPE_LABEL_MAX + '" value="' + _msAttr(d.t) + '" oninput="mshapeSideProp(' + i + ', \'t\', this.value)" placeholder="e.g. 12 cm">' +
+        '<select onchange="mshapeSideProp(' + i + ', \'ticks\', this.value)" title="Equal-side tick marks">' + _msOpt([[0, 'No ticks'], [1, '| one tick'], [2, '|| two ticks'], [3, '||| three ticks']], d.ticks || 0) + '</select>' +
+        (closed ? '<select onchange="mshapeSideProp(' + i + ', \'par\', this.value)" title="Parallel-side arrows">' + _msOpt([[0, 'Not marked parallel'], [1, '› parallel'], [2, '›› parallel'], [3, '››› parallel']], d.par || 0) + '</select>' : '') +
+        '<span class="ms-meas">' + Math.round(lens[i]) + ' px</span></div>');
+    }
+  }
+  if (mshapeIsSolid(s)) {
+    tbl.push('<div class="ms-th">Edges</div>');
+    [['Length', 0], ['Breadth', 1], ['Height', 2]].forEach(([nm, i]) => {
+      const d = (s.side && s.side[i]) || {};
+      tbl.push('<div class="ms-k">' + nm + '</div><div class="ms-v"><input type="text" id="msIn_s' + i + '" maxlength="' + MSHAPE_LABEL_MAX + '" value="' + _msAttr(d.t) + '" oninput="mshapeSideProp(' + i + ', \'t\', this.value)" placeholder="e.g. 8 cm">' +
+        '<select onchange="mshapeSideProp(' + i + ', \'ticks\', this.value)">' + _msOpt([[0, 'No ticks'], [1, '| one tick'], [2, '|| two ticks'], [3, '||| three ticks']], d.ticks || 0) + '</select></div>');
+    });
+  }
+  if (mshapeIsCircle(s) && s.circ) {
+    const c = s.circ;
+    tbl.push('<div class="ms-th">Circle</div>');
+    tbl.push('<div class="ms-k"><label><input type="checkbox"' + (c.centre ? ' checked' : '') + ' onchange="mshapeCircProp(\'centre\', this.checked)"> Centre</label></div>' +
+      '<div class="ms-v"><input type="text" id="msIn_cn" maxlength="' + MSHAPE_LABEL_MAX + '" value="' + _msAttr(c.cName) + '" oninput="mshapeCircProp(\'cName\', this.value)" placeholder="O" style="width:60px;"><span class="ms-meas">A dot at the centre, with its letter.</span></div>');
+    tbl.push('<div class="ms-k"><label><input type="checkbox"' + (c.radius ? ' checked' : '') + ' onchange="mshapeCircProp(\'radius\', this.checked)"> Radius</label></div>' +
+      '<div class="ms-v"><input type="text" id="msIn_cr" maxlength="' + MSHAPE_LABEL_MAX + '" value="' + _msAttr(c.rText) + '" oninput="mshapeCircProp(\'rText\', this.value)" placeholder="e.g. 7 cm">' +
+      '<label>Direction <input type="number" step="5" value="' + Math.round(_msNum(c.rAng, -35)) + '" onchange="mshapeCircProp(\'rAng\', this.value)">°</label><span class="ms-meas">Or drag its yellow dot.</span></div>');
+    if (s.kind === 'circle') tbl.push('<div class="ms-k"><label><input type="checkbox"' + (c.diam ? ' checked' : '') + ' onchange="mshapeCircProp(\'diam\', this.checked)"> Diameter</label></div>' +
+      '<div class="ms-v"><input type="text" id="msIn_cd" maxlength="' + MSHAPE_LABEL_MAX + '" value="' + _msAttr(c.dText) + '" oninput="mshapeCircProp(\'dText\', this.value)" placeholder="e.g. 14 cm">' +
+      '<label>Direction <input type="number" step="5" value="' + Math.round(_msNum(c.dAng, 0)) + '" onchange="mshapeCircProp(\'dAng\', this.value)">°</label></div>');
+    if (s.kind === 'semicircle') tbl.push('<div class="ms-k">Diameter</div><div class="ms-v"><input type="text" id="msIn_cd" maxlength="' + MSHAPE_LABEL_MAX + '" value="' + _msAttr(c.dText) + '" oninput="mshapeCircProp(\'dText\', this.value)" placeholder="e.g. 14 cm"><span class="ms-meas">Written under the straight edge.</span></div>');
+    if (s.kind === 'quarter') {
+      tbl.push('<div class="ms-k"><label><input type="checkbox"' + (c.right ? ' checked' : '') + ' onchange="mshapeCircProp(\'right\', this.checked)"> Right angle</label></div><div class="ms-v"><span class="ms-meas">The box at the centre.</span></div>');
+      [['Upright radius', 0], ['Flat radius', 1]].forEach(([nm, i]) => {
+        const d = (s.side && s.side[i]) || {};
+        tbl.push('<div class="ms-k">' + nm + '</div><div class="ms-v"><input type="text" id="msIn_s' + i + '" maxlength="' + MSHAPE_LABEL_MAX + '" value="' + _msAttr(d.t) + '" oninput="mshapeSideProp(' + i + ', \'t\', this.value)" placeholder="e.g. 10 cm">' +
+          '<select onchange="mshapeSideProp(' + i + ', \'ticks\', this.value)">' + _msOpt([[0, 'No ticks'], [1, '| one tick'], [2, '|| two ticks']], d.ticks || 0) + '</select></div>');
+      });
+    }
+    tbl.push('<div class="ms-k">Curved edge</div><div class="ms-v"><input type="text" id="msIn_ca" maxlength="' + MSHAPE_LABEL_MAX + '" value="' + _msAttr(c.arcText) + '" oninput="mshapeCircProp(\'arcText\', this.value)" placeholder="e.g. arc length"></div>');
+  }
+  if (tbl.length) rows.push('<div class="ms-tbl">' + tbl.join('') + '</div>');
+  // ⑤ One-tap marks.
+  if (pts && closed) rows.push('<div class="ms-row">' +
+    '<button type="button" class="ms-btn ms-strong" onclick="mshapeAction(\'ticks\')" title="Tick every group of equal sides — one tick, two ticks, three ticks">✓ Mark equal sides</button>' +
+    '<button type="button" class="ms-btn ms-strong" onclick="mshapeAction(\'right\')" title="A box on every 90° corner">✓ Mark right angles</button>' +
+    '<button type="button" class="ms-btn ms-strong" onclick="mshapeAction(\'par\')" title="Arrows on every pair of parallel sides">✓ Mark parallel sides</button>' +
+    '<button type="button" class="ms-btn" onclick="mshapeAction(\'measure\')" title="Write every angle\'s real size on it">📐 Measure all angles</button>' +
+    '<button type="button" class="ms-btn" onclick="mshapeAction(\'clear\')" title="Take every mark and label off this shape">✕ Clear marks</button></div>');
+  return rows.join('');
+}
+// Two tabs in the side panel: ＋ the gallery, ✎ the selected shape. Adding or
+// selecting a shape turns to ✎; letting go of it turns back to ＋.
+function mshapeTab(t) {
+  if (!_annot) return;
+  _annot.msTab = t === 'edit' && _msSel() ? 'edit' : 'add';
+  mshapeSyncBar();
+}
+function mshapeSyncBar() {
+  const bar = document.getElementById('annotShapeBar');
+  if (!bar) return;
+  const on = !!(_annot && _annot.tool === 'shape');
+  bar.classList.toggle('show', on);
+  // The picture gives up room to the panel beside it, so it is re-fitted
+  // whenever the panel comes or goes.
+  const work = document.getElementById('annotWork');
+  if (work && work.classList.contains('ms-on') !== on) {
+    work.classList.toggle('ms-on', on);
+    if (_annot) requestAnimationFrame(() => { if (_annot) annotZoomFit(); });
+  }
+  if (!on) return;
+  _msBuildGallery();
+  const props = document.getElementById('annotShapeProps');
+  const gal = document.getElementById('annotShapeGallery');
+  const foot = document.getElementById('annotShapeFoot');
+  if (!props || !gal) return;
+  const s = _msSel();
+  if (!s) _annot.msTab = 'add';
+  const tab = s && _annot.msTab === 'edit' ? 'edit' : 'add';
+  bar.querySelectorAll('.ms-tab').forEach(b => {
+    b.classList.toggle('on', b.getAttribute('data-mstab') === tab);
+    if (b.getAttribute('data-mstab') === 'edit') b.disabled = !s;
+  });
+  gal.style.display = tab === 'add' ? '' : 'none';
+  props.style.display = tab === 'edit' || !s ? '' : 'none';
+  const n = _msShapes().length;
+  const tail = '<div class="ms-row">' +
+    '<label title="Moves, corners and resizes land on a grid"><input type="checkbox"' + (_annot.msSnap ? ' checked' : '') + ' onchange="mshapeAction(\'snap\')"> Snap to grid</label>' +
+    (n ? '<span class="ms-meas">' + n + ' live shape' + (n === 1 ? '' : 's') + ' — burned into the picture on ✓ Apply.</span>' +
+      '<button type="button" class="ms-btn" onclick="mshapeAction(\'flatten\')" title="Burn the shapes into the picture now, so Erase, Fill and Clone can work on their lines">⬇ Flatten into picture</button>' : '') +
+    (s ? '<button type="button" class="ms-btn" onclick="mshapeAction(\'deselect\')" title="Deselect (Esc)">✕ Deselect</button>' : '') + '</div>';
+  props.className = 'ms-props';
+  props.innerHTML = tab === 'edit' ? _msPropsHtml(s) :
+    '<div class="ms-tip"><b>Pick a shape</b> to drop it in the middle of the picture. <b>Click</b> a shape to select it, <b>drag</b> it to move it, drag the <b>white squares</b> to resize (Shift keeps the shape), the <b>round knob</b> to turn it (Shift snaps to 15°) and a <b>yellow diamond</b> to re-shape it — the slant of a parallelogram, the angle of a rhombus, the top of a trapezium. <b>Labels drag</b> anywhere; double-click one to retype it. Alt-drag copies a shape, arrow keys nudge it, Delete removes it.</div>';
+  if (foot) foot.innerHTML = tail;
+}
+
+// ---- Session memory: reopen a picture and its shapes are still live --------
+function mshapeRemember(url, base, shapes) {
+  if (!url || !base || !shapes || !shapes.length) return;
+  if (!_mshapeMemory[url]) _mshapeMemoryOrder.push(url);
+  _mshapeMemory[url] = { base, shapes: mshapeCleanList(shapes) };
+  while (_mshapeMemoryOrder.length > MSHAPE_MEMORY_MAX) delete _mshapeMemory[_mshapeMemoryOrder.shift()];
+}
+function mshapeRecall(url) { return (url && _mshapeMemory[url]) || null; }
+
+// 📐 Draw a diagram — the same editor on a blank sheet, for a block that has
+// no picture yet. Apply uploads it into the block like any touched-up picture.
+const MSHAPE_BLANK_SIZES = { wide: [1500, 1000], square: [1200, 1200], tall: [1000, 1400] };
+function openAnnotBlank(blockId, fmt) {
+  const block = editorBlocks.find(b => b.id === blockId);
+  if (!block) return;
+  const dims = MSHAPE_BLANK_SIZES[fmt] || MSHAPE_BLANK_SIZES.wide;
+  const c = document.createElement('canvas'); c.width = dims[0]; c.height = dims[1];
+  const x = c.getContext('2d'); x.fillStyle = '#ffffff'; x.fillRect(0, 0, c.width, c.height);
+  _annotOpenSrc(Promise.resolve(c.toDataURL('image/png')), { blockId, startTool: 'shape' }, '📐 Draw a diagram');
+}
+function mshapeBlankBarHtml(blockId) {
+  const id = escapeHtml(blockId);
+  return '<div class="ms-blank"><span>No picture yet?</span>' +
+    '<button type="button" class="btn btn-outline" style="padding:4px 10px;font-size:0.78rem;" data-annot-blank="' + id + '" data-fmt="wide" title="Open a blank landscape sheet with the 📐 shape tools — triangles, rhombuses, circles, angle labels">📐 Draw a diagram ▭</button>' +
+    '<button type="button" class="btn btn-outline" style="padding:4px 10px;font-size:0.78rem;" data-annot-blank="' + id + '" data-fmt="square" title="A blank square sheet">◻ Square sheet</button>' +
+    '<button type="button" class="btn btn-outline" style="padding:4px 10px;font-size:0.78rem;" data-annot-blank="' + id + '" data-fmt="tall" title="A blank portrait sheet">▯ Tall sheet</button></div>';
+}
+document.addEventListener('click', function (e) {
+  const b = e.target.closest && e.target.closest('[data-annot-blank]');
+  if (b) { e.preventDefault(); openAnnotBlank(b.getAttribute('data-annot-blank'), b.getAttribute('data-fmt')); }
+});
+
 
 
 // The ported overlays use inline on* handlers, and this app is a module —
@@ -16739,6 +18546,17 @@ window.applyCropTool = applyCropTool;
 window.closeAnnotTool = closeAnnotTool;
 window.applyAnnotTool = applyAnnotTool;
 window.annotUndo = annotUndo;
+// 📐 Math diagram shapes — the gallery and the labels panel are written as
+// inline handlers, so every name they call has to be on window.
+window.mshapeAdd = mshapeAdd;
+window.mshapeAction = mshapeAction;
+window.mshapeProp = mshapeProp;
+window.mshapeAngProp = mshapeAngProp;
+window.mshapeSideProp = mshapeSideProp;
+window.mshapeCircProp = mshapeCircProp;
+window.mshapeParam = mshapeParam;
+window.mshapeTab = mshapeTab;
+window.openAnnotBlank = openAnnotBlank;
 window.annotZoomStep = annotZoomStep;
 window.annotZoomFit = annotZoomFit;
 window._annotSyncControls = _annotSyncControls;
@@ -33901,7 +35719,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.103.0 · 2026-10-11";
+const APP_VERSION = "v1.104.0 · 2026-10-12";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)

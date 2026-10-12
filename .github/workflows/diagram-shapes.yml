@@ -1,0 +1,42 @@
+name: Diagram shape checks
+on:
+  pull_request:
+    paths: ['index.html', 'tools/diagram-shapes-*.mjs', '.github/workflows/diagram-shapes.yml']
+  push:
+    branches: [main]
+    paths: ['index.html', 'tools/diagram-shapes-*.mjs', '.github/workflows/diagram-shapes.yml']
+permissions:
+  contents: read
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check the shape geometry, marks and labels
+        run: node tools/diagram-shapes-tests.mjs
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated browser runtime
+        run: |
+          npm install --prefix "$RUNNER_TEMP/ms-browser" --no-audit --no-fund playwright@1.62.1
+          "$RUNNER_TEMP/ms-browser/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Draw diagrams in the Touch up editor in a real browser
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/ms-browser/node_modules/playwright/index.mjs
+          MS_SHOTS: ${{ runner.temp }}/ms-shots
+        run: node tools/diagram-shapes-browser-tests.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: diagram-shapes-browser
+          path: ${{ runner.temp }}/ms-shots
+          retention-days: 7
