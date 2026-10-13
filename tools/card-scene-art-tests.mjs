@@ -34,11 +34,15 @@ assert.match(slicer, /--roster-only/);
 assert.match(slicer, /isolated_source = _keep_largest_component/);
 assert.match(slicer, /def _expanded_cell/);
 assert.match(slicer, /def _keep_core_component/);
+assert.match(slicer, /CARD_SIZE = \(480, 384\)/);
+assert.match(slicer, /ImageOps\.contain\(art, CARD_SIZE/);
 
 const app = await readFile(path.join(root, 'index.html'), 'utf8');
 assert.match(app, /Never use a flat single-colour field or a gradient-only backdrop/);
 assert.match(app, /one real story-world location/);
-assert.match(app, /TCG_BUNDLED_ART_VERSION = '2026-08-31-scenes-4'/);
+assert.match(app, /TCG_BUNDLED_ART_VERSION = '2026-08-31-scenes-5'/);
+assert.match(app, /\.tcg-art img \{[^}]*object-fit: contain/);
+assert.match(app, /\.tcg-peek-art img \{[^}]*object-fit: contain/);
 
 const cardUrlFunction = app.match(/function tcgArtUrl\(id\) \{[^\n]+/u)?.[0] || '';
 const avatarUrlFunction = app.match(/function tcgAvatarUrl\(id\) \{[^\n]+/u)?.[0] || '';
