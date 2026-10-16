@@ -865,6 +865,19 @@ either way and nobody finds out until a class is sitting in front of it.
     their diagram ARE the answer space.
 - Run **`node tools/worksheet-answer-fields-tests.mjs`** after touching any of it.
 
+### Question parts always start on their own line (v1.105.0)
+`splitQuestionParts` / `questionPartMarks` / `Q_PART_MARK_RE` / `Q_PART_LINE_STYLE`, inside `renderMathBlock`.
+- Zhi Kai's rule: wherever **(a) / a) / (b) / b)** sit in a paragraph (mid-sentence,
+  after a full stop), each part is drawn on its own line under the main paragraph,
+  with **line-height 1.6** on the part rows.
+- Done at RENDER time only; the stored wording is never rewritten.
+- Markers must stand alone (start, or after a space or punctuation, then a space or
+  the end) and run in sequence from (a), at least two. `f(a)`, `2(b)`, `(a)+(b)`
+  and a lone "(a)" are untouched.
+- The printed per-part answer fields (`wsQuestionParts`) still read only line-start
+  markers, as before.
+- Run **`node tools/question-part-lines-tests.mjs`** after touching any of it.
+
 ### …and NO question may exceed one page (v1.44.1)
 
 `wsHeadEstimateMm` / `wsPageRoomMm` / `wsEffectiveImgMm` / `WS_IMG_MIN_MM`, and
