@@ -1,10 +1,10 @@
 name: Practice variety and submission checks
 on:
   pull_request:
-    paths: ['index.html', 'practice-*.js', 'student-question-history.js', 'tools/practice-*.mjs', 'tools/student-question-history-tests.mjs', '.github/workflows/practice-flow.yml']
+    paths: ['index.html', 'practice-*.js', 'student-question-history.js', 'tools/practice-*.mjs', 'tools/student-question-history-tests.mjs', 'tools/question-part-lines-tests.mjs', '.github/workflows/practice-flow.yml']
   push:
     branches: [main]
-    paths: ['index.html', 'practice-*.js', 'student-question-history.js', 'tools/practice-*.mjs', 'tools/student-question-history-tests.mjs', '.github/workflows/practice-flow.yml']
+    paths: ['index.html', 'practice-*.js', 'student-question-history.js', 'tools/practice-*.mjs', 'tools/student-question-history-tests.mjs', 'tools/question-part-lines-tests.mjs', '.github/workflows/practice-flow.yml']
 permissions:
   contents: read
 jobs:
@@ -26,6 +26,8 @@ jobs:
           node tools/subject-level-tests.mjs
           node tools/scheduled-release-tests.mjs
           node tools/siege-squad-tests.mjs
+      - name: Check question parts start on their own lines
+        run: node tools/question-part-lines-tests.mjs
   browser:
     runs-on: ubuntu-latest
     timeout-minutes: 10

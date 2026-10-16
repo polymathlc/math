@@ -8183,14 +8183,77 @@ const Q_LIST_LABEL_RE = /^(\((?:[a-z]{1,3}|\d{1,2})\)|(?:[a-z]|\d{1,2})[.)]|[•
 // have to be added to every copy and would silently miss whichever one was
 // forgotten, which is exactly the bug where a sheet reads differently on paper.
 const Q_LINE_STYLE = "display:flex;align-items:baseline;gap:0.34em";
+// ---- Question parts always start on their own line (v1.105.0) -------------
+// "Ali has 24 tarts. (a) How many boxes? (b) How many are left?" is a stem and
+// two questions, and a child reading it as one run-on paragraph loses which
+// part they are answering. So wherever a teacher typed the part markers — at
+// the start of a line, mid-sentence, straight after a full stop — each one is
+// moved onto a line of its own, under the main paragraph, before the block is
+// laid out. The row it lands on is a labelled row (Q_LIST_LABEL_RE), so a part
+// that wraps hangs under its first word, and part rows carry
+// `line-height:1.6` (Q_PART_LINE_STYLE) so the parts breathe apart.
+// Both spellings count: "(a)" and "a)".
+// What keeps this off ordinary text:
+// - A marker has to stand alone: start of the text, or after a space or a
+//   punctuation mark, and followed by a space or the end. "f(a)", "2(b)",
+//   "(a)+(b)" and "x(a+b)" never match.
+// - The markers have to run IN SEQUENCE from (a), and there have to be at
+//   least two of them. A lone "(a)" is not a question in parts, and a stray
+//   "c)" with no (a) and (b) before it is left exactly where it was.
+// - The STORED text is never changed: this runs only when the block is drawn,
+//   so a teacher's wording in the editor stays as they typed it.
+// - A block with no run of markers comes back byte-for-byte unchanged.
+const Q_PART_LETTERS = "abcdefgh";
+const Q_PART_MARK_RE = /(^|[\s.,;:?!])(\(([a-h])\)|([a-h])\))(?=\s|$)/gi;
+const Q_PART_ROW_RE = /^\(?[a-h]\)\s/i;
+const Q_PART_LINE_STYLE = "line-height:1.6";
+function questionPartMarks(text) {
+  const s = String(text == null ? "" : text);
+  const found = [];
+  Q_PART_MARK_RE.lastIndex = 0;
+  let m;
+  while ((m = Q_PART_MARK_RE.exec(s))) {
+    found.push({ at: m.index + m[1].length, letter: String(m[3] || m[4]).toLowerCase() });
+    // The lookahead consumed nothing after the marker, so the next search
+    // starts right after it and "(a) (b)" finds both.
+    Q_PART_MARK_RE.lastIndex = m.index + m[0].length;
+  }
+  const run = [];
+  for (const mark of found) {
+    if (run.length >= Q_PART_LETTERS.length) break;
+    if (mark.letter === Q_PART_LETTERS[run.length]) run.push(mark);
+  }
+  return run.length >= 2 ? run : [];
+}
+function splitQuestionParts(text) {
+  const s = String(text == null ? "" : text);
+  const marks = questionPartMarks(s);
+  if (!marks.length) return s;
+  let out = s;
+  // From the last marker back, so the earlier positions stay valid.
+  for (let i = marks.length - 1; i >= 0; i--) {
+    const at = marks[i].at;
+    const lineStart = out.lastIndexOf("\n", at - 1) + 1;
+    const before = out.slice(lineStart, at);
+    if (!before.trim()) {
+      // Already the first thing on its line — only the indent goes, so the
+      // label is what the row starts with.
+      out = out.slice(0, lineStart) + out.slice(at);
+      continue;
+    }
+    out = out.slice(0, at).replace(/[ \t]+$/, "") + "\n" + out.slice(at);
+  }
+  return out;
+}
 function renderMathLineHtml(line) {
   const m = Q_LIST_LABEL_RE.exec(line);
   if (!m) return `<span style="display:block">${line.trim() ? renderMathInline(line) : "<br>"}</span>`;
-  return `<span style="${Q_LINE_STYLE}"><span style="flex:0 0 auto">${escapeHtml(m[1])}</span>` +
+  const rowStyle = Q_PART_ROW_RE.test(line) ? `${Q_LINE_STYLE};${Q_PART_LINE_STYLE}` : Q_LINE_STYLE;
+  return `<span style="${rowStyle}"><span style="flex:0 0 auto">${escapeHtml(m[1])}</span>` +
     `<span style="flex:1 1 auto;min-width:0">${renderMathInline(line.slice(m[0].length))}</span></span>`;
 }
 function renderMathBlock(text) {
-  const lines = String(text == null ? "" : text).split(/\n/);
+  const lines = splitQuestionParts(String(text == null ? "" : text)).split(/\n/);
   // Nothing labelled → the output is byte-for-byte what it has always been.
   if (!lines.some(line => Q_LIST_LABEL_RE.test(line))) return lines.map(line => renderMathInline(line)).join("<br>");
   return lines.map(renderMathLineHtml).join("");
@@ -35719,7 +35782,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.104.0 · 2026-10-12";
+const APP_VERSION = "v1.105.0 · 2026-10-16";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
