@@ -37,7 +37,11 @@ const cut = (from, to, what) => {
 };
 
 // Everything the two blocks reach out to, and nothing else.
+const coverSource = fs.readFileSync(new URL('../worksheet-cover.js', import.meta.url), 'utf8');
 const FIXTURE = `
+const window = {};
+${coverSource}
+
 const escapeHtml = s => String(s == null ? "" : s)
   .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
   .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -216,7 +220,7 @@ test('the COVER carries the SAME field names as the header', () => {
 test('the header prints the org it was given, not a constant', () => {
   const M = mk();
   ok(M.header('T', false, '', 'Raffles Girls Primary', false).includes('Raffles Girls Primary'), 'a per-sheet line was ignored');
-  ok(!M.cover('T', '', false, '', '', false).includes(M.DEFAULT_ORG), 'a cleared line printed the default anyway');
+  ok(/class="ws-cover-org"><\/div>/.test(M.cover('T', '', false, '', '', false)), 'a cleared line printed the default anyway');
 });
 
 test('a typed header is escaped on the way into the document', () => {
@@ -235,17 +239,17 @@ test('the edit script names the worksheet it is editing, and calls the opener', 
 });
 
 // ── the wiring, read as text ────────────────────────────────────────────────
-// Both print paths must hand the id over ONLY for a sheet the user owns; the
+// All worksheet print paths must hand the id over ONLY for a sheet the user owns; the
 // flag decides whether the preview is editable at all.
 
-test('both print paths gate the editable header on ownership', () => {
+test('all worksheet print paths gate the editable header on ownership', () => {
   const gates = src.match(/headerEditId:\s*wsMine\((ws|test)\)\s*\?\s*\1\.id\s*:\s*""/g) || [];
-  eq(gates.length, 2, 'the ownership gate is missing from a print path');
+  eq(gates.length, 3, 'ordinary, related-question and diagnostic print paths must check ownership');
 });
 
-test('both print paths hand over the sheet\'s own header line', () => {
+test('all worksheet print paths hand over the sheet\'s own header line', () => {
   const orgs = src.match(/headerOrg:\s*wsHeaderOrgOf\((ws|test)\)/g) || [];
-  eq(orgs.length, 2, 'a print path ignores the sheet\'s saved header line');
+  eq(orgs.length, 3, 'a print path ignores the sheet\'s saved header line');
 });
 
 test('the save function is on window — the preview reaches it as opener.<name>', () => {

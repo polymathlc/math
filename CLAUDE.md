@@ -2,6 +2,15 @@
 
 Guidance for Claude when working in this repo.
 
+## Editable worksheet covers (v1.106.0)
+
+`worksheet-cover.js` is shared, byte-for-byte, with `polymathlc/cer`. It renders the official local logo, pastel pixel icons for the chosen subject, and editable text. Keep the SVG artwork decorative and the central text readable. `coverDesign` belongs to a worksheet; never put it on bank questions. Older worksheets without it use subject defaults.
+
+Use **Edit cover** in the generated worksheet preview. Saved cover changes await persistence before updating the preview; failures keep the draft open. Preserve the account/ownership guards, optional student fields, existing Maths inline header editing and QR codes. Cover settings must pass through preview, saved reprint and related exports.
+
+Validation: `node --test tools/worksheet-cover-tests.mjs`; `PW=/path/to/playwright/index.mjs BROWSER=/path/to/chrome node tools/worksheet-cover-browser.mjs`. The browser harness exercises the real save handlers with local persistence stubs, including failure/retry, reopen, phone layout and account changes; it does not call Firebase.
+
+
 ## Current AI defaults — v1.91.0
 - GPT 6.1 Sol (`gpt-6.1-sol`) is the default text, vision and thinking model.
   The default provider order is OpenAI, Gemini, Kimi. The earlier stack notes
