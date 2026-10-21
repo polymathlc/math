@@ -6774,6 +6774,7 @@ body.role-employee #emailBellBtn { display: none !important; }
 
 <div id="toast"></div>
 
+<script src="worksheet-cover.js?v=1.106.0"></script>
 <script type="module">
 // =====================================================================
 // Firebase (shared "mathgen--app" project — math data is namespaced
@@ -10514,6 +10515,7 @@ function appShareShow(app) {
 let guestSignInTried = false;
 onAuthStateChanged(auth, async (user) => {
   const authEpoch = ++_studentAuthEpoch;
+  wsCoverDesign = {};
   studentQuestionHistory.close(); _studentHistoryLoading = null; _practicePresentation = null;
   currentUser = null;
   sharedAiEngine = null;
@@ -25313,7 +25315,8 @@ function openPrintOverlay() {
 // denser than a measured page-packer and, unlike one, it can never lay two
 // questions on top of each other.
 // =====================================================================
-const WS_COVER_LOGO = "https://dl.dropboxusercontent.com/scl/fi/h40yjlyg8ldefwfaa3dib/polymath-logo-sticker.png?rlkey=o1ra4taqy79gt9t8u096v82zj";
+const WS_COVER_LOGO = new URL("assets/branding/polymath-learning-centre.png", location.href).href;
+var wsCoverDesign = {};
 const WS_LOGO_FALLBACK = "data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2264%22 height=%2264%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2212%22 fill=%22%234a7c59%22/%3E%3Ctext x=%2232%22 y=%2245%22 font-family=%22Arial,sans-serif%22 font-size=%2238%22 font-weight=%22700%22 fill=%22white%22 text-anchor=%22middle%22%3EP%3C/text%3E%3C/svg%3E";
 // The line printed under the sheet's title, on the cover and in the header. It
 // is a DEFAULT rather than a constant in the markup, because a saved worksheet
@@ -25541,21 +25544,15 @@ function wsHeadFieldHtml(tag, cls, field, value, edit, placeholder) {
       + ` data-ph="${escapeHtml(placeholder)}" title="Click to retype this — it is saved to the worksheet"` : "");
   return `<${tag}${attrs}>${escapeHtml(value)}</${tag}>`;
 }
-function wsCoverHtml(title, sub, noFields, sheetQr = "", org = WS_HEADER_ORG, edit = false) {
-  return `<section class="ws-page ws-cover">
-    <div class="ws-cover-inner">
-      <img class="ws-cover-logo" src="${WS_COVER_LOGO}" alt="Polymath" onerror="this.onerror=null;this.src='${WS_LOGO_FALLBACK}';">
-      ${wsHeadFieldHtml("div", "ws-cover-org", "org", org, edit, "Line under the title")}
-      ${wsHeadFieldHtml("h1", "ws-cover-title", "title", title, edit, "Worksheet title")}
-      ${sub ? `<div class="ws-cover-sub">${escapeHtml(sub)}</div>` : ""}
-      ${noFields ? "" : `<div class="ws-cover-fields">
-        <div><span>Name</span><i></i></div>
-        <div><span>Class</span><i></i></div>
-        <div><span>Date</span><i></i></div>
-      </div>`}
-      ${sheetQr ? wsSheetQrHtml(sheetQr, true) : ""}
-    </div>
-  </section>`;
+function wsCoverHtml(title, sub, noFields, sheetQr = "", org = WS_HEADER_ORG, edit = false, design) {
+  return window.WorksheetCover.render(Object.assign({}, design || {}, { title, org }), {
+    className: "ws-page ws-cover",
+    defaults: { subject: "math", subtitle: sub || "", footer: "Primary Mathematics · Think, explore, solve" },
+    noFields: !!noFields,
+    titleHtml: wsHeadFieldHtml("h1", "ws-cover-title", "title", title, edit, "Worksheet title"),
+    orgHtml: wsHeadFieldHtml("div", "ws-cover-org", "org", org, edit, "Centre / heading"),
+    extraHtml: sheetQr ? wsSheetQrHtml(sheetQr, true) : ""
+  });
 }
 // ONE QR for the whole worksheet. It opens the overview page — every question
 // on this sheet with its video and answer key — which is why it is worth the
@@ -26251,7 +26248,7 @@ async function wsBuildDocumentHtml(questions, title, opts) {
       `<section class="ws-page">${wsHeaderHtml(title, !opts.fields, opts.cover ? "" : sheetQr, org, !!editId)}${intro}${questions.map((q, i) => chunk(q, i, i === 0 ? wsHeadEstimateMm({ fields: !!opts.fields, qr: !opts.cover && !!sheetQr }) : 0)).join("")}</section>`,
     ];
   const sections = [
-    ...(opts.cover ? [wsCoverHtml(title, `${questions.length} question${questions.length > 1 ? "s" : ""}`, !opts.fields, sheetQr, org, !!editId)] : []),
+    ...(opts.cover ? [wsCoverHtml(title, `${questions.length} question${questions.length > 1 ? "s" : ""}`, !opts.fields, sheetQr, org, !!editId, opts.coverDesign)] : []),
     ...body,
     ...(scoreTable ? [scoreTable] : []),
     ...(opts.withAnswers ? [wsAnswerKeyHtml(questions, numbers)] : []),
@@ -26261,7 +26258,7 @@ async function wsBuildDocumentHtml(questions, title, opts) {
     <tbody>${sections.map((s, i) => `<tr${i ? ` class="ws-newpage"` : ""}><td>${s}</td></tr>`).join("")}</tbody>
   </table>`;
   // The floating bar is `ws-noprint`, so the printed sheet never carries it.
-  const bar = `<div class="ws-printbar ws-noprint">${editId ? `<span class="ws-editnote" id="wsEditNote">${WS_EDIT_HINT}</span>` : ""}<button class="ghost" onclick="window.close()">Close</button><button onclick="window.print()">🖨️ Print / Save PDF</button></div>`;
+  const bar = `<div class="ws-printbar ws-noprint">${opts.cover && (editId || opts.coverEditScope === "builder") ? '<button class="ghost" id="wsEditCover">✎ Edit cover</button>' : ""}${editId ? `<span class="ws-editnote" id="wsEditNote">${WS_EDIT_HINT}</span>` : ""}<button class="ghost" onclick="window.close()">Close</button><button onclick="window.print()">🖨️ Print / Save PDF</button></div>`;
   return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
     <style>${wsPrintCss()}</style></head>
     <body>${opts.readOnly ? "" : bar}<div class="ws-sheet">${doc}</div>${editId ? wsHeaderEditScript(editId) : ""}${opts.edit === "cpb" ? cpbPreviewEditHtml(questions, opts) : ""}${opts.autoPrint || opts.edit === "cpb" ? "" : pvsPreviewScriptHtml()}${opts.autoPrint ? `<script>window.addEventListener("load",()=>setTimeout(()=>{window.focus();window.print();},350));<\/script>` : ""}</body></html>`;
@@ -26293,7 +26290,14 @@ function wsHeaderEditScript(wsId) {
   function twins(field) { return [].slice.call(document.querySelectorAll('[data-ws-edit="' + field + '"]')); }
   // The cover and the sheet header hold the same field, so both move together —
   // one document must never print two different titles.
-  function put(field, value) { twins(field).forEach(function(el){ el.textContent = value; el.setAttribute("data-was", value); }); }
+  function put(field, value) {
+    twins(field).forEach(function(el){ el.textContent = value; el.setAttribute("data-was", value); });
+    if (field === "title") document.querySelectorAll(".pc-cover").forEach(function(cover){
+      var title = cover.querySelector(".pc-title");
+      if (title) title.classList.toggle("pc-title-long", value.length > 65);
+      cover.classList.toggle("pc-compact", value.length > 90 || cover.dataset.coverCompactDetails === "1");
+    });
+  }
   function save(el) {
     var field = el.getAttribute("data-ws-edit"), was = el.getAttribute("data-was") || "", val = clean(el.textContent);
     if (val === was) { el.textContent = was; return; }
@@ -26339,6 +26343,7 @@ async function wsOpenDocument(questions, title, opts) {
   w.document.open();
   w.document.write(html);
   w.document.close();
+  wsBindCoverEditor(w, title, opts);
   return w;
 }
 async function printCurrentWorksheet(autoPrint) {
@@ -26347,10 +26352,11 @@ async function printCurrentWorksheet(autoPrint) {
   const o = wsCurrentOptions();
   if (o.related) {
     const b = wsRelatedBuild(questions.map(q => q.id), wsCurrentTitle(), o);
-    if (b) { await wsOpenDocument(b.list, b.title, Object.assign(b.opts, { autoPrint: !!autoPrint })); return; }
+    if (b) { await wsOpenDocument(b.list, b.title, Object.assign(b.opts, { autoPrint: !!autoPrint, coverDesign: wsCoverDesign, headerOrg: wsCoverDesign.org, coverEditScope: "builder" })); return; }
   }
   await wsOpenDocument(questions, wsCurrentTitle(), Object.assign(o, {
     autoPrint, appLinks: o.appQr ? qcAppLinksFor(questions) : null,
+    coverDesign: wsCoverDesign, headerOrg: wsCoverDesign.org, coverEditScope: "builder",
   }));
 }
 
@@ -28996,6 +29002,8 @@ async function saveCurrentWorksheet() {
     title: wsCurrentTitle(),
     questionIds: ids,
     includeCover: opts.cover,
+    coverDesign: window.WorksheetCover.normalize(wsCoverDesign),
+    headerOrg: typeof wsCoverDesign.org === "string" ? wsCoverDesign.org : WS_HEADER_ORG,
     includeFields: opts.fields,
     includeAnswers: opts.withAnswers,
     includeQr: opts.withQr,
@@ -29473,18 +29481,82 @@ async function openSavedWorksheet(id, autoPrint) {
   // chosen questions on their own, which is the sheet without its extra pages.
   if (ws.includeRelated && _isAdmin() && qcLoaded) {
     const b = wsRelatedBuild(questions.map(q => q.id), ws.title || "Math Worksheet", po);
-    if (b) { await wsOpenDocument(b.list, b.title, Object.assign(b.opts, { autoPrint: !!autoPrint })); return; }
+    if (b) { await wsOpenDocument(b.list, b.title, Object.assign(b.opts, { autoPrint: !!autoPrint, coverDesign: ws.coverDesign, headerOrg: wsHeaderOrgOf(ws), headerEditId: wsMine(ws) ? ws.id : "" })); return; }
   }
   await wsOpenDocument(questions, ws.title || "Math Worksheet",
     Object.assign(po, {
       appLinks: po.appQr ? qcAppLinksFor(questions) : null,
       autoPrint, sheetUrl: worksheetShareUrl(ws), scoreTable,
       headerOrg: wsHeaderOrgOf(ws),
+      coverDesign: ws.coverDesign,
       // Only the OWNER may retype the header on the preview: a student can open
       // the teacher's sheet from this same list, and must not be able to retitle it.
       headerEditId: wsMine(ws) ? ws.id : ""
     }));
 }
+// Bind in the generated window so covers remain editable after generation.
+// A failed write leaves both the old sheet and the editor draft intact.
+function wsBindCoverEditor(preview, title, opts) {
+  const button = preview.document.getElementById("wsEditCover");
+  if (!button) return;
+  const owner = currentUser && currentUser.uid;
+  button.onclick = () => {
+    const saved = opts.headerEditId ? wsFind(opts.headerEditId) : null;
+    if (!owner || currentUser?.uid !== owner || (opts.headerEditId && (!saved || !wsMine(saved)))) {
+      toast("Reopen your own worksheet before editing its cover", "error"); return;
+    }
+    const design = saved ? saved.coverDesign : wsCoverDesign;
+    const cover = preview.document.querySelector(".pc-cover");
+    if (!cover) return;
+    const heading = saved ? saved.title : wsCurrentTitle();
+    const org = saved ? wsHeaderOrgOf(saved) : (typeof design.org === "string" ? design.org : WS_HEADER_ORG);
+    window.WorksheetCover.open(Object.assign({}, design || {}, { title: heading, org }), {
+      document: preview.document,
+      defaults: { subject: "math", subtitle: cover.querySelector(".pc-subtitle")?.textContent || "", footer: "Primary Mathematics · Think, explore, solve" },
+      noFields: !opts.fields,
+      onSave: async next => {
+        if (currentUser?.uid !== owner) throw new Error("Your account changed. Reopen this worksheet");
+        if (saved) {
+          if (wsFind(saved.id) !== saved || !wsMine(saved)) throw new Error("This worksheet is no longer editable");
+          // Persist a copy first; a failed write must not mutate the live sheet.
+          const updated = Object.assign({}, saved, { title: next.title, headerOrg: next.org, coverDesign: next });
+          await persistWorksheet(updated);
+          if (currentUser?.uid !== owner || wsFind(saved.id) !== saved) return;
+          Object.assign(saved, updated);
+          renderSavedWorksheets();
+          if (dgIsTest(saved) && $("page-diagnostic")?.classList.contains("active")) renderDiagnosticPage();
+          if (_wvWs && _wvWs.id === saved.id) renderWorksheetOverview();
+        } else {
+          wsCoverDesign = next;
+          if ($("wsTitle")) $("wsTitle").value = next.title;
+        }
+        const holder = preview.document.createElement("div");
+        holder.innerHTML = wsCoverHtml(next.title, next.subtitle, !opts.fields, "", next.org, !!opts.headerEditId, next);
+        const replacement = holder.querySelector(".pc-cover");
+        // Move the existing editable nodes, retaining their blur/paste handlers.
+        cover.querySelectorAll("[data-ws-edit]").forEach(old => {
+          const target = replacement.querySelector('[data-ws-edit="' + old.dataset.wsEdit + '"]');
+          if (target) target.replaceWith(old);
+        });
+        const qr = cover.querySelector(".ws-sheetqr");
+        if (qr) replacement.querySelector(".pc-main").appendChild(qr);
+        cover.replaceWith(replacement);
+        preview.document.querySelectorAll('[data-ws-edit="title"],[data-ws-edit="org"]').forEach(el => {
+          const value = el.dataset.wsEdit === "title" ? next.title : next.org;
+          el.textContent = value; el.setAttribute("data-was", value);
+        });
+        // Unsaved previews have ordinary, non-contenteditable question headers.
+        if (!opts.headerEditId) {
+          const h = preview.document.querySelector(".ws-head-text h1"), p = preview.document.querySelector(".ws-head-text p");
+          if (h) h.textContent = next.title;
+          if (p) p.textContent = next.org;
+        }
+        preview.document.title = next.title;
+      }
+    });
+  };
+}
+
 // ============ EDITING THE SHEET HEADER FROM ITS OWN PREVIEW ============
 // Called BY the preview window (see wsHeaderEditScript), which is a window this
 // app wrote and therefore same-origin. `field` is "title" or "org" and nothing
@@ -35782,7 +35854,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.105.0 · 2026-10-16";
+const APP_VERSION = "v1.106.0 · 2026-10-20";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -56610,6 +56682,7 @@ async function dgPrintTest(id, autoPrint) {
       // A diagnostic IS a saved worksheet, so its header is retyped on the
       // preview the same way — see wsPreviewHeaderSave.
       headerOrg: wsHeaderOrgOf(test),
+      coverDesign: test.coverDesign,
       headerEditId: wsMine(test) ? test.id : ""
     }));
 }
