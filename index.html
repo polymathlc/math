@@ -10535,8 +10535,6 @@ function appShareShow(app) {
 
 let guestSignInTried = false;
 onAuthStateChanged(auth, async (user) => {
-  // 🙋 Consults: the bridge follows THIS handler rather than keeping a listener of its own.
-  try { if (window.ConsultBridge && window.ConsultBridge.authChanged) window.ConsultBridge.authChanged(user); } catch (e) {}
   const authEpoch = ++_studentAuthEpoch;
   studentQuestionHistory.close(); _studentHistoryLoading = null; _practicePresentation = null;
   currentUser = null;
@@ -10550,6 +10548,8 @@ onAuthStateChanged(auth, async (user) => {
   // of its copy here. The session itself stays in localStorage under its own
   // uid, and wkInit picks it back up when that account signs in again.
   try { wkReset(); } catch (e) { console.warn("work session reset", e); }
+  // 🙋 Consults: the bridge follows THIS handler rather than keeping a listener of its own.
+  try { if (window.ConsultBridge && window.ConsultBridge.authChanged) window.ConsultBridge.authChanged(user); } catch (e) {}
   // 🧪 A printed app QR whose first read was refused retries as whoever has
   // just signed in — the pupil on their own device, or the anonymous guest.
   if (user && pendingShareApp && _appShareWaitAuth) appShareLoad(true);
