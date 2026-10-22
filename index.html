@@ -4935,6 +4935,7 @@ body.role-employee #emailBellBtn { display: none !important; }
 @media (prefers-reduced-motion: reduce) { .wk-chip.on .wk-chip-dot, .wk-pulse { animation: none; } }
 </style>
 <link rel="stylesheet" href="arcade-ui.css?v=2">
+<link rel="stylesheet" href="consult-answer.css?v=1">
 <link rel="stylesheet" href="./tcg-combat.css?v=1">
 </head>
 <body>
@@ -5071,6 +5072,8 @@ body.role-employee #emailBellBtn { display: none !important; }
         <button class="icon-btn rpg-chip rpg-el" id="rpgTopChip" type="button" style="display:none;" title="Your hero">🛡️ <span id="rpgTopChipText">Lv 1</span></button>
         <button class="icon-btn student-only" id="emailBellBtn" type="button" title="Email me when new questions are uploaded">🔔</button>
         <button class="icon-btn admin-only" id="flagInboxBtn" type="button" title="Flagged questions">🚩<span class="notify-count" id="flagCount">0</span></button>
+        <!-- 🙋 Consults (v1.106.0): shown by consult-bridge.js once signed in — the teacher's list, or the student's window to ask and watch answers -->
+        <button class="icon-btn consult-chip" id="consultLogBtn" type="button" hidden style="display:none;">🙋 Consults</button>
       </div>
       <div class="ai-badge"><span class="ai-dot" id="aiDot"></span><span id="aiStatus">AI starting…</span></div>
     </div>
@@ -6774,6 +6777,13 @@ body.role-employee #emailBellBtn { display: none !important; }
 
 <div id="toast"></div>
 
+<style>
+/* 🙋 CONSULTS (v1.106.0) — the top-bar chip consult-bridge.js paints. */
+.icon-btn.consult-chip{width:auto;padding:0 10px;gap:6px;font-size:.78rem;font-weight:700;white-space:nowrap}
+.icon-btn.consult-chip.consultOn{background:#FFE0B2;border-color:#FFCC80}
+</style>
+<script defer src="consult-answer.js?v=1"></script>
+<script defer src="consult-bridge.js?v=1"></script>
 <script type="module">
 // =====================================================================
 // Firebase (shared "mathgen--app" project — math data is namespaced
@@ -6968,10 +6978,22 @@ function serverErrorMessage(e) {
   return raw;
 }
 const googleProvider = new GoogleAuthProvider();
+let mathAppCheck = null;
 if (RECAPTCHA_SITE_KEY && !RECAPTCHA_SITE_KEY.startsWith("PASTE_")) {
-  try { initializeAppCheck(app, { provider: new ReCaptchaV3Provider(RECAPTCHA_SITE_KEY), isTokenAutoRefreshEnabled: true }); }
+  try { mathAppCheck = initializeAppCheck(app, { provider: new ReCaptchaV3Provider(RECAPTCHA_SITE_KEY), isTokenAutoRefreshEnabled: true }); }
   catch (e) { console.warn("App Check init failed:", e); }
 }
+// 🙋 CONSULTS (v1.106.0) — the button shared with Study Buddy, Ans Key and the
+// Science portal. consult-bridge.js loads the same modular SDK files this
+// module imported (same URLs, so the same Firestore, user and App Check) and
+// wraps them for consult-answer.js. The version here must match the imports
+// above; the bridge does nothing until it is attached.
+try {
+  if (window.ConsultBridge && typeof window.ConsultBridge.attach === 'function') {
+    window.ConsultBridge.attach({ app: 'math', sdk: '11.10.0', firebaseApp: app, appCheck: mathAppCheck,
+      toast: (msg) => { try { toast(msg); } catch (e) {} } });
+  }
+} catch (e) { console.warn('consult: the button could not start', e); }
 let geminiModel = null;
 let geminiTextModels = [];
 const AI_TEXT_MODEL_NAMES = [AI_MODEL, ...AI_FALLBACK_MODELS];
@@ -35782,7 +35804,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.105.0 · 2026-10-16";
+const APP_VERSION = "v1.106.0 · 2026-10-22";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
