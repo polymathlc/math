@@ -2,6 +2,18 @@
 
 Guidance for Claude when working in this repo.
 
+## 🙋 Consults — shared with Study Buddy, Ans Key and the Science portal (v1.107.0)
+
+`consult-answer.js` / `consult-answer.css` are byte for byte polymathlc/tutor's (copy fixes across, never
+re-derive); `consult-bridge.js` is byte for byte the Science portal's. The bridge loads the SAME gstatic
+modular SDK files this app imports (the `sdk` passed to `ConsultBridge.attach` must match the imports), wraps
+them in the compat shape consult-answer.js reads, sets `window.ConsultEnv` and paints `#consultLogBtn`:
+the teacher (chungzhikai@gmail.com only — not every portal admin) gets the log of every call and question
+from all four apps with 📝 Answer / Join / 🗑; a student gets a box to ask (text + optional photo, emailed
+through Study Buddy's `studyBuddyConsult` endpoint) and every video answer. Anonymous guests get nothing.
+Run `node --test tools/consult-bridge-tests.mjs` after touching any of it.
+
+
 ## Current AI defaults — v1.91.0
 - GPT 6.1 Sol (`gpt-6.1-sol`) is the default text, vision and thinking model.
   The default provider order is OpenAI, Gemini, Kimi. The earlier stack notes
