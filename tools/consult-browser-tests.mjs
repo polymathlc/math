@@ -1,4 +1,4 @@
-// 🙋 Consults on the REAL Maths page (v1.106.0): index.html loads, its own
+// 🙋 Consults on the REAL Maths page (v1.107.0): index.html loads, its own
 // module runs and attaches consult-bridge.js; only Firebase is replaced by the
 // same in-memory stand-ins the employee check serves in place of the gstatic
 // SDK files, so the bridge's own dynamic imports land on them too. Nothing

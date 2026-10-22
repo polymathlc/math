@@ -2,7 +2,7 @@
 
 Guidance for Claude when working in this repo.
 
-## 🙋 Consults — shared with Study Buddy, Ans Key and the Science portal (v1.106.0)
+## 🙋 Consults — shared with Study Buddy, Ans Key and the Science portal (v1.107.0)
 
 `consult-answer.js` / `consult-answer.css` are byte for byte polymathlc/tutor's (copy fixes across, never
 re-derive); `consult-bridge.js` is byte for byte the Science portal's. The bridge loads the SAME gstatic

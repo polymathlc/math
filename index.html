@@ -6996,7 +6996,7 @@ if (RECAPTCHA_SITE_KEY && !RECAPTCHA_SITE_KEY.startsWith("PASTE_")) {
   try { mathAppCheck = initializeAppCheck(app, { provider: new ReCaptchaV3Provider(RECAPTCHA_SITE_KEY), isTokenAutoRefreshEnabled: true }); }
   catch (e) { console.warn("App Check init failed:", e); }
 }
-// 🙋 CONSULTS (v1.106.0) — the button shared with Study Buddy, Ans Key and the
+// 🙋 CONSULTS (v1.107.0) — the button shared with Study Buddy, Ans Key and the
 // Science portal. consult-bridge.js loads the same modular SDK files this
 // module imported (same URLs, so the same Firestore, user and App Check) and
 // wraps them for consult-answer.js. The version here must match the imports
@@ -36157,7 +36157,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.106.0 · 2026-10-22";
+const APP_VERSION = "v1.107.0 · 2026-10-22";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
