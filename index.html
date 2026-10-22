@@ -765,6 +765,11 @@ html.app-share-open, html.app-share-open body { overflow: hidden; }
 .ws-extras-label { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
 .ws-extras label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.88rem; font-weight: 500; }
 .ws-extras input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--primary); }
+/* 🎨 📄 Cover page and its editor travel together, so the button never wraps
+   away from the tick it belongs to. */
+.ws-cover-pick { display: inline-flex; align-items: center; gap: 10px; flex-wrap: nowrap; }
+.ws-cover-pick .btn { padding: 6px 12px; font-size: 0.8rem; }
+.ws-cover-pick .btn.ws-cover-own { border-color: var(--primary); color: var(--primary); font-weight: 700; }
 .ws-actions-bar { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; padding-bottom: 10px; }
 
 /* My Worksheets */
@@ -4936,6 +4941,11 @@ body.role-employee #emailBellBtn { display: none !important; }
 </style>
 <link rel="stylesheet" href="arcade-ui.css?v=2">
 <link rel="stylesheet" href="./tcg-combat.css?v=1">
+<!-- 🎨 The Big M worksheet cover (window.WorksheetCover): the printed cover and
+     its editor. A classic script, so it is defined before the module below runs
+     and can find its own artwork from its own URL. If it fails to load, every
+     print falls back to the plain cover (wsCoverPlainHtml). -->
+<script src="worksheet-cover.js?v=1"></script>
 </head>
 <body>
 
@@ -5706,9 +5716,12 @@ body.role-employee #emailBellBtn { display: none !important; }
 
         <div class="ws-extras">
           <span class="ws-extras-label">Extras</span>
-          <label title="Add a Polymath cover page carrying the worksheet title and the student's name / date as page 1">
-            <input type="checkbox" id="wsIncludeCover"> 📄 Cover page
-          </label>
+          <span class="ws-cover-pick">
+            <label title="Add the Polymath Big M cover as page 1: the worksheet title, the level, and the student's name / date / score">
+              <input type="checkbox" id="wsIncludeCover"> 📄 Cover page
+            </label>
+            <button type="button" class="btn btn-outline btn-sm" id="wsEditCoverBtn" title="Change the cover: the level pill, the line under the title, the footer, the score box and how much artwork it carries">🎨 Edit cover</button>
+          </span>
           <label title="Print the blank Name / Date / Class lines. Turn it off for a clean sheet with no student fields at all.">
             <input type="checkbox" id="wsIncludeFields" checked> ✍️ Name / Date / Class
           </label>
@@ -10165,6 +10178,14 @@ let _rapidFilingIds = new Set();  // ids whose syllabus objectives are still bei
 let wsSelectedIds = new Set();
 let wsOrder = [];
 let savedWorksheets = [];
+// 🎨 The builder's Big M cover, as 🎨 Edit cover left it, until the sheet is
+// saved (then it is the saved doc's `cover`). `wsBuilderOrg` is the heading
+// printed with the title once that editor changed it — null means the default
+// WS_HEADER_ORG, "" means the teacher cleared it. Both belong to the signed-in
+// user and are dropped when another one signs in (wsCoverResetForUser).
+let wsCoverSettings = null;
+let wsBuilderOrg = null;
+let _wsCoverOwner = null;
 let _wseId = null;               // the saved worksheet open in the editor drawer
 let _wseOpenIds = new Set();     // …and which of its rows are expanded to show the question
 let studentGeneratedQuestions = [];
@@ -12849,6 +12870,10 @@ function _qbSyncPicks() {
 function clearBankPicks() {
   wsSelectedIds.clear();
   wsOrder = [];
+  // A cleared selection is a new sheet, so its 🎨 cover starts afresh too.
+  wsCoverSettings = null;
+  wsBuilderOrg = null;
+  if (typeof wsSyncCoverBtn === "function") wsSyncCoverBtn();
   _qbSyncPicks();
   _renderBankPickBar();
   updateWsCount();
@@ -25478,7 +25503,12 @@ function wsCurrentOptions() {
     shareSolutions: !!($("wsShareSolutions") || { checked: true }).checked,
     // 🧩 / 🧪 are the TEACHER's: only their browser has the charts loaded.
     related: _isAdmin() && !!($("wsIncludeRelated") || {}).checked,
-    appQr: _isAdmin() && !!($("wsIncludeAppQr") || { checked: true }).checked
+    appQr: _isAdmin() && !!($("wsIncludeAppQr") || { checked: true }).checked,
+    // 🎨 What 🎨 Edit cover chose for this sheet, until it is saved — and the
+    // heading printed with the title, once that editor changed it (absent, the
+    // sheet prints WS_HEADER_ORG as it always has).
+    coverSettings: wsCoverSettings,
+    ...(typeof wsBuilderOrg === "string" ? { headerOrg: wsBuilderOrg } : {})
   };
 }
 // =====================================================================
@@ -25518,6 +25548,10 @@ function wsRelatedBuild(ids, title, o) {
   return qcRelatedDocumentOpts(ids, {
     title, fields: o.fields, cover: o.cover, answers: o.withAnswers, qr: o.withQr,
     objBox: o.objBox, appQr: o.appQr, next: true,
+    coverSettings: o.coverSettings || null,
+    // The heading printed with the title, when the sheet has its own
+    // (🎨 Edit cover, or retyped on a saved sheet's preview).
+    ...(typeof o.headerOrg === "string" ? { headerOrg: o.headerOrg } : {}),
   });
 }
 function wsCurrentTitle() {
@@ -25541,7 +25575,131 @@ function wsHeadFieldHtml(tag, cls, field, value, edit, placeholder) {
       + ` data-ph="${escapeHtml(placeholder)}" title="Click to retype this — it is saved to the worksheet"` : "");
   return `<${tag}${attrs}>${escapeHtml(value)}</${tag}>`;
 }
-function wsCoverHtml(title, sub, noFields, sheetQr = "", org = WS_HEADER_ORG, edit = false) {
+// =====================================================================
+// 🎨 THE BIG M COVER (v1.106.0)
+// =====================================================================
+// Every cover this app prints is the Big M design from `worksheet-cover.js`
+// (window.WorksheetCover), the same design the Science portal prints, drawn
+// with pixel maths symbols: the faceted Polymath M across the top-right
+// corner, the level and Mathematics pills, a left-aligned title over the
+// magenta bar, a Name / Date / Score card and a footer naming the centre —
+// over 31 faint symbols and pastel shapes that never touch a word.
+//
+// It is a whole A4 sheet, edge to edge, printed on its own margin-free page
+// IN FRONT OF the footer table (see wsCoverSheetCss and wsBuildDocumentHtml),
+// so it is not one of the table's sections. Every sheet behind it keeps the
+// page margins and the repeating copyright footer.
+//
+// The two retypeable header fields keep their names on it — `title`, and
+// `org` as the small heading ABOVE the title, where the plain cover printed
+// it too — so one edit on the preview still updates the cover and the sheet
+// header together.
+//
+// Everything else a teacher can change lives in the worksheet's `cover`
+// settings (🎨 Edit cover): the level pill, the line under the title, the
+// footer, the field labels, the score box, the icon arrangement and how strong
+// the backdrop and the M are. Only the keys in WS_COVER_KEYS are ever read
+// from it, so a settings object can never override the title or the org.
+//
+// If worksheet-cover.js has not loaded, the plain cover below prints instead,
+// exactly as it did before v1.106.0.
+// Three short lines: the QR column is only about 23mm wide.
+const WS_COVER_QR_CAPTION = "📱 Scan for every\nquestion, video\n& answer";
+const WS_COVER_KEYS = ["level", "subtitle", "header", "footer", "nameLabel", "dateLabel", "scoreLabel", "score",
+  "layout", "scale", "opacity", "textureOpacity", "facetOpacity",
+  "artworkLayout", "artworkScale", "artworkOpacity", "artworkTextureOpacity", "artworkFacetOpacity", "coverDesign"];
+// The footer note follows the level: a primary sheet is Primary Mathematics.
+function wsCoverNoteFor(level) {
+  const l = String(level || "").trim().toUpperCase();
+  if (/^P[1-6]\b/.test(l)) return "Primary Mathematics";
+  if (/^S[1-5]\b/.test(l)) return "Secondary Mathematics";
+  return "";
+}
+// What a cover prints before anybody has edited it.
+function wsCoverDefaults(level) {
+  return {
+    subject: "math", subjectLocked: true,
+    header: WS_HEADER_ORG, footer: wsCoverNoteFor(level),
+    nameLabel: "Name", dateLabel: "Date", scoreLabel: "Score", score: true,
+  };
+}
+// The saved cover settings, reduced to the keys a cover may take from them.
+function wsCoverStyleOf(settings) {
+  const s = settings && typeof settings === "object" ? settings : {};
+  const out = {};
+  WS_COVER_KEYS.forEach(k => {
+    const v = s[k];
+    if (v === undefined || v === null) return;
+    if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") out[k] = v;
+  });
+  return out;
+}
+// The level pill starts from the questions on the sheet: the highest level
+// among the ones whose level reads cleanly, the way practice reads levels. A
+// cover's own saved level — including one the teacher cleared — always wins.
+function wsCoverLevel(questions) {
+  if (typeof parsePracticeLevel !== "function") return "";
+  let best = 0, label = "";
+  (questions || []).forEach(q => {
+    try {
+      const p = parsePracticeLevel(q && q.level);
+      if (p && p.known && !p.invalid && p.max > best) { best = p.max; label = p.label; }
+    } catch (_) { /* a level that cannot be read adds nothing */ }
+  });
+  return label;
+}
+function wsCoverHtml(title, sub, noFields, sheetQr = "", org = WS_HEADER_ORG, edit = false, settings = null, level = "") {
+  const cover = typeof WorksheetCover !== "undefined" && WorksheetCover && typeof WorksheetCover.render === "function" ? WorksheetCover : null;
+  if (!cover) return wsCoverPlainHtml(title, sub, noFields, sheetQr, org, edit);
+  const style = wsCoverStyleOf(settings);
+  const pill = typeof style.level === "string" ? style.level : String(level || "");
+  // On the owner's preview the title and the heading above it are retyped in
+  // place, carrying the SAME `data-ws-edit` names as the sheet header.
+  // `aria-label` carries the hint too: the cover's own stylesheet shows an
+  // empty editable field's aria-label, and outranks `.ws-edit`'s data-ph rule.
+  const bind = (field, ph) => edit ? { className: "ws-edit", attrs: {
+    contenteditable: "true", spellcheck: "false", "data-ws-edit": field, "data-ph": ph, "aria-label": ph,
+    title: "Click to retype this — it is saved to the worksheet",
+  } } : null;
+  const html = cover.render(Object.assign({}, wsCoverDefaults(pill), style, {
+    subject: "math",
+    title: String(title == null ? "" : title),
+    subheader: String(org == null ? "" : org),
+    subtitle: typeof style.subtitle === "string" ? style.subtitle : String(sub || ""),
+    level: pill,
+    fields: !noFields,
+    qrSvg: sheetQr || "",
+    qrCaption: sheetQr ? WS_COVER_QR_CAPTION : "",
+    bind: edit ? { title: bind("title", "Worksheet title"), subheader: bind("org", "Heading above the title") } : null,
+    className: "ws-cover-m",
+  }));
+  return `<section class="ws-cover-sheet" data-cover-design="${escapeHtml(cover.design || "big-m")}">${html}</section>`;
+}
+// Is this the full-bleed Big M sheet (printed in front of the footer table),
+// rather than the plain cover (a section inside it)?
+function wsCoverIsSheet(html) { return /^<section class="ws-cover-sheet"/.test(String(html || "")); }
+// The Big M sheet's own page rules. The design's padding is 6.05% / 7.05% /
+// 5.04% of the SHEET's width, and its type is sized in cqw of the space inside
+// that padding — so the cover must be laid out on a box exactly as wide as the
+// paper (210mm), never inside the page margins, or every icon placement
+// (a percentage of the sheet) lands on a word. Half a millimetre is left at the
+// foot so rounding in the PDF backend can never push it onto a second sheet.
+function wsCoverSheetCss() {
+  return `
+    @page ws-cover { size: A4 portrait; margin: 0; }
+    .ws-cover-sheet { display: block; box-sizing: border-box; margin: 0; padding: 0; background: #fff; }
+    @media screen {
+      .ws-cover-sheet { width: 210mm; max-width: 100%; margin: 0 auto 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.12); }
+      .ws-cover-sheet > .wc-cover.wc-m { width: 100%; height: auto; min-height: 0; aspect-ratio: 210 / 297; }
+    }
+    @media print {
+      .ws-cover-sheet { page: ws-cover; width: 210mm; height: 296.5mm; overflow: hidden; break-after: page; page-break-after: always; }
+      .ws-cover-sheet > .wc-cover.wc-m { width: 210mm; height: 296.5mm; min-height: 296.5mm; }
+    }`;
+}
+// The cover every print used before v1.106.0 — still printed whenever
+// worksheet-cover.js is not there to draw the Big M.
+function wsCoverPlainHtml(title, sub, noFields, sheetQr = "", org = WS_HEADER_ORG, edit = false) {
   return `<section class="ws-page ws-cover">
     <div class="ws-cover-inner">
       <img class="ws-cover-logo" src="${WS_COVER_LOGO}" alt="Polymath" onerror="this.onerror=null;this.src='${WS_LOGO_FALLBACK}';">
@@ -26250,8 +26408,17 @@ async function wsBuildDocumentHtml(questions, title, opts) {
       // refuses to break and is moved whole to the next page when it must be.
       `<section class="ws-page">${wsHeaderHtml(title, !opts.fields, opts.cover ? "" : sheetQr, org, !!editId)}${intro}${questions.map((q, i) => chunk(q, i, i === 0 ? wsHeadEstimateMm({ fields: !!opts.fields, qr: !opts.cover && !!sheetQr }) : 0)).join("")}</section>`,
     ];
+  // 🎨 The Big M cover is a whole A4 sheet printed IN FRONT OF the table, on
+  // its own margin-free page (wsCoverSheetCss); the plain fallback is still the
+  // table's first section, exactly as before. `coverSettings` is the sheet's
+  // saved 🎨 Edit cover choices, and the level pill starts from the questions.
+  const coverHtml = opts.cover
+    ? wsCoverHtml(title, `${questions.length} question${questions.length > 1 ? "s" : ""}`, !opts.fields, sheetQr, org, !!editId,
+      opts.coverSettings || null, wsCoverLevel(questions))
+    : "";
+  const coverSheet = coverHtml && wsCoverIsSheet(coverHtml) ? coverHtml : "";
   const sections = [
-    ...(opts.cover ? [wsCoverHtml(title, `${questions.length} question${questions.length > 1 ? "s" : ""}`, !opts.fields, sheetQr, org, !!editId)] : []),
+    ...(coverHtml && !coverSheet ? [coverHtml] : []),
     ...body,
     ...(scoreTable ? [scoreTable] : []),
     ...(opts.withAnswers ? [wsAnswerKeyHtml(questions, numbers)] : []),
@@ -26262,9 +26429,14 @@ async function wsBuildDocumentHtml(questions, title, opts) {
   </table>`;
   // The floating bar is `ws-noprint`, so the printed sheet never carries it.
   const bar = `<div class="ws-printbar ws-noprint">${editId ? `<span class="ws-editnote" id="wsEditNote">${WS_EDIT_HINT}</span>` : ""}<button class="ghost" onclick="window.close()">Close</button><button onclick="window.print()">🖨️ Print / Save PDF</button></div>`;
+  // The cover's own stylesheet and, on an editable preview, the script that
+  // re-fits a retyped title — both only when there IS a Big M cover, so every
+  // other document this builds comes out exactly as it always did.
+  const coverCss = coverSheet ? WorksheetCover.printStyles + wsCoverSheetCss() : "";
+  const coverFit = coverSheet && editId && typeof WorksheetCover.fitScript === "function" ? WorksheetCover.fitScript() : "";
   return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
-    <style>${wsPrintCss()}</style></head>
-    <body>${opts.readOnly ? "" : bar}<div class="ws-sheet">${doc}</div>${editId ? wsHeaderEditScript(editId) : ""}${opts.edit === "cpb" ? cpbPreviewEditHtml(questions, opts) : ""}${opts.autoPrint || opts.edit === "cpb" ? "" : pvsPreviewScriptHtml()}${opts.autoPrint ? `<script>window.addEventListener("load",()=>setTimeout(()=>{window.focus();window.print();},350));<\/script>` : ""}</body></html>`;
+    <style>${wsPrintCss()}${coverCss}</style></head>
+    <body>${opts.readOnly ? "" : bar}${coverSheet}<div class="ws-sheet">${doc}</div>${editId ? wsHeaderEditScript(editId) : ""}${coverFit}${opts.edit === "cpb" ? cpbPreviewEditHtml(questions, opts) : ""}${opts.autoPrint || opts.edit === "cpb" ? "" : pvsPreviewScriptHtml()}${opts.autoPrint ? `<script>window.addEventListener("load",()=>setTimeout(()=>{window.focus();window.print();},350));<\/script>` : ""}</body></html>`;
 }
 // ---- Editing the header ON the preview -----------------------------------
 // The teacher is looking at the sheet exactly as it will print, which is where
@@ -28959,6 +29131,7 @@ function _wsCol(uid) { return collection(db, "users", uid, "mathWorksheets"); }
 function wsMine(ws) { return !!(currentUser && ws && ws.ownerUid === currentUser.uid); }
 async function loadSavedWorksheets() {
   savedWorksheets = [];
+  wsCoverResetForUser(currentUser);
   if (!currentUser) return;
   const seen = new Set();
   const pull = async (uid) => {
@@ -28985,6 +29158,173 @@ async function persistWorksheet(ws) {
   ws.updatedAt = new Date().toISOString();
   await setDoc(doc(db, "users", currentUser.uid, "mathWorksheets", ws.id), ws);
 }
+// =====================================================================
+// 🎨 EDIT COVER — the Big M cover's own editor (v1.106.0)
+// =====================================================================
+// `WorksheetCover.edit` (worksheet-cover.js) opens a dialog with the form on
+// the left and the cover itself on the right, where any text can also be
+// clicked and retyped. It is opened from two places:
+//   • 📝 Create Worksheet, beside 📄 Cover page — the sheet being built. The
+//     choices are held in `wsCoverSettings` and saved with the sheet.
+//   • 📄 My Worksheets, 🎨 Cover on a sheet the signed-in user OWNS — saved
+//     to that worksheet's own doc straight away.
+//
+// The TITLE and the heading above it are not cover settings: they are the
+// worksheet's own `title` and `headerOrg`, the two values the sheet header
+// prints as well, and the editor writes them back there — so a cover can never
+// carry a different title from the sheet behind it.
+//
+// What IS stored is reduced to WS_COVER_KEYS and to what the teacher actually
+// changed (wsCoverSettingsFrom): a level pill, a line under the title or a
+// footer note still equal to what the sheet would print anyway is left out,
+// so it keeps following the questions — a sheet that gains a P6 question gains
+// the P6 pill, and its "12 questions" line counts the new one.
+function wsCoverResetForUser(user) {
+  const uid = (user && user.uid) || null;
+  if (_wsCoverOwner === uid) return;
+  _wsCoverOwner = uid;
+  wsCoverSettings = null;
+  wsBuilderOrg = null;
+  wsSyncCoverBtn();
+}
+// The builder's 🎨 button says when this sheet carries a cover of its own, so
+// a cover chosen for one sheet is never carried onto the next unseen.
+function wsSyncCoverBtn() {
+  const b = typeof document !== "undefined" ? document.getElementById("wsEditCoverBtn") : null;
+  if (!b) return;
+  const own = !!wsCoverSettings || typeof wsBuilderOrg === "string";
+  b.textContent = own ? "🎨 Cover edited" : "🎨 Edit cover";
+  b.classList.toggle("ws-cover-own", own);
+}
+function wsCoverEditorReady() {
+  return typeof WorksheetCover !== "undefined" && !!WorksheetCover && typeof WorksheetCover.edit === "function";
+}
+// One line of header text, the way the preview's own header edit stores it.
+function wsCoverCleanText(value) {
+  return String(value == null ? "" : value).replace(/\s+/g, " ").trim().slice(0, WS_HEADER_MAX);
+}
+// What a sheet's cover prints when nobody has chosen otherwise.
+function wsCoverAutoFor(questions) {
+  const n = (questions || []).length;
+  const level = wsCoverLevel(questions);
+  return { level, subtitle: n ? `${n} question${n === 1 ? "" : "s"}` : "", footer: wsCoverNoteFor(level) };
+}
+// The editor's result, reduced to what a worksheet keeps. `auto` is what the
+// sheet would print by itself; anything still equal to it is left out.
+const WS_COVER_ART_DEFAULTS = { layout: "scattered", scale: 1, opacity: 0.38, textureOpacity: 0.6, facetOpacity: 1 };
+const WS_COVER_TEXT_DEFAULTS = { header: WS_HEADER_ORG, nameLabel: "Name", dateLabel: "Date", scoreLabel: "Score" };
+function wsCoverSettingsFrom(result, auto) {
+  const r = result && typeof result === "object" ? result : {};
+  const out = {};
+  // Text the cover prints: cleaned to one line each.
+  ["level", "subtitle", "footer"].forEach(k => {
+    if (typeof r[k] !== "string") return;
+    const v = wsCoverCleanText(r[k]);
+    // The footer note follows the pill the teacher ended up with.
+    const would = k === "footer" ? wsCoverNoteFor(typeof out.level === "string" ? out.level : auto.level) : String(auto[k] || "");
+    if (v !== would) out[k] = v;
+  });
+  Object.keys(WS_COVER_TEXT_DEFAULTS).forEach(k => {
+    if (typeof r[k] !== "string") return;
+    const v = wsCoverCleanText(r[k]);
+    // A label typed away to nothing prints its default rather than a bare line.
+    if (v && v !== WS_COVER_TEXT_DEFAULTS[k]) out[k] = v;
+  });
+  if (r.score === false) out.score = false;
+  // The artwork: the arrangement and the four strengths, inside their ranges.
+  const layout = ["scattered", "frame", "minimal"].includes(r.layout) ? r.layout : "scattered";
+  if (layout !== WS_COVER_ART_DEFAULTS.layout) out.layout = layout;
+  [["scale", 0.6, 1.35], ["opacity", 0.15, 1], ["textureOpacity", 0, 1], ["facetOpacity", 0, 1]].forEach(([k, min, max]) => {
+    const n = Number(r[k]);
+    if (!Number.isFinite(n)) return;
+    const v = Math.round(Math.min(max, Math.max(min, n)) * 100) / 100;
+    if (Math.abs(v - WS_COVER_ART_DEFAULTS[k]) > 1e-9) out[k] = v;
+  });
+  // Stamped so the cover knows these strengths were chosen for THIS design.
+  out.coverDesign = (typeof WorksheetCover !== "undefined" && WorksheetCover && WorksheetCover.design) || "big-m";
+  return out;
+}
+async function wsEditCover(where, id) {
+  if (!wsCoverEditorReady()) { toast("The cover editor didn't load — check your connection and refresh the page", "error"); return false; }
+  if (document.querySelector("dialog.wc-editor[open]")) return false;   // one editor at a time
+  const saved = where === "saved";
+  let ws = null, questions, title, org, settings, fieldsOn;
+  if (saved) {
+    ws = wsFind(id);
+    if (!ws) { toast("That worksheet isn't loaded any more", "error"); return false; }
+    // A student can see the teacher's sheets in the same list; only the owner's
+    // cover is theirs to change.
+    if (!wsMine(ws)) { toast("That worksheet belongs to your teacher", "error"); return false; }
+    questions = wsSavedQuestions(ws);
+    title = ws.title || (dgIsTest(ws) ? "Diagnostic Test" : "Math Worksheet");
+    org = wsHeaderOrgOf(ws);
+    settings = ws.cover || null;
+    fieldsOn = !!($("mwIncludeFields") || { checked: true }).checked;
+  } else {
+    questions = wsSelectedQuestions();
+    title = wsCurrentTitle();
+    org = typeof wsBuilderOrg === "string" ? wsBuilderOrg : WS_HEADER_ORG;
+    settings = wsCoverSettings;
+    fieldsOn = !!($("wsIncludeFields") || { checked: true }).checked;
+  }
+  const auto = wsCoverAutoFor(questions);
+  const style = wsCoverStyleOf(settings);
+  const level = typeof style.level === "string" ? style.level : auto.level;
+  const owner = (currentUser && currentUser.uid) || null;
+  const result = await WorksheetCover.edit(Object.assign(wsCoverDefaults(level), style, {
+    subject: "math", subjectLocked: true, coverDesign: WorksheetCover.design,
+    title, subheader: org, level,
+    subtitle: typeof style.subtitle === "string" ? style.subtitle : auto.subtitle,
+    footer: typeof style.footer === "string" ? style.footer : wsCoverNoteFor(level),
+    fields: fieldsOn,
+  }));
+  if (!result) return false;
+  // The dialog can sit open while somebody signs out and another signs in.
+  if (((currentUser && currentUser.uid) || null) !== owner) { toast("The account changed — open the cover editor again", "error"); return false; }
+  const next = wsCoverSettingsFrom(result, auto);
+  const fallbackTitle = saved && dgIsTest(ws) ? "Diagnostic Test" : "Math Worksheet";
+  // A title or heading the teacher did not touch stays exactly as it was —
+  // a long saved title is never cut to WS_HEADER_MAX just by opening this. A
+  // retyped one is cleaned and capped like a retype on the preview.
+  const same = (a, b) => String(a == null ? "" : a).replace(/\s+/g, " ").trim() === String(b == null ? "" : b).replace(/\s+/g, " ").trim();
+  const newTitle = same(result.title, title) ? title : (wsCoverCleanText(result.title) || fallbackTitle);
+  const newOrg = same(result.subheader, org) ? org : wsCoverCleanText(result.subheader);
+  // Whoever ticks 🎨 Edit cover wants a cover on the next print, and the
+  // student-fields tick follows the editor's own.
+  const tick = (coverId, fieldsId) => {
+    const c = $(coverId); if (c) c.checked = true;
+    const f = $(fieldsId); if (f) f.checked = result.fields !== false;
+  };
+  if (saved) {
+    const was = { cover: ws.cover, title: ws.title, headerOrg: ws.headerOrg };
+    ws.cover = next; ws.title = newTitle; ws.headerOrg = newOrg;
+    try {
+      await persistWorksheet(ws);
+    } catch (e) {
+      // Put the in-memory copy back, so the list and the database agree.
+      ["cover", "title", "headerOrg"].forEach(k => { if (was[k] === undefined) delete ws[k]; else ws[k] = was[k]; });
+      console.warn("save worksheet cover:", e);
+      toast("Couldn't save the cover: " + ((e && e.message) || e), "error");
+      return false;
+    }
+    tick("mwIncludeCover", "mwIncludeFields");
+    renderSavedWorksheets();
+    if (dgIsTest(ws) && ($("page-diagnostic") || {}).classList && $("page-diagnostic").classList.contains("active")) renderDiagnosticPage();
+    if (_wvWs && _wvWs.id === ws.id) renderWorksheetOverview();
+    toast("🎨 Cover saved — it prints in front of “" + newTitle + "”", "success");
+  } else {
+    wsCoverSettings = next;
+    wsBuilderOrg = newOrg === WS_HEADER_ORG ? null : newOrg;
+    const t = $("wsTitle");
+    // An untouched title box stays empty, so it still shows its hint.
+    if (t && !(newTitle === "Math Worksheet" && !t.value.trim())) t.value = newTitle;
+    tick("wsIncludeCover", "wsIncludeFields");
+    wsSyncCoverBtn();
+    toast("🎨 Cover ready — 👁️ Preview to see it in front of the sheet", "success");
+  }
+  return true;
+}
+window.wsEditCover = wsEditCover;
 async function saveCurrentWorksheet() {
   const ids = wsOrder.filter(id => wsSelectedIds.has(id));
   if (!ids.length) { toast("Select some questions first", "error"); return; }
@@ -29011,6 +29351,11 @@ async function saveCurrentWorksheet() {
     ownerName: currentUser.name || "",
     createdAt: new Date().toISOString()
   };
+  // 🎨 The cover 🎨 Edit cover built for this sheet, and the heading printed
+  // with its title once that editor changed it. Firestore refuses `undefined`,
+  // so each is only written when there is one.
+  if (opts.coverSettings) ws.cover = Object.assign({}, opts.coverSettings);
+  if (typeof opts.headerOrg === "string") ws.headerOrg = opts.headerOrg;
   try {
     await persistWorksheet(ws);
     savedWorksheets.unshift(ws);
@@ -29062,7 +29407,8 @@ function renderSavedWorksheets() {
         <button class="btn btn-ghost btn-sm" data-ws-preview="${escapeHtml(ws.id)}">👁️ Preview</button>
         ${_isEmployee() ? "" : `<button class="btn btn-blue btn-sm" data-ws-practise="${escapeHtml(ws.id)}">✍️ Practise</button>`}
         ${canManageQuestions() ? `<button class="btn btn-outline btn-sm" data-ws-akc="${escapeHtml(ws.id)}" title="ChatGPT and Gemini each solve every question on this sheet from scratch, at the same time, and the report compares their answers with your answer key, working and marking guide.">🔍 Check answer keys</button>` : ""}
-        ${wsMine(ws) ? `<button class="btn btn-ghost btn-sm" data-ws-edit="${escapeHtml(ws.id)}" title="Change which questions are on this sheet">✎ Questions</button>
+        ${wsMine(ws) ? `<button class="btn btn-ghost btn-sm" data-ws-cover="${escapeHtml(ws.id)}" title="Edit this worksheet's printed cover: the title, the level pill, the line under the title, the footer, the score box and the artwork">🎨 Cover</button>
+        <button class="btn btn-ghost btn-sm" data-ws-edit="${escapeHtml(ws.id)}" title="Change which questions are on this sheet">✎ Questions</button>
         <button class="btn btn-danger btn-sm" data-ws-del="${escapeHtml(ws.id)}">🗑 Delete</button>` : `<span class="ws-saved-meta" style="margin:0;align-self:center;">${_isEmployee() ? "The teacher's worksheet" : "Set by your teacher"}</span>`}
       </div>
     </div>`;
@@ -29072,6 +29418,7 @@ function renderSavedWorksheets() {
   grid.querySelectorAll("[data-ws-preview]").forEach(b => b.addEventListener("click", () => openSavedWorksheet(b.dataset.wsPreview, false)));
   grid.querySelectorAll("[data-ws-akc]").forEach(b => b.addEventListener("click", () => akcCheckWorksheet(b.dataset.wsAkc)));
   grid.querySelectorAll("[data-ws-practise]").forEach(b => b.addEventListener("click", () => practiseWorksheet(b.dataset.wsPractise)));
+  grid.querySelectorAll("[data-ws-cover]").forEach(b => b.addEventListener("click", () => wsEditCover("saved", b.dataset.wsCover)));
   grid.querySelectorAll("[data-ws-edit]").forEach(b => b.addEventListener("click", () => wseOpen(b.dataset.wsEdit)));
   grid.querySelectorAll("[data-ws-del]").forEach(b => b.addEventListener("click", () => deleteSavedWorksheet(b.dataset.wsDel)));
 }
@@ -29471,8 +29818,10 @@ async function openSavedWorksheet(id, autoPrint) {
   // 🧩 A sheet saved with its related questions reprints as the same booklet —
   // for the teacher, whose browser has the charts. Anyone else gets the
   // chosen questions on their own, which is the sheet without its extra pages.
+  // 🎨 The sheet's own Big M cover choices ride with every reprint of it.
+  po.coverSettings = ws.cover || null;
   if (ws.includeRelated && _isAdmin() && qcLoaded) {
-    const b = wsRelatedBuild(questions.map(q => q.id), ws.title || "Math Worksheet", po);
+    const b = wsRelatedBuild(questions.map(q => q.id), ws.title || "Math Worksheet", Object.assign({}, po, { headerOrg: wsHeaderOrgOf(ws) }));
     if (b) { await wsOpenDocument(b.list, b.title, Object.assign(b.opts, { autoPrint: !!autoPrint })); return; }
   }
   await wsOpenDocument(questions, ws.title || "Math Worksheet",
@@ -29808,6 +30157,8 @@ function wseRender() {
 $("wsSearch").addEventListener("input", renderWsQuestions);
 $("wsSelectAll").addEventListener("change", e => toggleWsSelectAll(e.target.checked));
 $("wsPreviewBtn").addEventListener("click", () => printCurrentWorksheet(false));
+// 🎨 The builder's Big M cover — see wsEditCover.
+if ($("wsEditCoverBtn")) $("wsEditCoverBtn").addEventListener("click", () => wsEditCover("builder"));
 ["wsIncludeRelated", "wsIncludeAppQr"].forEach(id => { const el = $(id); if (el) el.addEventListener("change", wsSyncRelatedUi); });
 $("wsPrintBtn").addEventListener("click", () => printCurrentWorksheet(true));
 $("wsSaveBtn").addEventListener("click", saveCurrentWorksheet);
@@ -35782,7 +36133,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.105.0 · 2026-10-16";
+const APP_VERSION = "v1.106.0 · 2026-10-22";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -38509,7 +38860,7 @@ function qcBookletDocumentOpts(plan, title, o) {
     const refs = (tx.refs || []).map(r => `<div class="qcb-refs">↪ ${escapeHtml(r)}</div>`).join("");
     const first = pg.n === 1;
     return {
-      lead: (first ? wsHeaderHtml(title, !o.fields, "", WS_HEADER_ORG) + guide : "") + label(pg.n, tx.label) +
+      lead: (first ? wsHeaderHtml(title, !o.fields, "", typeof o.headerOrg === "string" ? o.headerOrg : WS_HEADER_ORG) + guide : "") + label(pg.n, tx.label) +
         (tx.intro ? `<p class="qcb-intro">${escapeHtml(tx.intro)}</p>` : "") + refs,
       questions: pg.keys.map(k => qcPrintableQ(qcParseKey(k).id)).filter(Boolean),
       // The lead sits above the page's first question, so that question has
@@ -38523,6 +38874,10 @@ function qcBookletDocumentOpts(plan, title, o) {
     opts: {
       cover: !!o.cover, fields: !!o.fields, withQr: !!o.qr, withAnswers: !!o.answers, autoPrint: !!o.autoPrint,
       objBox: !!o.objBox,
+      // 🎨 the sheet's own Big M cover choices, when it has a cover at all,
+      // and its own heading — on the cover and on the booklet's first header
+      coverSettings: o.coverSettings || null,
+      ...(typeof o.headerOrg === "string" ? { headerOrg: o.headerOrg } : {}),
       // A 🔒 step is held out of a pupil's bank, so the "scan to AI-mark" link
       // could never open for them: only the questions a pupil can reach get one.
       qrFilter: q => !qIsFoundation(q),
@@ -56490,6 +56845,11 @@ async function dgSaveTest() {
     ownerName: currentUser.name || "",
     createdAt: existing ? (existing.createdAt || new Date().toISOString()) : new Date().toISOString()
   };
+  // The doc is written whole, so what this page does not edit is carried over:
+  // the 🎨 cover saved on the test in My Worksheets, and the heading retyped on
+  // its preview. Rebuilding the questions must not throw either away.
+  if (existing && existing.cover && typeof existing.cover === "object") test.cover = existing.cover;
+  if (existing && typeof existing.headerOrg === "string") test.headerOrg = existing.headerOrg;
   try {
     await persistWorksheet(test);
     const at = savedWorksheets.findIndex(w => w.id === test.id);
@@ -56608,8 +56968,10 @@ async function dgPrintTest(id, autoPrint) {
       sheetUrl: worksheetShareUrl(test),
       scoreTable: test.includeScoreTable !== false ? dgTestScoreSegments(test, questions) : null,
       // A diagnostic IS a saved worksheet, so its header is retyped on the
-      // preview the same way — see wsPreviewHeaderSave.
+      // preview the same way — see wsPreviewHeaderSave — and its 🎨 cover is
+      // the one 🎨 Cover saved on it in My Worksheets.
       headerOrg: wsHeaderOrgOf(test),
+      coverSettings: test.cover || null,
       headerEditId: wsMine(test) ? test.id : ""
     }));
 }
@@ -56623,7 +56985,15 @@ async function dgPrintDraft(autoPrint) {
       withAnswers: !!dgOpts.withAnswers && canManageQuestions(),
       autoPrint,
       scoreTable: dgOpts.scoreTable ? dgScoreSegments(loOf, questions) : null
-    }));
+    }, dgDraftCoverOpts()));
+}
+// A test being REBUILT previews with its own 🎨 cover and heading — the ones
+// dgSaveTest will keep — rather than the defaults.
+function dgDraftCoverOpts() {
+  const existing = dgEditingId ? dgFindTest(dgEditingId) : null;
+  if (!existing) return {};
+  return Object.assign({ coverSettings: existing.cover || null },
+    typeof existing.headerOrg === "string" ? { headerOrg: existing.headerOrg } : {});
 }
 function dgPractiseDraft() {
   const questions = _studentManualQuestions(dgDraftQuestions());
