@@ -1,0 +1,37 @@
+name: Big M worksheet cover
+on:
+  pull_request:
+    paths: ['index.html', 'worksheet-cover.js', 'assets/worksheet-covers/**', 'assets/branding/**', 'practice-mastery.js', 'tools/worksheet-cover*.mjs', 'tools/worksheet-header-tests.mjs', '.github/workflows/worksheet-cover.yml']
+  push:
+    branches: [main]
+    paths: ['index.html', 'worksheet-cover.js', 'assets/worksheet-covers/**', 'assets/branding/**', 'practice-mastery.js', 'tools/worksheet-cover*.mjs', 'tools/worksheet-header-tests.mjs', '.github/workflows/worksheet-cover.yml']
+permissions:
+  contents: read
+jobs:
+  cover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Cover structure, settings and the documents it goes into
+        run: |
+          node tools/worksheet-cover-tests.mjs
+          node tools/worksheet-header-tests.mjs
+      - name: Install browser and PDF rasteriser
+        run: |
+          npm install --prefix /tmp/cover-browser --no-audit --no-fund playwright@1.62.1
+          /tmp/cover-browser/node_modules/.bin/playwright install --with-deps chromium
+          sudo apt-get install -y --no-install-recommends poppler-utils
+      - name: Every cover on screen, on a phone and on paper, and the editor
+        env:
+          PLAYWRIGHT_MODULE: /tmp/cover-browser/node_modules/playwright
+          COVER_REQUIRE_RASTER: '1'
+        run: node tools/worksheet-cover-browser-tests.mjs /tmp/cover-qa
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: worksheet-cover
+          path: /tmp/cover-qa

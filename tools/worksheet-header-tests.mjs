@@ -24,6 +24,7 @@
 //    rejection, so a parent tab holding the new title while the database holds
 //    the old one is two surfaces disagreeing with no way to tell which is real.
 import fs from 'fs';
+import vm from 'vm';
 
 const PAGE = new URL('../index.html', import.meta.url).pathname;
 const src = fs.readFileSync(PAGE, 'utf8');
@@ -82,7 +83,13 @@ const saveBlock = cut(
   'header save block'
 );
 
-const mk = () => new Function(FIXTURE + headerBlock + scriptBlock + saveBlock + `
+// The real Big M cover script, for the cases that print it. Without it the app
+// prints the plain cover, which is what the other cases exercise.
+const coverContext = { URL, location: { href: 'https://polymathlc.github.io/math/index.html' } };
+vm.runInNewContext(fs.readFileSync(new URL('../worksheet-cover.js', import.meta.url), 'utf8'), coverContext);
+const BIG_M = coverContext.WorksheetCover;
+
+const mk = (cover = null) => new Function('WorksheetCover', FIXTURE + headerBlock + scriptBlock + saveBlock + `
 return {
   state: () => ({ sheets, writes, toasts, renders }),
   seed(list) { sheets = list; },
@@ -95,7 +102,7 @@ return {
   script: wsHeaderEditScript,
   MAX: WS_HEADER_MAX,
   DEFAULT_ORG: WS_HEADER_ORG,
-};`)();
+};`)(cover);
 
 const cases = [];
 const test = (name, fn) => cases.push({ name, fn });
@@ -213,6 +220,32 @@ test('the COVER carries the SAME field names as the header', () => {
      'the cover and the header disagree about the field names');
 });
 
+test('the BIG M cover carries the SAME field names as the header', () => {
+  // v1.106.0: the cover is the Big M design. The heading printed with the title
+  // sits ABOVE it there, but it is the same value under the same name.
+  const M = mk(BIG_M);
+  const cover = M.cover('Fractions', '3 questions', false, '', M.DEFAULT_ORG, true);
+  ok(cover.includes('wc-cover wc-m'), 'the Big M cover was not printed');
+  eq(fields(cover).sort(), fields(M.header('Fractions', false, '', M.DEFAULT_ORG, true)).sort(),
+     'the Big M cover and the header disagree about the field names');
+  ok(!/contenteditable/.test(M.cover('Fractions', '', false, '', M.DEFAULT_ORG, false)), 'a cover that is not editable carried contenteditable');
+});
+
+test('a cleared line prints NO heading on the Big M cover either', () => {
+  // The cover's footer and logo name the centre on purpose; what must not come
+  // back is the cleared line itself, as the heading above the title.
+  const M = mk(BIG_M);
+  ok(!M.cover('T', '', false, '', '', false).includes('wc-eyebrow'), 'a cleared line printed a heading anyway');
+  ok(M.cover('T', '', false, '', 'Raffles Girls Primary', false).includes('>Raffles Girls Primary</div>'), 'a per-sheet line was ignored');
+});
+
+test('a typed title is escaped on the Big M cover', () => {
+  const M = mk(BIG_M);
+  const html = M.cover('<script>x</script>', '', false, '', '"quoted"', true);
+  ok(!/<script>/.test(html), 'a title went onto the cover as markup');
+  ok(html.includes('&lt;script&gt;x&lt;/script&gt;') && html.includes('&quot;quoted&quot;'), 'the title or the heading was not escaped');
+});
+
 test('the header prints the org it was given, not a constant', () => {
   const M = mk();
   ok(M.header('T', false, '', 'Raffles Girls Primary', false).includes('Raffles Girls Primary'), 'a per-sheet line was ignored');
@@ -244,8 +277,10 @@ test('both print paths gate the editable header on ownership', () => {
 });
 
 test('both print paths hand over the sheet\'s own header line', () => {
+  // A saved sheet (as itself, and — v1.106.0 — as its 🧩 related booklet, whose
+  // cover and first header print the same line) and a diagnostic.
   const orgs = src.match(/headerOrg:\s*wsHeaderOrgOf\((ws|test)\)/g) || [];
-  eq(orgs.length, 2, 'a print path ignores the sheet\'s saved header line');
+  eq(orgs.length, 3, 'a print path ignores the sheet\'s saved header line');
 });
 
 test('the save function is on window — the preview reaches it as opener.<name>', () => {

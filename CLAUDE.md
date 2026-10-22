@@ -1052,6 +1052,97 @@ the preview itself** and saved to the worksheet.
   fields over and gets the same editable header.
 - Run **`node tools/worksheet-header-tests.mjs`** after touching any of it.
 
+## 🎨 The worksheet cover is the Big M design (v1.106.0)
+
+`worksheet-cover.js` (window.`WorksheetCover`: `render`, `edit`, `printStyles`,
+`fitScript`, `titleSize`), loaded as a CLASSIC script in `<head>` before the
+module; in `index.html` search `THE BIG M COVER` (`wsCoverHtml`,
+`wsCoverSheetCss`, `wsCoverLevel`, `wsCoverStyleOf`, `WS_COVER_KEYS`) and
+`EDIT COVER` (`wsEditCover`, `wsCoverSettingsFrom`). The artwork is
+`assets/worksheet-covers/math-pixel-icons.png` (a 672 × 672 RGBA sheet of
+sixteen 168px pixel maths symbols) and `assets/branding/polymath-learning-centre.png`.
+
+Every cover this app prints is the design the Science portal (`polymathlc/cer`,
+v1.438.0) prints, drawn with pixel maths symbols: the faceted Polymath M across
+the top-right corner, the level and **Mathematics** pills, a small heading, a
+left-aligned title over the magenta bar, the line under it, a Name / Date /
+Score card and a footer naming the centre — over 31 faint symbols and pastel
+shapes placed where the approved A4 design put them.
+
+- **The cover is a whole A4 sheet, edge to edge, printed IN FRONT OF the footer
+  table.** `wsBuildDocumentHtml` puts the `<section class="ws-cover-sheet">`
+  before `.ws-sheet`, on its own margin-free named page (`@page ws-cover`,
+  210mm × 296.5mm — half a millimetre short so PDF rounding never spills it).
+  Do NOT move it back into the table: inside the 13mm page margins the sheet is
+  184mm wide, and the design is only right on the full 210mm (see the next
+  point). The price is that the cover page carries no copyright `<tfoot>`; every
+  sheet behind it still does — the same as the Science portal.
+- **The icons never sit on words, and that rests on three things together.**
+  Icon placements (`M_ICONS`) are percentages of the SHEET; type is sized in
+  `cqw` of the space inside the padding, and the padding is a percentage of the
+  sheet's width. So on any box of A4 proportions — the paper, the on-screen
+  preview, the editor, a phone — the words land where the design put them. The
+  card is held above the footer by `.wc-tail`, so a long title only eats the
+  gap ABOVE the card, and long titles step down (`fitSize`). There are no
+  `max(7px, …)` floors on the card or footer type any more: on a phone they made
+  the card taller than the design and it rode up into the icons. Icon size stops
+  at **1.35** (`M_SCALE_MAX`): at 1.4 the corner symbol turns into the logo.
+- **The two retypeable header fields keep their names.** `title`, and `org` —
+  the line printed with the title — which on the cover is the small heading
+  ABOVE it (where the plain cover printed it too). `render()`'s `bind` option
+  hands the cover the same `data-ws-edit` attributes as the sheet header, so one
+  edit on the owner's preview updates both. A binding can only ADD checked,
+  escaped attributes and classes — never markup, `on*`, `style`, `class`, `src`
+  or `href`. A bound field is drawn even when empty, so a cleared heading can be
+  typed back into; an unbound cleared heading prints nothing (not the default).
+  `fitScript()` re-fits a title retyped on the preview, typed or set by the
+  edit script, with the same steps as `render()`.
+- **The sheet QR moves onto the cover** when there is one: the third column of
+  the fields card (`qrSvg`, `wc-has-qr`), or a small card of its own with the
+  student fields off (`wc-qr-only`). It stays inside the card's band, so the
+  icons stay clear of it as they do of the card. `qrSvg` must BE an `<svg>`;
+  anything else is dropped.
+- **🎨 Edit cover** (`WorksheetCover.edit`) is beside 📄 Cover page on Create
+  Worksheet (held in `wsCoverSettings` / `wsBuilderOrg` until the sheet is
+  saved, dropped on another sign-in) and **🎨 Cover** on every sheet in My
+  Worksheets the user OWNS (saved straight to the doc, re-checking ownership,
+  rolled back if the write fails, refused if the account changed while the
+  dialog was open). The title and heading it edits are the worksheet's own
+  `title` / `headerOrg`, never cover settings. What it stores in `ws.cover` is
+  reduced to `WS_COVER_KEYS` and to what the teacher CHANGED: a level pill, a
+  "12 questions" line or a footer note still equal to what the sheet prints by
+  itself is left out, so it keeps following the questions. A cleared pill, line
+  or note IS stored (as `""`). Every print path hands `ws.cover` over as
+  `coverSettings`: the builder, a saved sheet, a diagnostic and the 🧩 related
+  booklet — and the booklet now carries the sheet's own heading too, on its
+  cover AND its first header (it used to print `WS_HEADER_ORG` there).
+- **A title or heading the editor did not touch is kept exactly as it was** —
+  never cut to `WS_HEADER_MAX` just by opening the editor; a retyped one is
+  cleaned and capped like a retype on the preview. Text typed into the editor's
+  preview is read with `textContent`, NOT `innerText`, which would store the CSS
+  capitals ("NAME") the heading and labels are drawn in. Every field is one line.
+- **`dgSaveTest` writes the whole doc**, so it carries the test's `cover` and
+  `headerOrg` over; rebuilding a diagnostic's questions must not throw either
+  away. `dgPrintDraft` previews a test being rebuilt with them (`dgDraftCoverOpts`).
+- **The builder's cover belongs to the sheet being built**: clearing the picks
+  (`clearBankPicks`) starts a new one, and the button reads **🎨 Cover edited**
+  while one is set (`wsSyncCoverBtn`), so it is never carried onto the next
+  sheet unseen. On paper an editable field has no minimum size, so the owner's
+  print is the same sheet as anybody else's.
+- **The level pill** starts from the questions (`wsCoverLevel`: the highest
+  level that `parsePracticeLevel` reads cleanly) and the footer note follows
+  the pill (`Primary Mathematics` / `Secondary Mathematics`). A saved level wins.
+- **Nothing else moved.** A print without a cover is byte-for-byte what it was,
+  and if `worksheet-cover.js` fails to load, `wsCoverPlainHtml` — the cover
+  every print used before — is printed as the table's first section, exactly
+  as before. Custom Paper's PSLE booklets keep their own covers.
+- Run `node tools/worksheet-cover-tests.mjs`, `node tools/worksheet-header-tests.mjs`
+  and, with Playwright (and poppler's `pdftoppm` for the margin-free corner
+  check), `tools/worksheet-cover-browser-tests.mjs` — which builds the REAL print
+  documents and checks every cover variant on screen, on a phone and on paper,
+  the retyped title, the editor and the app's `wsEditCover` wiring. CI:
+  `.github/workflows/worksheet-cover.yml`.
+
 ## 📝 Worksheets — the ✎ Questions drawer
 A saved worksheet is an ordered **list of question ids**, so `wsEditOverlay`
 (`wse*`) edits that list and nothing else. Both its columns share one row
