@@ -27,7 +27,7 @@
   // decoration() keeps its legacy arrangements for Custom Paper and the two
   // standalone worksheet creators, which lay their text out differently.
   const DESIGN = 'big-m';
-  const M_ICON_OPACITY = .38, M_TEXTURE_OPACITY = .6, M_FACET_OPACITY = 1;
+  const M_ICON_OPACITY = .38, M_TEXTURE_OPACITY = .6, M_FACET_OPACITY = 1, M_SCALE_MAX = 1.35;
   const M_ICONS = [[0.76,0.53,5.04,-9,0],[31.74,2.32,5.54,7,5],[37.28,10.51,4.28,11,4],[1.01,17.81,5.29,-12,14],[12.09,21.02,5.04,-9,3],[26.95,16.56,5.79,7,8],[41.56,22.26,5.04,0,13],[68.01,24.58,4.28,-5,7],[87.15,25.29,4.28,4,9],[94.71,17.45,4.03,-12,12],[1.01,35.62,4.03,-9,6],[94.96,33.13,4.03,7,11],[1.26,46.3,3.78,0,0],[94.71,43.46,4.03,-5,5],[8.06,53.43,4.79,11,10],[22.67,56.46,4.28,4,15],[37.78,53.07,5.04,-12,4],[54.16,56.99,4.28,-9,9],[70.03,53.43,5.04,7,14],[85.64,56.28,4.79,0,3],[1.01,65.89,4.03,-5,8],[94.96,69.46,4.03,11,13],[5.04,82.81,5.29,4,2],[20.15,87.27,4.53,-12,7],[35.52,82.1,5.04,-9,12],[50.88,87.8,4.28,7,1],[65.49,82.46,5.29,0,6],[80.6,87.44,4.53,-5,11],[91.69,81.75,5.04,11,0],[1.01,96.17,4.03,4,5],[94.96,96.35,4.03,-12,10]];
   // Which pixel symbol sits in each of the 31 places, from the approved maths
   // design. The places (and sizes and turns) are the same as the Science cover's.
@@ -41,6 +41,9 @@
   // down so the title block never grows past two full-size lines and into the
   // icons between the title and the student fields.
   const M_TITLE_SIZES = [8.8,7.6,6.6,5.8,5.1,4.5], M_TITLE_BUDGET = 8.8 * 1.05 * 2;
+  // A title character is about 0.62 em wide in the cover's font, and its lines
+  // are 1.05 em apart (`.wc-title` line-height). fitRun repeats both.
+  const M_TITLE_EM = .62, M_TITLE_LH = 1.05;
   const M_SUBTITLE_SIZES = [2.93,2.5,2.2], M_SUBTITLE_BUDGET = 2.93 * 1.4;
   const fitSize = (text, sizes, budget, em, lineHeight) => {
     const lines = String(text == null ? '' : text).split('\n').map(line => line.trim().length);
@@ -53,7 +56,9 @@
   const artOf = (options = {}) => {
     const current = options.coverDesign === DESIGN;
     return {
-      scale: bounded(options.scale ?? options.artworkScale, 1, .6, 1.4),
+      // 1.35 is the largest the icons go: at 1.4 the corner symbol beside the
+      // logo turns into it. The browser test measures every size up to here.
+      scale: bounded(options.scale ?? options.artworkScale, 1, .6, M_SCALE_MAX),
       opacity: current ? bounded(options.opacity ?? options.artworkOpacity, M_ICON_OPACITY, .15, 1) : M_ICON_OPACITY,
       textureOpacity: current ? bounded(options.textureOpacity ?? options.artworkTextureOpacity, M_TEXTURE_OPACITY, 0, 1) : M_TEXTURE_OPACITY,
       facetOpacity: bounded(options.facetOpacity ?? options.artworkFacetOpacity, M_FACET_OPACITY, 0, 1),
@@ -119,13 +124,21 @@
 .wc-cover.wc-m .wc-field-date{grid-column:1;grid-row:2}
 .wc-cover.wc-m .wc-fields.wc-no-score{grid-template-columns:minmax(0,2fr) minmax(0,1fr)}
 .wc-cover.wc-m .wc-no-score .wc-field-date{grid-column:2;grid-row:1}
-.wc-cover.wc-m .wc-field-label{font-family:inherit;font-size:max(7px,1.61cqw);font-weight:700;line-height:1.25;letter-spacing:.18em;text-transform:uppercase;color:#1c7880;white-space:pre-line;overflow-wrap:anywhere}
+.wc-cover.wc-m .wc-field-label{font-family:inherit;font-size:1.61cqw;font-weight:700;line-height:1.25;letter-spacing:.18em;text-transform:uppercase;color:#1c7880;white-space:pre-line;overflow-wrap:anywhere}
 .wc-cover.wc-m .wc-fields .wc-field-line{height:4.4cqw;border-bottom:1.5px solid #8fb7bc}
 .wc-cover.wc-m .wc-score{grid-column:2;grid-row:1/span 2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.47cqw;min-width:0;padding:2.05cqw 1.47cqw;border-radius:2.05cqw;background:#eef8f9;text-align:center}
 .wc-cover.wc-m .wc-score-row{display:flex;align-items:flex-end;gap:.88cqw}
 .wc-cover.wc-m .wc-fields .wc-score-box{width:6.45cqw;height:5cqw}
 .wc-cover.wc-m .wc-score-slash{font-size:4.4cqw;line-height:1;color:#8fb7bc}
-.wc-cover.wc-m .wc-footer{display:flex;justify-content:space-between;align-items:center;gap:3cqw;margin:0;padding:2.05cqw 0 0;border-top:1px solid #cfe3e6;font-family:inherit;font-size:max(7px,1.76cqw);font-weight:400;line-height:1.3;letter-spacing:normal;text-transform:none;text-align:left;color:#4f6970;white-space:normal}
+.wc-cover.wc-m .wc-fields.wc-has-qr{grid-template-columns:minmax(0,1fr) 22cqw 12.6cqw}
+.wc-cover.wc-m .wc-fields.wc-has-qr.wc-no-score{grid-template-columns:minmax(0,2fr) minmax(0,1fr) 12.6cqw}
+.wc-cover.wc-m .wc-has-qr.wc-no-score .wc-field{align-self:center}
+.wc-cover.wc-m .wc-qr{grid-column:3;grid-row:1/span 2;align-self:center;display:flex;flex-direction:column;align-items:center;gap:.7cqw;min-width:0}
+.wc-cover.wc-m .wc-no-score .wc-qr{grid-row:1}
+.wc-cover.wc-m .wc-qr svg{display:block;width:11.4cqw!important;height:11.4cqw!important;max-width:none!important;margin:0!important}
+.wc-cover.wc-m .wc-qr-cap{font-size:1.22cqw;line-height:1.25;color:#4f6970;text-align:center;white-space:pre-line}
+.wc-cover.wc-m .wc-fields.wc-qr-only{display:flex;align-self:flex-end;justify-content:center;padding:2.2cqw 2.6cqw}
+.wc-cover.wc-m .wc-footer{display:flex;justify-content:space-between;align-items:center;gap:3cqw;margin:0;padding:2.05cqw 0 0;border-top:1px solid #cfe3e6;font-family:inherit;font-size:1.76cqw;font-weight:400;line-height:1.3;letter-spacing:normal;text-transform:none;text-align:left;color:#4f6970;white-space:normal}
 .wc-cover.wc-m .wc-footer-main{min-width:0;overflow-wrap:anywhere}
 .wc-cover.wc-m .wc-org{font-weight:700;color:#15323a;white-space:pre-line}
 .wc-cover.wc-m .wc-note{white-space:pre-line}
@@ -180,33 +193,109 @@
   // backdrop. Option keys are the ones saved worksheets already store:
   // `subheader` is the small heading above the title, `header` is the centre
   // name in the footer and `footer` is the note beside it.
+  // ── Binding cover text to the host page's own editing ─────────────────────
+  // The Maths app's print preview retypes the title and the heading above it in
+  // place, and saves them to the worksheet — the same two values its sheet
+  // header prints, so both carry the same `data-ws-edit` name and one edit
+  // updates both. `bind` hands the cover those attributes:
+  //   bind: { title: { className: 'ws-edit', attrs: { 'data-ws-edit': 'title', contenteditable: 'true' } } }
+  // A binding can ADD attributes and classes, never markup: names are checked,
+  // event handlers, `style` and `class` are refused, and every value is escaped.
+  // A bound field is always drawn, even when empty, so it can be typed back into.
+  const ATTR_NAME = /^[a-z][a-z0-9-]*$/;
+  const ATTR_REFUSED = /^(?:on|style$|class$|src$|href$)/;
+  function bindingOf(options, key) {
+    const all = options && options.bind;
+    const raw = all && typeof all === 'object' && Object.prototype.hasOwnProperty.call(all, key) ? all[key] : null;
+    if (!raw || typeof raw !== 'object') return null;
+    const className = String(raw.className || '').split(/\s+/).filter(v => /^[a-zA-Z0-9_-]+$/.test(v)).join(' ');
+    const attrs = Object.keys(raw.attrs && typeof raw.attrs === 'object' ? raw.attrs : {})
+      .filter(name => ATTR_NAME.test(name) && !ATTR_REFUSED.test(name))
+      .map(name => [name, raw.attrs[name]])
+      .filter(([, value]) => value != null && value !== false)
+      .map(([name, value]) => value === true ? ` ${name}` : ` ${name}="${esc(value)}"`).join('');
+    return { className, attrs };
+  }
+  // The one QR a printed sheet may carry (it opens the sheet's overview page).
+  // It is the host's own generated SVG, so only something that IS an <svg> is
+  // drawn; anything else is dropped rather than put on paper as markup.
+  const qrOf = value => typeof value === 'string' && /^\s*<svg[\s>]/i.test(value) && !/<script|\son[a-z]+\s*=/i.test(value) ? value.trim() : '';
+  // The Big M cover: logo and level/subject pills, a left-aligned title block
+  // with the magenta bar, a student-fields card and a footer, over the faint
+  // backdrop. Option keys are the ones saved worksheets already store:
+  // `subheader` is the small heading above the title, `header` is the centre
+  // name in the footer and `footer` is the note beside it.
+  //
+  // Two host-only extras the editor never sets:
+  //   bind     see bindingOf — the host's own editing on its print preview
+  //   qrSvg    one QR (with `qrCaption`), drawn as a third column of the
+  //            student-fields card, or on a small card of its own when the
+  //            student fields are off. It never leaves the card's band, so the
+  //            icons stay clear of it exactly as they do of the fields.
   function render(options = {}) {
     const has = key => options[key] != null && String(options[key]).trim() !== '';
     const text = (key, fallback) => esc(options[key] == null ? fallback : options[key]);
     const editable = key => options.editable ? ` contenteditable="true" spellcheck="false" data-wc-field="${key}" role="textbox" aria-label="${esc(FIELD_NAMES[key])}"` : '';
-    const shown = key => options.editable || has(key);
+    const bound = key => bindingOf(options, key);
+    const shown = key => options.editable || has(key) || !!bound(key);
+    // Opens an element that carries one of the cover's text fields.
+    const open = (tag, cls, key, extra = '') => {
+      const b = bound(key);
+      return `<${tag} class="${cls}${b && b.className ? ' ' + b.className : ''}"${editable(key)}${b ? b.attrs : ''}${extra}>`;
+    };
     const classes = String(options.className || '').split(/\s+/).filter(v => /^[a-zA-Z0-9_-]+$/.test(v)).join(' ');
     const key = subject(options.subject);
     const title = options.title == null ? 'Worksheet' : options.title;
-    const titleSize = fitSize(title, M_TITLE_SIZES, M_TITLE_BUDGET, .62, 1.05);
+    const titleSize = fitSize(title, M_TITLE_SIZES, M_TITLE_BUDGET, M_TITLE_EM, M_TITLE_LH);
     const subtitleSize = fitSize(options.subtitle, M_SUBTITLE_SIZES, M_SUBTITLE_BUDGET, .55, 1.4);
-    const field = (name, fallback, extra = '') => `<div class="wc-field${extra}"><div class="wc-field-label"${editable(name)}>${text(name, fallback)}</div><div class="wc-field-line"></div></div>`;
+    const field = (name, fallback, extra = '') => `<div class="wc-field${extra}">${open('div', 'wc-field-label', name)}${text(name, fallback)}</div><div class="wc-field-line"></div></div>`;
     // The card is Name and Date. The score box beside them can be switched off
     // (`score: false`), and the two lines then share the card's one row.
     const score = options.score !== false;
-    const scoreBox = score ? `<div class="wc-score"><div class="wc-field-label"${editable('scoreLabel')}>${text('scoreLabel','Score')}</div><div class="wc-score-row"><div class="wc-field-line wc-score-box"></div><span class="wc-score-slash">/</span><div class="wc-field-line wc-score-box"></div></div></div>` : '';
-    const fields = options.fields === false ? '' : `<div class="wc-fields${score ? '' : ' wc-no-score'}">${field('nameLabel','Name',' wc-field-name')}${scoreBox}${field('dateLabel','Date',' wc-field-date')}</div>`;
-    const note = shown('footer') ? `<span class="wc-dot"> · </span><span class="wc-note"${editable('footer')}>${text('footer','')}</span>` : '';
+    const scoreBox = score ? `<div class="wc-score">${open('div', 'wc-field-label', 'scoreLabel')}${text('scoreLabel','Score')}</div><div class="wc-score-row"><div class="wc-field-line wc-score-box"></div><span class="wc-score-slash">/</span><div class="wc-field-line wc-score-box"></div></div></div>` : '';
+    const qrSvg = qrOf(options.qrSvg);
+    const qr = qrSvg ? `<div class="wc-qr">${qrSvg}${has('qrCaption') ? `<div class="wc-qr-cap">${text('qrCaption','')}</div>` : ''}</div>` : '';
+    const fields = options.fields === false
+      ? (qr ? `<div class="wc-fields wc-qr-only">${qr}</div>` : '')
+      : `<div class="wc-fields${score ? '' : ' wc-no-score'}${qr ? ' wc-has-qr' : ''}">${field('nameLabel','Name',' wc-field-name')}${scoreBox}${field('dateLabel','Date',' wc-field-date')}${qr}</div>`;
+    const note = shown('footer') ? `<span class="wc-dot"> · </span>${open('span', 'wc-note', 'footer')}${text('footer','')}</span>` : '';
     return `<div class="wc-cover wc-m${classes ? ' ' + classes : ''}" data-cover-subject="${key}" data-cover-design="${DESIGN}">
       ${bigMDecoration(key, artOf(options))}
       <div class="wc-top"><img class="wc-logo" src="${esc(logoUrl)}" width="2681" height="1957" alt="Polymath Learning Centre">
-        <div class="wc-pills">${shown('level') ? `<span class="wc-pill wc-pill-level"${editable('level')}>${text('level','')}</span>` : ''}<span class="wc-pill wc-pill-subject">Mathematics</span></div></div>
-      <div class="wc-hero">${shown('subheader') ? `<div class="wc-eyebrow"${editable('subheader')}>${text('subheader','')}</div>` : ''}
-        <h1 class="wc-title"${editable('title')} style="--wc-title-size:${titleSize}cqw">${esc(title)}</h1>
-        <div class="wc-bar"></div>${shown('subtitle') ? `<p class="wc-subtitle"${editable('subtitle')} style="--wc-subtitle-size:${subtitleSize}cqw">${text('subtitle','')}</p>` : ''}</div>
+        <div class="wc-pills">${shown('level') ? `${open('span', 'wc-pill wc-pill-level', 'level')}${text('level','')}</span>` : ''}<span class="wc-pill wc-pill-subject">Mathematics</span></div></div>
+      <div class="wc-hero">${shown('subheader') ? `${open('div', 'wc-eyebrow', 'subheader')}${text('subheader','')}</div>` : ''}
+        ${open('h1', 'wc-title', 'title', ` style="--wc-title-size:${titleSize}cqw"`)}${esc(title)}</h1>
+        <div class="wc-bar"></div>${shown('subtitle') ? `${open('p', 'wc-subtitle', 'subtitle', ` style="--wc-subtitle-size:${subtitleSize}cqw"`)}${text('subtitle','')}</p>` : ''}</div>
       <div class="wc-gap"></div>${fields}<div class="wc-tail"></div>
-      <div class="wc-footer"><span class="wc-footer-main"><span class="wc-org"${editable('header')}>${text('header','Polymath Learning Centre')}</span>${note}</span><span class="wc-site">polymathlc.com.sg</span></div></div>`;
+      <div class="wc-footer"><span class="wc-footer-main">${open('span', 'wc-org', 'header')}${text('header','Polymath Learning Centre')}</span>${note}</span><span class="wc-site">polymathlc.com.sg</span></div></div>`;
   }
+  // A title retyped on a print preview must step down in size exactly as
+  // render() would have sized it, or a longer title pushes the title block into
+  // the icons below it on the sheet that is then printed. This runs INSIDE that
+  // preview (handed over as text by fitScript, so it may touch only its own
+  // document) and re-fits every Big M title whenever its text changes — typed,
+  // or set by the host's own edit script.
+  function fitRun(cfg) {
+    function size(text) {
+      var lines = String(text == null ? '' : text).split('\n').map(function (line) { return line.trim().length; });
+      function height(s) { return lines.reduce(function (n, len) { return n + Math.max(1, Math.ceil(len * cfg.em * s / 100)); }, 0) * s * cfg.lh; }
+      for (var i = 0; i < cfg.sizes.length; i++) if (height(cfg.sizes[i]) <= cfg.budget + 1e-6) return cfg.sizes[i];
+      return cfg.sizes[cfg.sizes.length - 1];
+    }
+    function fit(el) { el.style.setProperty('--wc-title-size', size(el.innerText) + 'cqw'); }
+    var titles = document.querySelectorAll('.wc-cover.wc-m .wc-title');
+    if (!titles.length || typeof MutationObserver === 'undefined') return;
+    var watch = new MutationObserver(function (records) {
+      records.forEach(function (r) {
+        var el = r.target && r.target.nodeType === 1 ? r.target : r.target && r.target.parentElement;
+        el = el && el.closest ? el.closest('.wc-title') : null;
+        if (el) fit(el);
+      });
+    });
+    for (var i = 0; i < titles.length; i++) watch.observe(titles[i], { characterData: true, childList: true, subtree: true });
+  }
+  const fitScript = () => `<script>(${fitRun.toString()})(${JSON.stringify({ sizes: M_TITLE_SIZES, budget: M_TITLE_BUDGET, em: M_TITLE_EM, lh: M_TITLE_LH })});<\/script>`;
+  const titleSize = value => fitSize(value, M_TITLE_SIZES, M_TITLE_BUDGET, M_TITLE_EM, M_TITLE_LH);
   function edit(options = {}) {
     ensureStyles();
     return new Promise(resolve => {
@@ -220,7 +309,7 @@
       dialog.innerHTML = `<form method="dialog"><div class="wc-editor-top"><div><h2>Edit cover</h2><p>Change the fields or click text in the preview. Your changes appear in the export.</p></div><button type="button" data-wc-cancel aria-label="Close cover editor">×</button></div>
         <div class="wc-editor-body"><div class="wc-editor-form">
         <label>Subject artwork<select data-wc-input="subject"><option value="math">Mathematics</option></select></label>
-        <label>Worksheet title<textarea data-wc-input="title" rows="2"></textarea></label>
+        <label>Worksheet title<input data-wc-input="title" maxlength="120"></label>
         <label>Small heading above the title<input data-wc-input="subheader" placeholder="Topical worksheet"></label>
         <label>Line under the title<input data-wc-input="subtitle" placeholder="Optional, e.g. Fractions and decimals"></label>
         <div class="wc-editor-grid"><label>Level pill<input data-wc-input="level" placeholder="e.g. P5"></label><label>Footer note<input data-wc-input="footer"></label></div>
@@ -230,7 +319,7 @@
         <div class="wc-editor-grid"><label>Name label<input data-wc-input="nameLabel"></label><label>Date label<input data-wc-input="dateLabel"></label>
         <label>Score label<input data-wc-input="scoreLabel"></label></div>
         <label>Icon arrangement<select data-wc-input="layout"><option value="scattered">Sprinkled across the page</option><option value="frame">Edges only</option><option value="minimal">Light sprinkle</option></select></label>
-        <label>Icon size<input type="range" data-wc-input="scale" min="0.6" max="1.4" step="0.05"></label>
+        <label>Icon size<input type="range" data-wc-input="scale" min="0.6" max="${M_SCALE_MAX}" step="0.05"></label>
         <label>Icon visibility<input type="range" data-wc-input="opacity" min="0.15" max="1" step="0.01"></label>
         <label>Bubble &amp; polygon texture<input type="range" data-wc-input="textureOpacity" min="0" max="1" step="0.05"></label>
         <label>Big M corner<input type="range" data-wc-input="facetOpacity" min="0" max="1" step="0.05"></label>
@@ -242,16 +331,22 @@
       if (options.subjectLocked) dialog.querySelector('[data-wc-input="subject"]').disabled = true;
       // The score box lives on the student-fields card, so it has nothing to
       // switch while the card itself is off.
-      const sync = () => inputs.forEach(input => { const key = input.dataset.wcInput; if(input.type === 'checkbox') input.checked = value[key]; else input.value = value[key] ?? ''; if(key === 'score') input.disabled = !value.fields; });
+      const sync = () => inputs.forEach(input => { const key = input.dataset.wcInput; if(input.type === 'checkbox') input.checked = value[key]; else input.value = value[key] ?? ''; if(key === 'score') input.disabled = !value.fields; if(key === 'scoreLabel') input.disabled = !value.fields || !value.score; });
       const preview = dialog.querySelector('.wc-editor-preview');
       const draw = () => { preview.innerHTML = render({...value,className:'',editable:true}); };
       sync(); draw();
       inputs.forEach(input => input.addEventListener('input', () => {
         const key = input.dataset.wcInput;
         value[key] = input.type === 'checkbox' ? input.checked : input.type === 'range' ? Number(input.value) : input.value;
-        if (key === 'fields') sync();
+        if (key === 'fields' || key === 'score') sync();
         draw();
       }));
+      // Every field on this cover is one line — the title is the worksheet's own
+      // title, which the app keeps on one line everywhere — so Enter in the
+      // preview finishes the edit instead of starting a second line.
+      preview.addEventListener('keydown', event => {
+        if (event.key === 'Enter' && event.target.closest && event.target.closest('[data-wc-field]')) { event.preventDefault(); event.target.blur(); }
+      });
       preview.addEventListener('input', event => {
         const key = event.target.dataset.wcField;
         if (!key) return;
@@ -275,6 +370,6 @@
       dialog.showModal();
     });
   }
-  global.WorksheetCover = Object.freeze({decoration,render,edit,ensureStyles,printStyles,logoUrl,subject,atlas,atlasCells,design:DESIGN});
+  global.WorksheetCover = Object.freeze({decoration,render,edit,ensureStyles,printStyles,logoUrl,subject,atlas,atlasCells,design:DESIGN,fitScript,titleSize});
   ensureStyles();
 })(typeof window === 'undefined' ? globalThis : window);
