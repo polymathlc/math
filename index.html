@@ -769,6 +769,7 @@ html.app-share-open, html.app-share-open body { overflow: hidden; }
    away from the tick it belongs to. */
 .ws-cover-pick { display: inline-flex; align-items: center; gap: 10px; flex-wrap: nowrap; }
 .ws-cover-pick .btn { padding: 6px 12px; font-size: 0.8rem; }
+.ws-cover-pick .btn.ws-cover-own { border-color: var(--primary); color: var(--primary); font-weight: 700; }
 .ws-actions-bar { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; padding-bottom: 10px; }
 
 /* My Worksheets */
@@ -12869,6 +12870,10 @@ function _qbSyncPicks() {
 function clearBankPicks() {
   wsSelectedIds.clear();
   wsOrder = [];
+  // A cleared selection is a new sheet, so its 🎨 cover starts afresh too.
+  wsCoverSettings = null;
+  wsBuilderOrg = null;
+  if (typeof wsSyncCoverBtn === "function") wsSyncCoverBtn();
   _qbSyncPicks();
   _renderBankPickBar();
   updateWsCount();
@@ -25544,6 +25549,9 @@ function wsRelatedBuild(ids, title, o) {
     title, fields: o.fields, cover: o.cover, answers: o.withAnswers, qr: o.withQr,
     objBox: o.objBox, appQr: o.appQr, next: true,
     coverSettings: o.coverSettings || null,
+    // The heading printed with the title, when the sheet has its own
+    // (🎨 Edit cover, or retyped on a saved sheet's preview).
+    ...(typeof o.headerOrg === "string" ? { headerOrg: o.headerOrg } : {}),
   });
 }
 function wsCurrentTitle() {
@@ -25647,8 +25655,10 @@ function wsCoverHtml(title, sub, noFields, sheetQr = "", org = WS_HEADER_ORG, ed
   const pill = typeof style.level === "string" ? style.level : String(level || "");
   // On the owner's preview the title and the heading above it are retyped in
   // place, carrying the SAME `data-ws-edit` names as the sheet header.
+  // `aria-label` carries the hint too: the cover's own stylesheet shows an
+  // empty editable field's aria-label, and outranks `.ws-edit`'s data-ph rule.
   const bind = (field, ph) => edit ? { className: "ws-edit", attrs: {
-    contenteditable: "true", spellcheck: "false", "data-ws-edit": field, "data-ph": ph,
+    contenteditable: "true", spellcheck: "false", "data-ws-edit": field, "data-ph": ph, "aria-label": ph,
     title: "Click to retype this — it is saved to the worksheet",
   } } : null;
   const html = cover.render(Object.assign({}, wsCoverDefaults(pill), style, {
@@ -29175,6 +29185,16 @@ function wsCoverResetForUser(user) {
   _wsCoverOwner = uid;
   wsCoverSettings = null;
   wsBuilderOrg = null;
+  wsSyncCoverBtn();
+}
+// The builder's 🎨 button says when this sheet carries a cover of its own, so
+// a cover chosen for one sheet is never carried onto the next unseen.
+function wsSyncCoverBtn() {
+  const b = typeof document !== "undefined" ? document.getElementById("wsEditCoverBtn") : null;
+  if (!b) return;
+  const own = !!wsCoverSettings || typeof wsBuilderOrg === "string";
+  b.textContent = own ? "🎨 Cover edited" : "🎨 Edit cover";
+  b.classList.toggle("ws-cover-own", own);
 }
 function wsCoverEditorReady() {
   return typeof WorksheetCover !== "undefined" && !!WorksheetCover && typeof WorksheetCover.edit === "function";
@@ -29263,8 +29283,12 @@ async function wsEditCover(where, id) {
   if (((currentUser && currentUser.uid) || null) !== owner) { toast("The account changed — open the cover editor again", "error"); return false; }
   const next = wsCoverSettingsFrom(result, auto);
   const fallbackTitle = saved && dgIsTest(ws) ? "Diagnostic Test" : "Math Worksheet";
-  const newTitle = wsCoverCleanText(result.title) || fallbackTitle;
-  const newOrg = wsCoverCleanText(result.subheader);
+  // A title or heading the teacher did not touch stays exactly as it was —
+  // a long saved title is never cut to WS_HEADER_MAX just by opening this. A
+  // retyped one is cleaned and capped like a retype on the preview.
+  const same = (a, b) => String(a == null ? "" : a).replace(/\s+/g, " ").trim() === String(b == null ? "" : b).replace(/\s+/g, " ").trim();
+  const newTitle = same(result.title, title) ? title : (wsCoverCleanText(result.title) || fallbackTitle);
+  const newOrg = same(result.subheader, org) ? org : wsCoverCleanText(result.subheader);
   // Whoever ticks 🎨 Edit cover wants a cover on the next print, and the
   // student-fields tick follows the editor's own.
   const tick = (coverId, fieldsId) => {
@@ -29295,6 +29319,7 @@ async function wsEditCover(where, id) {
     // An untouched title box stays empty, so it still shows its hint.
     if (t && !(newTitle === "Math Worksheet" && !t.value.trim())) t.value = newTitle;
     tick("wsIncludeCover", "wsIncludeFields");
+    wsSyncCoverBtn();
     toast("🎨 Cover ready — 👁️ Preview to see it in front of the sheet", "success");
   }
   return true;
@@ -29796,7 +29821,7 @@ async function openSavedWorksheet(id, autoPrint) {
   // 🎨 The sheet's own Big M cover choices ride with every reprint of it.
   po.coverSettings = ws.cover || null;
   if (ws.includeRelated && _isAdmin() && qcLoaded) {
-    const b = wsRelatedBuild(questions.map(q => q.id), ws.title || "Math Worksheet", po);
+    const b = wsRelatedBuild(questions.map(q => q.id), ws.title || "Math Worksheet", Object.assign({}, po, { headerOrg: wsHeaderOrgOf(ws) }));
     if (b) { await wsOpenDocument(b.list, b.title, Object.assign(b.opts, { autoPrint: !!autoPrint })); return; }
   }
   await wsOpenDocument(questions, ws.title || "Math Worksheet",
@@ -38835,7 +38860,7 @@ function qcBookletDocumentOpts(plan, title, o) {
     const refs = (tx.refs || []).map(r => `<div class="qcb-refs">↪ ${escapeHtml(r)}</div>`).join("");
     const first = pg.n === 1;
     return {
-      lead: (first ? wsHeaderHtml(title, !o.fields, "", WS_HEADER_ORG) + guide : "") + label(pg.n, tx.label) +
+      lead: (first ? wsHeaderHtml(title, !o.fields, "", typeof o.headerOrg === "string" ? o.headerOrg : WS_HEADER_ORG) + guide : "") + label(pg.n, tx.label) +
         (tx.intro ? `<p class="qcb-intro">${escapeHtml(tx.intro)}</p>` : "") + refs,
       questions: pg.keys.map(k => qcPrintableQ(qcParseKey(k).id)).filter(Boolean),
       // The lead sits above the page's first question, so that question has
@@ -38849,8 +38874,10 @@ function qcBookletDocumentOpts(plan, title, o) {
     opts: {
       cover: !!o.cover, fields: !!o.fields, withQr: !!o.qr, withAnswers: !!o.answers, autoPrint: !!o.autoPrint,
       objBox: !!o.objBox,
-      // 🎨 the sheet's own Big M cover choices, when it has a cover at all
+      // 🎨 the sheet's own Big M cover choices, when it has a cover at all,
+      // and its own heading — on the cover and on the booklet's first header
       coverSettings: o.coverSettings || null,
+      ...(typeof o.headerOrg === "string" ? { headerOrg: o.headerOrg } : {}),
       // A 🔒 step is held out of a pupil's bank, so the "scan to AI-mark" link
       // could never open for them: only the questions a pupil can reach get one.
       qrFilter: q => !qIsFoundation(q),
@@ -56818,6 +56845,11 @@ async function dgSaveTest() {
     ownerName: currentUser.name || "",
     createdAt: existing ? (existing.createdAt || new Date().toISOString()) : new Date().toISOString()
   };
+  // The doc is written whole, so what this page does not edit is carried over:
+  // the 🎨 cover saved on the test in My Worksheets, and the heading retyped on
+  // its preview. Rebuilding the questions must not throw either away.
+  if (existing && existing.cover && typeof existing.cover === "object") test.cover = existing.cover;
+  if (existing && typeof existing.headerOrg === "string") test.headerOrg = existing.headerOrg;
   try {
     await persistWorksheet(test);
     const at = savedWorksheets.findIndex(w => w.id === test.id);
@@ -56953,7 +56985,15 @@ async function dgPrintDraft(autoPrint) {
       withAnswers: !!dgOpts.withAnswers && canManageQuestions(),
       autoPrint,
       scoreTable: dgOpts.scoreTable ? dgScoreSegments(loOf, questions) : null
-    }));
+    }, dgDraftCoverOpts()));
+}
+// A test being REBUILT previews with its own 🎨 cover and heading — the ones
+// dgSaveTest will keep — rather than the defaults.
+function dgDraftCoverOpts() {
+  const existing = dgEditingId ? dgFindTest(dgEditingId) : null;
+  if (!existing) return {};
+  return Object.assign({ coverSettings: existing.cover || null },
+    typeof existing.headerOrg === "string" ? { headerOrg: existing.headerOrg } : {});
 }
 function dgPractiseDraft() {
   const questions = _studentManualQuestions(dgDraftQuestions());

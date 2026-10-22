@@ -240,6 +240,7 @@ try {
     await page.locator('.ws-head h1').click();
     assert.equal(await page.locator('.ws-head-text p').textContent(), '', 'clearing the heading did not clear the header line');
     assert.ok(await org.isVisible(), 'a cleared heading must stay clickable');
+    assert.match(await org.evaluate(el => getComputedStyle(el, '::before').content), /Heading above the title/, 'a cleared heading shows no hint to type into');
     await page.locator('.ws-cover-sheet').screenshot({ path: path.join(out, 'retyped-title.png') });
     assert.deepEqual(errors, []);
     await page.close();
@@ -274,6 +275,13 @@ try {
     await page.keyboard.type('Term 3 practice');
     await page.keyboard.press('Enter');   // finishes the edit — every cover field is one line
     assert.equal(await footer.evaluate(el => el.innerText), 'Term 3 practice', 'Enter started a second line');
+    // The heading and the labels are drawn in capitals; what is STORED is what was typed.
+    for (const [field, typed] of [['subheader', 'Topical worksheet'], ['nameLabel', 'Pupil']]) {
+      await page.locator(`.wc-editor-preview [data-wc-field="${field}"]`).click();
+      await page.keyboard.press('Control+A');
+      await page.keyboard.type(typed);
+    }
+    assert.equal(await page.locator('[data-wc-input="subheader"]').inputValue(), 'Topical worksheet', 'the heading was stored in the capitals it is drawn in');
     await checkCover(page, 'editor-edited', 'dialog.wc-editor .wc-editor-preview .wc-cover.wc-m');
     assert.equal(await page.locator('.wc-editor-preview .wc-score').count(), 0, 'the score box is still in the preview');
     assert.equal(await page.locator('.wc-editor-preview .wc-icon').count(), 16, 'the edges-only arrangement');
@@ -284,6 +292,8 @@ try {
     assert.equal(r.level, 'P6');
     assert.equal(r.subtitle, 'Before-and-after problems');
     assert.equal(r.footer, 'Term 3 practice');
+    assert.equal(r.subheader, 'Topical worksheet');
+    assert.equal(r.nameLabel, 'Pupil');
     assert.equal(r.score, false);
     assert.equal(r.layout, 'frame');
     assert.equal(r.facetOpacity, 0.5);
@@ -375,6 +385,17 @@ try {
     assert.ok(t.renders > 0 && t.toasts.some(x => x.kind === 'success'), 'the list was not redrawn or nothing was said');
 
     phase = '②';
+    // ①b A long title the teacher does not touch is kept whole.
+    const long = 'P6 Prelim revision: whole numbers, fractions, decimals, percentages, ratio, rate, speed, area, volume, angles and pie charts — set A';
+    await page.evaluate(t => { window._t.get().sheets.push({ id: 'ws3', title: t, ownerUid: 'teacher', questionIds: ['a'] }); }, long);
+    await page.evaluate(() => { window._p = wsEditCover('saved', 'ws3'); });
+    await dialog.waitFor();
+    await submit();
+    assert.equal(await page.evaluate(() => window._p), true);
+    t = await page.evaluate(() => window._t.get());
+    assert.equal(t.sheets.find(w => w.id === 'ws3').title, long, 'opening the editor cut an untouched title');
+    assert.equal(t.sheets.find(w => w.id === 'ws3').headerOrg, 'Polymath Learning Centre', 'the untouched heading');
+
     // ② Somebody else's sheet: no editor at all.
     await page.evaluate(() => { window._p = wsEditCover('saved', 'ws2'); });
     assert.equal(await page.evaluate(() => window._p), false);

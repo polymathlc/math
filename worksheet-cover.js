@@ -149,7 +149,7 @@
 .wc-editor .wc-editor-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 @media(min-width:701px){.wc-editor .wc-editor-preview{position:sticky;top:0}}
 @media(max-width:700px){.wc-editor .wc-editor-body{grid-template-columns:1fr}.wc-editor .wc-editor-preview{max-width:430px;justify-self:center}.wc-editor .wc-editor-top,.wc-editor .wc-editor-actions{padding:12px 16px}.wc-editor .wc-editor-body{padding:16px}.wc-editor .wc-editor-top p{max-width:280px}}
-@media print{.wc-editor{display:none!important}.wc-cover{height:260mm;min-height:260mm;print-color-adjust:exact;-webkit-print-color-adjust:exact}.wc-cover [contenteditable]{outline:none!important;background:none!important}.wc-cover [contenteditable]:empty:before{content:none}.cover-artwork{display:block!important}}
+@media print{.wc-editor{display:none!important}.wc-cover{height:260mm;min-height:260mm;print-color-adjust:exact;-webkit-print-color-adjust:exact}.wc-cover [contenteditable]{outline:none!important;background:none!important;min-width:0!important;min-height:0!important}.wc-cover [contenteditable]:empty:before{content:none}.cover-artwork{display:block!important}}
 `;
   function ensureStyles(target = doc) {
     if (!target?.createElement || target.getElementById('worksheet-cover-styles')) return;
@@ -350,7 +350,10 @@
       preview.addEventListener('input', event => {
         const key = event.target.dataset.wcField;
         if (!key) return;
-        value[key] = event.target.innerText;
+        // textContent, not innerText: innerText applies the CSS uppercase on the
+        // heading and the labels, and would store "NAME" for "Name". Every
+        // field is one line (Enter is refused above), so nothing is lost.
+        value[key] = event.target.textContent;
         sync();
       });
       preview.addEventListener('paste', event => {

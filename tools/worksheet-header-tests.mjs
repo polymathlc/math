@@ -277,8 +277,10 @@ test('both print paths gate the editable header on ownership', () => {
 });
 
 test('both print paths hand over the sheet\'s own header line', () => {
+  // A saved sheet (as itself, and — v1.106.0 — as its 🧩 related booklet, whose
+  // cover and first header print the same line) and a diagnostic.
   const orgs = src.match(/headerOrg:\s*wsHeaderOrgOf\((ws|test)\)/g) || [];
-  eq(orgs.length, 2, 'a print path ignores the sheet\'s saved header line');
+  eq(orgs.length, 3, 'a print path ignores the sheet\'s saved header line');
 });
 
 test('the save function is on window — the preview reaches it as opener.<name>', () => {

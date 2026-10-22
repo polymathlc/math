@@ -197,6 +197,19 @@ test('the QR is drawn only when it is an SVG, inside the card band', () => {
   }
 });
 
+test('on paper an editable field is ordinary text', () => {
+  // The owner's print is the editable preview; a minimum height there would
+  // make it a slightly different sheet from everybody else's.
+  ok(/@media print\{[^}]*\}[^@]*\.wc-cover \[contenteditable\]\{outline:none!important;background:none!important;min-width:0!important;min-height:0!important\}/.test(Cover.printStyles), 'editable fields keep a minimum size in print');
+  ok(/\.wc-cover \[contenteditable\]:empty:before\{content:none\}/.test(Cover.printStyles), 'an empty field prints its hint');
+});
+
+test('text typed into the editor preview is stored as typed, on one line', () => {
+  ok(coverSrc.includes('value[key] = event.target.textContent;') && !coverSrc.includes('value[key] = event.target.innerText'), 'innerText stores the CSS uppercase ("NAME" for "Name")');
+  ok(/preview\.addEventListener\('keydown', event => \{\s+if \(event\.key === 'Enter'/.test(coverSrc), 'Enter starts a second line');
+  ok(coverSrc.includes('<label>Worksheet title<input data-wc-input="title"'), 'the title is one line, as it is everywhere else in the app');
+});
+
 test('the editor offers every field and stays Mathematics', () => {
   const html = Cover.render({ editable: true, title: 'Ratio' });
   for (const f of ['level', 'subheader', 'title', 'subtitle', 'header', 'footer', 'nameLabel', 'dateLabel', 'scoreLabel']) ok(html.includes(`data-wc-field="${f}"`), f);
@@ -224,7 +237,10 @@ test('a cleared heading prints no heading — not the default', () => {
   const A = app();
   const html = A.wsCoverHtml('T', '', false, '', '', false);
   ok(!html.includes('wc-eyebrow'), 'the heading above the title came back');
-  ok(A.wsCoverHtml('T', '', false, '', '', true).includes('data-ws-edit="org" data-ph="Heading above the title" title="Click to retype this — it is saved to the worksheet"></div>'), 'on the owner\'s preview it is empty and typeable');
+  ok(A.wsCoverHtml('T', '', false, '', '', true).includes('data-ws-edit="org" data-ph="Heading above the title" aria-label="Heading above the title" title="Click to retype this — it is saved to the worksheet"></div>'), 'on the owner\'s preview it is empty and typeable');
+  // The cover's own rule for an empty editable field shows its aria-label and
+  // outranks .ws-edit's data-ph rule, so the hint must be in both.
+  ok(/\.wc-cover \[contenteditable=true\]:empty:before\{content:attr\(aria-label\)/.test(Cover.printStyles), 'the cover shows aria-label as the hint');
   ok(A.wsCoverHtml('T', '', false, '', 'Raffles Girls Primary', false).includes('>Raffles Girls Primary</div>'), 'a per-sheet heading is printed');
 });
 
@@ -358,6 +374,33 @@ test('🎨 Cover is offered only on a sheet the user owns, and saves to the shee
   ok(/ws\.cover = next; ws\.title = newTitle; ws\.headerOrg = newOrg;\s+try \{\s+await persistWorksheet\(ws\);/.test(editorBlock), 'it writes the cover, the title and the heading together');
   ok(editorBlock.includes('if (was[k] === undefined) delete ws[k]; else ws[k] = was[k];'), 'a failed write puts the in-memory copy back');
   ok(editorBlock.includes('!== owner) { toast("The account changed'), 'an account switch mid-edit saves nothing');
+});
+
+test('a rebuilt diagnostic keeps its cover and heading, and previews with them', () => {
+  const save = cut('async function dgSaveTest() {', '\nfunction dgNewTest()', 'dgSaveTest');
+  ok(save.includes('if (existing && existing.cover && typeof existing.cover === "object") test.cover = existing.cover;'), 'rebuilding a test throws its cover away');
+  ok(save.includes('if (existing && typeof existing.headerOrg === "string") test.headerOrg = existing.headerOrg;'), 'rebuilding a test throws its heading away');
+  ok(save.indexOf('test.cover = existing.cover') < save.indexOf('await persistWorksheet(test)'), '…carried over before the write');
+  const draft = cut('async function dgPrintDraft(autoPrint) {', '\nfunction dgPractiseDraft()', 'dgPrintDraft');
+  ok(draft.includes('}, dgDraftCoverOpts()));') && draft.includes('coverSettings: existing.cover || null'), 'the draft of a test being rebuilt previews with the default cover');
+});
+
+test('the related booklet carries the sheet\'s heading to its cover and header', () => {
+  ok(cut('function wsRelatedBuild(ids, title, o) {', '\nfunction wsCurrentTitle', 'related').includes('...(typeof o.headerOrg === "string" ? { headerOrg: o.headerOrg } : {}),'), 'wsRelatedBuild drops the heading');
+  const booklet = cut('function qcBookletDocumentOpts(plan, title, o) {', '\n// 🧪 { qid', 'booklet');
+  ok(booklet.includes('...(typeof o.headerOrg === "string" ? { headerOrg: o.headerOrg } : {}),'), 'the booklet document drops the heading');
+  ok(booklet.includes('wsHeaderHtml(title, !o.fields, "", typeof o.headerOrg === "string" ? o.headerOrg : WS_HEADER_ORG)'), 'the booklet\'s first header ignores the heading');
+  ok(cut('async function openSavedWorksheet(id, autoPrint) {', '\n// ============ EDITING THE SHEET HEADER', 'reprint').includes('Object.assign({}, po, { headerOrg: wsHeaderOrgOf(ws) })'), 'a saved booklet reprints with the default heading');
+});
+
+test('a new sheet starts with a new cover, and the button says when one is set', () => {
+  const clear = cut('function clearBankPicks() {', '\n}', 'clearBankPicks');
+  ok(clear.includes('wsCoverSettings = null;') && clear.includes('wsBuilderOrg = null;'), 'clearing the picks keeps the last sheet\'s cover');
+  ok(editorBlock.includes('b.textContent = own ? "🎨 Cover edited" : "🎨 Edit cover";'), 'the builder button never says a cover is set');
+});
+
+test('an untouched title or heading is kept exactly — never cut to 120', () => {
+  ok(editorBlock.includes('const newTitle = same(result.title, title) ? title :') && editorBlock.includes('const newOrg = same(result.subheader, org) ? org :'), 'opening the editor rewrites an untouched title');
 });
 
 test('every print path hands its cover settings over', () => {

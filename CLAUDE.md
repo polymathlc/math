@@ -1102,7 +1102,21 @@ shapes placed where the approved A4 design put them.
   itself is left out, so it keeps following the questions. A cleared pill, line
   or note IS stored (as `""`). Every print path hands `ws.cover` over as
   `coverSettings`: the builder, a saved sheet, a diagnostic and the 🧩 related
-  booklet.
+  booklet — and the booklet now carries the sheet's own heading too, on its
+  cover AND its first header (it used to print `WS_HEADER_ORG` there).
+- **A title or heading the editor did not touch is kept exactly as it was** —
+  never cut to `WS_HEADER_MAX` just by opening the editor; a retyped one is
+  cleaned and capped like a retype on the preview. Text typed into the editor's
+  preview is read with `textContent`, NOT `innerText`, which would store the CSS
+  capitals ("NAME") the heading and labels are drawn in. Every field is one line.
+- **`dgSaveTest` writes the whole doc**, so it carries the test's `cover` and
+  `headerOrg` over; rebuilding a diagnostic's questions must not throw either
+  away. `dgPrintDraft` previews a test being rebuilt with them (`dgDraftCoverOpts`).
+- **The builder's cover belongs to the sheet being built**: clearing the picks
+  (`clearBankPicks`) starts a new one, and the button reads **🎨 Cover edited**
+  while one is set (`wsSyncCoverBtn`), so it is never carried onto the next
+  sheet unseen. On paper an editable field has no minimum size, so the owner's
+  print is the same sheet as anybody else's.
 - **The level pill** starts from the questions (`wsCoverLevel`: the highest
   level that `parsePracticeLevel` reads cleanly) and the footer note follows
   the pill (`Primary Mathematics` / `Secondary Mathematics`). A saved level wins.
