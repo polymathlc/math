@@ -10535,6 +10535,8 @@ function appShareShow(app) {
 
 let guestSignInTried = false;
 onAuthStateChanged(auth, async (user) => {
+  // 🙋 Consults: the bridge follows THIS handler rather than keeping a listener of its own.
+  try { if (window.ConsultBridge && window.ConsultBridge.authChanged) window.ConsultBridge.authChanged(user); } catch (e) {}
   const authEpoch = ++_studentAuthEpoch;
   studentQuestionHistory.close(); _studentHistoryLoading = null; _practicePresentation = null;
   currentUser = null;
