@@ -4,6 +4,11 @@ Guidance for Claude when working in this repo.
 
 ## 📲 Installable app (Polymath install kit v2.0.0) — v1.108.0
 
+- **The offline page carries its icon inline (sw 2.0.1, kit v2.0.1).** `sw.js` answers page loads only, so an
+  icon file beside `offline.html` could never arrive with no connection (it showed as a broken picture).
+  The icon is a `data:` URI inside `offline.html`, `PRECACHE` is just the offline page, and `SW_VERSION`
+  went to 2.0.1 so installed copies re-cache it. The browser harness now checks the icon shows offline.
+
 `index.html` installs as **Polymath Math** ("Math" under the icon) on PC, Android and iPhone/iPad. It is
 a Progressive Web App, not a store app. Only `index.html` carries the kit — `game.html`, `hades-game.html`
 (and its own `hades-game.manifest.json`, which is a build record, not a web manifest), `grand-line.html`
