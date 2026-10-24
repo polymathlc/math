@@ -2,6 +2,51 @@
 
 Guidance for Claude when working in this repo.
 
+## 📲 Installable app (Polymath install kit v2.0.0) — v1.108.0
+
+`index.html` installs as **Polymath Math** ("Math" under the icon) on PC, Android and iPhone/iPad. It is
+a Progressive Web App, not a store app. Only `index.html` carries the kit — `game.html`, `hades-game.html`
+(and its own `hades-game.manifest.json`, which is a build record, not a web manifest), `grand-line.html`
+and `pirate-rift.html` are left alone.
+
+- **The files.** `manifest.webmanifest` (relative `id` / `start_url` / `scope` = `./`, so the same file
+  works at `polymathlc.github.io/math/` and `polymathlc.com.sg/math/`), the icons in `assets/app-icons/`
+  (192/512 `any`, 192/512 `maskable`, 180 `apple-touch-icon`, 32 favicon), `sw.js`, `offline.html`,
+  `pwa-install.js`, and the head tags in `index.html` (manifest, theme-color `#FFFFFF`, favicon,
+  apple-touch-icon, apple-mobile-web-app-*, the inline hiding rule, and the installer's `<script defer>`).
+  All of it is copied in by the kit's `install-into.mjs` (app key `math`); the app's name, icon and
+  accent (`#2E7D32`) come from the kit's app registry, so change them there, not here.
+- **`pwa-install.js` is byte for byte the kit shared with every Polymath app** (polymathlc/cer carries
+  copies in `student/` and `online/`, and every other Polymath app that has the kit carries its own).
+  Change it in all of them together — never fork it here. Its `?v=` on the tag is the KIT version
+  (`2.0.0`), not `APP_VERSION`. It is a classic deferred script, never `type=module`; it takes the app's
+  name, key, icon, accent, worker and floating mode from the tag's `data-*` attributes.
+- **`sw.js` never caches the app.** It answers only same-origin GET navigations, network first, and
+  shows `offline.html` when the network fails; scripts, Firebase, Storage, videos, POSTs and other origins
+  get no `respondWith`, so releases still reach phones through the `?v=` query strings. Its scope is this
+  folder (`/math/`). Every Polymath app lives on one origin and so shares ONE Cache Storage: this worker
+  uses its own prefix, **`polymath-math-shell-`**, and only ever creates or deletes caches with that
+  prefix — never the Science portal's `polymath-app-shell-` or any other app's.
+- **Controls start `data-pwa-hidden`** (the hiding rule is inline in the head, before the installer
+  runs), the installer shows them, and hides them again inside the installed app and inside another
+  page's frame. Pressing one uses the browser's own prompt where there is one (Chrome / Edge on a
+  computer, Chrome on Android), sends other Android browsers to Chrome (Play Protect warns on their
+  packages), and otherwise shows the steps for that browser (iPhone/iPad: Share → Add to Home Screen).
+- **Where the control is:** `#pwaInstallBtn`, "📲 Install app", the last chip in the top bar's
+  `.topbar-actions` (after 🙋 Consults), for every signed-in role — never inside an `admin-only` block.
+  It wears the Consults chip's shape (`.icon-btn.install-chip`); under 680px it keeps the 📲 and drops
+  the words. Beside that CSS is `body.arcade-ui .topbar { padding-right: 74px }` under 680px:
+  arcade-ui.css's phone rule reset the bar's padding, the corner the subject switcher floats over came
+  back, and the last chip in the row sat under the pill — keep it. The sign-in screen has no control of its own, so the kit's floating button (bottom right,
+  `data-floating="auto"`) covers it; once signed in the top-bar chip is on screen and the floating one
+  stands down. Nothing of this app's sits at the bottom right of the sign-in screen, so it needs no
+  nudge. Do not move the chip into the sidebar footer or an admin group.
+- Run **`node --test tools/pwa-install-tests.mjs`** and
+  **`PW=/path/to/playwright/index.mjs node tools/pwa-install-browser.mjs`** after touching any of it
+  (the browser check asks Chrome's DevTools whether the page is installable, checks the offline page,
+  the Chrome and iPhone steps, the installed app and a framed page). `.github/workflows/installable-app.yml`
+  runs both on every pull request that touches these files.
+
 ## 🙋 Consults — shared with Study Buddy, Ans Key and the Science portal (v1.107.0)
 
 `consult-answer.js` / `consult-answer.css` are byte for byte polymathlc/tutor's (copy fixes across, never
