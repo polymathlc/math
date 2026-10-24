@@ -4,6 +4,22 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Math Practice — Polymath Learning Centre</title>
+<!-- 📲 Installable app (Polymath install kit v2.0.0): manifest + icons make "Install" / "Add to Home Screen"
+     work on PC, Android and iPhone/iPad. pwa-install.js registers sw.js and drives every [data-pwa-install] control. -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#FFFFFF">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/app-icons/favicon-32.png">
+<link rel="apple-touch-icon" href="assets/app-icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Math">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>[data-pwa-install][data-pwa-hidden]{display:none!important}</style>
+<!-- The installer: a classic deferred script, shared byte for byte with every Polymath app.
+     Its ?v= is the KIT version (not APP_VERSION), so a kit update reaches phones at once.
+     The top bar's 📲 Install app (#pwaInstallBtn) is this app's own control; the sign-in
+     screen has none, so the kit's floating button covers it (data-floating="auto"). -->
+<script defer src="pwa-install.js?v=2.0.0" data-app-name="Polymath Math" data-app-key="math" data-app-icon="assets/app-icons/icon-192.png" data-accent="#2E7D32" data-sw="sw.js" data-floating="auto"></script>
 <link rel="preconnect" href="https://dl.dropboxusercontent.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&family=Space+Mono:wght@400;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -5084,6 +5100,10 @@ body.role-employee #emailBellBtn { display: none !important; }
         <button class="icon-btn admin-only" id="flagInboxBtn" type="button" title="Flagged questions">🚩<span class="notify-count" id="flagCount">0</span></button>
         <!-- 🙋 Consults (v1.106.0): shown by consult-bridge.js once signed in — the teacher's list, or the student's window to ask and watch answers -->
         <button class="icon-btn consult-chip" id="consultLogBtn" type="button" hidden style="display:none;">🙋 Consults</button>
+        <!-- 📲 Install app (v1.108.0): for everyone signed in, never admin-only. It starts
+             data-pwa-hidden; pwa-install.js shows it, and hides it again inside the
+             installed app and inside another page's frame. -->
+        <button class="icon-btn install-chip" id="pwaInstallBtn" type="button" data-pwa-install data-pwa-hidden aria-label="Install app" title="Install Polymath Math as an app on this computer, phone or tablet — its own icon and window, no app store needed"><span aria-hidden="true">📲</span><span class="install-chip-label">Install app</span></button>
       </div>
       <div class="ai-badge"><span class="ai-dot" id="aiDot"></span><span id="aiStatus">AI starting…</span></div>
     </div>
@@ -6794,6 +6814,16 @@ body.role-employee #emailBellBtn { display: none !important; }
 /* 🙋 CONSULTS (v1.106.0) — the top-bar chip consult-bridge.js paints. */
 .icon-btn.consult-chip{width:auto;padding:0 10px;gap:6px;font-size:.78rem;font-weight:700;white-space:nowrap}
 .icon-btn.consult-chip.consultOn{background:#FFE0B2;border-color:#FFCC80}
+/* 📲 INSTALL APP (v1.108.0) — the top-bar chip pwa-install.js drives; the same
+   shape as the Consults chip beside it. On a phone the top bar is already
+   wrapping, so the chip keeps its 📲 and drops the words. */
+.icon-btn.install-chip{width:auto;padding:0 10px;gap:6px;font-size:.78rem;font-weight:700;white-space:nowrap}
+@media (max-width:680px){.icon-btn.install-chip{padding:0 9px}.install-chip-label{display:none}}
+/* The subject switcher floats over the top bar's right-hand corner, so the bar
+   gives that corner up (74px under 900px, see SUBJECT SWITCHER). arcade-ui.css's
+   phone rule resets the bar to `padding: 14px` and the corner came back — the
+   last chip in the row (now this one) sat under the pill, untappable. */
+@media screen and (max-width:680px){body.arcade-ui .topbar{padding-right:74px}}
 </style>
 <script defer src="consult-answer.js?v=1"></script>
 <script defer src="consult-bridge.js?v=1"></script>
@@ -36157,7 +36187,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.107.0 · 2026-10-22";
+const APP_VERSION = "v1.108.0 · 2026-10-25";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
