@@ -240,8 +240,14 @@ const monthKey = (d = new Date()) => d.getFullYear() + "-" + String(d.getMonth()
 // ---------------------------------------------------------------------
 // Gemini plumbing (port of the client's retry/fallback behaviour)
 // ---------------------------------------------------------------------
+// An account that is OUT (prepaid credits gone, a spending cap, the day's
+// allowance used) also answers 429, and is not transient — retrying it only
+// spends the chain's time budget before the next engine gets its turn. Kept
+// word for word with the page's AI_NOT_TRANSIENT_RE.
+const AI_NOT_TRANSIENT_RE = /prepay|credits? (?:are |is |have been )?(?:depleted|exhausted|used up)|insufficient[_ ]quota|exceeded your current quota|spending cap|check your plan and billing|daily (?:limit|allowance|cap)/;
 function isTransientAiError(e) {
   const msg = String((e && e.message) || e || "").toLowerCase();
+  if (AI_NOT_TRANSIENT_RE.test(msg)) return false;
   return /abort|timed? ?out|deadline|failed to fetch|networkerror|network error|load failed|overloaded|unavailable|resource.?exhausted|too many requests|\b(429|500|502|503|504)\b/.test(msg);
 }
 async function withAiRetry(run, { tries = 2, baseDelayMs = 1000 } = {}) {
@@ -1554,6 +1560,74 @@ const OPENAI_MAX_OUTPUT = 32000;
 // cap is what actually bounds the bill.
 const MIN_OPENAI_INTERVAL_MS = 1500;
 const DAILY_OPENAI_CAP = 120;
+// THE TEACHER'S OWN ALLOWANCE (v1.109.0) — see 🧑‍🏫 STAFF ARE NOT PUPILS below.
+const DAILY_OPENAI_STAFF_CAP = 3000;
+
+// =====================================================================
+// 🧑‍🏫 STAFF ARE NOT PUPILS — the throttle asks WHO is calling (v1.109.0)
+// ---------------------------------------------------------------------
+// `DAILY_OPENAI_CAP` was written when ChatGPT was the BACKUP: a pupil's
+// phone fell to it only on the morning Gemini's project was capped, and 120
+// calls a day per account was generous for that. Since v1.91.0 ChatGPT is
+// the FIRST engine for every call in the app — and the teacher's own
+// ⚡ Rapid add spends one call to read a page, one per question on it to
+// file it under the syllabus, and more again for its figure. A day of
+// importing papers ran the TEACHER'S account through 120 before lunch, and
+// every read after that fell to Gemini and Kimi. On the day Gemini's
+// prepaid credits were also empty and Kimi's key had never been set, every
+// screenshot came back as a red card telling the teacher to "try a clearer
+// screenshot" — about a limit meant for pupils, on the account paying the
+// bill.
+//
+// So the allowance depends on who is asking:
+//  • A PUPIL keeps `cap` and `interval`, exactly as before. The guard was
+//    always about them: a page served to every student's browser must not be
+//    an open tap on the centre's OpenAI account.
+//  • STAFF — the `admin` claim, the `employee` claim, or a VERIFIED address
+//    on ADMIN_EMAILS / EMPLOYEE_EMAILS (a claim that was never granted must
+//    not leave the teacher on the pupils' allowance) — get `staffCap` and
+//    `staffInterval`. The interval goes to zero for them on purpose: Rapid
+//    add reads TWO pages at once (RAPID_PDF_PAR) and files questions
+//    alongside, so a 1.5 s gap between calls bounced every other call of the
+//    teacher's own import to the next engine, which on a bad day is no
+//    engine at all. The staff CAP still bounds a runaway loop.
+//  • THE DAY IS SINGAPORE'S. `toISOString()` is a UTC day, which rolled over
+//    at 8 am here — "it resets tomorrow" was true at 7:59 and false at 8:01.
+//    Every message now names the time, and the time is midnight.
+//  • A REFUSAL CARRIES ITS REASON in `details` (`reason`, `engine`, `cap`,
+//    `used`, `resetsAt`, `retryAfterMs`), so the page can tell "wait two
+//    seconds and ask again" from "this account is done for the day" without
+//    reading English back out of a sentence.
+// =====================================================================
+const BACKUP_DAY_OFFSET_MS = 8 * 60 * 60 * 1000;   // Asia/Singapore is UTC+8, all year round
+const DAY_MS = 24 * 60 * 60 * 1000;
+function backupDayKey(now = Date.now()) {
+  return new Date(now + BACKUP_DAY_OFFSET_MS).toISOString().slice(0, 10);
+}
+// The instant the Singapore day after `now` begins, as a UTC ISO string.
+function backupDayResetsAt(now = Date.now()) {
+  const local = now + BACKUP_DAY_OFFSET_MS;
+  return new Date((Math.floor(local / DAY_MS) + 1) * DAY_MS - BACKUP_DAY_OFFSET_MS).toISOString();
+}
+// Staff, for the purpose of an allowance only. It grants no power — every
+// door that needs the teacher still asks `isAdminAuth` — it only decides how
+// many calls a day the account may make on the centre's backup keys.
+function isStaffAuth(auth) {
+  const token = (auth && auth.token) || {};
+  if (token.admin === true || token.employee === true) return true;
+  const email = String(token.email || "").toLowerCase();
+  return token.email_verified === true && !!email && (ADMIN_EMAILS.includes(email) || EMPLOYEE_EMAILS.includes(email));
+}
+// The allowance this caller gets on this slot. Split out so the rule can be
+// read (and tested) without a database.
+function backupAllowance(f, auth) {
+  const staff = isStaffAuth(auth);
+  return {
+    staff,
+    cap: staff && Number.isFinite(f.staffCap) ? f.staffCap : f.cap,
+    interval: staff && Number.isFinite(f.staffInterval) ? f.staffInterval : f.interval
+  };
+}
 
 // EVERY BACKUP ENGINE COUNTS ON ITS OWN FIELDS. Sharing `dailyKey`/
 // `dailyCount` with the marking cap would let a scanned paper spend a
@@ -1562,26 +1636,41 @@ const DAILY_OPENAI_CAP = 120;
 // set of fields BETWEEN the backups would do the same thing to each other:
 // a capped ChatGPT day would silently close Kimi too, which is the one
 // engine still answering on exactly that day.
-async function reserveBackupSlot(uid, f) {
+//
+// `auth` is the caller's — see 🧑‍🏫 STAFF ARE NOT PUPILS above. A caller that
+// passes none is treated as a pupil, which is the safe direction to fail.
+async function reserveBackupSlot(uid, f, auth) {
   const ref = statsRef(uid);
+  const { staff, cap, interval } = backupAllowance(f, auth);
+  const label = f.label || "The backup AI";
   return db.runTransaction(async tx => {
     const snap = await tx.get(ref);
     const stats = snap.exists ? (snap.data() || {}) : {};
     const now = Date.now();
-    const today = new Date().toISOString().slice(0, 10);
+    const today = backupDayKey(now);
     const day = stats[f.day] === today ? (stats[f.count] || 0) : 0;
-    if (now - (stats[f.last] || 0) < f.interval) {
-      throw new HttpsError("resource-exhausted", "One request at a time — give it a couple of seconds.");
+    const since = now - (stats[f.last] || 0);
+    if (interval > 0 && since < interval) {
+      throw new HttpsError("resource-exhausted", "One request at a time — give it a couple of seconds.",
+        { reason: "interval", engine: f.engine || "", retryAfterMs: Math.max(0, interval - since) });
     }
-    if (day >= f.cap) {
-      throw new HttpsError("resource-exhausted", "The backup AI's daily limit for this account has been reached — it will reset tomorrow.");
+    if (day >= cap) {
+      // "daily limit" is kept word for word: the sibling apps' pages match on it.
+      throw new HttpsError("resource-exhausted",
+        `${label}: this account's daily limit (${cap} calls) has been reached — it resets at midnight, Singapore time.`,
+        { reason: "daily-cap", engine: f.engine || "", cap, used: day, staff, resetsAt: backupDayResetsAt(now) });
     }
     tx.set(ref, { [f.day]: today, [f.count]: day + 1, [f.last]: now, updatedAt: new Date().toISOString() }, { merge: true });
     return day + 1;
   });
 }
-const OPENAI_SLOT = { day: "openAiDay", count: "openAiCount", last: "lastOpenAiAt", interval: MIN_OPENAI_INTERVAL_MS, cap: DAILY_OPENAI_CAP };
-function reserveOpenAiSlot(uid) { return reserveBackupSlot(uid, OPENAI_SLOT); }
+const OPENAI_SLOT = {
+  engine: "openai", label: "ChatGPT",
+  day: "openAiDay", count: "openAiCount", last: "lastOpenAiAt",
+  interval: MIN_OPENAI_INTERVAL_MS, cap: DAILY_OPENAI_CAP,
+  staffInterval: 0, staffCap: DAILY_OPENAI_STAFF_CAP
+};
+function reserveOpenAiSlot(uid, auth) { return reserveBackupSlot(uid, OPENAI_SLOT, auth); }
 
 export const askOpenAi = onCall(OPENAI_OPTS, async (request) => {
   const auth = requireAuth(request);
@@ -1617,7 +1706,7 @@ export const askOpenAi = onCall(OPENAI_OPTS, async (request) => {
     parts.push({ mimeType, data, isPdf });
   }
 
-  await reserveOpenAiSlot(auth.uid);
+  await reserveOpenAiSlot(auth.uid, auth);
 
   const content = [{ type: "text", text: prompt }];
   parts.forEach((m, i) => {
@@ -1700,7 +1789,9 @@ const CHART_APP_SIZES = { compact: 7000, standard: 14000, rich: 24000 };
 const CHART_APP_REASONING = { low: 3000, medium: 6000, high: 12000, xhigh: 18000, max: 24000 };
 const CHART_APP_MAX_TOKENS = 48000;
 const CHART_APP_HTML_MAX = 600000;
-const CHART_APP_SLOT = { day: "chartAppDay", count: "chartAppCount", last: "lastChartAppAt", interval: 3000, cap: 60 };
+// Teacher-only already (the callable refuses everyone else), so it carries no
+// staff allowance of its own: `cap` IS the teacher's.
+const CHART_APP_SLOT = { engine: "openai", label: "Chart apps", day: "chartAppDay", count: "chartAppCount", last: "lastChartAppAt", interval: 3000, cap: 60 };
 const CHART_APP_SYSTEM = "You are an expert front-end developer and primary-school maths teacher. You write one complete, self-contained, interactive HTML page and nothing else.";
 
 function chartAppShape(d = {}) {
@@ -1733,7 +1824,7 @@ export const generateChartApp = onCall(CHART_APP_OPTS, async (request) => {
   const prompt = cleanText(d.prompt, 20000);
   if (!prompt) throw new HttpsError("invalid-argument", "Say what the app should show.");
   const shape = chartAppShape(d);
-  await reserveBackupSlot(auth.uid, CHART_APP_SLOT);
+  await reserveBackupSlot(auth.uid, CHART_APP_SLOT, auth);
 
   const body = {
     model: shape.model,
@@ -1838,7 +1929,15 @@ const OPENAI_IMAGE_MAX_PIXELS = 3840 * 2160;
 // between calls is short and the DAILY cap is what bounds the bill.
 const MIN_OPENAI_IMAGE_INTERVAL_MS = 1200;
 const DAILY_OPENAI_IMAGE_CAP = 400;
-const OPENAI_IMAGE_SLOT = { day: "openAiImgDay", count: "openAiImgCount", last: "lastOpenAiImgAt", interval: MIN_OPENAI_IMAGE_INTERVAL_MS, cap: DAILY_OPENAI_IMAGE_CAP };
+// Staff draw whole batches (a pack of card frames, every figure on a paper
+// cleaned to line work), back to back — the same reasoning as the text slot.
+const DAILY_OPENAI_IMAGE_STAFF_CAP = 1500;
+const OPENAI_IMAGE_SLOT = {
+  engine: "openai-image", label: "ChatGPT Images",
+  day: "openAiImgDay", count: "openAiImgCount", last: "lastOpenAiImgAt",
+  interval: MIN_OPENAI_IMAGE_INTERVAL_MS, cap: DAILY_OPENAI_IMAGE_CAP,
+  staffInterval: 0, staffCap: DAILY_OPENAI_IMAGE_STAFF_CAP
+};
 
 /* A size is either `auto`, one of the three standard squares/rectangles, or
    any WIDTHxHEIGHT the 2.5 models take. Anything else is refused by name
@@ -1929,7 +2028,7 @@ export const openAiImage = onCall(OPENAI_OPTS, async (request) => {
   // d.inputFidelity is accepted and IGNORED — see the header: the 2.5 family
   // refuses the parameter, and the clients shipped before v1.72.1 still send it.
 
-  await reserveBackupSlot(auth.uid, OPENAI_IMAGE_SLOT);
+  await reserveBackupSlot(auth.uid, OPENAI_IMAGE_SLOT, auth);
 
   const fields = { model, prompt, n: 1, quality, output_format: outputFormat };
   if (size !== "auto") fields.size = size; // "auto" is the API's own default when the field is absent
@@ -2019,7 +2118,13 @@ const KIMI_MODEL_RE = /^(kimi|moonshot)[A-Za-z0-9._-]*$/;
 const KIMI_MAX_OUTPUT = 32000;
 const MIN_KIMI_INTERVAL_MS = 1500;
 const DAILY_KIMI_CAP = 120;
-const KIMI_SLOT = { day: "kimiDay", count: "kimiCount", last: "lastKimiAt", interval: MIN_KIMI_INTERVAL_MS, cap: DAILY_KIMI_CAP };
+const DAILY_KIMI_STAFF_CAP = 3000;
+const KIMI_SLOT = {
+  engine: "kimi", label: "Kimi",
+  day: "kimiDay", count: "kimiCount", last: "lastKimiAt",
+  interval: MIN_KIMI_INTERVAL_MS, cap: DAILY_KIMI_CAP,
+  staffInterval: 0, staffCap: DAILY_KIMI_STAFF_CAP
+};
 
 export const askKimi = onCall(KIMI_OPTS, async (request) => {
   const auth = requireAuth(request);
@@ -2051,7 +2156,7 @@ export const askKimi = onCall(KIMI_OPTS, async (request) => {
     parts.push({ mimeType, data });
   }
 
-  await reserveBackupSlot(auth.uid, KIMI_SLOT);
+  await reserveBackupSlot(auth.uid, KIMI_SLOT, auth);
 
   const content = [{ type: "text", text: prompt }];
   parts.forEach(m => content.push({ type: "image_url", image_url: { url: `data:${m.mimeType};base64,${m.data}` } }));

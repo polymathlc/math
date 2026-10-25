@@ -70,6 +70,11 @@ function _dataUrlToBlob() { return new Blob(['x'], { type: 'image/jpeg' }); }
 // throw and still know which is which.
 let PAGES = {};
 let LIVE = 0, PEAK = 0;
+const OUTAGE = "openai: The backup AI's daily limit for this account has been reached — it will reset tomorrow. | gemini: AI: Error fetching from https://firebasevertexai.googleapis.com/v1beta/projects/mathgen--app/models/gemini-2.5-flash:generateContent: [429 ] Your prepayment credits are depleted. Please go to AI Studio at https://ai.studio/projects to manage your project and billing. (AI/fetch-error) | kimi: No Kimi key is configured on the server.";
+const GARBLED = "openai: OpenAI returned an incomplete or empty response. | gemini: Gemini returned an empty response. | kimi: Kimi returned an incomplete or empty response.";
+function escapeHtml(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+let ADMIN = true;
+function _isAdmin() { return ADMIN; }
 async function processRapidJob(jobId, file, batchLevel, opts) {
   const o = opts || {};
   LIVE++; PEAK = Math.max(PEAK, LIVE);
@@ -83,6 +88,14 @@ async function processRapidJob(jobId, file, batchLevel, opts) {
   LOG.read.push({ page: p, level: batchLevel, release: o.release || '', source: o.source || '', blankOk: !!o.blankOk, name: file && file.name });
   const answer = PAGES[p] === undefined ? 1 : PAGES[p];
   if (answer === 'throw') { failRapidJob(jobId, new Error('unreadable')); return undefined; }
+  // 🩺 Every engine refused before reading anything — the morning this was
+  // written. The REAL processRapidJob hands a PDF page's failure back to its
+  // paper ({ failed, error }) and fails a screenshot's own card; so does this.
+  if (answer === 'outage' || answer === 'garbled') {
+    const err = new Error(answer === 'outage' ? OUTAGE : GARBLED);
+    if (o.deferSave) { removeRapidJob(jobId); return { failed: true, error: err }; }
+    failRapidJob(jobId, err); return undefined;
+  }
   if (answer === 0) {
     if (!o.blankOk) { failRapidJob(jobId, new Error('the AI returned nothing readable')); return undefined; }
     removeRapidJob(jobId);
@@ -115,13 +128,18 @@ function pdfFile(name, bytes) {
 function imgFile(name) { return new File([new Uint8Array(4)], name, { type: 'image/png' }); }
 function reset() {
   vettingList=[];SAVED.length=0;rapidJobs = []; _rapidSeq = 0; LOG.toasts = []; LOG.status = []; LOG.read = [];
-  PAGES = {}; NUMPAGES = 3; RENDERED.length = 0; DESTROYED = 0; LEVEL = ''; RELEASE = ''; LIVE = 0; PEAK = 0;
+  PAGES = {}; NUMPAGES = 3; RENDERED.length = 0; DESTROYED = 0; LEVEL = ''; RELEASE = ''; LIVE = 0; PEAK = 0; ADMIN = true;
   _rapidPdfQueue = []; _rapidPdfBusy = false;
 }
 `;
 
 const section = [
+  // 🩺 The REAL failure reader, so a card's outage / unreadable split is the
+  // app's own and not a guess written into this file.
+  cut('const AI_ENGINE_LABELS =', '\n/* A refusal that only means "not this second"', 'AI failure report'),
   cut('const RAPID_PDF_MAX_PAGES', '\n// `opts` is what a PDF PAGE carries in', 'rapid pdf block'),
+  // …and the REAL red card and the strip above it.
+  cut('function rapidErrorCardHtml(job)', '\n// One placeholder card in the vetting list per screenshot still being read', 'rapid error card'),
   FIXTURE
 ].join('\n');
 
@@ -130,6 +148,8 @@ return {
   rapidAddFiles, startRapidJob, _rapidExpandPdf, _rapidPageFile,
   RAPID_PDF_MAX_PAGES, RAPID_PDF_PAR,
   LOG, RENDERED, SAVED, reset, failRapidJob,
+  retryRapidJob, retryAllRapidJobs, dismissAllRapidErrors, rapidErrorCardHtml, rapidRetryStripHtml,
+  setAdmin: v => { ADMIN = v; },
   setLevel: v => { LEVEL = v; },
   setRelease: v => { RELEASE = v; },
   setPages: v => { PAGES = v; },
@@ -355,6 +375,182 @@ test('a page file carries the paper and the page in its NAME', () => {
   ok(/2023 CA1/.test(f.name || ''), 'the page file does not name its paper');
   ok(/7/.test(f.name || ''), 'the page file does not name its page');
   ok(!/\.pdf/i.test(f.name || ''), 'the page file still calls itself a PDF');
+});
+
+// ── 🩺 ↻ failures that say WHY, and can be run again (v1.109.0) ──────────────
+//
+// The report this was written for: a vetting list of red cards reading "try a
+// clearer screenshot" when no AI engine had looked at any of them — ChatGPT's
+// allowance used, Gemini's credits empty, Kimi's key unset. Each failure here
+// is silent: a card still appears, it just blames the picture, or a stopped
+// forty-page paper can only be dropped in again from page 1.
+
+test('an outage card does NOT tell the author to take a clearer screenshot', async () => {
+  M.reset();
+  M.setPages({ 0: 'outage' });
+  M.rapidAddFiles([M.imgFile('q.png')], 'paste');
+  await settle();
+  const card = M.jobs().find(j => j.status === 'error');
+  ok(card, 'the failure left no card');
+  ok(card.outage, 'three empty accounts were read as a bad screenshot');
+  const html = M.rapidErrorCardHtml(card);
+  ok(!/clearer/i.test(html), 'the outage card still blames the screenshot');
+  ok(/is-outage/.test(html), 'the outage card is drawn as an ordinary red error');
+  ok(/MOONSHOT_API_KEY/.test(html) && /AI Studio/.test(html) && /midnight, Singapore time/.test(html), 'the card does not name the fix for each engine');
+  ok(/data-rapid-retry=/.test(html), 'the outage card offers no ↻ Retry');
+  ok(/data-rapid-engine=/.test(html), 'the teacher is not offered 🧠 AI Engine on an outage');
+  ok(/No AI engine could answer/.test(M.LOG.status.at(-1) || ''), 'the pad status still says the screenshot could not be read');
+});
+
+test('an employee is not offered 🧠 AI Engine (she cannot open it)', async () => {
+  M.reset(); M.setAdmin(false);
+  M.setPages({ 0: 'outage' });
+  M.rapidAddFiles([M.imgFile('q.png')], 'paste');
+  await settle();
+  const html = M.rapidErrorCardHtml(M.jobs()[0]);
+  ok(!/data-rapid-engine=/.test(html), 'a button to a page the employee cannot open was drawn');
+  ok(/data-rapid-retry=/.test(html), 'the employee lost ↻ Retry with it');
+});
+
+test('a screenshot an engine LOOKED at and could not read is still a red card with the old advice', async () => {
+  M.reset();
+  M.setPages({ 0: 'garbled' });
+  M.rapidAddFiles([M.imgFile('q.png')], 'paste');
+  await settle();
+  const card = M.jobs()[0];
+  ok(card && card.status === 'error' && !card.outage, 'an unreadable screenshot was called an outage');
+  const html = M.rapidErrorCardHtml(card);
+  ok(/clearer screenshot/.test(html) && /is-error/.test(html), 'the genuine unreadable case lost its advice');
+  ok(/data-rapid-retry=/.test(html), 'an unreadable screenshot cannot be retried');
+});
+
+test('↻ Retry runs a screenshot again with the level and date it was QUEUED with', async () => {
+  M.reset();
+  M.setLevel('P3'); M.setRelease('2030-01-12');
+  M.setPages({ 0: 'outage' });
+  M.rapidAddFiles([M.imgFile('q.png')], 'paste');
+  await settle();
+  const card = M.jobs().find(j => j.status === 'error');
+  M.setLevel('P5'); M.setRelease('2031-02-02');          // the pad moves on
+  M.setPages({ 0: 1 });                                   // …and the engine comes back
+  ok(M.retryRapidJob(card.id), 'retry refused a retryable card');
+  await settle();
+  const reads = M.LOG.read.filter(r => !r.source);
+  eq(reads.length, 2, 'the screenshot was not read again');
+  eq([reads[1].level, reads[1].release], ['P3', '2030-01-12'], 'the retry picked up the pad\'s live settings');
+  eq(M.jobs().filter(j => j.status === 'error').length, 0, 'the red card stayed up after a good retry');
+});
+
+test('↻ Retry all reruns every retryable card, in the order they were pasted', async () => {
+  M.reset();
+  M.setPages({ 0: 'outage' });
+  M.rapidAddFiles([M.imgFile('a.png'), M.imgFile('b.png'), M.imgFile('c.png')], 'paste');
+  await settle();
+  eq(M.jobs().filter(j => j.status === 'error').length, 3, 'not every screenshot left a card');
+  const strip = M.rapidRetryStripHtml();
+  ok(/Retry all \(3\)/.test(strip), 'the strip does not offer to retry all three');
+  ok(/waiting for an AI engine/.test(strip), 'the strip calls an outage "could not be read"');
+  M.setPages({ 0: 1 });
+  M.LOG.read.length = 0;
+  eq(M.retryAllRapidJobs(), 3, 'retry all did not rerun all three');
+  await settle();
+  eq(M.LOG.read.map(r => r.name), ['a.png', 'b.png', 'c.png'], 'retry all ran them out of order');
+  eq(M.jobs().length, 0, 'cards were left behind after retry all');
+});
+
+test('Dismiss all clears the failed cards and leaves the running ones alone', async () => {
+  M.reset();
+  M.setPages({ 0: 'outage' });
+  M.rapidAddFiles([M.imgFile('a.png'), M.imgFile('b.png')], 'paste');
+  await settle();
+  M.jobs().push({ id: 'busy_1', status: 'processing' });
+  M.dismissAllRapidErrors();
+  eq(M.jobs().map(j => j.id), ['busy_1'], 'dismiss all touched a card that was still working');
+});
+
+test('a paper that stops on an empty account RESUMES at that page — nothing read twice, nothing lost', async () => {
+  M.reset();
+  M.setNumPages(5);
+  M.setLevel('P4');
+  M.setPages({ 3: 'outage' });
+  await M._rapidExpandPdf(M.pdfFile('2025 SA2.pdf'), 'P4', '2030-03-03');
+  await settle();
+  eq(M.LOG.read.map(r => r.page), [1, 2, 3], 'the paper read past the page that failed');
+  const cards = M.jobs().filter(j => j.status === 'error');
+  eq(cards.length, 1, 'one stop left ' + cards.length + ' cards');
+  const card = cards[0];
+  ok(card.outage, 'the paper\'s card blames the paper for an outage');
+  ok(/Stopped at page 3 of 5/.test(card.error), 'the card does not say where it stopped');
+  eq(card.retry && card.retry.resume && card.retry.resume.startPage, 3, 'the retry would not pick up at page 3');
+  ok(/↻ Retry from page 3/.test(M.rapidErrorCardHtml(card)), 'the button does not say where it picks up');
+  ok(/Pages 1–2 are done/.test(card.sub || ''), 'the card does not say what is already in vetting');
+  const savedBefore = M.SAVED.map(q => q.id);
+  M.setPages({});                                       // credits topped up
+  M.setLevel('P6');                                     // the picker moved on meanwhile
+  ok(M.retryRapidJob(card.id), 'the paper could not be retried');
+  await settle();
+  eq(M.LOG.read.map(r => r.page), [1, 2, 3, 3, 4, 5], 'pages already in vetting were read (and paid for) again');
+  ok(M.LOG.read.slice(3).every(r => r.level === 'P4' && r.release === '2030-03-03'), 'the resumed pages lost the batch level or date');
+  const ids = M.SAVED.map(q => q.id);
+  eq(new Set(ids).size, ids.length, 'a question was published twice across the resume');
+  eq(ids.length, 5, 'the question held open across the page break was lost in the resume');
+  ok(savedBefore.every(id => ids.includes(id)), 'questions from before the stop went missing');
+  eq(M.jobs().length, 0, 'the resumed paper left a card behind');
+  ok(/picked up again at page 3/.test(M.LOG.status.at(-1) || ''), 'the finish line does not say it was a resume');
+});
+
+test('a paper that stops on page 1 retries from page 1 — and says nothing is in vetting yet', async () => {
+  M.reset();
+  M.setNumPages(2);
+  M.setPages({ 1: 'outage' });
+  await M._rapidExpandPdf(M.pdfFile('p.pdf'), '', '');
+  await settle();
+  const card = M.jobs().find(j => j.status === 'error');
+  eq(card.retry.resume.startPage, 1);
+  ok(!/Pages 1–0/.test(card.sub || ''), 'the card claims pages 1–0 are done');
+  ok(/↻ Retry<\/button>|↻ Retry"|>↻ Retry</.test(M.rapidErrorCardHtml(card)), 'a page-1 stop is labelled as a resume');
+});
+
+test('a retried paper waits its turn in the ONE PDF queue', async () => {
+  M.reset();
+  M.setNumPages(2);
+  M.setPages({ 2: 'outage' });
+  await M._rapidExpandPdf(M.pdfFile('a.pdf'), '', '');
+  await settle();
+  const card = M.jobs().find(j => j.status === 'error');
+  M.setPages({});
+  M.rapidAddFiles([M.pdfFile('b.pdf')], 'drop');        // b is rendering…
+  M.retryRapidJob(card.id);                             // …so a waits behind it
+  eq(M.queueLen(), 1, 'the retried paper started rendering alongside another one');
+  await settle();
+  eq(M.jobs().length, 0, 'one of the papers never finished');
+});
+
+test('a PDF that cannot be opened, or is too long, offers NO retry (it would fail the same way)', async () => {
+  M.reset();
+  M.setNumPages(0);
+  await M._rapidExpandPdf(M.pdfFile('broken.pdf'), '');
+  M.setNumPages(M.RAPID_PDF_MAX_PAGES + 1);
+  await M._rapidExpandPdf(M.pdfFile('book.pdf'), '');
+  await settle();
+  const cards = M.jobs().filter(j => j.status === 'error');
+  eq(cards.length, 2);
+  ok(cards.every(c => !c.retry), 'an unopenable or oversized PDF offered ↻ Retry');
+  ok(cards.every(c => !/data-rapid-retry=/.test(M.rapidErrorCardHtml(c))), 'the button was drawn anyway');
+});
+
+test('a failed PDF PAGE hands its failure to its paper instead of leaving its own card', () => {
+  const body = cut('async function processRapidJob(jobId, file, batchLevel, opts)', '\n// Turn one AI reading into a question object', 'processRapidJob');
+  ok(/if \(o\.deferSave\) \{[\s\S]*?return \{ failed: true, error: err \};/.test(body), 'a page failure no longer goes back to its paper — two cards per stop, and the page card cannot resume');
+  const starter = cut('function startRapidJob(file, level, opts)', '\n// `opts` is what a PDF PAGE carries in', 'startRapidJob');
+  ok(/retry: o\.deferSave \? null/.test(starter), 'a PDF page carries its own retry — retried alone it would publish half a question');
+});
+
+test('the red card never prints raw provider text unescaped', async () => {
+  M.reset();
+  const job = { id: 'x"><script>', status: 'error', title: '<b>t</b>', error: '<img src=x onerror=alert(1)>', sub: '<i>s</i>', level: '<u>P3</u>' };
+  const html = M.rapidErrorCardHtml(job);
+  ok(!/<img src=x/.test(html) && !/<script>/.test(html) && !/<b>t<\/b>/.test(html) && !/<u>P3/.test(html), 'unescaped text reached the card');
 });
 
 // ── runner ───────────────────────────────────────────────────────────────────

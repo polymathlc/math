@@ -613,6 +613,24 @@ body.arcade-ui .sidebar-level :is(select, #studentLevelSelect) option { color: #
 .vet-card.is-new { border-color: var(--primary); }
 .vet-card.is-error { border-color: var(--accent-red); background: var(--accent-red-light); }
 .vet-card.is-busy { border-color: var(--primary); }
+/* 🩺 An OUTAGE card is amber, not red: nothing is wrong with the screenshot,
+   and a wall of red is what makes the one card that IS about a bad picture
+   get clicked past. See 🩺 WHY THE AI SAID NO in the script. */
+.vet-card.is-outage { border-color: var(--accent-orange); background: var(--accent-orange-light); }
+.vet-card.is-outage .vet-card-head h4 { color: var(--accent-orange); }
+.vet-err-lead { font-size: 0.88rem; line-height: 1.65; color: var(--text); margin: 0 0 12px; }
+.vet-err-sub { font-size: 0.8rem; color: var(--text-muted); margin-left: auto; font-weight: 600; }
+.ai-fault-list { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 10px; }
+.ai-fault-row { display: flex; gap: 10px; align-items: flex-start; padding: 10px 14px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); font-size: 0.85rem; line-height: 1.55; }
+.ai-fault-ico { flex: 0 0 auto; font-size: 1rem; line-height: 1.4; }
+.ai-fault-main { flex: 1 1 auto; min-width: 0; }
+.ai-fault-fix { display: block; margin-top: 4px; color: var(--text-muted); font-size: 0.8rem; }
+.ai-fault-raw { margin: 0 0 14px; font-size: 0.75rem; color: var(--text-muted); }
+.ai-fault-raw summary { cursor: pointer; font-weight: 600; }
+.ai-fault-raw > div { margin-top: 8px; padding: 10px 12px; border-radius: 8px; background: var(--surface); border: 1px dashed var(--border); word-break: break-word; line-height: 1.55; max-height: 160px; overflow: auto; }
+.vet-retry-strip { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 18px; border-radius: 12px; border: 1px solid var(--accent-orange); background: var(--accent-orange-light); font-size: 0.86rem; line-height: 1.5; }
+.vet-retry-strip b { color: var(--text); }
+.vet-retry-strip .vet-retry-btns { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
 .vet-card-head { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
 .vet-card-head h4 { font-size: 1rem; font-weight: 700; margin: 0; flex: 1; min-width: 180px; line-height: 1.4; }
 .vet-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
@@ -7127,8 +7145,14 @@ function transcribeRouteNote() {
 function isAiTimeoutError(e) {
   return /abort|timed? ?out|deadline/.test(String((e && e.message) || e || "").toLowerCase());
 }
+// An account that is OUT — prepaid credits gone, a spending cap hit, the
+// day's allowance used — answers 429 too, and is not transient: retrying it
+// costs a round trip and a back-off on every call of a batch and can only
+// ever get the same answer until somebody tops up or the day turns over.
+const AI_NOT_TRANSIENT_RE = /prepay|credits? (?:are |is |have been )?(?:depleted|exhausted|used up)|insufficient[_ ]quota|exceeded your current quota|spending cap|check your plan and billing|daily (?:limit|allowance|cap)/;
 function isTransientAiError(e) {
   const msg = String((e && e.message) || e || "").toLowerCase();
+  if (AI_NOT_TRANSIENT_RE.test(msg)) return false;
   return /abort|timed? ?out|deadline|failed to fetch|networkerror|network error|load failed|overloaded|unavailable|resource.?exhausted|too many requests|\b(429|500|502|503|504)\b/.test(msg);
 }
 // A "model not found / not supported" error means this project can't use that
@@ -7155,6 +7179,13 @@ async function withAiRetry(run, { tries = 3, baseDelayMs = 1200, timeoutTries = 
   }
 }
 function aiErrorMessage(e) {
+  // A failure from SEVERAL engines is read apart first (🩺 WHY THE AI SAID NO):
+  // "openai: … | gemini: … [429] … | kimi: …" contains a 429, and the line
+  // below would otherwise call three empty accounts "busy right now".
+  try {
+    const report = aiFailureReport(e);
+    if (report.engines.filter(x => x.engine).length > 1) return report.sentence;
+  } catch (_) { /* the plain reading below still works */ }
   const raw = String((e && e.message) || e || "").replace(/^(AI|Firebase):\s*/, "");
   const low = raw.toLowerCase();
   if (/abort|timed? ?out|deadline/.test(low)) return "the AI took too long to respond — usually a large file or slow connection, not your image quality. Please try again";
@@ -7341,9 +7372,190 @@ function textEngineOrder(skipOpenAi, media) {
   if (skipOpenAi || (media || []).some(m => /^audio\//.test(m.mimeType || ''))) return ['gemini'];
   return [...new Set([getAiEngine(), ...AI_TEXT_ENGINES])];
 }
+/* =====================================================================
+   🩺 WHY THE AI SAID NO — one failure, read engine by engine (v1.109.0)
+   ---------------------------------------------------------------------
+   When every engine refuses, `runTextEngines` throws ONE sentence made of
+   three: "openai: … | gemini: … | kimi: …". Every surface then printed that
+   sentence and added its own advice — "try a clearer screenshot" — which was
+   the one thing it was never about. On the morning this was written, the
+   three reasons were: ChatGPT's daily allowance for the account used up,
+   Gemini's prepaid credits empty, and Kimi's server key never set. Not one
+   engine had LOOKED at the screenshot, and the card told the teacher to
+   take a better one.
+
+   `aiFailureReport(err)` reads the failure apart:
+     • each engine's own line, with a KIND — `daily-cap`, `billing`,
+       `not-configured`, `key-refused`, `unsupported`, `busy`, `network`,
+       or `unreadable` — and a FIX that names the actual place to go;
+     • `outage`: TRUE when no engine got as far as reading the input. That is
+       what decides whether a card may blame the picture at all;
+     • `retryable`: TRUE when pressing ↻ Retry later could plausibly work —
+       which is every outage, since a top-up or a reset is outside this page.
+   It prefers the structured `engineFailures` that `runTextEngines` now hangs
+   on its error (with each callable's `code` and `details`), and falls back
+   to reading the sentence, so an error that was wrapped on its way here
+   (a PDF page's failure inside "Stopped at page 3") still reads the same.
+
+   `aiFailureHtml(report)` is the ONE rendering of it, shared by ⚡ Rapid add's
+   red card and 🔑 the answer key scanner's, so the two never word the same
+   outage differently.
+   ===================================================================== */
+const AI_ENGINE_LABELS = { openai: 'ChatGPT', gemini: 'Gemini', kimi: 'Kimi' };
+const AI_FAULT_KINDS = {
+  'daily-cap':      { icon: '⏳', title: 'Daily allowance used up', blamesInput: false },
+  'billing':        { icon: '💳', title: 'Out of credit',           blamesInput: false },
+  'not-configured': { icon: '🔌', title: 'Not switched on',         blamesInput: false },
+  'key-refused':    { icon: '🔑', title: 'Key refused',             blamesInput: false },
+  'unsupported':    { icon: '📎', title: 'Cannot take this file',   blamesInput: false },
+  'busy':           { icon: '🚦', title: 'Busy right now',          blamesInput: false },
+  'network':        { icon: '📡', title: 'Could not be reached',    blamesInput: false },
+  'unreadable':     { icon: '🔍', title: 'Answered, but unreadably', blamesInput: true }
+};
+// ORDER MATTERS. A Gemini prepay refusal arrives as "[429] … credits are
+// depleted" and a 429 on its own means "busy" — so billing is asked first, or
+// an empty account reads as a busy one and the advice is to wait.
+const AI_FAULT_RULES = [
+  ['daily-cap', /daily (?:limit|allowance|cap)|resets? (?:tomorrow|at midnight)/i],
+  ['billing', /prepay|credits? (?:are |is |have been )?(?:depleted|exhausted|used up)|insufficient[_ ]quota|exceeded your current quota|check your plan and billing|spending cap|billing account|out of credit|payment required|\b402\b|suspended due to insufficient balance/i],
+  ['not-configured', /not configured|no (?:openai|kimi|moonshot|gemini)? ?key|needs a signed-in server route or a key|failed-precondition|is not configured yet|not set up yet/i],
+  ['key-refused', /api key not valid|invalid (?:api )?key|incorrect api key|invalid_api_key|\b401\b|unauthenticated|permission[_ -]denied/i],
+  ['unsupported', /accepts images; pdfs|cannot read (?:a|this|an?) [\w\/.-]+ attachment|cannot read [\w\/.-]+ attachments|attachment type/i],
+  ['busy', /one request at a time|rate.?limit|too many requests|overloaded|resource.?exhausted|\bunavailable\b|\b(?:429|500|502|503|504)\b/i],
+  ['network', /failed to fetch|networkerror|network error|load failed|timed? ?out|deadline|\babort|could not reach|internet connection/i]
+];
+function aiFaultKind(message, code, details) {
+  const reason = details && details.reason;
+  if (reason === 'daily-cap') return 'daily-cap';
+  if (reason === 'interval') return 'busy';
+  const c = String(code || '');
+  if (/failed-precondition/.test(c)) return 'not-configured';
+  if (/unauthenticated|permission-denied/.test(c)) return 'key-refused';
+  const msg = String(message || '');
+  for (const [kind, re] of AI_FAULT_RULES) if (re.test(msg)) return kind;
+  if (/resource-exhausted/.test(c)) return 'busy';
+  if (/unavailable|deadline-exceeded/.test(c)) return 'network';
+  return 'unreadable';
+}
+const AI_FAULT_FIX = {
+  'daily-cap': (who, d) => who + '’s allowance resets at midnight, Singapore time'
+    + (d && d.cap ? ' (' + d.cap + ' calls a day on this account)' : '')
+    + '. A key pasted into 🧠 AI Engine on this device is not counted against it.',
+  'billing': {
+    openai: 'Top up the OpenAI account: platform.openai.com → Settings → Billing.',
+    gemini: 'Top up the prepaid credits for the mathgen--app project in Google AI Studio: ai.studio/projects → Billing.',
+    kimi: 'Top up the Moonshot account: platform.moonshot.ai → Billing.',
+    '': 'Top up the AI account named here.'
+  },
+  'not-configured': {
+    openai: 'Set the OPENAI_API_KEY secret on the server (Google Cloud → Secret Manager), or paste a ChatGPT key into 🧠 AI Engine on this device.',
+    gemini: 'Gemini did not start in this browser — reload the page.',
+    kimi: 'Set the MOONSHOT_API_KEY secret on the server (Google Cloud → Secret Manager → MOONSHOT_API_KEY → New version), or paste a Kimi key into 🧠 AI Engine on this device.',
+    '': 'This engine has no key yet.'
+  },
+  'key-refused': {
+    openai: 'The OpenAI key was refused — replace OPENAI_API_KEY in Secret Manager, or the key in 🧠 AI Engine.',
+    gemini: 'Google refused the project’s key — check the mathgen--app project in AI Studio.',
+    kimi: 'The Moonshot key was refused — replace MOONSHOT_API_KEY in Secret Manager, or the key in 🧠 AI Engine.',
+    '': 'The key was refused.'
+  },
+  'unsupported': () => 'This engine cannot read this kind of file; the others can.',
+  'busy': () => 'Busy for a moment — press ↻ Retry in a minute.',
+  'network': () => 'Could not be reached — check the connection, then press ↻ Retry.',
+  'unreadable': () => 'It looked, but did not send back a question that could be read.'
+};
+function aiFaultFix(kind, engine, details) {
+  const f = AI_FAULT_FIX[kind];
+  if (typeof f === 'function') return f(AI_ENGINE_LABELS[engine] || 'This engine', details);
+  if (f) return f[engine] || f[''];
+  return '';
+}
+// "openai: …" / "gemini: AI: …" — the engine prefix `runTextEngines` writes.
+const AI_FAILURE_SPLIT_RE = /\s+\|\s+(?=(?:openai|gemini|kimi):\s)/i;
+const AI_FAILURE_LINE_RE = /^(openai|gemini|kimi):\s*([\s\S]*)$/i;
+function _aiFailureLinesFrom(err, depth) {
+  if (!err || depth > 4) return [];
+  if (Array.isArray(err.engineFailures) && err.engineFailures.length) return err.engineFailures;
+  const msg = String((err && err.message) || err || '');
+  const parts = msg.split(AI_FAILURE_SPLIT_RE).map(s => s.trim()).filter(Boolean);
+  const lines = parts.map(p => { const m = AI_FAILURE_LINE_RE.exec(p); return m ? { engine: m[1].toLowerCase(), message: m[2] } : null; }).filter(Boolean);
+  if (lines.length) return lines;
+  // Wrapped on its way here — "Stopped at page 3 …" with the engines inside.
+  if (err.cause) { const inner = _aiFailureLinesFrom(err.cause, depth + 1); if (inner.length) return inner; }
+  return [];
+}
+function aiFailureReport(err) {
+  const lines = _aiFailureLinesFrom(err, 0);
+  const top = String((err && err.message) || err || '');
+  const engines = (lines.length ? lines : [{ engine: '', message: top, code: err && err.code, details: err && err.details }]).map(l => {
+    const message = String(l.message || '').replace(/^(?:AI|Firebase):\s*/, '').trim();
+    const kind = aiFaultKind(message, l.code, l.details);
+    return {
+      engine: l.engine || '',
+      label: AI_ENGINE_LABELS[l.engine] || (l.engine ? l.engine : 'AI'),
+      kind,
+      icon: AI_FAULT_KINDS[kind].icon,
+      title: AI_FAULT_KINDS[kind].title,
+      fix: aiFaultFix(kind, l.engine || '', l.details),
+      message,
+      details: l.details || null
+    };
+  });
+  const outage = engines.length > 0 && engines.every(e => !AI_FAULT_KINDS[e.kind].blamesInput);
+  const named = engines.filter(e => e.engine);
+  const short = named.length
+    ? named.map(e => e.label + ' ' + e.title.toLowerCase()).join(' · ')
+    : (engines[0] ? engines[0].title : 'AI error');
+  const sentence = outage
+    ? 'No AI engine could answer — ' + short + '. Nothing is wrong with what was sent; it can be retried once an engine is back.'
+    : (named.length > 1 ? 'The AI could not read it (' + short + ')' : (engines[0] ? engines[0].message : top));
+  return {
+    outage,
+    // Only a file NO engine can take is pointless to retry as it is.
+    retryable: !engines.every(e => e.kind === 'unsupported'),
+    engines,
+    short,
+    sentence,
+    headline: outage ? 'No AI engine is available right now' : 'The AI could not read this',
+    raw: top
+  };
+}
+// The breakdown as HTML. `escapeHtml` is the app's; every string is escaped.
+function aiFailureHtml(report, { showFixes = true } = {}) {
+  if (!report || !report.engines || !report.engines.length) return '';
+  const rows = report.engines.map(e => '<li class="ai-fault-row" data-kind="' + escapeHtml(e.kind) + '">'
+    + '<span class="ai-fault-ico" aria-hidden="true">' + e.icon + '</span>'
+    + '<span class="ai-fault-main"><b>' + escapeHtml(e.label) + '</b> — ' + escapeHtml(e.title)
+    + (showFixes && e.fix ? '<span class="ai-fault-fix">' + escapeHtml(e.fix) + '</span>' : '')
+    + '</span></li>').join('');
+  return '<ul class="ai-fault-list">' + rows + '</ul>'
+    + '<details class="ai-fault-raw"><summary>Technical details</summary><div>' + escapeHtml(report.raw) + '</div></details>';
+}
+
+/* A refusal that only means "not this second" — the server's one-call-at-a-
+   time gap — is waited out rather than counted as the engine failing. Before
+   this, two pages of one paper read in parallel meant the second call to
+   ChatGPT was refused, fell to Gemini, and on a day Gemini was out of credit
+   became a red card about a gap of 1.5 seconds. */
+const AI_INTERVAL_RETRIES = 3;
+function _aiIsIntervalRefusal(e) {
+  return !!e && ((e.details && e.details.reason === 'interval') || /one request at a time/i.test(String(e.message || '')));
+}
+async function _aiServerCall(call, payload) {
+  for (let attempt = 0; ; attempt++) {
+    try { return await call(payload); }
+    catch (e) {
+      if (!_aiIsIntervalRefusal(e) || attempt >= AI_INTERVAL_RETRIES) throw e;
+      const hinted = Number(e.details && e.details.retryAfterMs) || 1600;
+      const wait = Math.min(4000, Math.max(500, hinted + 250)) + Math.floor(Math.random() * 400);
+      await new Promise(r => setTimeout(r, wait));
+    }
+  }
+}
+
 async function runTextEngines(prompt, media, options, geminiRun) {
   let lastError;
-  const failures = [];
+  const failures = [], engineFailures = [];
   for (const engine of textEngineOrder(options.skipOpenAi, media)) {
     try {
       const text = engine === 'openai' ? await askOpenAI(prompt, media, options)
@@ -7354,17 +7566,21 @@ async function runTextEngines(prompt, media, options, geminiRun) {
       if (e && e.name === 'AbortError') throw e;
       lastError = e;
       failures.push(engine + ': ' + (e.message || e));
+      engineFailures.push({ engine, message: String((e && e.message) || e || ''), code: (e && e.code) || '', details: (e && e.details) || null });
       console.warn(engine + ' failed; trying the next configured AI:', e);
     }
   }
-  throw new Error(failures.join(' | ') || 'AI is not configured yet', { cause: lastError });
+  const err = new Error(failures.join(' | ') || 'AI is not configured yet', { cause: lastError });
+  // The same failures, still in pieces — see 🩺 WHY THE AI SAID NO above.
+  err.engineFailures = engineFailures;
+  throw err;
 }
 async function askOpenAI(prompt, media, { maxOutputTokens = 512, temperature, json = false, reasoningEffort = 'low', thinkingBudget = 0 } = {}) {
   const model = getOpenAiModel();
   const effort = openAiReasoningEffort(thinkingBudget < 0 ? 'high' : reasoningEffort);
   if (auth.currentUser) {
     try {
-      const { data } = await askOpenAiServerCall({ prompt, media: media || [], maxOutputTokens, json, model, reasoningEffort: effort });
+      const { data } = await _aiServerCall(askOpenAiServerCall, { prompt, media: media || [], maxOutputTokens, json, model, reasoningEffort: effort });
       if (!data || typeof data.text !== 'string' || !data.text.trim()) throw new Error('ChatGPT returned an empty response.');
       return data.text.trim();
     } catch (e) { if (!getOpenAiKey()) throw e; }
@@ -7397,7 +7613,7 @@ async function askKimiEngine(prompt, media, { maxOutputTokens = 512, temperature
   const model = getKimiModel(), effort = kimiReasoningEffort(thinkingBudget < 0 ? 'high' : reasoningEffort);
   if (auth.currentUser) {
     try {
-      const { data } = await askKimiServerCall({ prompt, media: media || [], maxOutputTokens, json, model, reasoningEffort: effort });
+      const { data } = await _aiServerCall(askKimiServerCall, { prompt, media: media || [], maxOutputTokens, json, model, reasoningEffort: effort });
       if (!data || typeof data.text !== 'string' || !data.text.trim()) throw new Error('Kimi returned an empty response.');
       return data.text.trim();
     } catch (e) { if (!getKimiKey()) throw e; }
@@ -13922,7 +14138,9 @@ async function tblReadImage(id, file) {
     dupWatchKick();
   } catch (e) {
     console.warn("table read", e);
-    tblStatus(id, "Couldn't read that — " + aiErrorMessage(e) + ". Try a clearer, tighter picture of the table.");
+    tblStatus(id, aiBlamesInput(e)
+      ? "Couldn't read that — " + aiErrorMessage(e) + ". Try a clearer, tighter picture of the table."
+      : "⚠ " + aiErrorMessage(e));
   }
 }
 function imgBlockHtml(b) {
@@ -18967,9 +19185,16 @@ async function handleAiBuild(file) {
   }
 }
 function aiBuildFailureText(e) {
+  // An outage is never the picture's fault, so it never says "try a clearer image".
+  if (!aiBlamesInput(e)) return "⚠ " + aiErrorMessage(e);
   return isTransientAiError(e)
     ? "Upload interrupted: " + aiErrorMessage(e) + "."
     : "Couldn't read that — try a clearer image. (" + aiErrorMessage(e) + ")";
+}
+// May a failure be blamed on the picture / file / photograph that was sent?
+// Only when some engine actually looked at it — see 🩺 WHY THE AI SAID NO.
+function aiBlamesInput(e) {
+  try { return !aiFailureReport(e).outage; } catch (_) { return true; }
 }
 // The one prompt that turns a picture of an exam question into a question.
 // Build-with-AI and Rapid add both use it, so a wording fix reaches both
@@ -19747,7 +19972,7 @@ function renderVettingList() {
   vetPrintPeekHide();
   updateVettingBadge();
   vetPruneSelection();
-  const jobs = rapidJobs.map(rapidJobCardHtml).join("");
+  const jobs = rapidRetryStripHtml() + rapidJobs.map(rapidJobCardHtml).join("");
   if (!vettingList.length && !rapidJobs.length) {
     vetRenderBulkBar();
     list.innerHTML = `<div class="empty-note">Nothing waiting. Use <b>⚡ Rapid add</b> to paste screenshots straight in here ✦</div>`;
@@ -19806,6 +20031,10 @@ function renderVettingList() {
   list.querySelectorAll("[data-vet-del]").forEach(b => b.addEventListener("click", () => vetDelete(b.dataset.vetDel)));
   list.querySelectorAll("[data-vet-pick]").forEach(b => b.addEventListener("change", () => vetSelToggle(b.dataset.vetPick, b.checked)));
   list.querySelectorAll("[data-rapid-dismiss]").forEach(b => b.addEventListener("click", () => dismissRapidJob(b.dataset.rapidDismiss)));
+  list.querySelectorAll("[data-rapid-retry]").forEach(b => b.addEventListener("click", () => { b.disabled = true; retryRapidJob(b.dataset.rapidRetry); }));
+  list.querySelectorAll("[data-rapid-retry-all]").forEach(b => b.addEventListener("click", () => { b.disabled = true; retryAllRapidJobs(); }));
+  list.querySelectorAll("[data-rapid-dismiss-all]").forEach(b => b.addEventListener("click", dismissAllRapidErrors));
+  list.querySelectorAll("[data-rapid-engine]").forEach(b => b.addEventListener("click", () => openAiEngineSettings()));
 }
 // Approve = move, not copy: the vetting doc goes away only AFTER the bank write
 // succeeds, so a failed save leaves the question exactly where it was rather
@@ -20966,7 +21195,7 @@ async function _rapidPdfPump() {
   try {
     while (_rapidPdfQueue.length) {
       const next = _rapidPdfQueue.shift();
-      await _rapidExpandPdf(next.file, next.level, next.release);
+      await _rapidExpandPdf(next.file, next.level, next.release, next.resume || null);
     }
   } finally { _rapidPdfBusy = false; }
 }
@@ -20984,19 +21213,86 @@ function _rapidPageFile(img, name, pageNo) {
 // A failure must always leave a card behind: a screenshot that silently
 // vanished reads as "that one worked". Every route into a failure lands here,
 // so there is one shape of failure however it arrived.
-function failRapidJob(jobId, err) {
+//
+// 🩺 …and the card says WHY (v1.109.0). The failure is read apart engine by
+// engine (`aiFailureReport`), and when no engine got as far as reading the
+// picture — an allowance used up, an account out of credit, a key never set —
+// the card is an amber OUTAGE card that says so and names the fix, rather than
+// a red one telling the author to take a clearer screenshot.
+//
+// ↻ …and it can be RETRIED. `extra.retry` (or the `retry` the job was created
+// with) is everything needed to run it again: the file, the batch level and
+// release date it was QUEUED with (never the pad's live state — the same rule
+// as everywhere else in this block), and for a PDF the page to pick up from
+// with the question it was holding open. Without it, a paper that stopped on
+// page 23 of 40 because an account ran dry had to be dropped in again from
+// page 1 — re-reading, re-filing and re-paying for 22 pages already in vetting.
+function failRapidJob(jobId, err, extra) {
   console.error("rapid job failed:", err);
   const job = rapidJobs.find(j => j.id === jobId);
   // A page out of a PDF says WHICH page. "Couldn't read this screenshot" on a
   // forty-page paper leaves the author with nothing to go back to.
   const what = (job && job.source) ? "“" + job.source + "”" : "this screenshot";
-  const patch = { status: "error", title: "Couldn't read " + what, error: (err && err.message) ? err.message : String(err) };
+  let report = null;
+  try { report = aiFailureReport(err); } catch (e) { report = null; }
+  const outage = !!(report && report.outage);
+  const retry = (extra && extra.retry) || (job && job.retry) || null;
+  const patch = {
+    status: "error",
+    title: outage ? "Not read yet — " + what : "Couldn't read " + what,
+    error: (err && err.message) ? err.message : String(err),
+    report,
+    outage,
+    retry: (retry && (!report || report.retryable)) ? retry : null,
+    failedAt: Date.now()
+  };
+  // The spinner's "Reading page 7 of 40…" must not survive onto the red card.
+  patch.sub = (extra && extra.sub) || "";
   if (job) Object.assign(job, patch);
   else rapidJobs.unshift(Object.assign({ id: jobId }, patch));
   updateRapidCounts();
   renderVettingList();
-  setRapidStatus("⚠ " + ((job && job.source) ? what : "One screenshot") + " could not be read — see the red card in vetting.");
-  toast("Could not read " + what + " — see the red card in vetting", "error");
+  if (outage) {
+    setRapidStatus("⚠ " + report.sentence + " Press ↻ Retry on the card when it is.");
+    toast("No AI engine could answer — " + report.short, "error");
+  } else {
+    setRapidStatus("⚠ " + ((job && job.source) ? what : "One screenshot") + " could not be read — see the red card in vetting.");
+    toast("Could not read " + what + " — see the red card in vetting", "error");
+  }
+}
+
+// ↻ Run one red card again, with exactly what it was queued with.
+function retryRapidJob(jobId) {
+  const job = rapidJobs.find(j => j.id === jobId);
+  if (!job || job.status !== "error" || !job.retry) return false;
+  const r = job.retry;
+  removeRapidJob(jobId);
+  if (r.kind === "pdf") {
+    // Back into the ONE PDF queue, so a retried paper still waits its turn
+    // behind a paper that is rendering — two at once is a canvas per page of
+    // both, on a school Chromebook.
+    _rapidPdfQueue.push({ file: r.file, level: r.level, release: r.release, resume: r.resume || null });
+    _rapidPdfPump();
+  } else {
+    startRapidJob(r.file, r.level, Object.assign({}, r.opts || {}, { release: r.release }));
+  }
+  updateRapidCounts();
+  renderVettingList();
+  return true;
+}
+// ↻ Retry all — every card that can be retried, oldest first, so a pasted
+// batch comes back in the order it was pasted.
+function retryAllRapidJobs() {
+  const ids = rapidJobs.filter(j => j.status === "error" && j.retry).map(j => j.id).reverse();
+  let n = 0;
+  ids.forEach(id => { if (retryRapidJob(id)) n++; });
+  if (n) setRapidStatus("↻ Retrying " + n + " — " + (n === 1 ? "it is" : "they are") + " back in the queue.");
+  return n;
+}
+function dismissAllRapidErrors() {
+  rapidJobs = rapidJobs.filter(j => j.status !== "error");
+  updateRapidCounts();
+  renderVettingList();
 }
 
 // Render a PDF page by page and feed each page into the ordinary queue.
@@ -21011,19 +21307,35 @@ async function _rapidPublishMathQuestions(questions) {
 }
 // Browser mode uses the same boundary assembler as the online worker. The
 // final question remains private until the following page resolves its end.
-async function _rapidExpandPdf(file, level, release) {
+//
+// ↻ `resume` picks a paper up where it stopped (v1.109.0): `startPage` is the
+// page that failed, `pending` is the question that was still open across the
+// page break (the boundary assembler's own object — the question is not in
+// vetting yet, and must not be, until the page after it says where it ends),
+// `previous` is the page image before it (the model's context for a
+// continuation), and `added` carries the paper's running total. Everything
+// before `startPage` is already in vetting and is NOT read again.
+async function _rapidExpandPdf(file, level, release, resume) {
+  const r=resume||null;
   const name=file.name||'PDF',jobId='rapid_'+(++_rapidSeq);
-  rapidJobs.unshift({id:jobId,status:'processing',title:'📄 '+name,sub:'Opening the PDF…',level,release,source:name});
+  rapidJobs.unshift({id:jobId,status:'processing',title:'📄 '+name,sub:r?'Picking up again at page '+r.startPage+'…':'Opening the PDF…',level,release,source:name});
   updateRapidCounts();renderVettingList();
-  let added=0,pending=null,previous=null,doc;
+  let added=r?(r.added||0):0,pending=r?(r.pending||null):null,previous=r?(r.previous||null):null,doc;
+  // The page being read, kept OUTSIDE the loop so the failure path knows where
+  // to pick up from. `reading` is false until the pages themselves start:
+  // a PDF that is too big or will not open is not worth a ↻ (it will fail
+  // the same way), so its card offers none.
+  let pageNo=r&&r.startPage>1?r.startPage:1,reading=false,total=0;
   try {
     if(file.size>40*1024*1024) throw new Error('PDF limit: 40 MB per file.');
     const pdfjs=await _loadPdfJs();
     doc=await pdfjs.getDocument({data:await file.arrayBuffer(),isEvalSupported:false}).promise;
-    const total=doc.numPages||0;
+    total=doc.numPages||0;
     if(!total) throw new Error('That PDF has no pages.');
     if(total>RAPID_PDF_MAX_PAGES) throw new Error('This PDF has '+total+' pages. Split it into files of at most '+RAPID_PDF_MAX_PAGES+' pages. No pages were skipped.');
-    for(let pageNo=1;pageNo<=total;pageNo++) {
+    if(pageNo>total) pageNo=total;
+    reading=true;
+    for(;pageNo<=total;pageNo++) {
       setRapidJobState(jobId,{sub:'Reading page '+pageNo+' of '+total+' — keep this browser tab open.'});renderVettingList();
       const page=await doc.getPage(pageNo);
       let img;try{img=await _pdfRenderPage(page,PDF_PAGE_MAX_SIDE);}finally{page.cleanup();}
@@ -21032,7 +21344,14 @@ async function _rapidExpandPdf(file, level, release) {
         source:name+' — page '+pageNo+' of '+total,sourcePdf:name,pageNo,blankOk:true,deferSave:true,
         previous,pending:pending?{number:pending.sourceQuestionNumber,blocks:pending.blocks}:null
       });
-      if(!result) throw new Error('Stopped at page '+pageNo+'. The incomplete question has not been published. Earlier complete questions remain in vetting.');
+      if(!result||result.failed) {
+        // The page's own failure rides along as the CAUSE, so the paper's card
+        // can still say which engines refused and why.
+        const stop=new Error('Stopped at page '+pageNo+' of '+total+'. The incomplete question has not been published. Earlier complete questions remain in vetting.'
+          +(result&&result.error&&result.error.message?' ('+result.error.message+')':''),{cause:result&&result.error});
+        if(result&&result.error&&result.error.engineFailures) stop.engineFailures=result.error.engineFailures;
+        throw stop;
+      }
       const entries=(result.questions||[]).map(q=>({q,continuation:q._pdfContinuation===true}));
       entries.forEach(({q})=>delete q._pdfContinuation);
       const assembled=assembleMathPdfPage(pending,entries,pageNo===total);
@@ -21040,8 +21359,13 @@ async function _rapidExpandPdf(file, level, release) {
       added+=assembled.ready.length;pending=assembled.pending;previous=img;
     }
     removeRapidJob(jobId);updateRapidCounts();renderVettingList();
-    setRapidStatus('✓ '+added+' complete questions from “'+name+'” added to vetting.');
-  } catch(err){failRapidJob(jobId,err);}
+    setRapidStatus('✓ '+added+' complete questions from “'+name+'” added to vetting.'+(r?' (picked up again at page '+r.startPage+')':''));
+  } catch(err){
+    failRapidJob(jobId,err,reading?{
+      retry:{kind:'pdf',file,level,release,resume:{startPage:pageNo,pending,previous,added}},
+      sub:(pageNo>1?'Pages 1–'+(pageNo-1)+' are done ('+added+' question'+(added===1?'':'s')+' in vetting). ':'')+'↻ Retry picks up at page '+pageNo+' of '+total+'.'
+    }:null);
+  }
   finally{if(doc) await doc.destroy();}
 }
 
@@ -21075,7 +21399,12 @@ function startRapidJob(file, level, opts) {
     sub: "AI is reading the question…",
     level: lv,
     release: rel,
-    source: o.source || ""
+    source: o.source || "",
+    // ↻ What a red card needs to run this again — see failRapidJob. A PDF
+    // PAGE carries none: its paper owns the retry (it resumes from this page
+    // with the question held open across the break), so a page that could
+    // be retried on its own would publish a half-question.
+    retry: o.deferSave ? null : { kind: "image", file, level: lv, release: rel, opts: Object.assign({}, o) }
   });
   updateRapidCounts();
   renderVettingList();          // the placeholder card shows immediately
@@ -21238,6 +21567,17 @@ async function processRapidJob(jobId, file, batchLevel, opts) {
     }
     return { added: added.length, questions: added };
   } catch (err) {
+    // A PDF page hands its failure BACK to its paper rather than leaving a
+    // card of its own: the paper's card is the one that can resume, and two
+    // cards for one stop ("page 3" and "the paper, at page 3") read as two
+    // problems.
+    if (o.deferSave) {
+      console.warn("rapid PDF page failed:", err);
+      removeRapidJob(jobId);
+      updateRapidCounts();
+      renderVettingList();
+      return { failed: true, error: err };
+    }
     failRapidJob(jobId, err);
   }
 }
@@ -21879,16 +22219,64 @@ function updateRapidCounts() {
   const a = $("rapidAddedCount"); if (a) a.textContent = String(_rapidAddedCount);
   updateVettingBadge();
 }
+// 🩺 A card that FAILED. Two shapes, decided by `job.outage` (see
+// failRapidJob):
+//  • OUTAGE (amber) — no engine read the picture. It says so first, lists
+//    each engine with what to do about it, and never mentions the screenshot's
+//    quality. For the teacher there is a 🧠 AI Engine button, because a key
+//    pasted on this device is the one fix that works in the next ten seconds.
+//  • UNREADABLE (red) — an engine did look and could not get a question out
+//    of it. That is the one case where "try a clearer screenshot" is advice.
+// Both carry ↻ Retry when the job kept what it needs to run again.
+function rapidErrorCardHtml(job) {
+  const id = escapeHtml(job.id);
+  const report = job.report || null;
+  const retryBtn = job.retry
+    ? `<button class="btn btn-primary btn-sm" data-rapid-retry="${id}" title="Read it again with the same level and release date it was queued with${job.retry.kind === "pdf" && job.retry.resume ? " — picking up at page " + escapeHtml(String(job.retry.resume.startPage)) : ""}">↻ Retry${job.retry.kind === "pdf" && job.retry.resume && job.retry.resume.startPage > 1 ? " from page " + escapeHtml(String(job.retry.resume.startPage)) : ""}</button>` : "";
+  const isTeacher = typeof _isAdmin === "function" && _isAdmin();
+  const engineBtn = (job.outage && isTeacher)
+    ? `<button class="btn btn-ghost btn-sm" data-rapid-engine="1" title="Paste a key on this device, or switch which engine goes first">🧠 AI Engine</button>` : "";
+  const dismiss = `<button class="btn btn-ghost btn-sm" data-rapid-dismiss="${id}">Dismiss</button>`;
+  const level = job.level ? `<span class="vet-badge">📚 ${escapeHtml(job.level)}</span>` : "";
+  const sub = job.sub ? `<p class="vet-err-lead">${escapeHtml(job.sub)}</p>` : "";
+  if (job.outage && report) {
+    return `<div class="vet-card is-outage" data-rapid-card="${id}">
+      <div class="vet-card-head"><h4>⏸️ ${escapeHtml(job.title || "Not read yet")}</h4>${level}</div>
+      <p class="vet-err-lead"><b>${escapeHtml(report.headline)}.</b> Nothing is wrong with the ${job.retry && job.retry.kind === "pdf" ? "paper" : "screenshot"} — no engine got as far as reading it. Fix any one of these, then ${job.retry ? "press ↻ Retry" : "add it again"}.</p>
+      ${sub}
+      ${aiFailureHtml(report)}
+      <div class="vet-actions">${retryBtn}${engineBtn}${dismiss}</div>
+    </div>`;
+  }
+  const breakdown = report && report.engines.filter(e => e.engine).length > 1 ? aiFailureHtml(report) : "";
+  return `<div class="vet-card is-error" data-rapid-card="${id}">
+      <div class="vet-card-head"><h4 style="color:var(--accent-red);">⚠ ${escapeHtml(job.title || "Couldn't read screenshot")}</h4>${level}</div>
+      ${sub}
+      <div class="vet-preview">${escapeHtml(breakdown ? report.sentence : (job.error || "The AI could not read this image."))} — try a clearer screenshot, or use ✨ Build with AI.</div>
+      ${breakdown}
+      <div class="vet-actions">${retryBtn}${dismiss}</div>
+    </div>`;
+}
+// One strip above the failed cards when there is more than one, so a pasted
+// batch that all stopped on the same empty account is ONE press to run again.
+function rapidRetryStripHtml() {
+  const failed = rapidJobs.filter(j => j.status === "error");
+  if (failed.length < 2) return "";
+  const retryable = failed.filter(j => j.retry).length;
+  const outages = failed.filter(j => j.outage).length;
+  return `<div class="vet-retry-strip" role="status">
+    <span><b>${failed.length} ${outages === failed.length ? "waiting for an AI engine" : "could not be read"}</b>${outages === failed.length ? " — nothing is wrong with them." : outages ? " — " + outages + " of them only because no AI engine was available." : "."}</span>
+    <span class="vet-retry-btns">
+      ${retryable ? `<button class="btn btn-primary btn-sm" data-rapid-retry-all="1">↻ Retry all (${retryable})</button>` : ""}
+      <button class="btn btn-ghost btn-sm" data-rapid-dismiss-all="1">Dismiss all</button>
+    </span>
+  </div>`;
+}
+
 // One placeholder card in the vetting list per screenshot still being read
 // (or one that failed, with a dismiss button).
 function rapidJobCardHtml(job) {
-  if (job.status === "error") {
-    return `<div class="vet-card is-error">
-      <div class="vet-card-head"><h4 style="color:var(--accent-red);">⚠ ${escapeHtml(job.title || "Couldn't read screenshot")}</h4></div>
-      <div class="vet-preview">${escapeHtml(job.error || "The AI could not read this image.")} — try a clearer screenshot, or use ✨ Build with AI.</div>
-      <div class="vet-actions"><button class="btn btn-ghost btn-sm" data-rapid-dismiss="${escapeHtml(job.id)}">Dismiss</button></div>
-    </div>`;
-  }
+  if (job.status === "error") return rapidErrorCardHtml(job);
   return `<div class="vet-card is-busy">
     <div class="vet-card-head"><h4><span class="spinner dark"></span> ${escapeHtml(job.title || "Processing…")}</h4>${job.level ? `<span class="vet-badge">📚 ${escapeHtml(job.level)}</span>` : ""}${job.release ? `<span class="vet-badge sched" title="Every question from this batch is held back from students until this date">⏳ ${escapeHtml(qReleaseLabel(job.release))}</span>` : ""}</div>
     <div class="vet-preview">${escapeHtml(job.sub || "AI is reading the question…")}</div>
@@ -22316,9 +22704,13 @@ async function aksProcessJob(rowId, file) {
     }
   } catch (err) {
     console.error("answer key scan failed:", err);
-    aksSetRow(rowId, { status: "error", error: (err && err.message) ? err.message : String(err) });
+    // 🩺 Read apart engine by engine, exactly as ⚡ Rapid add's card is: an
+    // empty account is not a badly lit photograph.
+    let report = null;
+    try { report = aiFailureReport(err); } catch (_) { report = null; }
+    aksSetRow(rowId, { status: "error", error: (err && err.message) ? err.message : String(err), report, outage: !!(report && report.outage) });
     aksRender();
-    toast("A photograph could not be read — see the red card", "error");
+    toast(report && report.outage ? "No AI engine could answer — " + report.short : "A photograph could not be read — see the red card", "error");
   }
 }
 
@@ -22713,6 +23105,14 @@ function aksVideoBoxHtml(row, q) {
 
 function aksRowHtml(row) {
   if (row.status === "error") {
+    if (row.outage && row.report) {
+      return `<div class="aks-card is-error">
+      <div class="aks-head"><h4>⏸️ “${escapeHtml(row.name || "that photograph")}” is not read yet</h4></div>
+      <div class="aks-note"><b>${escapeHtml(row.report.headline)}.</b> Nothing is wrong with the photograph — no engine got as far as reading it. Fix any one of these, then add it again.</div>
+      ${aiFailureHtml(row.report)}
+      <div class="aks-actions"><button class="btn btn-ghost btn-sm" data-aks-dismiss="${escapeHtml(row.id)}">Dismiss</button></div>
+    </div>`;
+    }
     return `<div class="aks-card is-error">
       <div class="aks-head"><h4>⚠ Couldn't read “${escapeHtml(row.name || "that photograph")}”</h4></div>
       <div class="aks-note">${escapeHtml(row.error || "The AI could not read a worked answer on it.")} — try a clearer, better-lit photograph.</div>
@@ -36187,7 +36587,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.108.1 · 2026-10-25";
+const APP_VERSION = "v1.109.0 · 2026-10-25";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)

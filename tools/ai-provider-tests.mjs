@@ -266,3 +266,233 @@ test('online worker uses GPT 6.1 Sol and has three-provider image fallback', asy
   assert.equal(payloads[1].reasoning_effort, 'high'); assert.equal(payloads[1].max_completion_tokens, 24000);
   assert.equal('max_tokens' in payloads[1], false); assert.equal('temperature' in payloads[1], false);
 });
+
+// =====================================================================
+// 🩺 WHY THE AI SAID NO + 🧑‍🏫 STAFF ARE NOT PUPILS (v1.109.0)
+// ---------------------------------------------------------------------
+// The day these were written, ⚡ Rapid add filled vetting with red cards
+// saying "try a clearer screenshot" while the real reasons were: the
+// teacher's own account had used the pupils' 120-a-day ChatGPT allowance,
+// Gemini's prepaid credits were empty, and Kimi's server key was never set.
+// Every failure below is SILENT: the card still appears, it just says the
+// wrong thing, or the teacher is throttled like a pupil.
+// =====================================================================
+const SCREENSHOT_FAILURE = "openai: The backup AI's daily limit for this account has been reached — it will reset tomorrow. | gemini: AI: Error fetching from https://firebasevertexai.googleapis.com/v1beta/projects/mathgen--app/models/gemini-2.5-flash:generateContent: [429 ] Your prepayment credits are depleted. Please go to AI Studio at https://ai.studio/projects to manage your project and billing. Learn more at https://ai.google.dev/gemini-api/docs/billing#prepay. (AI/fetch-error) | kimi: No Kimi key is configured on the server.";
+const htmlEscape = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+test('the exact failure from the report reads as an OUTAGE, engine by engine', () => {
+  const h = browser();
+  const report = h.context.aiFailureReport(new Error(SCREENSHOT_FAILURE));
+  assert.equal(report.outage, true, 'three empty accounts were blamed on the screenshot');
+  assert.deepEqual(JSON.parse(JSON.stringify(report.engines.map(e => [e.engine, e.kind]))), [['openai', 'daily-cap'], ['gemini', 'billing'], ['kimi', 'not-configured']]);
+  assert.match(report.engines[1].fix, /AI Studio/);
+  assert.match(report.engines[2].fix, /MOONSHOT_API_KEY/);
+  assert.match(report.engines[0].fix, /midnight, Singapore time/);
+  assert.match(report.sentence, /No AI engine could answer/);
+  assert.doesNotMatch(report.sentence, /clearer/);
+  assert.equal(report.retryable, true);
+});
+test('a prepay 429 is BILLING, a bare 429 is BUSY — order matters', () => {
+  const h = browser();
+  assert.equal(h.context.aiFaultKind('[429] Your prepayment credits are depleted.'), 'billing');
+  assert.equal(h.context.aiFaultKind('You exceeded your current quota, please check your plan and billing details.'), 'billing');
+  assert.equal(h.context.aiFaultKind('[429] Too Many Requests'), 'busy');
+  assert.equal(h.context.aiFaultKind('One request at a time — give it a couple of seconds.'), 'busy');
+  assert.equal(h.context.aiFaultKind('Failed to fetch'), 'network');
+  assert.equal(h.context.aiFaultKind('Incorrect API key provided: sk-…'), 'key-refused');
+  assert.equal(h.context.aiFaultKind('Kimi accepts images; PDFs and audio need another provider.'), 'unsupported');
+  assert.equal(h.context.aiFaultKind('OpenAI returned an incomplete or empty response.'), 'unreadable');
+});
+test('structured details beat the wording: a server refusal reason decides the kind', () => {
+  const h = browser();
+  assert.equal(h.context.aiFaultKind('anything at all', 'functions/resource-exhausted', { reason: 'daily-cap' }), 'daily-cap');
+  assert.equal(h.context.aiFaultKind('anything at all', 'functions/resource-exhausted', { reason: 'interval' }), 'busy');
+  assert.equal(h.context.aiFaultKind('anything at all', 'functions/failed-precondition'), 'not-configured');
+});
+test('one engine that LOOKED and could not read keeps the input in question', () => {
+  const h = browser();
+  const report = h.context.aiFailureReport(new Error('openai: OpenAI returned an incomplete or empty response. | gemini: [429] Your prepayment credits are depleted. | kimi: No Kimi key is configured on the server.'));
+  assert.equal(report.outage, false);
+  assert.equal(report.headline, 'The AI could not read this');
+});
+test('a single plain failure with no engine prefix still classifies', () => {
+  const h = browser();
+  const unreadable = h.context.aiFailureReport(new Error('the AI could not read a question out of that'));
+  assert.equal(unreadable.outage, false);
+  const offline = h.context.aiFailureReport(new Error('Failed to fetch'));
+  assert.equal(offline.outage, true);
+});
+test('runTextEngines hangs the failures on its error IN PIECES, with code and details', async () => {
+  const h = browser({ failures: { openai: "ChatGPT: this account's daily limit (120 calls) has been reached — it resets at midnight, Singapore time.", gemini: '[429] Your prepayment credits are depleted.', kimi: 'No Kimi key is configured on the server.' } });
+  const err = await h.api.askGeminiVision('Read', []).then(() => null, e => e);
+  assert.ok(err, 'the chain did not fail');
+  assert.deepEqual(JSON.parse(JSON.stringify(err.engineFailures.map(f => f.engine))), ['openai', 'gemini', 'kimi']);
+  // The sentence form is unchanged, so every caller written against it still reads it.
+  assert.match(err.message, /openai: .*\| gemini: .*\| kimi: /);
+  assert.equal(h.context.aiFailureReport(err).outage, true);
+});
+test('a failure wrapped on its way to the card still reads as the engines (PDF "Stopped at page")', () => {
+  const h = browser();
+  const inner = new Error(SCREENSHOT_FAILURE);
+  const outer = new Error('Stopped at page 3 of 40. The incomplete question has not been published.', { cause: inner });
+  const report = h.context.aiFailureReport(outer);
+  assert.equal(report.outage, true);
+  assert.equal(report.engines.length, 3);
+  assert.match(report.raw, /Stopped at page 3/);
+});
+test('aiErrorMessage no longer calls three empty accounts "busy right now"', () => {
+  const h = browser();
+  vm.runInContext(cut(app, 'const AI_NOT_TRANSIENT_RE', '\n// A "model not found') + cut(app, 'function aiErrorMessage(e)', '\nasync function askGeminiVision(') + '\nglobalThis.aiErrorMessage = aiErrorMessage; globalThis.isTransientAiError = isTransientAiError;', h.context);
+  const msg = h.context.aiErrorMessage(new Error(SCREENSHOT_FAILURE));
+  assert.doesNotMatch(msg, /busy right now/);
+  assert.match(msg, /No AI engine could answer/);
+  // …and a lone network error keeps its old, specific wording.
+  assert.match(h.context.aiErrorMessage(new Error('Failed to fetch')), /network problem/);
+});
+test('an account that is OUT is not retried as if it were busy', () => {
+  const h = browser();
+  vm.runInContext(cut(app, 'const AI_NOT_TRANSIENT_RE', '\n// A "model not found') + '\nglobalThis.isTransientAiError = isTransientAiError;', h.context);
+  assert.equal(h.context.isTransientAiError(new Error('[429] Your prepayment credits are depleted.')), false);
+  assert.equal(h.context.isTransientAiError(new Error("ChatGPT: this account's daily limit (120 calls) has been reached")), false);
+  assert.equal(h.context.isTransientAiError(new Error('[429] Too Many Requests')), true);
+  assert.equal(h.context.isTransientAiError(new Error('Failed to fetch')), true);
+  // The server's copy is word for word the page's.
+  const pageRe = /const AI_NOT_TRANSIENT_RE = (\/.*\/);/.exec(app)[1];
+  const serverRe = /const AI_NOT_TRANSIENT_RE = (\/.*\/);/.exec(server)[1];
+  assert.equal(serverRe, pageRe, 'the page and the server disagree about what is transient');
+});
+test('the breakdown renders every engine, escaped, with its fix and the raw text tucked away', () => {
+  const h = browser();
+  h.context.escapeHtml = htmlEscape;
+  const html = h.context.aiFailureHtml(h.context.aiFailureReport(new Error(SCREENSHOT_FAILURE + ' <img src=x onerror=alert(1)>')));
+  assert.equal((html.match(/class="ai-fault-row"/g) || []).length, 3);
+  assert.match(html, /ChatGPT/); assert.match(html, /Gemini/); assert.match(html, /Kimi/);
+  assert.match(html, /<details class="ai-fault-raw">/);
+  assert.doesNotMatch(html, /<img src=x/, 'raw provider text reached the page unescaped');
+});
+test('the server one-call-at-a-time refusal is WAITED OUT, not counted as ChatGPT failing', async () => {
+  const failures = { openai: 'One request at a time — give it a couple of seconds.' };
+  const h = browser({ failures });
+  let waits = 0;
+  h.context.setTimeout = fn => { waits++; delete failures.openai; fn(); return 0; };
+  assert.equal(await h.api.askGeminiVision('Read the page', [{ mimeType: 'image/png', data: 'PAGE' }]), 'openai answer');
+  assert.deepEqual(h.calls, ['openai', 'openai'], 'the refused call fell to Gemini instead of waiting');
+  assert.equal(waits, 1);
+});
+test('the wait is bounded — a refusal that never clears still reaches the next engine', async () => {
+  const h = browser({ failures: { openai: 'One request at a time — give it a couple of seconds.' } });
+  h.context.setTimeout = fn => { fn(); return 0; };
+  assert.equal(await h.api.askGeminiVision('Read', []), 'gemini answer');
+  assert.equal(h.calls.filter(c => c === 'openai').length, 1 + 3, 'AI_INTERVAL_RETRIES is not what bounds the wait');
+});
+test('a daily-cap refusal is NOT waited out — it goes straight to the next engine', async () => {
+  const h = browser({ failures: { openai: "ChatGPT: this account's daily limit (120 calls) has been reached — it resets at midnight, Singapore time." } });
+  let waits = 0; h.context.setTimeout = fn => { waits++; fn(); return 0; };
+  assert.equal(await h.api.askGeminiVision('Read', []), 'gemini answer');
+  assert.equal(waits, 0);
+});
+
+// ── the server's allowance ────────────────────────────────────────────
+function allowance({ start = Date.parse('2026-10-25T10:00:00Z') } = {}) {
+  const store = new Map();
+  let now = start;
+  const context = vm.createContext({
+    ADMIN_EMAILS: ['chungzhikai@gmail.com', 'abigail.yew@stanfordmanpower.com'], EMPLOYEE_EMAILS: ['pkeertana21@gmail.com'],
+    HttpsError: class extends Error { constructor(code, message, details) { super(message); this.code = code; this.details = details; } },
+    statsRef: uid => uid,
+    db: { runTransaction: async fn => fn({
+      get: async uid => ({ exists: store.has(uid), data: () => ({ ...store.get(uid) }) }),
+      set: (uid, data) => store.set(uid, { ...(store.get(uid) || {}), ...data })
+    }) },
+    Date: class extends Date { constructor(...a) { super(...(a.length ? a : [now])); } static now() { return now; } },
+    MIN_OPENAI_INTERVAL_MS: 1500, DAILY_OPENAI_CAP: 120, DAILY_OPENAI_STAFF_CAP: 3000,
+    Number, Math, String
+  });
+  vm.runInContext(cut(server, 'const BACKUP_DAY_OFFSET_MS', '\nconst OPENAI_SLOT = {') + '\n' + cut(server, 'const OPENAI_SLOT = {', '\nfunction reserveOpenAiSlot') + '\nglobalThis.api = { reserveBackupSlot, backupAllowance, isStaffAuth, backupDayKey, backupDayResetsAt, OPENAI_SLOT };', context);
+  return { api: context.api, store, tick: ms => { now += ms; }, set: t => { now = t; } };
+}
+const PUPIL = { uid: 'pupil', token: { email: 'kid@example.com', email_verified: true } };
+const TEACHER = { uid: 'teacher', token: { admin: true, email: 'chungzhikai@gmail.com', email_verified: true } };
+const TEACHER_NO_CLAIM = { uid: 'teacher', token: { email: 'chungzhikai@gmail.com', email_verified: true } };
+const EMPLOYEE = { uid: 'emp', token: { employee: true } };
+const SPOOF = { uid: 'spoof', token: { email: 'chungzhikai@gmail.com', email_verified: false } };
+
+test('the teacher is staff by claim AND by verified address; an unverified address is a pupil', () => {
+  const a = allowance().api;
+  assert.equal(a.isStaffAuth(TEACHER), true);
+  assert.equal(a.isStaffAuth(TEACHER_NO_CLAIM), true, 'a teacher whose claim was never granted is throttled like a pupil');
+  assert.equal(a.isStaffAuth(EMPLOYEE), true);
+  assert.equal(a.isStaffAuth(PUPIL), false);
+  assert.equal(a.isStaffAuth(SPOOF), false, 'an unverified copy of the teacher\'s address got the staff allowance');
+  assert.equal(a.isStaffAuth(undefined), false);
+});
+test('pupils keep 120 a day and the gap; staff get their own allowance and no gap', () => {
+  const a = allowance().api;
+  assert.deepEqual({ ...a.backupAllowance(a.OPENAI_SLOT, PUPIL) }, { staff: false, cap: 120, interval: 1500 });
+  assert.deepEqual({ ...a.backupAllowance(a.OPENAI_SLOT, TEACHER) }, { staff: true, cap: 3000, interval: 0 });
+  assert.deepEqual({ ...a.backupAllowance(a.OPENAI_SLOT, undefined) }, { staff: false, cap: 120, interval: 1500 }, 'no auth must fail SAFE, as a pupil');
+});
+test('two of the teacher\'s calls in the same instant both go through (two PDF pages in parallel)', async () => {
+  const h = allowance();
+  await h.api.reserveBackupSlot('teacher', h.api.OPENAI_SLOT, TEACHER);
+  await h.api.reserveBackupSlot('teacher', h.api.OPENAI_SLOT, TEACHER);
+  assert.equal(h.store.get('teacher').openAiCount, 2);
+});
+test('a pupil\'s second call inside the gap is refused WITH a reason the page can act on', async () => {
+  const h = allowance();
+  await h.api.reserveBackupSlot('pupil', h.api.OPENAI_SLOT, PUPIL);
+  h.tick(400);
+  const err = await h.api.reserveBackupSlot('pupil', h.api.OPENAI_SLOT, PUPIL).then(() => null, e => e);
+  assert.equal(err.code, 'resource-exhausted');
+  assert.equal(err.details.reason, 'interval');
+  assert.equal(err.details.retryAfterMs, 1100);
+});
+test('the 121st pupil call is refused; the teacher\'s 121st is not', async () => {
+  const h = allowance();
+  h.store.set('pupil', { openAiDay: '2026-10-25', openAiCount: 120, lastOpenAiAt: 0 });
+  h.store.set('teacher', { openAiDay: '2026-10-25', openAiCount: 120, lastOpenAiAt: 0 });
+  const err = await h.api.reserveBackupSlot('pupil', h.api.OPENAI_SLOT, PUPIL).then(() => null, e => e);
+  assert.equal(err.details.reason, 'daily-cap');
+  assert.equal(err.details.cap, 120);
+  assert.match(err.message, /^ChatGPT: .*daily limit \(120 calls\).*midnight, Singapore time/);
+  assert.equal(await h.api.reserveBackupSlot('teacher', h.api.OPENAI_SLOT, TEACHER), 121);
+});
+test('the staff cap still holds — a runaway loop is bounded', async () => {
+  const h = allowance();
+  h.store.set('teacher', { openAiDay: '2026-10-25', openAiCount: 3000, lastOpenAiAt: 0 });
+  const err = await h.api.reserveBackupSlot('teacher', h.api.OPENAI_SLOT, TEACHER).then(() => null, e => e);
+  assert.equal(err.details.reason, 'daily-cap'); assert.equal(err.details.staff, true); assert.equal(err.details.cap, 3000);
+});
+test('the day is SINGAPORE\'S: it turns over at midnight here, not 8 am', async () => {
+  const h = allowance();
+  assert.equal(h.api.backupDayKey(Date.parse('2026-10-25T15:59:59Z')), '2026-10-25');   // 23:59:59 SGT
+  assert.equal(h.api.backupDayKey(Date.parse('2026-10-25T16:00:00Z')), '2026-10-26');   // 00:00 SGT
+  assert.equal(h.api.backupDayResetsAt(Date.parse('2026-10-25T10:21:00Z')), '2026-10-25T16:00:00.000Z');
+  // A pupil capped yesterday (Singapore) has a fresh allowance at 00:30 SGT, before 8 am.
+  h.store.set('pupil', { openAiDay: '2026-10-25', openAiCount: 120, lastOpenAiAt: 0 });
+  h.set(Date.parse('2026-10-25T16:30:00Z'));
+  assert.equal(await h.api.reserveBackupSlot('pupil', h.api.OPENAI_SLOT, PUPIL), 1);
+  assert.equal(h.store.get('pupil').openAiDay, '2026-10-26');
+});
+test('every throttled callable passes the CALLER to the throttle', () => {
+  for (const site of ['reserveOpenAiSlot(auth.uid, auth)', 'reserveBackupSlot(auth.uid, KIMI_SLOT, auth)', 'reserveBackupSlot(auth.uid, OPENAI_IMAGE_SLOT, auth)', 'reserveBackupSlot(auth.uid, CHART_APP_SLOT, auth)']) {
+    assert.ok(server.includes(site), site + ' is missing — that door throttles the teacher like a pupil');
+  }
+  assert.equal((server.match(/reserveBackupSlot\(auth\.uid, [A-Z_]+\)/g) || []).length, 0, 'a call site still omits the caller');
+});
+test('the backup engines still count on SEPARATE fields, and staff never get less than pupils', () => {
+  const slots = {};
+  for (const name of ['OPENAI_SLOT', 'KIMI_SLOT', 'OPENAI_IMAGE_SLOT', 'CHART_APP_SLOT']) {
+    const m = new RegExp('const ' + name + ' = \\{([\\s\\S]*?)\\};').exec(server);
+    assert.ok(m, name + ' not found');
+    const field = k => (new RegExp(k + ': "([^"]+)"').exec(m[1]) || [])[1];
+    slots[name] = [field('day'), field('count'), field('last')];
+    assert.ok(/label: "/.test(m[1]), name + ' has no label — its refusal would not say which engine refused');
+  }
+  const all = Object.values(slots).flat();
+  assert.equal(new Set(all).size, all.length, 'two backup engines share a counter field');
+  const num = n => Number((new RegExp('const ' + n + ' = (\\d+);').exec(server) || [])[1]);
+  assert.ok(num('DAILY_OPENAI_STAFF_CAP') >= num('DAILY_OPENAI_CAP'));
+  assert.ok(num('DAILY_KIMI_STAFF_CAP') >= num('DAILY_KIMI_CAP'));
+  assert.ok(num('DAILY_OPENAI_IMAGE_STAFF_CAP') >= num('DAILY_OPENAI_IMAGE_CAP'));
+});

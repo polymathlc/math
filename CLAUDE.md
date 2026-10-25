@@ -87,6 +87,54 @@ Run `node --test tools/consult-bridge-tests.mjs` after touching any of it.
   `askOpenAi` preserves an explicit total completion-token ceiling.
 - Run `node --test tools/ai-provider-tests.mjs` for provider routing checks.
 
+## 🧑‍🏫 Staff are not pupils, and 🩺 a failure says WHY (v1.109.0)
+
+Reported as a vetting list of red cards reading *"Couldn't read this screenshot … try a clearer
+screenshot"* while no engine had looked at any of them: the teacher's own account had used the
+**pupils'** 120-a-day ChatGPT allowance, Gemini's prepaid credits on `mathgen--app` were empty, and
+`MOONSHOT_API_KEY` had never been set.
+
+- **The server throttle asks who is calling** (`reserveBackupSlot(uid, slot, auth)`, `backupAllowance`,
+  `isStaffAuth` in `functions/index.js`). Pupils keep `cap` / `interval` exactly as before. Staff —
+  the `admin` claim, the `employee` claim, or a **verified** address on `ADMIN_EMAILS` /
+  `EMPLOYEE_EMAILS` — get `staffCap` (`DAILY_OPENAI_STAFF_CAP` / `DAILY_KIMI_STAFF_CAP` 3000,
+  `DAILY_OPENAI_IMAGE_STAFF_CAP` 1500) and `staffInterval: 0`: Rapid add reads two pages at once and
+  files questions alongside, so the 1.5 s gap bounced every other call of the teacher's own import to
+  the next engine. **Every call site passes `auth`** — one that does not throttles the teacher like a
+  pupil, and the harness fails on it. A caller with no auth is a pupil (fail safe).
+- **The day is Singapore's** (`backupDayKey`, `backupDayResetsAt`): it used to be the UTC day, which
+  turned over at 8 am here. Refusals carry `details` — `reason` (`interval` / `daily-cap`), `engine`,
+  `cap`, `used`, `staff`, `resetsAt`, `retryAfterMs` — and the message keeps the words "daily limit"
+  because the sibling apps match on them.
+- **The page waits out the interval** (`_aiServerCall`, `AI_INTERVAL_RETRIES`) instead of treating
+  "one request at a time" as ChatGPT failing. A daily-cap refusal is NOT waited out.
+- **An account that is OUT is not transient** (`AI_NOT_TRANSIENT_RE`, word for word on the page and
+  the server): prepay / quota / spending cap / daily limit all answer 429 and must not be retried as busy.
+- **`aiFailureReport(err)` reads a failure engine by engine** (🩺 WHY THE AI SAID NO, in the AI ENGINE
+  block). `runTextEngines` now hangs `engineFailures` (engine, message, code, details) on its error;
+  the report falls back to reading the `openai: … | gemini: … | kimi: …` sentence and walks `cause`,
+  so a PDF's "Stopped at page 3" still reads as the engines inside it. Kinds: `daily-cap`, `billing`,
+  `not-configured`, `key-refused`, `unsupported`, `busy`, `network`, `unreadable`. **Billing is
+  matched before busy** — a prepay refusal is a 429. `outage` is true when no engine got as far as
+  reading the input; **only then may a surface skip "try a clearer picture"** (`aiBlamesInput`).
+  `aiFailureHtml` is the one rendering, shared by Rapid add's card and the answer key scanner's.
+- **⚡ Rapid add's card** (`failRapidJob(jobId, err, extra)`, `rapidErrorCardHtml`,
+  `rapidRetryStripHtml`): an outage is an AMBER card that names each engine's fix and never blames the
+  screenshot; a real unreadable read stays red with the old advice. Both carry **↻ Retry**
+  (`retryRapidJob`) and, with two or more, **↻ Retry all / Dismiss all**. A retry runs with the level
+  and release date the job was QUEUED with. **A PDF resumes at the page it stopped on**
+  (`_rapidExpandPdf(file, level, release, resume)`; `resume` = `startPage`, `pending` — the question
+  held open across the break —, `previous`, `added`), back through the ONE PDF queue; pages already
+  in vetting are not read or paid for again. A PDF page's failure is handed back to its paper
+  (`{ failed, error }`) and leaves no card of its own — a page retried alone would publish half a
+  question. A PDF that is too long or will not open offers no retry.
+- Run `node --test tools/ai-provider-tests.mjs` and `node tools/rapid-pdf-tests.mjs` after touching
+  any of it (CI runs both on every change to `index.html` or `functions/`). A change under
+  `functions/` **needs a functions deploy** — the workflow does it on merge to main.
+- **Not code:** an empty Gemini prepay balance is topped up in AI Studio (`ai.studio/projects` →
+  mathgen--app → Billing); Kimi needs `MOONSHOT_API_KEY` set in Secret Manager (the deploy workflow
+  only creates an EMPTY placeholder for a missing secret).
+
 ## Apps
 - `index.html` — **"Math Practice"**, the whole product in one file: question authoring
   (block editor, AI build-from-screenshot, image crop / touch-up, vetting → bank),
@@ -118,7 +166,8 @@ Run `node --test tools/consult-bridge-tests.mjs` after touching any of it.
       centre's own OpenAI bill**: sign-in required, the model chosen
       SERVER-side (a client that could name a model could name an expensive
       one), the same image caps the marking call uses, `MIN_OPENAI_INTERVAL_MS`
-      between calls and `DAILY_OPENAI_CAP` a day per account.
+      between calls and `DAILY_OPENAI_CAP` a day per account — for PUPILS; staff get their own
+      allowance (see 🧑‍🏫 Staff are not pupils, v1.109.0).
     - **`reserveOpenAiSlot` uses its OWN fields** (`openAiDay` / `openAiCount`
       / `lastOpenAiAt`) on the server stats document. Sharing `dailyKey` /
       `dailyCount` with the marking cap would let a scanned paper spend a
