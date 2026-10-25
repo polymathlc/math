@@ -601,7 +601,8 @@ test('the chart page is the teacher\'s, and loads on sign-in', () => {
 test('the server generator is teacher-only, on its own throttle, with a long timeout', () => {
   const fn = cutFrom(fnSrc, 'export const generateChartApp', '\n});', 'generateChartApp');
   ok(/if \(!isAdminAuth\(auth\)\) throw new HttpsError\("permission-denied"/.test(fn), 'admin check');
-  ok(/reserveBackupSlot\(auth\.uid, CHART_APP_SLOT\)/.test(fn), 'own throttle');
+  // v1.109.0: the caller is passed on, so the throttle can tell the teacher from a pupil.
+  ok(/reserveBackupSlot\(auth\.uid, CHART_APP_SLOT(?:, auth)?\)/.test(fn), 'own throttle');
   ok(/day: "chartAppDay"/.test(fnSrc), 'own fields');
   ok(/const CHART_APP_OPTS = \{[^}]*timeoutSeconds: 540/.test(fnSrc), 'nine minutes');
   ok(!/^export function/m.test(fnSrc), 'no plain function exports (the deploy reads every export)');

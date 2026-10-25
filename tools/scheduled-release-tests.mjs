@@ -206,12 +206,15 @@ ok('it is handed ON to the job rather than re-read there',
 ok('a PDF carries the date into the PDF queue',
    /_rapidQueuePdf\(file,[\s\S]{0,220}o\.release === undefined \|\| o\.release === null\) \? rapidRelease\(\) : o\.release\)/.test(startJob));
 
-const expand = cut('async function _rapidExpandPdf(file, level, release) {', '\nfunction startRapidJob(', '_rapidExpandPdf');
+// v1.109.0 added a fourth argument, `resume` (↻ Retry picks a paper up at the page it stopped on).
+const expand = cut('async function _rapidExpandPdf(file, level, release', '\nfunction startRapidJob(', '_rapidExpandPdf');
 ok('every page of a PDF is queued with the batch date', /^\s*release,$/m.test(expand),
    'a forty-page paper takes minutes, and the picker is live the whole time');
 const queue = cut('function _rapidQueuePdf(', 'async function _rapidExpandPdf', '_rapidQueuePdf');
 ok('the PDF queue stores the date', /_rapidPdfQueue\.push\(\{ file, level, release \}\)/.test(queue));
-ok('…and the pump forwards it', /_rapidExpandPdf\(next\.file, next\.level, next\.release\)/.test(queue));
+ok('…and the pump forwards it', /_rapidExpandPdf\(next\.file, next\.level, next\.release(?:, next\.resume \|\| null)?\)/.test(queue));
+// ↻ A retried paper goes back in with the date it was QUEUED with, never the picker's.
+ok('…and a ↻ retried paper carries its own date back in', /_rapidPdfQueue\.push\(\{ file: r\.file, level: r\.level, release: r\.release, resume: r\.resume \|\| null \}\)/.test(src));
 
 const job = cut('async function processRapidJob(jobId, file, batchLevel, opts) {', '\n// Turn one AI reading into a question object', 'processRapidJob');
 ok('EVERY question the page held is stamped', /rapidApplyRelease\(q, o\.release\);/.test(job));

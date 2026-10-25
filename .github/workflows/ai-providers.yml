@@ -1,10 +1,10 @@
 name: AI model and fallback checks
 on:
   pull_request:
-    paths: ["index.html", "game.html", "functions/**", "rapid-import/functions/**", "tools/ai-provider-tests.mjs", ".github/workflows/ai-providers.yml"]
+    paths: ["index.html", "game.html", "functions/**", "rapid-import/functions/**", "tools/ai-provider-tests.mjs", "tools/rapid-pdf-tests.mjs", ".github/workflows/ai-providers.yml"]
   push:
     branches: [main]
-    paths: ["index.html", "game.html", "functions/**", "rapid-import/functions/**", "tools/ai-provider-tests.mjs", ".github/workflows/ai-providers.yml"]
+    paths: ["index.html", "game.html", "functions/**", "rapid-import/functions/**", "tools/ai-provider-tests.mjs", "tools/rapid-pdf-tests.mjs", ".github/workflows/ai-providers.yml"]
 permissions:
   contents: read
 jobs:
@@ -16,5 +16,8 @@ jobs:
         with:
           node-version: "22"
       - run: node --test tools/ai-provider-tests.mjs
+      # 🩺 ↻ The Rapid add red card reads the failure the provider chain throws,
+      # so a change to either side is checked against the other.
+      - run: node tools/rapid-pdf-tests.mjs
       - run: node --check functions/index.js
       - run: node --check rapid-import/functions/index.js
