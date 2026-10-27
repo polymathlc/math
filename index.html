@@ -123,6 +123,18 @@ a { color: var(--primary); }
 .nav-item:hover { background: rgba(255,255,255,0.07); color: #fff; }
 .nav-item.active { background: var(--primary); color: #fff; }
 .nav-item .ico { font-size: 1.05rem; width: 20px; text-align: center; }
+/* A <button> in the sidebar must not wear the browser's own white button face —
+   with the sidebar's light text on top it was white on white (Hades, Pirate Rift,
+   Crew Defense). Buttons take the same transparent face as the <div> items. */
+button.nav-item { width: 100%; background: transparent; border: 0; font: inherit; font-size: 0.92rem; font-weight: 500; text-align: left; -webkit-appearance: none; appearance: none; }
+button.nav-item:hover { background: rgba(255,255,255,0.07); }
+button.nav-item.active { background: var(--primary); }
+/* 🕹️ Arcade dropdown */
+.nav-arcade-caret { margin-left: auto; font-size: 0.8rem; opacity: 0.75; transition: transform 0.2s ease; }
+.nav-arcade.open .nav-arcade-caret { transform: rotate(180deg); }
+.nav-arcade-list { display: none; margin: 0 0 4px 6px; padding-left: 6px; border-left: 2px solid rgba(255,255,255,0.12); }
+.nav-arcade.open .nav-arcade-list { display: block; }
+body.role-employee .nav-arcade { display: none !important; }
 .sidebar-foot { padding: 14px 14px 30px; border-top: 1px solid rgba(255,255,255,0.08); }
 .sidebar-user { font-size: 0.8rem; color: rgba(255,255,255,0.6); margin-bottom: 8px; padding: 0 4px; word-break: break-all; }
 .sidebar-user b { color: #fff; display: block; font-size: 0.86rem; }
@@ -5028,35 +5040,43 @@ body.role-employee #emailBellBtn { display: none !important; }
       <div class="nav-item active" data-page="practice"><span class="ico">✍️</span> Practice</div>
       <div class="nav-item" id="navAiMark"><span class="ico">📸</span> AI Marking</div>
       <div class="nav-item" data-page="syllabus" title="The MOE Primary Mathematics syllabus — every learning objective, and the questions filed under each one"><span class="ico">📐</span> Syllabus</div>
-      <div class="nav-section rpg-el" style="display:none;">Game</div>
-      <div class="nav-item rpg-el" data-page="character" style="display:none;"><span class="ico">🛡️</span> Character</div>
-      <div class="nav-item rpg-el" data-page="leaderboard" style="display:none;"><span class="ico">🏆</span> Leaderboard</div>
-      <div class="nav-item rpg-el" data-page="adventure" style="display:none;"><span class="ico">🏰</span> Dungeon</div>
-      <!-- Aetherfall TCG (beta) — admins always; students only once the admin presses Release.
-           For a STUDENT the whole wrap is moved up to sit directly under 🏛️ Community
-           (_tcgPlaceNavItem); this empty anchor is where it lives for an admin, and where
-           it is put back if the role changes. -->
-      <div id="navTcgHome"></div>
-      <div class="nav-tcg-wrap" id="navTcgWrap">
-        <div class="nav-item" id="navTcg" data-page="tcg" onclick="navigateTo('tcg')" style="display:none;" title="Aetherfall: Worlds Beyond — collect heroes from two worlds, build a team of 5 and fight through the Convergence.">
-          <span class="ico" id="navTcgIco">◉</span> Aetherfall <span class="nav-beta tcg-beta-badge">BETA</span>
-        </div>
-        <!-- Hover flyout: the game modes inside the Nexus, with 🎁 badges on
-             the ones paying a voucher this month (tcgNavPrizeBadges). -->
-        <div class="nav-tcg-sub" id="navTcgSub" style="display:none;">
-          <button type="button" onclick="tcgNavMode('modes','ems')"><span class="ico">🌋</span> Manafront Siege <span class="nav-sub-prize" id="navPrizeSiege" style="display:none;"></span></button>
-          <button type="button" id="navModeLegends" style="display:none;" onclick="tcgNavMode('modes','elg')"><span class="ico">⚔️</span> Paragon Run <span class="nav-sub-prize" id="navPrizeLegends" style="display:none;"></span></button>
-          <!-- Convergence Duel — hidden until duelAccessAllowed() shows it (tcgNavPrizeBadges) -->
-          <button type="button" id="navModeDuel" style="display:none;" onclick="tcgNavMode('modes','duel')"><span class="ico">🎴</span> Convergence Duel <span class="nav-sub-prize" id="navPrizeDuel" style="display:none;"></span></button>
-          <button type="button" onclick="tcgNavMode('arena')"><span class="ico">🆚</span> Rift Arena</button>
-          <button type="button" onclick="tcgNavMode('dungeon')"><span class="ico">🏰</span> Fracture Depths</button>
-          <button type="button" onclick="tcgNavMode('packs')"><span class="ico">🎁</span> Booster Packs</button>
+      <!-- 🕹️ Arcade — every game in one dropdown so the sidebar stays short.
+           Closed by default; it remembers the pupil's choice on this device and
+           opens by itself when the page on screen is one of its games
+           (arcadeSyncOpen). The items inside keep their own show/hide rules. -->
+      <div class="nav-arcade" id="navArcade">
+        <button type="button" class="nav-item nav-arcade-toggle" id="navArcadeToggle" aria-expanded="false" aria-controls="navArcadeList" onclick="arcadeToggle()"><span class="ico">🕹️</span> Arcade <span class="nav-arcade-caret" aria-hidden="true">▾</span></button>
+        <div class="nav-arcade-list" id="navArcadeList">
+          <div class="nav-item rpg-el" data-page="character" style="display:none;"><span class="ico">🛡️</span> Character</div>
+          <div class="nav-item rpg-el" data-page="leaderboard" style="display:none;"><span class="ico">🏆</span> Leaderboard</div>
+          <div class="nav-item rpg-el" data-page="adventure" style="display:none;"><span class="ico">🏰</span> Dungeon</div>
+          <!-- Aetherfall TCG (beta) — admins always; students only once the admin presses Release.
+               For a STUDENT the whole wrap is moved up to sit directly under 🏛️ Community
+               (_tcgPlaceNavItem); this empty anchor is where it lives for an admin, and where
+               it is put back if the role changes. -->
+          <div id="navTcgHome"></div>
+          <div class="nav-tcg-wrap" id="navTcgWrap">
+            <div class="nav-item" id="navTcg" data-page="tcg" onclick="navigateTo('tcg')" style="display:none;" title="Aetherfall: Worlds Beyond — collect heroes from two worlds, build a team of 5 and fight through the Convergence.">
+              <span class="ico" id="navTcgIco">◉</span> Aetherfall <span class="nav-beta tcg-beta-badge">BETA</span>
+            </div>
+            <!-- Hover flyout: the game modes inside the Nexus, with 🎁 badges on
+                 the ones paying a voucher this month (tcgNavPrizeBadges). -->
+            <div class="nav-tcg-sub" id="navTcgSub" style="display:none;">
+              <button type="button" onclick="tcgNavMode('modes','ems')"><span class="ico">🌋</span> Manafront Siege <span class="nav-sub-prize" id="navPrizeSiege" style="display:none;"></span></button>
+              <button type="button" id="navModeLegends" style="display:none;" onclick="tcgNavMode('modes','elg')"><span class="ico">⚔️</span> Paragon Run <span class="nav-sub-prize" id="navPrizeLegends" style="display:none;"></span></button>
+              <!-- Convergence Duel — hidden until duelAccessAllowed() shows it (tcgNavPrizeBadges) -->
+              <button type="button" id="navModeDuel" style="display:none;" onclick="tcgNavMode('modes','duel')"><span class="ico">🎴</span> Convergence Duel <span class="nav-sub-prize" id="navPrizeDuel" style="display:none;"></span></button>
+              <button type="button" onclick="tcgNavMode('arena')"><span class="ico">🆚</span> Rift Arena</button>
+              <button type="button" onclick="tcgNavMode('dungeon')"><span class="ico">🏰</span> Fracture Depths</button>
+              <button type="button" onclick="tcgNavMode('packs')"><span class="ico">🎁</span> Booster Packs</button>
+            </div>
+          </div>
+          <div class="nav-item" id="rpgHideToggle" style="display:none;"><span class="ico">🙈</span> Hide game</div>
+          <button type="button" class="nav-item" id="navHadesBeta" onclick="openHadesMathBeta()"><span class="ico">🔥</span> Hades <span class="nav-beta">BETA</span></button>
+          <button type="button" class="nav-item" id="navPirateRift" onclick="openPirateRift()" title="One Piece: Pirate Rift — Luffy, Zoro, Whitebeard and Shanks"><span class="ico">🏴‍☠️</span> Pirate Rift <span class="nav-beta">BETA</span></button>
+          <button type="button" class="nav-item" id="navGrandLine" onclick="openGrandLine()" title="Crew Defense — protect your ship and answer three Math questions after every wave"><span class="ico">🃏</span> Crew Defense <span class="nav-beta">TCG</span></button>
         </div>
       </div>
-      <div class="nav-item" id="rpgHideToggle" style="display:none;"><span class="ico">🙈</span> Hide game</div>
-      <button type="button" class="nav-item" id="navHadesBeta" onclick="openHadesMathBeta()"><span class="ico">🔥</span> Hades <span class="nav-beta">BETA</span></button>
-      <button type="button" class="nav-item" id="navPirateRift" onclick="openPirateRift()" title="One Piece: Pirate Rift — Luffy, Zoro, Whitebeard and Shanks"><span class="ico">🏴‍☠️</span> Pirate Rift <span class="nav-beta">BETA</span></button>
-      <button type="button" class="nav-item" id="navGrandLine" onclick="openGrandLine()" title="Crew Defense — protect your ship and answer three Math questions after every wave"><span class="ico">🃏</span> Crew Defense <span class="nav-beta">TCG</span></button>
       <div class="nav-section admin-only">Admin</div>
       <div class="nav-item admin-only" data-page="create"><span class="ico">➕</span> Create Question</div>
       <div class="nav-item admin-only" data-page="vetting" title="Questions read in by Rapid add / the paper import, waiting for you to check them before they go live"><span class="ico">📋</span> Vetting <span class="nav-count" id="navVettingCount" style="display:none;"></span></div>
@@ -5075,6 +5095,37 @@ body.role-employee #emailBellBtn { display: none !important; }
       <div class="nav-item admin-only" id="navMarking"><span class="ico">⚖️</span> AI Marking Guide</div>
       <div class="nav-item admin-only" id="navGen"><span class="ico">✨</span> AI Generation Guide</div>
     </nav>
+    <script>
+// ---- 🕹️ Arcade dropdown -----------------------------------------------
+// Every game lives in one dropdown in the sidebar. Its open/closed state is a
+// per-device convenience, so localStorage is fine (and optional). A classic
+// script, not part of the app module, so the toggle works even before (or
+// without) the module loading; navigateTo calls arcadeSyncOpen.
+const ARCADE_OPEN_KEY = "mathArcadeOpen_v1";
+function arcadeSetOpen(open, remember) {
+  const wrap = document.getElementById("navArcade");
+  const btn = document.getElementById("navArcadeToggle");
+  if (!wrap) return;
+  wrap.classList.toggle("open", !!open);
+  if (btn) btn.setAttribute("aria-expanded", open ? "true" : "false");
+  if (remember) { try { localStorage.setItem(ARCADE_OPEN_KEY, open ? "1" : "0"); } catch (_) {} }
+}
+function arcadeToggle() {
+  const wrap = document.getElementById("navArcade");
+  arcadeSetOpen(!(wrap && wrap.classList.contains("open")), true);
+}
+// Open the dropdown when the page on screen is one of its games, so the
+// highlighted item is never tucked away; otherwise follow the saved choice.
+function arcadeSyncOpen() {
+  const list = document.getElementById("navArcadeList");
+  if (!list) return;
+  if (list.querySelector(".nav-item.active")) { arcadeSetOpen(true, false); return; }
+  let saved = false;
+  try { saved = localStorage.getItem(ARCADE_OPEN_KEY) === "1"; } catch (_) {}
+  arcadeSetOpen(saved, false);
+}
+arcadeSyncOpen();
+    </script>
     <div class="rpg-side rpg-el" id="rpgSide" style="display:none;" title="Open your character page">
       <div class="rpg-side-top"><span class="rpg-side-level" id="rpgSideLevel">Lv 1</span><span class="rpg-side-gold" id="rpgSideGold">🪙 0</span></div>
       <div class="rpg-bar mini" title="HP"><div class="rpg-bar-fill hp" id="rpgSideHp" style="width:100%;"></div></div>
@@ -12320,6 +12371,7 @@ function navigateTo(page) {
   document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
   const pageEl = $("page-" + page); if (pageEl) pageEl.classList.add("active");
   const nav = document.querySelector(`.nav-item[data-page="${page}"]`); if (nav) nav.classList.add("active");
+  arcadeSyncOpen();
   if ((page === "character" || page === "leaderboard" || page === "adventure") && rpgGameHidden()) page = "practice";
   if (page !== "adventure") advAbandon();
   // Aetherfall swaps the app's white theme for chrome-on-deep-space across
@@ -36587,7 +36639,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.109.0 · 2026-10-25";
+const APP_VERSION = "v1.110.0 · 2026-10-27";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
