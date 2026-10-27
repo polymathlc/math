@@ -2,6 +2,32 @@
 
 Guidance for Claude when working in this repo.
 
+## 🚦 Traffic lights on the vetting cards, and 🔍± sizes in the 👁 peek (v1.111.0)
+
+`aicRunCheck` / `aicEntryFromResult` / `aicAppend` / `aicHistory` / `aicLightOf` / `aicCardHtml` /
+`aicCheckVetting` / `aicCheckMany` / `aicQuickSave` / `vetVisibleList` / `editorAiChecks` (search
+`TRAFFIC LIGHTS ON THE VETTING CARDS`), and `pvsDecorateDoc` / `pvsReset` (search `PICTURE SIZE, FROM A PREVIEW`).
+
+- **ONE check.** The editor's 🚦 Check with AI and every vetting card's 🚦 go through `aicRunCheck(q)` —
+  same prompt, same models, same verdict rules. It takes a question, not the editor.
+- **Every check is kept** on `q.aiChecks` (oldest first, `AIC_KEEP` = 12), each signed with
+  `mathImportSignature` of what it read; a light from before an edit shows as ⚪ *changed since*.
+  The PDF worker's `q.autoCheck` is shown as the first light. `aiChecks` is on
+  **`QUESTION_KEY_FIELDS`** — it names answers, so it lives in the admin-only half of the bank.
+  The editor loads the history (`aicShowEditorLatest`) and `collectQuestion` carries it through Save.
+- **✏️ Quick edit** fixes title / answer / working / MCQ key on the card and can add the teacher's
+  own light (`kind: "manual"`), signed against the question AS SAVED. **💾 Save & 🚦 check** re-checks it.
+- **Bulk:** 🚦 Check ticked / Check unchecked run `AIC_PAR` (2) at a time, ask first over 25, and can
+  be stopped; the 🚦 filter (red / amber / green / changed / not checked) also scopes **Select all**.
+  A check re-resolves the question by id when it returns and writes nothing if it has gone.
+- **The 👁 peek's iframe is sandboxed without scripts**, so the serialised `pvsPreviewRun` never ran
+  there and the peek had no picture pills. Ported from polymathlc/cer: the parent hangs − / + / Auto
+  into the frame with `pvsDecorateDoc` on load, bound to its own `pvsStep` / `pvsReset`. **Auto deletes
+  `block.scale`** (back to 100%). The size is saved when the peek closes (`pvsFlush`), as before.
+- Run `node tools/vetting-traffic-light-tests.mjs` and
+  `PLAYWRIGHT_MODULE=… node tools/vetting-traffic-light-browser.mjs` after touching any of it
+  (`.github/workflows/vetting-traffic-lights.yml` runs both).
+
 ## 📲 Installable app (Polymath install kit v2.0.0) — v1.108.0
 
 - **The offline page carries its icon inline (sw 2.0.1, kit v2.0.1).** `sw.js` answers page loads only, so an

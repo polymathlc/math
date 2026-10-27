@@ -1,0 +1,49 @@
+name: Vetting traffic lights
+# 🚦 The light on every vetting card (checked, re-checked, quick-edited and
+# filtered without opening the question) and 🔍± the picture pills in the 👁
+# exported peek. Both fail silently — a check written into a deleted question,
+# a green that outlives the answer it judged, a peek whose pills never appear —
+# so both are checked on every change to the page.
+on:
+  pull_request:
+    paths: ['index.html', 'rapid-import/functions/core.js', 'tools/vetting-traffic-light-*.mjs', '.github/workflows/vetting-traffic-lights.yml']
+  push:
+    branches: [main]
+    paths: ['index.html', 'rapid-import/functions/core.js', 'tools/vetting-traffic-light-*.mjs', '.github/workflows/vetting-traffic-lights.yml']
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check the lights, the history, the bulk run and the quick edit
+        run: |
+          node tools/vetting-traffic-light-tests.mjs
+          node tools/preview-picture-size-tests.mjs
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated browser runtime
+        run: |
+          npm install --prefix "$RUNNER_TEMP/tl-browser" --no-audit --no-fund playwright@1.62.1
+          "$RUNNER_TEMP/tl-browser/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Vet questions on the real page
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/tl-browser/node_modules/playwright/index.mjs
+          TL_SHOTS: ${{ runner.temp }}/tl-qa
+        run: node tools/vetting-traffic-light-browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vetting-traffic-lights-browser
+          path: ${{ runner.temp }}/tl-qa
+          retention-days: 7
