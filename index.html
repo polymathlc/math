@@ -1342,6 +1342,68 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .check-ai-aspects .aspect.issue { color: var(--accent-red); border-color: transparent; background: var(--accent-red-light); }
 .check-ai-aspects .aspect.issue i { background: var(--accent-red); }
 
+/* 🚦 The light on every vetting card (aicCardHtml) — the editor's lamps laid
+   on their side, with the newest verdict beside them and the earlier ones
+   folded underneath. The card's own edge takes the colour (tl-*). */
+.vet-card.tl-red { border-color: var(--accent-red); }
+.vet-card.tl-amber { border-color: var(--accent-orange); }
+.vet-card.tl-green { border-color: var(--accent-green); }
+.vet-tl { display: flex; align-items: flex-start; gap: 14px; flex-wrap: wrap; margin: 0 0 14px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-alt); }
+.vet-tl-red { background: var(--accent-red-light); border-color: rgba(217,79,79,0.35); }
+.vet-tl-amber { background: var(--accent-orange-light); border-color: rgba(212,136,42,0.35); }
+.vet-tl-green { background: var(--accent-green-light); border-color: rgba(58,158,95,0.35); }
+.vet-tl .traffic-light { flex-direction: row; padding: 6px 7px; gap: 5px; }
+.vet-tl .traffic-light .lamp { width: 13px; height: 13px; }
+.vet-tl-lamps.tl-red .lamp.red { background: var(--accent-red); box-shadow: 0 0 8px 1px rgba(217,79,79,0.85); }
+.vet-tl-lamps.tl-amber .lamp.amber { background: var(--accent-orange); box-shadow: 0 0 8px 1px rgba(212,136,42,0.85); }
+.vet-tl-lamps.tl-green .lamp.green { background: var(--accent-green); box-shadow: 0 0 8px 1px rgba(58,158,95,0.85); }
+.vet-tl-lamps.tl-checking .lamp.amber { background: var(--accent-orange); animation: lampPulse 0.9s ease-in-out infinite; }
+.vet-tl-lamps.tl-stale .lamp { background: rgba(255,255,255,0.35); }
+.vet-tl-body { flex: 1 1 260px; min-width: 0; }
+.vet-tl-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.vet-tl-head h5 { font-size: 0.9rem; font-weight: 700; margin: 0; }
+.vet-tl-red .vet-tl-head h5 { color: var(--accent-red); }
+.vet-tl-amber .vet-tl-head h5 { color: var(--accent-orange); }
+.vet-tl-green .vet-tl-head h5 { color: var(--accent-green); }
+.vet-tl-stale .vet-tl-head h5, .vet-tl-none .vet-tl-head h5 { color: var(--text-muted); }
+.vet-tl-meta { font-size: 0.74rem; color: var(--text-muted); }
+.vet-tl-body p { font-size: 0.84rem; color: var(--text-muted); margin: 4px 0 0; line-height: 1.5; }
+.vet-tl-body .check-ai-aspects { margin-top: 8px; }
+.vet-tl-issues, .vet-tl-row ul { margin: 7px 0 0; padding-left: 18px; font-size: 0.82rem; color: var(--text); line-height: 1.5; }
+.vet-tl-stale, .vet-tl-err { margin-top: 8px; font-size: 0.8rem; color: var(--text-muted); }
+.vet-tl-err { color: var(--accent-red); }
+.vet-tl-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.vet-tl-x { margin-left: auto; border: 0; background: transparent; color: var(--text-light); cursor: pointer; font-size: 0.78rem; padding: 2px 6px; border-radius: 6px; }
+.vet-tl-x:hover { color: var(--accent-red); background: rgba(217,79,79,0.08); }
+.vet-tl-more { margin-top: 10px; border: 0; background: transparent; padding: 0; font: inherit; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); cursor: pointer; }
+.vet-tl-more:hover { color: var(--text); }
+.vet-tl-history { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.vet-tl-row { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); }
+.vet-tl-row.is-stale { opacity: 0.7; }
+.vet-tl-row-body { flex: 1; min-width: 0; }
+.vet-tl-row-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; font-size: 0.8rem; }
+.vet-tl-row-head span { color: var(--text-muted); font-size: 0.74rem; }
+.vet-tl-row-sum { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
+.vet-tl-filter { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
+.vet-tl-filter select { font: inherit; font-size: 0.8rem; padding: 4px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+.vet-bulk-sep { width: 1px; align-self: stretch; background: var(--border); }
+/* ✏️ Quick edit — the fields a light most often flags, fixed on the card. */
+.vet-qe { display: flex; flex-direction: column; gap: 12px; margin: -4px 0 14px; padding: 14px 16px; border: 1px dashed var(--border); border-radius: var(--radius-md); background: var(--surface); }
+.vet-qe-field { display: flex; flex-direction: column; gap: 5px; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
+.vet-qe-field em { font-weight: 400; font-style: normal; color: var(--text-light); }
+.vet-qe-field input, .vet-qe-field textarea, .vet-qe-field select { font: inherit; font-size: 0.88rem; font-weight: 400; color: var(--text); padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); width: 100%; box-sizing: border-box; }
+.vet-qe-field textarea { resize: vertical; min-height: 64px; }
+.vet-qe-field input[hidden] { display: none; }
+.vet-qe-lamps { display: flex; gap: 8px; flex-wrap: wrap; }
+.vet-qe-lamp { font: inherit; font-size: 0.8rem; font-weight: 600; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface-alt); color: var(--text); cursor: pointer; }
+.vet-qe-lamp.on { border-color: var(--text); box-shadow: 0 0 0 1px var(--text); background: var(--surface); }
+.vet-qe-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.aic-ed-hist { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; }
+.aic-ed-hist[hidden] { display: none; }
+.aic-ed-hist-label { font-weight: 700; color: var(--text-muted); font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.aic-ed-hist-row { display: flex; gap: 8px; align-items: baseline; }
+.aic-ed-hist-row .muted { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 .block-card { border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: 12px; background: var(--surface-alt); overflow: hidden; }
 
 /* ===================================================================
@@ -5309,6 +5371,9 @@ body.role-employee #emailBellBtn { display: none !important; }
               <span class="aspect" data-k="answer"><i></i>Answer</span>
             </div>
             <ul id="checkAiIssues" hidden></ul>
+            <!-- 🚦 Every check is kept with the question (q.aiChecks); the
+                 earlier ones are listed here. See aicRenderEditorHistory. -->
+            <div class="aic-ed-hist" id="checkAiHistory" hidden></div>
           </div>
         </div>
         <!-- Raised by checkEditorDuplicate whenever what is in the editor looks
@@ -12732,7 +12797,7 @@ function wsLockNote(ids) {
     (on ? " — the first unlocks " + qReleaseWhen(on) + " (" + qReleaseLabel(on) + ")" : "");
 }
 
-const QUESTION_KEY_FIELDS = ["expected", "markingGuide", "answerKeyImageUrl", "videoExplanationUrl", "videoOverlays", "sourcePages", "sourcePdf", "autoCheck", "importWarning"];
+const QUESTION_KEY_FIELDS = ["expected", "markingGuide", "answerKeyImageUrl", "videoExplanationUrl", "videoOverlays", "sourcePages", "sourcePdf", "autoCheck", "aiChecks", "importWarning"];
 // Per-block answers (annotation questions) live on the BLOCKS, and `blocks`
 // stays in the student-readable half — so they have to be lifted out block by
 // block, or every student who reads the bank can read the answer. They come
@@ -13584,6 +13649,7 @@ const PVS_CSS = `
 .pvs-btn:hover{background:rgba(0,0,0,.08)}
 .pvs-btn:disabled{opacity:.35;cursor:default}
 .pvs-label{min-width:34px;text-align:center;font-variant-numeric:tabular-nums}
+.pvs-btn.pvs-auto{width:auto;padding:0 7px;font-size:10.5px;font-weight:600;border-left:1px solid rgba(0,0,0,.14);border-radius:0 999px 999px 0;margin-left:2px}
 @media print{.pvs-bar{display:none!important}}`;
 function pvsAllowed() { try { return !!canManageQuestions(); } catch (_) { return false; } }
 // The ONE resolver: bank first, then the vetting list. Anything else (a Custom
@@ -13622,6 +13688,7 @@ function pvsBarHtml(q, block) {
     <button type="button" class="pvs-btn" aria-label="Smaller picture" title="Smaller (−10%)"${sc <= IMAGE_SCALE_MIN ? " disabled" : ""} onclick="event.stopPropagation();pvsStep('${qid}','${bid}',-1)">−</button>
     <span class="pvs-label">${escapeHtml(pvsLabel(block))}</span>
     <button type="button" class="pvs-btn" aria-label="Larger picture" title="Larger (+10%)"${sc >= IMAGE_SCALE_MAX ? " disabled" : ""} onclick="event.stopPropagation();pvsStep('${qid}','${bid}',1)">+</button>
+    <button type="button" class="pvs-btn pvs-auto" aria-label="Back to the automatic size" title="Back to Auto (100%)" onclick="event.stopPropagation();pvsReset('${qid}','${bid}')">Auto</button>
   </div>`;
 }
 // Every document a preview can be showing in: the app's own, and any
@@ -13675,10 +13742,25 @@ function pvsStep(qid, bid, dir) {
   pvsPaint(qid, bid, block);
   return pvsLabel(block);
 }
-// The door a preview written into ANOTHER document calls through (the vetting
-// peek's iframe, the saved worksheet's own window): the same step, and the
-// label to paint back, or null when nothing could be changed.
+// Back to Auto: the field is DELETED, not set — a picture with no `scale`
+// renders at the automatic 100%, and so does every surface that reads it.
+function pvsReset(qid, bid) {
+  if (!pvsAllowed()) return null;
+  const found = pvsFind(qid);
+  if (!found) { toast("That question is no longer here", "error"); return null; }
+  const block = _pvsBlock(found, bid);
+  if (!block) return null;
+  if (block.scale == null) return pvsLabel(block);   // already Auto — nothing to write
+  delete block.scale;
+  _pvsMark(found);
+  pvsPaint(qid, bid, block);
+  return pvsLabel(block);
+}
+// The door a preview written into ANOTHER document calls through (the saved
+// worksheet's own window): the same step, and the label to paint back, or
+// null when nothing could be changed.
 function pvsPreviewStep(qid, bid, dir) { return pvsStep(qid, bid, dir); }
+function pvsPreviewReset(qid, bid) { return pvsReset(qid, bid); }
 // Write every question touched since the last flush. Called from every
 // preview's close, from the idle timer and from pagehide. A write that did not
 // land keeps the question dirty for the next flush and says so.
@@ -13734,6 +13816,15 @@ function pvsPreviewRun(css) {
       bar.appendChild(btn("−", "Smaller (−10%)", function () { go(-1); }));
       bar.appendChild(label);
       bar.appendChild(btn("+", "Larger (+10%)", function () { go(1); }));
+      var auto = btn("Auto", "Back to Auto (100%)", function () {
+        var out = null;
+        try { out = host.pvsPreviewReset ? host.pvsPreviewReset(qid, bid) : null; } catch (e) { out = null; }
+        if (out == null) { label.textContent = "?"; return; }
+        label.textContent = out;
+        img.style.setProperty("--question-image-width", out);
+      });
+      auto.className = "pvs-btn pvs-auto";
+      bar.appendChild(auto);
       var p = img.parentNode;
       if (p && getComputedStyle(p).position === "static") p.style.position = "relative";
       bar.style.left = (img.offsetLeft + 6) + "px"; bar.style.top = (img.offsetTop + 6) + "px";
@@ -13747,6 +13838,67 @@ function pvsPreviewRun(css) {
 function pvsPreviewScriptHtml() {
   if (!pvsAllowed()) return "";
   return `<script>(${pvsPreviewRun.toString()})(${JSON.stringify(PVS_CSS)});<\/script>`;
+}
+// The 👁 vetting peek's iframe is SANDBOXED WITHOUT SCRIPTS (a question's
+// own markup must never run in a frame that can reach this tab), so the
+// serialised `pvsPreviewRun` handed to it never ran — and the peek showed
+// pictures with no pill at all. Ported from the Science app (polymathlc/cer,
+// `pvsDecorateDoc`): THIS tab hangs the pills into the frame's document
+// itself, and binds them to its own functions. A handler made in this realm
+// runs even though the frame's own scripts cannot. Every picture is wrapped
+// with `data-pvs-q` / `data-pvs-b`, so `pvsPaint` repaints it with the rest;
+// the pill sits OVER the picture's corner, so the A4 pages the planner
+// measured are not moved under it.
+function pvsDecorateDoc(doc) {
+  if (!doc || !pvsAllowed()) return 0;
+  let n = 0;
+  try {
+    doc.querySelectorAll(".ws-chunk[data-qid]").forEach(ch => {
+      const qid = ch.getAttribute("data-qid");
+      const found = pvsFind(qid);
+      if (!found) return;   // not in the bank or vetting — nothing to write to
+      ch.querySelectorAll("img.question-image[data-bid]").forEach(img => {
+        const bid = img.getAttribute("data-bid");
+        const block = _pvsBlock(found, bid);
+        if (!block || (img.parentNode && img.parentNode.getAttribute && img.parentNode.getAttribute("data-pvs-b"))) return;
+        const wrap = doc.createElement("div");
+        wrap.setAttribute("data-pvs-q", String(found.q.id));
+        wrap.setAttribute("data-pvs-b", String(bid));
+        wrap.style.position = "relative";
+        img.parentNode.insertBefore(wrap, img);
+        wrap.appendChild(img);
+        const bar = doc.createElement("div");
+        bar.className = "pvs-bar pvs-over ws-noprint";
+        bar.setAttribute("data-pvs-bar", "1");
+        bar.title = "Picture size — saved to the question bank when this preview closes";
+        // The peek shows the A4 page scaled down to fit, so the pill is drawn
+        // a size up to stay pressable, and kept on the picture's own corner.
+        bar.style.top = "6px"; bar.style.transform = "scale(1.35)"; bar.style.transformOrigin = "top left";
+        const place = () => { bar.style.left = ((img.offsetLeft || 0) + 6) + "px"; };
+        const sc = normalizeImageScale(block.scale == null ? 1 : block.scale);
+        const mk = (text, cls, title, fn, off) => {
+          const b = doc.createElement("button");
+          b.type = "button"; b.className = cls; b.textContent = text; b.title = title;
+          b.setAttribute("aria-label", title);
+          if (off) b.disabled = true;
+          b.onclick = e => { e.stopPropagation(); e.preventDefault(); fn(); place(); };
+          return b;
+        };
+        bar.appendChild(mk("−", "pvs-btn", "Smaller (−10%)", () => pvsStep(found.q.id, bid, -1), sc <= IMAGE_SCALE_MIN));
+        const label = doc.createElement("span"); label.className = "pvs-label"; label.textContent = pvsLabel(block);
+        bar.appendChild(label);
+        bar.appendChild(mk("+", "pvs-btn", "Larger (+10%)", () => pvsStep(found.q.id, bid, 1), sc >= IMAGE_SCALE_MAX));
+        bar.appendChild(mk("Auto", "pvs-btn pvs-auto", "Back to Auto (100%)", () => pvsReset(found.q.id, bid)));
+        bar.addEventListener("pointerdown", e => e.stopPropagation());
+        wrap.appendChild(bar);
+        place();
+        if (!img.complete) img.addEventListener("load", place, { once: true });
+        n++;
+      });
+    });
+    if (n) pvsEnsureCss(doc);
+  } catch (e) { console.warn("preview picture pills", e); }
+  return n;
 }
 try { window.addEventListener("pagehide", () => { pvsFlush(); }); } catch (_) {}
 
@@ -18980,6 +19132,7 @@ function resetEditor() {
   hideDupBanner();
   renderEditorBlocks();
   clearCheckAiPanel();
+  editorAiChecks = [];
 }
 $("clearQBtn").addEventListener("click", () => { if (confirm("Clear the editor?")) resetEditor(); });
 $("cancelEditBtn").addEventListener("click", () => qEditLeave());
@@ -19029,6 +19182,7 @@ function loadQuestionIntoEditor(q) {
   $("cancelEditBtn").style.display = "";
   renderEditorBlocks();
   clearCheckAiPanel();
+  aicShowEditorLatest(q);   // 🚦 its lights come with it
   navigateTo("create");
 }
 
@@ -19084,6 +19238,9 @@ function collectQuestion() {
     createdBy: currentUser ? currentUser.name : "Admin"
   };
   if (variantOf && variantOf !== q.id) q.variantOf = variantOf;
+  // 🚦 The traffic-light history — every check run on a vetting card or in
+  // this editor — is carried through a save rather than dropped by it.
+  if (Array.isArray(editorAiChecks) && editorAiChecks.length) q.aiChecks = editorAiChecks.slice(-AIC_KEEP);
   // 🧩 A foundational step stays one through an edit, and a NEW easier step
   // made on a chart with ➕ is born one — a part of the question it sits under.
   // A ⏭ next question is not: it comes after the question, not after a miss.
@@ -19926,6 +20083,12 @@ function vetPrintPeekShow(anchor, event) {
         if(serial !== _vetPrintPeekSerial || !host.isConnected) return;
         host.querySelector('.vet-print-peek-status').hidden=true;
         frame.contentDocument?.addEventListener('keydown',vetPrintPeekKeydown);
+        // 🔍± − / + / Auto on every picture — see pvsDecorateDoc for why the
+        // frame's own script cannot do this.
+        if (pvsDecorateDoc(frame.contentDocument)) {
+          const tip = host.querySelector('.vet-print-peek-foot span');
+          if (tip) tip.textContent = 'Scroll to see all pages · − / + resizes a picture, saved when this preview closes';
+        }
       };
       frame.srcdoc=html;
     } catch (e) {
@@ -19979,7 +20142,10 @@ function renderVettingList() {
     return;
   }
   vetRenderBulkBar();
-  list.innerHTML = jobs + vettingList.map(q => {
+  const shown = vetVisibleList();
+  const hiddenNote = shown.length < vettingList.length
+    ? `<div class="empty-note">${shown.length ? "" : "No card has that light. "}${vettingList.length - shown.length} question${vettingList.length - shown.length === 1 ? " is" : "s are"} hidden by the 🚦 filter — <button type="button" class="btn btn-ghost btn-sm" id="vetLightShowAll">Show all</button></div>` : "";
+  list.innerHTML = jobs + hiddenNote + shown.map(q => {
     const dup = q.duplicateOf
       ? `<span class="vet-badge dup" title="Looks like “${escapeHtml(q.duplicateOf.title)}”, already in ${escapeHtml(_dupWhereLabel(q.duplicateOf))}">⚠ Possible duplicate (${q.duplicateOf.sim}%)</span>`
         + `<button type="button" class="vet-badge dup" style="cursor:pointer;font:inherit;color:inherit;" data-dupcompare="${escapeHtml(q.duplicateOf.id)}" data-dupmine="${escapeHtml(q.id)}" title="Put this question and the one it looks like side by side. Nothing is changed by looking.">⇄ Compare</button>` : "";
@@ -20007,8 +20173,16 @@ function renderVettingList() {
     const scanBadge = scanned
       ? `<span class="vet-badge scan" title="Read off a photograph in the Scan &amp; Answer app and sent here for vetting. Check the wording, attach the diagram and set the topic before you approve it.">📷 From the Scan app</span>` : "";
     const picked = _vetSelected.has(q.id);
-    return `<div class="vet-card${_rapidJustAdded.has(q.id) ? " is-new" : ""}${scanned ? " is-scan" : ""}${picked ? " is-picked" : ""}">
-      <div class="vet-card-head"><h4>${escapeHtml(q.title || "Untitled question")}</h4><div style="display:flex;gap:8px;align-items:center;">${vetPrintPeekButton(q)}${mathImportCheckBadge(q)}</div></div>
+    // 🚦 The light's colour is on the card's edge too, so a scroll down the
+    // list shows where the reds are before a single card is read.
+    const light = aicLightOf(q);
+    const tl = ["red", "amber", "green", "stale"].includes(light) ? " tl-" + light : "";
+    // The PDF worker's check now shows as the first light on the card (see
+    // aicHistory); its old head badge is kept only for the state that has no
+    // colour — a check that could not finish.
+    const importBadge = q.autoCheck && !AIC_VERDICTS[q.autoCheck.state] ? mathImportCheckBadge(q) : "";
+    return `<div class="vet-card${_rapidJustAdded.has(q.id) ? " is-new" : ""}${scanned ? " is-scan" : ""}${picked ? " is-picked" : ""}${tl}">
+      <div class="vet-card-head"><h4>${escapeHtml(q.title || "Untitled question")}</h4><div style="display:flex;gap:8px;align-items:center;">${vetPrintPeekButton(q)}${importBadge}</div></div>
       <div class="vet-meta">
         <span class="vet-badge">${escapeHtml(q.level || "no level")}</span>
         <span class="vet-badge">${escapeHtml(adminTopicsLabel(q))}</span>
@@ -20016,6 +20190,7 @@ function renderVettingList() {
       </div>
       ${mathImportSources(q)}
       <div class="vet-preview">${vetPreviewHtml(q)}</div>
+      ${aicCardHtml(q)}
       <div class="vet-actions">
         <label class="vet-pick-wrap" title="Tick this question, then use 🗑 Delete selected">
           <input type="checkbox" class="vet-pick" data-vet-pick="${escapeHtml(q.id)}"${picked ? " checked" : ""}>
@@ -20030,6 +20205,10 @@ function renderVettingList() {
   list.querySelectorAll("[data-vet-edit]").forEach(b => b.addEventListener("click", () => vetEdit(b.dataset.vetEdit)));
   list.querySelectorAll("[data-vet-del]").forEach(b => b.addEventListener("click", () => vetDelete(b.dataset.vetDel)));
   list.querySelectorAll("[data-vet-pick]").forEach(b => b.addEventListener("change", () => vetSelToggle(b.dataset.vetPick, b.checked)));
+  aicBindCard(list);
+  aicBindQuickEdit(list);
+  const showAll = $("vetLightShowAll");
+  if (showAll) showAll.addEventListener("click", () => { _vetLightFilter = "all"; renderVettingList(); });
   list.querySelectorAll("[data-rapid-dismiss]").forEach(b => b.addEventListener("click", () => dismissRapidJob(b.dataset.rapidDismiss)));
   list.querySelectorAll("[data-rapid-retry]").forEach(b => b.addEventListener("click", () => { b.disabled = true; retryRapidJob(b.dataset.rapidRetry); }));
   list.querySelectorAll("[data-rapid-retry-all]").forEach(b => b.addEventListener("click", () => { b.disabled = true; retryAllRapidJobs(); }));
@@ -20166,16 +20345,22 @@ function vetRenderBulkBar() {
   }
   if (!vettingList.length) { bar.style.display = "none"; bar.innerHTML = ""; return; }
   const picked = vettingList.filter(q => _vetSelected.has(q.id)).length;
-  const allOn = picked === vettingList.length;
+  // "Select all" ticks what the 🚦 filter is SHOWING — see vetVisibleList.
+  const shown = vetVisibleList();
+  const allOn = shown.length > 0 && shown.every(q => _vetSelected.has(q.id));
   bar.style.display = "";
   bar.innerHTML = `
-    <label class="vet-pick-wrap" title="Tick every question in the list">
+    <label class="vet-pick-wrap" title="Tick every question shown in the list">
       <input type="checkbox" class="vet-pick" id="vetPickAll"${allOn ? " checked" : ""}>
-      <span>Select all ${vettingList.length}</span>
+      <span>Select all ${shown.length}</span>
     </label>
     <span class="vet-bulk-count">${picked ? picked + " selected" : "Nothing selected"}</span>
     <button class="btn btn-danger btn-sm" id="vetDelSelBtn"${picked ? "" : " disabled"}>🗑 Delete selected</button>
-    ${picked ? `<button class="btn btn-ghost btn-sm" id="vetSelClearBtn">Clear</button>` : ""}`;
+    ${picked ? `<button class="btn btn-ghost btn-sm" id="vetSelClearBtn">Clear</button>` : ""}
+    <span class="vet-bulk-sep" aria-hidden="true"></span>
+    ${aicFilterHtml()}
+    ${aicBulkHtml(picked)}`;
+  aicBindBulk();
   const all = $("vetPickAll");
   if (all) all.addEventListener("change", () => vetSelAll(all.checked));
   const del = $("vetDelSelBtn");
@@ -20190,7 +20375,7 @@ function vetSelToggle(id, on) {
 }
 
 function vetSelAll(on) {
-  vettingList.forEach(q => { if (on) _vetSelected.add(q.id); else _vetSelected.delete(q.id); });
+  vetVisibleList().forEach(q => { if (on) _vetSelected.add(q.id); else _vetSelected.delete(q.id); });
   renderVettingList();
 }
 
@@ -23597,6 +23782,7 @@ async function regenerateQuestionVariant(difficulty = "same", instruction = "") 
     $("cancelEditBtn").style.display = "none";
     renderEditorBlocks();
     clearCheckAiPanel();
+    editorAiChecks = [];   // a new variant has not been checked by anyone
     navigateTo("create");
 
     const diffWord = diff === "easier" ? "easier " : diff === "harder" ? "harder " : "";
@@ -23681,80 +23867,92 @@ function setCheckAiBusy(busy) {
   if (btn) btn.disabled = busy;
   if (label) label.innerHTML = busy ? '<span class="spinner dark"></span> Checking…' : "🚦 Check with AI";
 }
+// THE ONE CHECK. The editor's 🚦 button and every vetting card's 🚦 go
+// through here, so a light on a card means exactly what it means in the
+// editor — same prompt, same models, same verdict rules. It takes a QUESTION,
+// not the editor, so a vetting card can be checked without being opened.
+// Returns one history entry (see 🚦 TRAFFIC LIGHTS ON THE VETTING CARDS).
+async function aicRunCheck(q) {
+  const blocks = (q && q.blocks) || [];
+  const sourceText = blocksPlainText(blocks, "\n\n");
+  const hasDiagram = blocks.some(b => b && b.type === "image");
+  const diagramUrls = blocks.filter(b => b && b.type === "image" && (b.url || "").trim()).map(b => (b.url || "").trim());
+  if (!sourceText && !hasDiagram) throw new Error("this question has no wording or diagram to check");
+  // Attach every uploaded image — ALL question diagrams and the answer key
+  // image — so the checker judges the whole question (wording + pictures +
+  // working + answer) together, not the text alone.
+  const media = [];
+  let attachedDiagrams = 0;
+  for (const url of diagramUrls) {
+    try { const m = await imageUrlToInlineMedia(url); if (m) { media.push(m); attachedDiagrams++; } }
+    catch (e) { console.warn("diagram could not be attached for check", e); }
+  }
+  let keyAttached = false;
+  if (q.answerKeyImageUrl) {
+    try { const m = await imageUrlToInlineMedia(q.answerKeyImageUrl); if (m) { media.push(m); keyAttached = true; } }
+    catch (e) { console.warn("answer key image could not be attached for check", e); }
+  }
+  const imageParts = [];
+  if (attachedDiagrams) imageParts.push(`${attachedDiagrams} diagram image${attachedDiagrams > 1 ? "s" : ""} from the question`);
+  if (keyAttached) imageParts.push("the teacher's answer key image");
+  let imageNote = "";
+  if (imageParts.length) {
+    imageNote = `Attached for you to read: ${imageParts.join(" and ")}. Treat the attached image(s) as an integral part of the question — read every number, label, shape and relationship in them, and check them AS A WHOLE together with the wording, working and stated answer. Flag any mismatch between what the image(s) show and what the text, working or answer say.\n`;
+  } else if (hasDiagram) {
+    imageNote = `This question includes a diagram that could not be loaded for this check — judge the wording, working and answer on their own and do not assume the diagram is wrong.\n`;
+  }
+  // An MCQ's answer is its option — the checker is told which one is marked
+  // correct, or it judges a question whose answer it was never shown.
+  const mcq = (Array.isArray(q.options) && q.options.length >= 2)
+    ? `Options:\n${q.options.map((o, i) => `${mcqLabel(i)} ${o}`).join("\n")}\nMarked correct: ${Number.isInteger(q.correctOption) && q.options[q.correctOption] != null ? mcqLabel(q.correctOption) + " " + q.options[q.correctOption] : "(none)"}\n`
+    : "";
+
+  const prompt =
+    `You are a meticulous Singapore primary-school math checker acting as a quality gate before a question is saved. ` +
+    `Independently work the question out from scratch, then judge whether the SCENARIO (the story/wording), the WORKING (the marking guide / worked solution) and the FINAL ANSWER all make sense and agree with each other.\n` +
+    `Pay special attention to whether every number makes sense IN CONTEXT:\n` +
+    `- Things that can only be whole (people, objects, animals, marbles, books, cars, etc.) must come out as whole numbers — flag any decimal or fraction count of such things.\n` +
+    `- No negative, zero or impossible quantities where they make no sense; ages, lengths, prices and times must be realistic.\n` +
+    `- Totals, ratios, remainders, fractions and percentages must all be mutually consistent and actually work out.\n` +
+    `- Results should be clean where a primary student would expect clean numbers; flag ugly/awkward values that suggest a typo.\n` +
+    `- The question must be complete, unambiguous and solvable with primary-school methods, and the stated answer must be the one the working leads to.\n` +
+    imageNote +
+    `\nTitle: ${q.title || "(none)"}\nLevel: ${q.level || "(unspecified)"}\nTopics: ${q.topic || "(unspecified)"}\nConcept (teacher-only): ${q.concept || "(none)"}\n` +
+    `Question / scenario:\n${sourceText || "(the question is carried by the attached diagram)"}\n` +
+    mcq +
+    `Stated final answer: ${q.expected || "(none given)"}\n` +
+    `Marking guide / working: ${q.markingGuide || "(none given)"}\n` +
+    `\nKeep "summary" to ONE short sentence. Put every concrete problem as its own short, specific string in "issues" — that array is where the explanation must go, so do NOT leave it empty when the verdict is amber or red. ` +
+    `In "checks", mark a part "issue" ONLY if that specific part is itself wrong, otherwise "ok": "scenario" = the question's story, wording and given numbers; "working" = the marking guide / worked solution; "answer" = the stated final answer. (For example, a typo only in the working makes just "working" an issue, with "scenario" and "answer" still "ok".)\n` +
+    `Return ONLY valid JSON in this exact shape, with line breaks inside strings escaped as \\n and no markdown fences:\n` +
+    `{"verdict":"green"|"amber"|"red","summary":"<one short sentence>",` +
+    `"issues":["<each specific problem as its own short string; empty array only when the verdict is green>"],` +
+    `"checks":{"scenario":"ok"|"issue","working":"ok"|"issue","answer":"ok"|"issue"}}`;
+
+  // Dynamic thinking (thinkingBudget: -1) competes with the answer for the
+  // maxOutputTokens budget, so keep this generous — at 1200 the JSON was being
+  // cut off mid-sentence, losing the explanation.
+  const res = parseAIJson(await askGeminiVision(prompt, media, { maxOutputTokens: 3072, json: true, models: geminiRegenModels, modelNames: AI_REGEN_MODEL_NAMES, thinkingBudget: -1 }));
+  return aicEntryFromResult(res, q);
+}
 async function checkQuestionWithAI() {
   if (!canManageQuestions()) { toast("Only admin accounts can check questions", "error"); return; }
   if (!aiReady()) { toast("AI isn't ready yet — please wait a moment", "error"); return; }
   const q = collectQuestion();
   const sourceText = blocksPlainText(editorBlocks, "\n\n");
   const hasDiagram = editorBlocks.some(b => b.type === "image");
-  const diagramUrls = editorBlocks.filter(b => b.type === "image" && (b.url || "").trim()).map(b => (b.url || "").trim());
   if (!sourceText && !hasDiagram) { toast("Add or build a question first, then check it with AI", "error"); return; }
 
   setCheckAiBusy(true);
   setCheckAiState("checking");
   $("checkAiPanel").scrollIntoView({ behavior: "smooth", block: "nearest" });
   try {
-    // Attach every uploaded image — ALL question diagrams and the answer key
-    // image — so the checker judges the whole question (wording + pictures +
-    // working + answer) together, not the text alone.
-    const media = [];
-    let attachedDiagrams = 0;
-    for (const url of diagramUrls) {
-      try { const m = await imageUrlToInlineMedia(url); if (m) { media.push(m); attachedDiagrams++; } }
-      catch (e) { console.warn("diagram could not be attached for check", e); }
-    }
-    let keyAttached = false;
-    if (q.answerKeyImageUrl) {
-      try { const m = await imageUrlToInlineMedia(q.answerKeyImageUrl); if (m) { media.push(m); keyAttached = true; } }
-      catch (e) { console.warn("answer key image could not be attached for check", e); }
-    }
-    const imageParts = [];
-    if (attachedDiagrams) imageParts.push(`${attachedDiagrams} diagram image${attachedDiagrams > 1 ? "s" : ""} from the question`);
-    if (keyAttached) imageParts.push("the teacher's answer key image");
-    let imageNote = "";
-    if (imageParts.length) {
-      imageNote = `Attached for you to read: ${imageParts.join(" and ")}. Treat the attached image(s) as an integral part of the question — read every number, label, shape and relationship in them, and check them AS A WHOLE together with the wording, working and stated answer. Flag any mismatch between what the image(s) show and what the text, working or answer say.\n`;
-    } else if (hasDiagram) {
-      imageNote = `This question includes a diagram that could not be loaded for this check — judge the wording, working and answer on their own and do not assume the diagram is wrong.\n`;
-    }
-
-    const prompt =
-      `You are a meticulous Singapore primary-school math checker acting as a quality gate before a question is saved. ` +
-      `Independently work the question out from scratch, then judge whether the SCENARIO (the story/wording), the WORKING (the marking guide / worked solution) and the FINAL ANSWER all make sense and agree with each other.\n` +
-      `Pay special attention to whether every number makes sense IN CONTEXT:\n` +
-      `- Things that can only be whole (people, objects, animals, marbles, books, cars, etc.) must come out as whole numbers — flag any decimal or fraction count of such things.\n` +
-      `- No negative, zero or impossible quantities where they make no sense; ages, lengths, prices and times must be realistic.\n` +
-      `- Totals, ratios, remainders, fractions and percentages must all be mutually consistent and actually work out.\n` +
-      `- Results should be clean where a primary student would expect clean numbers; flag ugly/awkward values that suggest a typo.\n` +
-      `- The question must be complete, unambiguous and solvable with primary-school methods, and the stated answer must be the one the working leads to.\n` +
-      imageNote +
-      `\nTitle: ${q.title || "(none)"}\nLevel: ${q.level || "(unspecified)"}\nTopics: ${q.topic || "(unspecified)"}\nConcept (teacher-only): ${q.concept || "(none)"}\n` +
-      `Question / scenario:\n${sourceText || "(the question is carried by the attached diagram)"}\n` +
-      `Stated final answer: ${q.expected || "(none given)"}\n` +
-      `Marking guide / working: ${q.markingGuide || "(none given)"}\n` +
-      `\nKeep "summary" to ONE short sentence. Put every concrete problem as its own short, specific string in "issues" — that array is where the explanation must go, so do NOT leave it empty when the verdict is amber or red. ` +
-      `In "checks", mark a part "issue" ONLY if that specific part is itself wrong, otherwise "ok": "scenario" = the question's story, wording and given numbers; "working" = the marking guide / worked solution; "answer" = the stated final answer. (For example, a typo only in the working makes just "working" an issue, with "scenario" and "answer" still "ok".)\n` +
-      `Return ONLY valid JSON in this exact shape, with line breaks inside strings escaped as \\n and no markdown fences:\n` +
-      `{"verdict":"green"|"amber"|"red","summary":"<one short sentence>",` +
-      `"issues":["<each specific problem as its own short string; empty array only when the verdict is green>"],` +
-      `"checks":{"scenario":"ok"|"issue","working":"ok"|"issue","answer":"ok"|"issue"}}`;
-
-    // Dynamic thinking (thinkingBudget: -1) competes with the answer for the
-    // maxOutputTokens budget, so keep this generous — at 1200 the JSON was being
-    // cut off mid-sentence, losing the explanation.
-    const res = parseAIJson(await askGeminiVision(prompt, media, { maxOutputTokens: 3072, json: true, models: geminiRegenModels, modelNames: AI_REGEN_MODEL_NAMES, thinkingBudget: -1 }));
-
-    const issues = (Array.isArray(res.issues) ? res.issues : []).map(s => String(s || "").trim()).filter(Boolean);
-    let checks = res.checks && typeof res.checks === "object" ? res.checks : null;
-    const flaggedAspect = checks && ["scenario", "working", "answer"].some(k => String(checks[k] || "").toLowerCase() === "issue");
-    // Normalise the verdict defensively: trust an explicit colour, else infer
-    // from whether anything was flagged.
-    let verdict = String(res.verdict || "").trim().toLowerCase();
-    if (!["green", "amber", "red"].includes(verdict)) verdict = (issues.length || flaggedAspect) ? "amber" : "green";
-    if (!checks && verdict === "green") checks = { scenario: "ok", working: "ok", answer: "ok" };
-
-    const state = verdict === "green" ? "good" : verdict === "red" ? "bad" : "warn";
-    setCheckAiState(state, { msg: String(res.summary || "").trim() || undefined, issues, checks });
+    const entry = await aicRunCheck(q);
+    // Kept with the question: Save writes `editorAiChecks` back as
+    // `q.aiChecks`, so the vetting card and the next edit both see it.
+    editorAiChecks = aicAppend(editorAiChecks, entry);
+    setCheckAiState(aicPanelState(entry.verdict), { msg: entry.summary || undefined, issues: entry.issues, checks: entry.checks });
+    aicRenderEditorHistory();
   } catch (e) {
     console.error(e);
     setCheckAiState("error", { msg: aiErrorMessage(e) });
@@ -23769,6 +23967,466 @@ $("checkAiBtn").addEventListener("click", checkQuestionWithAI);
 ["qExpectedInput", "qGuideInput", "qTitleInput", "qLevelInput", "qTopicInput", "qConceptInput"]
   .forEach(id => { const el = $(id); if (el) el.addEventListener("input", invalidateCheckAiOnEdit); });
 $("blocksList").addEventListener("input", invalidateCheckAiOnEdit);
+
+// =====================================================================
+// 🚦 TRAFFIC LIGHTS ON THE VETTING CARDS — checked, re-checked and fixed
+//    without opening the question (v1.111.0)
+// =====================================================================
+// The 🚦 Check with AI above lived in the editor only, so vetting forty
+// questions meant forty trips: ✎ Edit, 🚦, read the light, fix the answer,
+// Save, find the way back. Now every vetting card carries its own light:
+//
+// - A QUESTION KEEPS EVERY CHECK, NOT JUST THE LAST (`q.aiChecks`, oldest
+//   first, capped at AIC_KEEP). A second opinion that disagrees with the first
+//   is exactly what a teacher needs to see, and a later green must not erase
+//   the red that explains why the answer was changed. The card shows the
+//   newest light large and the earlier ones under "Earlier checks".
+// - EACH CHECK REMEMBERS WHAT IT LOOKED AT (`sig`, the import signature over
+//   title, blocks, answer, guide and options). A light from before an edit
+//   is greyed and says "Changed since", because a green on the old answer
+//   says nothing about the new one.
+// - `aiChecks` IS ANSWER-KEY MATERIAL ("the answer should be 35") and so is
+//   on QUESTION_KEY_FIELDS: it rides into the bank with the question but only
+//   in the admin-only half, never in the doc a student can read.
+// - THE PDF WORKER'S OWN CHECK (`q.autoCheck`) is shown as the first light
+//   when nothing newer exists, so the import's verdict is on the card too.
+// - A TEACHER CAN SET THE LIGHT THEMSELVES (✏️ Quick edit → Your verdict):
+//   a `manual` entry, with a note. The AI is a second pair of eyes, not the
+//   judge, and "I checked it, it is fine" is a check worth keeping.
+// - ✏️ QUICK EDIT fixes the title, answer, working and MCQ key ON THE CARD —
+//   the parts a light most often flags — and can re-check in the same press.
+//   Anything else (wording, diagrams) is still ✎ Edit.
+// - MANY AT ONCE: 🚦 Check ticked / 🚦 Check unchecked run AIC_PAR at a time,
+//   can be stopped, and the light filter (🔴 / 🟠 / 🟢 / not checked) shows
+//   only the cards that need attention.
+// - THE QUESTION IS RE-RESOLVED BY ID when a check comes back
+//   (`aicFindVetting`): a check is 10–30 seconds and the vetting list is
+//   re-read wholesale underneath it, so the object captured before the call
+//   may no longer be the one on screen.
+// Run `node tools/vetting-traffic-light-tests.mjs` after touching any of it.
+var AIC_KEEP = 12;            // checks kept per question
+var AIC_PAR = 2;              // checks in flight at once from the bulk buttons
+var editorAiChecks = [];      // the history of the question open in the editor
+var _aicRunning = new Set();  // vetting ids being checked right now
+var _aicErrors = new Map();   // vetting id -> last failure message (not saved)
+var _aicBulk = null;          // { ids, done, failed, stop } while a bulk run is going
+var _vetLightFilter = "all";  // all | red | amber | green | none | stale
+var _vetQuickEdit = new Map(); // vetting id -> draft fields while ✏️ Quick edit is open
+var _aicHistoryOpen = new Set(); // ids whose "Earlier checks" are expanded
+
+var AIC_VERDICTS = {
+  green: { dot: "🟢", word: "Green", title: "Green light — makes sense" },
+  amber: { dot: "🟠", word: "Amber", title: "Amber — worth a second look" },
+  red: { dot: "🔴", word: "Red", title: "Red light — doesn't add up" }
+};
+function aicPanelState(verdict) { return verdict === "green" ? "good" : verdict === "red" ? "bad" : "warn"; }
+function aicSig(q) { try { return mathImportSignature(q); } catch (_) { return ""; } }
+function aicId() { return "aic_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 6); }
+function aicByName() { try { return (currentUser && (currentUser.name || currentUser.email)) || ""; } catch (_) { return ""; } }
+
+// The model's JSON → one history entry, with the verdict normalised the way
+// the editor always did: trust an explicit colour, else infer from whether
+// anything was flagged.
+function aicEntryFromResult(res, q) {
+  res = res && typeof res === "object" ? res : {};
+  const issues = (Array.isArray(res.issues) ? res.issues : []).map(s => String(s || "").trim()).filter(Boolean).slice(0, 8);
+  let checks = res.checks && typeof res.checks === "object" ? res.checks : null;
+  const flaggedAspect = checks && ["scenario", "working", "answer"].some(k => String(checks[k] || "").toLowerCase() === "issue");
+  let verdict = String(res.verdict || "").trim().toLowerCase();
+  if (!AIC_VERDICTS[verdict]) verdict = (issues.length || flaggedAspect) ? "amber" : "green";
+  if (!checks && verdict === "green") checks = { scenario: "ok", working: "ok", answer: "ok" };
+  const clean = {};
+  if (checks) ["scenario", "working", "answer"].forEach(k => { const v = String(checks[k] || "").toLowerCase(); if (v === "ok" || v === "issue") clean[k] = v; });
+  return {
+    id: aicId(), kind: "ai", at: new Date().toISOString(), verdict,
+    summary: String(res.summary || "").trim().slice(0, 400),
+    issues, checks: clean, sig: aicSig(q), by: aicByName()
+  };
+}
+// A manual light: the teacher's own verdict, with an optional note.
+function aicManualEntry(q, verdict, note) {
+  return {
+    id: aicId(), kind: "manual", at: new Date().toISOString(),
+    verdict: AIC_VERDICTS[verdict] ? verdict : "amber",
+    summary: String(note || "").trim().slice(0, 400) || "Checked by hand.",
+    issues: [], checks: {}, sig: aicSig(q), by: aicByName()
+  };
+}
+// Append, oldest first, keeping the newest AIC_KEEP. Never mutates its input.
+function aicAppend(list, entry) {
+  const out = (Array.isArray(list) ? list : []).filter(e => e && AIC_VERDICTS[e.verdict]);
+  if (entry && AIC_VERDICTS[entry.verdict]) out.push(entry);
+  return out.slice(-AIC_KEEP);
+}
+// Every light a question has, oldest first: the PDF worker's check (when it
+// came back with a colour) and then everything run since.
+function aicHistory(q) {
+  const out = [];
+  const ac = q && q.autoCheck;
+  if (ac && AIC_VERDICTS[ac.state]) {
+    out.push({
+      id: "autoCheck", kind: "import", at: ac.at || ac.checkedAt || q.createdAt || "", verdict: ac.state,
+      summary: ac.state === "green" ? "The PDF import's own check found no issues." : "Flagged by the PDF import's own check.",
+      issues: (ac.findings || []).map(f => [f && f.title, f && f.detail].filter(Boolean).join(": ")).filter(Boolean).slice(0, 8),
+      checks: {}, sig: ac.sig || "", by: ""
+    });
+  }
+  (Array.isArray(q && q.aiChecks) ? q.aiChecks : []).forEach(e => { if (e && AIC_VERDICTS[e.verdict]) out.push(e); });
+  return out;
+}
+function aicLatest(q) { const h = aicHistory(q); return h.length ? h[h.length - 1] : null; }
+function aicIsStale(q, entry) { return !!(entry && entry.sig && entry.sig !== aicSig(q)); }
+// What the filter and the bulk buttons sort a card by.
+function aicLightOf(q) {
+  const last = aicLatest(q);
+  if (!last) return "none";
+  if (aicIsStale(q, last)) return "stale";
+  return last.verdict;
+}
+function aicWhen(iso) {
+  const t = Date.parse(String(iso || ""));
+  if (!Number.isFinite(t)) return "";
+  const s = Math.max(0, Math.round((Date.now() - t) / 1000));
+  if (s < 60) return "just now";
+  if (s < 3600) return Math.round(s / 60) + " min ago";
+  if (s < 86400) return Math.round(s / 3600) + " h ago";
+  if (s < 86400 * 7) return Math.round(s / 86400) + " d ago";
+  try { return new Date(t).toLocaleDateString(undefined, { day: "numeric", month: "short" }); } catch (_) { return ""; }
+}
+function aicKindLabel(e) { return e.kind === "manual" ? "✋ You" : e.kind === "import" ? "📄 PDF import" : "🤖 AI"; }
+
+// ---- the card's light ------------------------------------------------------
+function aicLampsHtml(state) {
+  return `<div class="traffic-light vet-tl-lamps tl-${state}" aria-hidden="true"><span class="lamp red"></span><span class="lamp amber"></span><span class="lamp green"></span></div>`;
+}
+function aicAspectsHtml(checks) {
+  if (!checks || !["scenario", "working", "answer"].some(k => checks[k])) return "";
+  const lab = { scenario: "Scenario", working: "Working", answer: "Answer" };
+  return `<div class="check-ai-aspects">${["scenario", "working", "answer"].map(k =>
+    `<span class="aspect${checks[k] === "ok" ? " ok" : checks[k] === "issue" ? " issue" : ""}"><i></i>${lab[k]}</span>`).join("")}</div>`;
+}
+function aicHistoryRowHtml(q, e) {
+  const v = AIC_VERDICTS[e.verdict];
+  const stale = aicIsStale(q, e);
+  const del = e.kind === "import" ? "" :
+    `<button type="button" class="vet-tl-x" data-aic-del="${escapeHtml(q.id)}" data-aic-entry="${escapeHtml(e.id || "")}" title="Remove this check from the history">✕</button>`;
+  const issues = (e.issues || []).length ? `<ul>${e.issues.map(t => `<li>${escapeHtml(t)}</li>`).join("")}</ul>` : "";
+  return `<li class="vet-tl-row${stale ? " is-stale" : ""}">
+      <span class="vet-tl-dot" title="${escapeHtml(v.word)}">${v.dot}</span>
+      <div class="vet-tl-row-body">
+        <div class="vet-tl-row-head"><b>${escapeHtml(v.word)}</b><span>${escapeHtml(aicKindLabel(e))}${e.by && e.kind !== "import" ? " · " + escapeHtml(e.by) : ""}${aicWhen(e.at) ? " · " + escapeHtml(aicWhen(e.at)) : ""}${stale ? " · changed since" : ""}</span>${del}</div>
+        ${e.summary ? `<div class="vet-tl-row-sum">${escapeHtml(e.summary)}</div>` : ""}${issues}
+      </div>
+    </li>`;
+}
+function aicCardHtml(q) {
+  const id = escapeHtml(q.id);
+  const running = _aicRunning.has(q.id);
+  const err = _aicErrors.get(q.id);
+  const hist = aicHistory(q);
+  const last = hist.length ? hist[hist.length - 1] : null;
+  const stale = aicIsStale(q, last);
+  let state = "none", title = "Not checked yet", msg = "Press 🚦 to have AI re-solve it and check the numbers make sense — or set the light yourself in ✏️ Quick edit.";
+  if (running) { state = "checking"; title = "Checking with AI…"; msg = "Re-solving the question and checking the numbers make sense in context…"; }
+  else if (last) {
+    state = stale ? "stale" : last.verdict;
+    title = AIC_VERDICTS[last.verdict].title + (stale ? " (before your last change)" : "");
+    msg = last.summary || "";
+  }
+  const meta = last && !running
+    ? `<span class="vet-tl-meta">${escapeHtml(aicKindLabel(last))}${aicWhen(last.at) ? " · " + escapeHtml(aicWhen(last.at)) : ""}${hist.length > 1 ? " · " + hist.length + " checks" : ""}</span>` : "";
+  const issues = last && !running && (last.issues || []).length
+    ? `<ul class="vet-tl-issues">${last.issues.map(t => `<li>${escapeHtml(t)}</li>`).join("")}</ul>` : "";
+  const aspects = last && !running ? aicAspectsHtml(last.checks) : "";
+  const staleNote = stale && !running ? `<div class="vet-tl-stale">⚪ The question has changed since this light — check again to be sure.</div>` : "";
+  const errNote = err && !running ? `<div class="vet-tl-err">Couldn't finish the check: ${escapeHtml(err)}</div>` : "";
+  const earlier = hist.slice(0, -1).reverse();
+  const open = _aicHistoryOpen.has(q.id);
+  const history = earlier.length
+    ? `<button type="button" class="vet-tl-more" data-aic-hist="${id}" aria-expanded="${open}">${open ? "▾" : "▸"} Earlier checks (${earlier.length}) ${earlier.map(e => AIC_VERDICTS[e.verdict].dot).join("")}</button>
+       ${open ? `<ul class="vet-tl-history">${earlier.map(e => aicHistoryRowHtml(q, e)).join("")}</ul>` : ""}` : "";
+  const latestDel = last && last.kind !== "import" && !running
+    ? `<button type="button" class="vet-tl-x" data-aic-del="${id}" data-aic-entry="${escapeHtml(last.id || "")}" title="Remove this check from the history">✕</button>` : "";
+  return `<div class="vet-tl vet-tl-${state}" data-aic-card="${id}">
+      ${aicLampsHtml(state)}
+      <div class="vet-tl-body">
+        <div class="vet-tl-head"><h5>${escapeHtml(title)}</h5>${meta}${latestDel}</div>
+        ${msg ? `<p>${escapeHtml(msg)}</p>` : ""}
+        ${aspects}${issues}${staleNote}${errNote}${history}
+      </div>
+      <div class="vet-tl-actions">
+        <button type="button" class="btn btn-ghost btn-sm" data-aic-run="${id}"${running ? " disabled" : ""} title="A second AI pass re-solves the question and judges whether the scenario, working and answer make sense together. Every check is kept, so you can run it again after a fix.">${running ? '<span class="spinner dark"></span> Checking…' : last ? "🚦 Check again" : "🚦 Check with AI"}</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-aic-quick="${id}" aria-expanded="${_vetQuickEdit.has(q.id)}" title="Fix the title, answer, working or MCQ key here, or set the light yourself — without opening the editor">✏️ Quick edit</button>
+      </div>
+    </div>${_vetQuickEdit.has(q.id) ? aicQuickEditHtml(q) : ""}`;
+}
+
+// ---- ✏️ quick edit ---------------------------------------------------------
+function aicQuickDraftFor(q) {
+  if (!_vetQuickEdit.has(q.id)) {
+    _vetQuickEdit.set(q.id, {
+      title: q.title || "", expected: q.expected || "", markingGuide: q.markingGuide || "",
+      correctOption: Number.isInteger(q.correctOption) ? q.correctOption : null,
+      verdict: "", note: ""
+    });
+  }
+  return _vetQuickEdit.get(q.id);
+}
+function aicQuickEditHtml(q) {
+  const d = aicQuickDraftFor(q);
+  const id = escapeHtml(q.id);
+  const mcq = Array.isArray(q.options) && q.options.length >= 2
+    ? `<label class="vet-qe-field"><span>Correct option</span><select data-qe="${id}" data-qe-k="correctOption">${q.options.map((o, i) =>
+        `<option value="${i}"${d.correctOption === i ? " selected" : ""}>${escapeHtml(mcqLabel(i) + " " + o)}</option>`).join("")}</select></label>` : "";
+  const lamp = v => `<button type="button" class="vet-qe-lamp${d.verdict === v ? " on" : ""}" data-qe-light="${id}" data-v="${v}" aria-pressed="${d.verdict === v}" title="${escapeHtml(AIC_VERDICTS[v].title)}">${AIC_VERDICTS[v].dot} ${AIC_VERDICTS[v].word}</button>`;
+  return `<div class="vet-qe" data-qe-box="${id}">
+      <label class="vet-qe-field"><span>Title</span><input type="text" data-qe="${id}" data-qe-k="title" value="${escapeHtml(d.title)}"></label>
+      <label class="vet-qe-field"><span>Answer</span><input type="text" data-qe="${id}" data-qe-k="expected" value="${escapeHtml(d.expected)}" placeholder="The final answer students must give"></label>
+      ${mcq}
+      <label class="vet-qe-field"><span>Working / marking guide</span><textarea rows="3" data-qe="${id}" data-qe-k="markingGuide" placeholder="The worked solution">${escapeHtml(d.markingGuide)}</textarea></label>
+      <div class="vet-qe-field"><span>Your verdict <em>(optional — adds a light of your own)</em></span>
+        <div class="vet-qe-lamps">${lamp("green")}${lamp("amber")}${lamp("red")}</div>
+        <input type="text" data-qe="${id}" data-qe-k="note" value="${escapeHtml(d.note)}" placeholder="Note for this light, e.g. “answer checked against the paper”"${d.verdict ? "" : " hidden"}>
+      </div>
+      <div class="vet-qe-actions">
+        <button type="button" class="btn btn-primary btn-sm" data-qe-save="${id}">💾 Save</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-qe-save="${id}" data-qe-recheck="1" title="Save, then run 🚦 Check with AI on the saved version">💾 Save &amp; 🚦 check</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-qe-cancel="${id}">Cancel</button>
+      </div>
+    </div>`;
+}
+function aicFindVetting(id) { return (vettingList || []).find(x => x && String(x.id) === String(id)) || null; }
+async function aicQuickSave(id, recheck) {
+  if (!canManageQuestions()) { toast("Only admin accounts can edit questions", "error"); return; }
+  const q = aicFindVetting(id);
+  const d = _vetQuickEdit.get(id);
+  if (!q || !d) return;
+  const next = Object.assign({}, q);
+  next.title = String(d.title || "").trim() || "Untitled";
+  next.expected = String(d.expected || "").trim();
+  next.markingGuide = String(d.markingGuide || "").trim();
+  if (Array.isArray(q.options) && q.options.length >= 2 && Number.isInteger(d.correctOption) && q.options[d.correctOption] != null) next.correctOption = d.correctOption;
+  // The teacher's own light is signed against the question AS SAVED, so it is
+  // current the moment it lands rather than "changed since".
+  if (AIC_VERDICTS[d.verdict]) next.aiChecks = aicAppend(q.aiChecks, aicManualEntry(next, d.verdict, d.note));
+  try {
+    await saveVettingDoc(next, { quiet: true });
+    const i = vettingList.findIndex(x => x && x.id === id);
+    if (i >= 0) vettingList[i] = next;
+    _vetQuickEdit.delete(id);
+    renderVettingList();
+    toast(recheck ? "Saved — checking it now" : "Saved", "success");
+    if (recheck) aicCheckVetting(id);
+  } catch (e) {
+    console.error(e);
+    toast("Couldn't save: " + e.message, "error");
+    renderVettingList();   // the draft is kept; this re-enables its buttons
+  }
+}
+
+// ---- running checks --------------------------------------------------------
+async function aicCheckVetting(id, opts = {}) {
+  if (!canManageQuestions()) { toast("Only admin accounts can check questions", "error"); return false; }
+  if (!aiReady()) { if (!opts.quiet) toast("AI isn't ready yet — please wait a moment", "error"); return false; }
+  if (_aicRunning.has(id)) return false;
+  const q = aicFindVetting(id);
+  if (!q) return false;
+  _aicRunning.add(id);
+  _aicErrors.delete(id);
+  aicRepaintCard(id);
+  let ok = false;
+  try {
+    const entry = await aicRunCheck(JSON.parse(JSON.stringify(q)));
+    // Re-resolve: the list may have been re-read while the model was working.
+    const live = aicFindVetting(id);
+    if (!live) return false;   // approved or deleted meanwhile — nothing to write to
+    // Checked a version that has since been edited? The light is kept, and
+    // its signature (of the version it read) shows it as "changed since".
+    const next = Object.assign({}, live, { aiChecks: aicAppend(live.aiChecks, entry) });
+    await saveVettingDoc(next, { quiet: true });
+    const i = vettingList.findIndex(x => x && x.id === id);
+    if (i >= 0) vettingList[i] = next;
+    ok = true;
+    if (!opts.quiet) toast(`${AIC_VERDICTS[entry.verdict].dot} ${AIC_VERDICTS[entry.verdict].title}`, entry.verdict === "green" ? "success" : entry.verdict === "red" ? "error" : "");
+  } catch (e) {
+    console.error(e);
+    _aicErrors.set(id, aiErrorMessage(e));
+    if (!opts.quiet) toast("Check failed: " + aiErrorMessage(e), "error");
+  } finally {
+    _aicRunning.delete(id);
+    if (opts.quiet) aicRepaintCard(id); else renderVettingList();
+  }
+  return ok;
+}
+// Repaint ONE card's light in place, so a bulk run does not rebuild forty
+// cards (and close every open quick edit) each time a check lands.
+function aicRepaintCard(id) {
+  const list = $("vettingList");
+  const q = aicFindVetting(id);
+  if (!list || !q) return;
+  const el = Array.from(list.querySelectorAll("[data-aic-card]")).find(x => x.dataset.aicCard === String(id));
+  if (!el) return;
+  // The quick-edit box (if open) is the light's next sibling and is kept.
+  const tmp = document.createElement("div");
+  tmp.innerHTML = aicCardHtml(q);
+  const fresh = tmp.querySelector("[data-aic-card]");
+  if (!fresh) return;
+  el.replaceWith(fresh);
+  aicBindCard(fresh.parentNode || list);
+  // The card's own border follows its light.
+  const card = fresh.closest(".vet-card");
+  if (card) aicCardClass(card, q);
+  vetRenderBulkBar();
+}
+function aicCardClass(card, q) {
+  ["red", "amber", "green", "stale"].forEach(s => card.classList.toggle("tl-" + s, aicLightOf(q) === s));
+}
+async function aicCheckMany(ids) {
+  if (_aicBulk) return;
+  if (!canManageQuestions()) { toast("Only admin accounts can check questions", "error"); return; }
+  if (!aiReady()) { toast("AI isn't ready yet — please wait a moment", "error"); return; }
+  ids = ids.filter(id => aicFindVetting(id) && !_aicRunning.has(id));
+  if (!ids.length) { toast("Nothing to check", "error"); return; }
+  if (ids.length > 25 && !confirm(`Check ${ids.length} questions with AI? That is ${ids.length} AI calls, ${AIC_PAR} at a time.`)) return;
+  _aicBulk = { ids: ids.slice(), total: ids.length, done: 0, failed: 0, stop: false };
+  vetRenderBulkBar();
+  const queue = ids.slice();
+  const worker = async () => {
+    while (queue.length && _aicBulk && !_aicBulk.stop) {
+      const id = queue.shift();
+      const ok = await aicCheckVetting(id, { quiet: true });
+      if (!_aicBulk) return;
+      _aicBulk.done++;
+      if (!ok) _aicBulk.failed++;
+      vetRenderBulkBar();
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(AIC_PAR, queue.length) }, worker));
+  const r = _aicBulk;
+  _aicBulk = null;
+  renderVettingList();
+  if (r) {
+    const counts = { red: 0, amber: 0, green: 0 };
+    r.ids.forEach(id => { const q = aicFindVetting(id); const l = q ? aicLightOf(q) : ""; if (counts[l] != null) counts[l]++; });
+    toast(`${r.stop ? "Stopped. " : ""}Checked ${r.done - r.failed} — 🔴 ${counts.red} · 🟠 ${counts.amber} · 🟢 ${counts.green}` + (r.failed ? ` · ${r.failed} could not be checked` : ""), r.failed ? "error" : "success");
+  }
+}
+async function aicDeleteEntry(qid, entryId) {
+  if (!canManageQuestions()) return;
+  const q = aicFindVetting(qid);
+  if (!q || !entryId) return;
+  if (!confirm("Remove this light from the question's check history?")) return;
+  const next = Object.assign({}, q, { aiChecks: (q.aiChecks || []).filter(e => e && e.id !== entryId) });
+  try {
+    await saveVettingDoc(next, { quiet: true });
+    const i = vettingList.findIndex(x => x && x.id === qid);
+    if (i >= 0) vettingList[i] = next;
+    renderVettingList();
+  } catch (e) { toast("Couldn't remove it: " + e.message, "error"); }
+}
+
+// ---- wiring ----------------------------------------------------------------
+function aicBindCard(root) {
+  if (!root) return;
+  root.querySelectorAll("[data-aic-run]").forEach(b => { if (b.dataset.bound) return; b.dataset.bound = "1"; b.addEventListener("click", () => aicCheckVetting(b.dataset.aicRun)); });
+  root.querySelectorAll("[data-aic-quick]").forEach(b => { if (b.dataset.bound) return; b.dataset.bound = "1"; b.addEventListener("click", () => {
+    const id = b.dataset.aicQuick;
+    if (_vetQuickEdit.has(id)) _vetQuickEdit.delete(id); else { const q = aicFindVetting(id); if (q) aicQuickDraftFor(q); }
+    renderVettingList();
+  }); });
+  root.querySelectorAll("[data-aic-hist]").forEach(b => { if (b.dataset.bound) return; b.dataset.bound = "1"; b.addEventListener("click", () => {
+    const id = b.dataset.aicHist;
+    if (_aicHistoryOpen.has(id)) _aicHistoryOpen.delete(id); else _aicHistoryOpen.add(id);
+    aicRepaintCard(id);
+  }); });
+  root.querySelectorAll("[data-aic-del]").forEach(b => { if (b.dataset.bound) return; b.dataset.bound = "1"; b.addEventListener("click", () => aicDeleteEntry(b.dataset.aicDel, b.dataset.aicEntry)); });
+}
+function aicBindQuickEdit(root) {
+  if (!root) return;
+  root.querySelectorAll("[data-qe]").forEach(el => {
+    const ev = el.tagName === "SELECT" ? "change" : "input";
+    el.addEventListener(ev, () => {
+      const d = _vetQuickEdit.get(el.dataset.qe);
+      if (!d) return;
+      d[el.dataset.qeK] = el.dataset.qeK === "correctOption" ? Number(el.value) : el.value;
+    });
+  });
+  root.querySelectorAll("[data-qe-light]").forEach(b => b.addEventListener("click", () => {
+    const d = _vetQuickEdit.get(b.dataset.qeLight);
+    if (!d) return;
+    d.verdict = d.verdict === b.dataset.v ? "" : b.dataset.v;   // press again to clear
+    const box = b.closest(".vet-qe");
+    if (box) {
+      box.querySelectorAll("[data-qe-light]").forEach(x => { const on = x.dataset.v === d.verdict; x.classList.toggle("on", on); x.setAttribute("aria-pressed", String(on)); });
+      const note = box.querySelector('[data-qe-k="note"]');
+      if (note) note.hidden = !d.verdict;
+    }
+  }));
+  root.querySelectorAll("[data-qe-save]").forEach(b => b.addEventListener("click", () => { b.disabled = true; aicQuickSave(b.dataset.qeSave, !!b.dataset.qeRecheck); }));
+  root.querySelectorAll("[data-qe-cancel]").forEach(b => b.addEventListener("click", () => { _vetQuickEdit.delete(b.dataset.qeCancel); renderVettingList(); }));
+}
+// The cards the light filter lets through. Select all and the bulk buttons
+// act on what is SHOWN, so "🔴 only → Select all → Delete" means the reds.
+function vetVisibleList() {
+  if (_vetLightFilter === "all") return vettingList;
+  return vettingList.filter(q => aicLightOf(q) === _vetLightFilter);
+}
+function aicFilterHtml() {
+  const counts = { all: vettingList.length, red: 0, amber: 0, green: 0, stale: 0, none: 0 };
+  vettingList.forEach(q => { counts[aicLightOf(q)]++; });
+  const opt = (v, label) => `<option value="${v}"${_vetLightFilter === v ? " selected" : ""}>${label} (${counts[v]})</option>`;
+  return `<label class="vet-tl-filter" title="Show only the cards with this light">🚦
+      <select id="vetLightFilter">${opt("all", "All lights")}${opt("red", "🔴 Red")}${opt("amber", "🟠 Amber")}${opt("green", "🟢 Green")}${opt("stale", "⚪ Changed since check")}${opt("none", "Not checked")}</select></label>`;
+}
+function aicBulkHtml(picked) {
+  if (_aicBulk) {
+    return `<span class="vet-bulk-count">🚦 Checking ${Math.min(_aicBulk.done + 1, _aicBulk.total)} of ${_aicBulk.total}…</span>
+      <button class="btn btn-ghost btn-sm" id="aicStopBtn"${_aicBulk.stop ? " disabled" : ""}>${_aicBulk.stop ? "Stopping…" : "■ Stop"}</button>`;
+  }
+  const unchecked = vetVisibleList().filter(q => { const l = aicLightOf(q); return l === "none" || l === "stale"; }).length;
+  return `<button class="btn btn-ghost btn-sm" id="aicCheckSelBtn"${picked ? "" : " disabled"} title="Run 🚦 Check with AI on every ticked question">🚦 Check ticked</button>
+    <button class="btn btn-ghost btn-sm" id="aicCheckNewBtn"${unchecked ? "" : " disabled"} title="Run 🚦 Check with AI on every shown question that has no light yet, or has changed since its last one">🚦 Check unchecked (${unchecked})</button>`;
+}
+function aicBindBulk() {
+  const f = $("vetLightFilter");
+  if (f) f.addEventListener("change", () => { _vetLightFilter = f.value; renderVettingList(); });
+  const sel = $("aicCheckSelBtn");
+  if (sel) sel.addEventListener("click", () => aicCheckMany(vettingList.filter(q => _vetSelected.has(q.id)).map(q => q.id)));
+  const nw = $("aicCheckNewBtn");
+  if (nw) nw.addEventListener("click", () => aicCheckMany(vetVisibleList().filter(q => { const l = aicLightOf(q); return l === "none" || l === "stale"; }).map(q => q.id)));
+  const stop = $("aicStopBtn");
+  if (stop) stop.addEventListener("click", () => { if (_aicBulk) { _aicBulk.stop = true; vetRenderBulkBar(); } });
+}
+
+// ---- the editor's own history ------------------------------------------------
+// The editor panel shows the newest light large (as it always did) and the
+// earlier ones as a row of dots underneath, so a check run on a vetting card
+// is still visible after ✎ Edit.
+function aicRenderEditorHistory() {
+  const el = $("checkAiHistory");
+  if (!el) return;
+  const list = Array.isArray(editorAiChecks) ? editorAiChecks : [];
+  const earlier = list.slice(0, -1).reverse();
+  if (!earlier.length) { el.hidden = true; el.innerHTML = ""; return; }
+  el.hidden = false;
+  el.innerHTML = `<div class="aic-ed-hist-label">Earlier checks</div>` + earlier.map(e => {
+    const v = AIC_VERDICTS[e.verdict];
+    return `<div class="aic-ed-hist-row"><span>${v.dot}</span><span>${escapeHtml(aicKindLabel(e))}${aicWhen(e.at) ? " · " + escapeHtml(aicWhen(e.at)) : ""}</span><span class="muted">${escapeHtml(e.summary || "")}</span></div>`;
+  }).join("");
+}
+// Called when a question is loaded into the editor: its newest light is shown
+// straight away, greyed in words if the question changed after it.
+function aicShowEditorLatest(q) {
+  editorAiChecks = Array.isArray(q && q.aiChecks) ? JSON.parse(JSON.stringify(q.aiChecks)) : [];
+  const last = editorAiChecks[editorAiChecks.length - 1];
+  if (!last || !AIC_VERDICTS[last.verdict]) return;
+  const stale = aicIsStale(q, last);
+  setCheckAiState(aicPanelState(last.verdict), {
+    msg: (stale ? "Before the last change: " : "") + (last.summary || "") + ` (${aicKindLabel(last)}${aicWhen(last.at) ? ", " + aicWhen(last.at) : ""})`,
+    issues: last.issues, checks: last.checks
+  });
+  aicRenderEditorHistory();
+}
 
 // =====================================================================
 // 🔍 ANSWER KEY CROSS-CHECK — TWO ENGINES, AT THE SAME TIME (v1.42.0)
@@ -30332,6 +30990,8 @@ async function wsPreviewHeaderSave(wsId, field, value) {
 window.wsPreviewHeaderSave = wsPreviewHeaderSave;
 window.pvsStep = pvsStep;
 window.pvsPreviewStep = pvsPreviewStep;
+window.pvsReset = pvsReset;
+window.pvsPreviewReset = pvsPreviewReset;
 window.pvsFlush = pvsFlush;
 window.qbHoverKeep = qbHoverKeep;
 window.qbHoverLeave = qbHoverLeave;
@@ -36587,7 +37247,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.109.0 · 2026-10-25";
+const APP_VERSION = "v1.111.0 · 2026-10-27";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
