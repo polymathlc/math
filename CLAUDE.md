@@ -2,6 +2,17 @@
 
 Guidance for Claude when working in this repo.
 
+## 🕹️ Arcade dropdown in the sidebar — v1.110.0
+
+- Every game (Character, Leaderboard, Dungeon, Aetherfall, Show/Hide game, Hades, Pirate Rift, Crew Defense)
+  sits inside `#navArcade` / `#navArcadeList`, opened by the `#navArcadeToggle` button. New games go in there,
+  never loose in `.sidebar-nav`. Closed by default; the open state is per device (`mathArcadeOpen_v1` in
+  localStorage) and `navigateTo` calls `arcadeSyncOpen()` so it opens itself when a game page is active.
+  The functions live in a small classic `<script>` right after `</nav>`, not in the app module.
+- `button.nav-item` is reset to a transparent face: a bare `<button>` kept the browser's white button face
+  under the sidebar's white text (Hades / Pirate Rift / Crew Defense were unreadable). Keep that reset.
+- Employees never see the Arcade (`body.role-employee .nav-arcade { display: none !important; }`).
+
 ## 📲 Installable app (Polymath install kit v2.0.0) — v1.108.0
 
 - **The offline page carries its icon inline (sw 2.0.1, kit v2.0.1).** `sw.js` answers page loads only, so an
