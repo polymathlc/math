@@ -81,7 +81,10 @@ const Q = id => ({id,title:'Question '+id,blocks:[{type:'image',url:'diagram.png
 test('the eye is before the AI badge and is keyboard/touch accessible',()=>{
  const h=harness(),html=h.button({id:'a"<',title:'<title>'});
  assert.match(html,/data-qid="a&quot;&lt;"/);assert.match(html,/onfocus=/);assert.match(html,/onclick=/);
- assert.match(src,/\$\{vetPrintPeekButton\(q\)\}\$\{mathImportCheckBadge\(q\)\}/);
+ // 🚦 The import's coloured verdict moved into the card's traffic light; the
+ // badge that is left (a check that could not finish) still sits after the eye.
+ assert.match(src,/\$\{vetPrintPeekButton\(q\)\}\$\{importBadge\}/);
+ assert.match(src,/const importBadge = q\.autoCheck && !AIC_VERDICTS\[q\.autoCheck\.state\] \? mathImportCheckBadge\(q\) : ""/);
 });
 test('hover resolves the latest question and uses a sandboxed export iframe',async()=>{
  const h=harness(),a=h.anchor('a');h.api.list=[Q('a')];h.show(a);
