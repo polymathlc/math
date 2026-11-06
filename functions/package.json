@@ -3,7 +3,7 @@
   "description": "Server-authoritative marking, XP and admin claims for Math Practice",
   "type": "module",
   "engines": {
-    "node": "20"
+    "node": "22"
   },
   "main": "index.js",
   "scripts": {
