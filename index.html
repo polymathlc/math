@@ -6113,7 +6113,7 @@ arcadeSyncOpen();
       <div class="editor-field"><label>Pictures — which engine draws</label>
         <label class="ai-engine-opt">
           <input type="radio" name="aiImageEngineChoice" value="openai" checked>
-          <span><b>ChatGPT Images 2.5</b> <span class="dim">— OpenAI's newest image model · default · key held on the server</span></span>
+          <span><b>ChatGPT Images 2.6</b> <span class="dim">— OpenAI's newest image model · default · key held on the server</span></span>
         </label>
         <label class="ai-engine-opt">
           <input type="radio" name="aiImageEngineChoice" value="gemini">
@@ -6123,13 +6123,13 @@ arcadeSyncOpen();
       </div>
       <div class="editor-field"><label>ChatGPT image model</label>
         <select id="aiEngineImageModel">
-          <option value="gpt-image-2.5-flare" selected>ChatGPT Images 2.5 Flare — newest, fastest (recommended)</option>
-          <option value="gpt-image-2.5-sunburst">ChatGPT Images 2.5 Sunburst — extra precision on edits, slower</option>
+          <option value="gpt-image-2.6-flare" selected>ChatGPT Images 2.6 Flare — newest, fastest (recommended)</option>
+          <option value="gpt-image-2.6-sunburst">ChatGPT Images 2.6 Sunburst — extra precision on edits, slower</option>
           <option value="gpt-image-2">gpt-image-2 — the previous generation</option>
           <option value="gpt-image-1">gpt-image-1 — legacy</option>
           <option value="gpt-image-1-mini">gpt-image-1-mini — legacy, cheaper</option>
         </select>
-        <p style="color:var(--text-muted);font-size:0.78rem;margin-top:8px;line-height:1.55;"><b>Flare</b> is OpenAI's own default for most work — higher quality than gpt-image-2 at half the latency. <b>Sunburst</b> takes longer and is built for edits that need tighter control, such as a Codex plate or a set banner. Both cost the same per picture. The chat model above cannot draw, so this is the model every picture comes from; the server route always draws with the 2.5 family, and a legacy pick is honoured only by a key in this browser.</p>
+        <p style="color:var(--text-muted);font-size:0.78rem;margin-top:8px;line-height:1.55;"><b>Flare</b> is OpenAI's own default for most work — up to 50% faster than the 2.5 generation. <b>Sunburst</b> takes longer and is built for edits that need tighter control, such as a Codex plate or a set banner. Both have the same token rates. The chat model above cannot draw, so this is the model every picture comes from; the server route always draws with the 2.6 family (a 2.5 request is moved up to its 2.6 twin), and a legacy pick is honoured only by a key in this browser.</p>
       </div>
       <div class="editor-field"><label>Kimi model</label>
         <div style="display:flex;gap:8px;align-items:center;">
@@ -7196,7 +7196,7 @@ try {
 } catch (e) { console.warn("Firebase image AI init failed:", e); }
 const aiReady = () => !!geminiModel || !!auth.currentUser || !!getOpenAiKey() || !!getKimiKey();
 // Gemini's image models are the FALLBACK now: the image engine is ChatGPT
-// Images 2.5 (search `THE IMAGE ENGINE`). A picture can be drawn when EITHER
+// Images 2.6 (search `THE IMAGE ENGINE`). A picture can be drawn when EITHER
 // is reachable. Guarded, because this is read before the engine block has run.
 const imageAiReady = () => geminiImageModels.length > 0 || (function () { try { return imageEngineReady(); } catch (e) { return false; } })();
 
@@ -7349,7 +7349,7 @@ function extractInlineImage(result) {
 /* Redraw ONE picture and hand back { mimeType, data } — the shape the ✨
    Enhance comparison and `generateEnhancedImageDataUrl` have always read. It
    is an ADAPTER over THE ONE DOOR (`generateImageDataUrl`, search `THE IMAGE
-   ENGINE`): ChatGPT Images 2.5 first, Gemini's image model behind it. It used
+   ENGINE`): ChatGPT Images 2.6 first, Gemini's image model behind it. It used
    to walk the Gemini models itself, which is how every enhance in this app
    stayed on Gemini however the engine was set. */
 async function askGeminiImageEdit(prompt, media) {
@@ -7755,7 +7755,7 @@ async function kimiListModels(keyOverride = '') {
 }
 
 /* =====================================================================
-   🖼 THE IMAGE ENGINE — ChatGPT Images 2.5 for EVERY picture (v1.71.0)
+   🖼 THE IMAGE ENGINE — ChatGPT Images 2.6 for EVERY picture (v1.71.0, 2.6 since 6 Nov 2026)
    ---------------------------------------------------------------------
    Every picture this app draws — a Nova Protocol card, a battle avatar, a
    pack frame, a hero portrait, an artifact, a set banner, a Codex plate, a
@@ -7788,9 +7788,16 @@ async function kimiListModels(keyOverride = '') {
      effect of the chat toggle. It defaults to ChatGPT Images; "Gemini image
      model" is there for the day the OpenAI account is out of credit.
 
-   THE MODEL. OpenAI released two: `gpt-image-2.5-flare` — its own default
-   choice for most applications, higher quality than gpt-image-2 at half the
-   latency — and `gpt-image-2.5-sunburst`, built for premium visual work that
+   2.6 (6 NOVEMBER 2026). OpenAI's Images 2.6 shipped two API models,
+   `gpt-image-2.6-flare` and `gpt-image-2.6-sunburst`, at the 2.5 token rates
+   and with up to 50% faster generation. They serve /images/generations and
+   /images/edits only (not the Responses image tool, which this app never
+   uses). Every 2.5 id below now reads as its 2.6 twin; a stored 2.5 pick is
+   lifted to that twin once per device (`OPENAI_IMAGE_GEN` = 'images26').
+
+   THE MODEL. OpenAI released two: `gpt-image-2.6-flare` — its own default
+   choice for most applications, fast iteration — and
+   `gpt-image-2.6-sunburst`, built for premium visual work that
    benefits from tighter control across edits, at the cost of longer
    generation. Both cost the same (image output US$30 / 1M tokens, image
    input US$8 / 1M, text input US$5 / 1M). Flare is the default here; the
@@ -7821,29 +7828,40 @@ async function kimiListModels(keyOverride = '') {
    `polymathlc/cer` and `polymathlc/anskey` carry the same block — ship a
    change to all three together. Run tools/image-engine-tests.mjs.
    ===================================================================== */
-const OPENAI_IMAGE_DEFAULT_MODEL = 'gpt-image-2.5-flare';
-/* The dropdown, in the order it is offered. The two 2.5 models lead; the
+const OPENAI_IMAGE_DEFAULT_MODEL = 'gpt-image-2.6-flare';
+/* The dropdown, in the order it is offered. The two 2.6 models lead; the
    older generations stay so a picture drawn under one can be redrawn under
    the same one, and because a model an admin can see in the list is a model
    they can deliberately choose. */
 const OPENAI_IMAGE_MODELS = [
-  { id: 'gpt-image-2.5-flare', label: 'ChatGPT Images 2.5 Flare — newest, fastest (recommended)' },
-  { id: 'gpt-image-2.5-sunburst', label: 'ChatGPT Images 2.5 Sunburst — extra precision on edits, slower' },
+  { id: 'gpt-image-2.6-flare', label: 'ChatGPT Images 2.6 Flare — newest, fastest (recommended)' },
+  { id: 'gpt-image-2.6-sunburst', label: 'ChatGPT Images 2.6 Sunburst — extra precision on edits, slower' },
   { id: 'gpt-image-2', label: 'gpt-image-2 — the previous generation' },
   { id: 'gpt-image-1', label: 'gpt-image-1 — legacy' },
   { id: 'gpt-image-1-mini', label: 'gpt-image-1-mini — legacy, cheaper' }
 ];
-/* The FAMILY, not one id — the two 2.5 models and their dated snapshots. */
+/* The FAMILY, not one id — the two 2.6 models and their dated snapshots. */
+const OPENAI_IMAGE_26_RE = /^gpt-image-2\.6-(flare|sunburst)(-\d{4}-\d{2}-\d{2})?$/;
+/* The 2.5 family (8 September 2026) — the generation 2.6 replaced. Kept only
+   so the lift below can recognise a stored 2.5 pick and move it to its twin. */
 const OPENAI_IMAGE_25_RE = /^gpt-image-2\.5-(flare|sunburst)(-\d{4}-\d{2}-\d{2})?$/;
 /* Every image model that was only ever a DEFAULT before 2.5. */
 const OPENAI_IMAGE_SUPERSEDED = ['gpt-image-1', 'gpt-image-1-mini', 'gpt-image-1.5', 'gpt-image-2', 'gpt-image-2-2026-04-21'];
-const OPENAI_IMAGE_GEN = 'images25';
+const OPENAI_IMAGE_GEN = 'images26';
+/* A stored 2.5 pick becomes the SAME variant on 2.6 — Flare stays Flare,
+   Sunburst stays Sunburst — so the admin's choice of speed vs precision
+   survives the generation change. Anything else comes back unchanged. */
+function openAiImageTwin26(id) {
+  const m = OPENAI_IMAGE_25_RE.exec(String(id || '').trim());
+  return m ? 'gpt-image-2.6-' + m[1] : String(id || '').trim();
+}
 (function _openAiImageLiftDefaultOnce() {
   try {
     if (localStorage.getItem(AI_ENGINE_STORE.imageGen) === OPENAI_IMAGE_GEN) return;
     localStorage.setItem(AI_ENGINE_STORE.imageGen, OPENAI_IMAGE_GEN);
     const m = (localStorage.getItem(AI_ENGINE_STORE.imageModel) || '').trim();
     if (m && OPENAI_IMAGE_SUPERSEDED.indexOf(m) >= 0) localStorage.setItem(AI_ENGINE_STORE.imageModel, OPENAI_IMAGE_DEFAULT_MODEL);
+    else if (OPENAI_IMAGE_25_RE.test(m)) localStorage.setItem(AI_ENGINE_STORE.imageModel, openAiImageTwin26(m));
   } catch (e) { /* private browsing: nothing is stored, so there is nothing to lift */ }
 })();
 /* A stored id the dropdown no longer offers is the DEFAULT, not a 404 on
@@ -7851,7 +7869,7 @@ const OPENAI_IMAGE_GEN = 'images25';
    typo in localStorage, must not take the art generator down. */
 function openAiImageModelKnown(id) {
   const s = String(id || '').trim();
-  return OPENAI_IMAGE_MODELS.some(m => m.id === s) || OPENAI_IMAGE_25_RE.test(s);
+  return OPENAI_IMAGE_MODELS.some(m => m.id === s) || OPENAI_IMAGE_26_RE.test(s);
 }
 function getOpenAiImageModel() {
   try {
@@ -8008,12 +8026,12 @@ function _imgFidelityFor(model) { return OPENAI_IMAGE_FIDELITY_RE.test(String(mo
    sent: a model that does not list "auto" among its sizes refuses it, and
    leaving the field out asks for exactly the same thing. */
 function _imgSizeField(size) { const v = String(size || '').trim(); return v && v.toLowerCase() !== 'auto' ? v : ''; }
-/* `xhigh` and `max` exist only on the 2.5 family; an older model asked for
+/* `xhigh` and `max` exist only on the 2.5 / 2.6 families; an older model asked for
    them 400s. Clamp rather than refuse, so a caller can ask for the best and
    get the best the chosen model has. */
 function _imgQualityFor(model, quality) {
   const q = String(quality || 'high').toLowerCase();
-  if (OPENAI_IMAGE_25_RE.test(model)) return ['low', 'medium', 'high', 'xhigh', 'max', 'auto'].includes(q) ? q : 'high';
+  if (OPENAI_IMAGE_26_RE.test(model) || OPENAI_IMAGE_25_RE.test(model)) return ['low', 'medium', 'high', 'xhigh', 'max', 'auto'].includes(q) ? q : 'high';
   return ['low', 'medium', 'high', 'auto'].includes(q) ? q : 'high';
 }
 
@@ -8065,7 +8083,7 @@ async function openAiGenerateImageDataUrl(prompt, opts) {
 
 /* ── ChatGPT Images by the SERVER's key ────────────────────────────────
    The `openAiImage` callable in this repo's functions/. It pins the
-   model to the 2.5 family itself (a client that could name a model could
+   model to the 2.6 family itself (a client that could name a model could
    name an expensive one), validates every field, and answers on a device
    nobody has typed a key into. The image model chosen here is passed along
    — the server honours it when it is a 2.5 id and falls back to Flare when
@@ -8080,10 +8098,10 @@ async function openAiImageServer(prompt, opts) {
     images: _imgRefsToMedia(refs),
     model,
     size: o.size || (refs.length ? 'auto' : '1024x1024'),
-    quality: _imgQualityFor(OPENAI_IMAGE_25_RE.test(model) ? model : OPENAI_IMAGE_DEFAULT_MODEL, o.quality),
+    quality: _imgQualityFor(OPENAI_IMAGE_26_RE.test(model) ? model : OPENAI_IMAGE_DEFAULT_MODEL, o.quality),
     background: o.transparent ? 'transparent' : 'auto',
     outputFormat: 'png'
-    // No inputFidelity: the server pins the model to the 2.5 family, which
+    // No inputFidelity: the server pins the model to the 2.6 family, which
     // refuses the parameter (see _imgFidelityFor). It decides what to send.
   });
   const d = res && res.data;
@@ -8239,7 +8257,7 @@ function imageRouteReport() {
 // It is the FALLBACK route inside `generateImageDataUrl` and must not be
 // called from anywhere else: a caller that reaches it directly is a surface
 // that quietly stayed on Gemini while every other picture moved to ChatGPT
-// Images 2.5, and tools/image-engine-tests.mjs fails on it.
+// Images 2.6, and tools/image-engine-tests.mjs fails on it.
 async function generateImageDataUrlGemini(prompt, refDataUrls) {
   if (!geminiImageModels.length) throw new Error('no Gemini image model is available in this project');
   const parts = [prompt];
@@ -37299,7 +37317,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.111.0 · 2026-10-27";
+const APP_VERSION = "v1.112.0 · 2026-11-06";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -42209,7 +42227,7 @@ function _tcgTransientError(e) {
   return (e && (e.status === 429 || e.status >= 500)) || /rate limit|429|timeout|timed out|temporarily|overloaded|failed to fetch|network|503|500/i.test(msg);
 }
 async function _tcgGenOnce(prompt, refDataUrl, transparent) {
-  // THE ONE DOOR (search `THE IMAGE ENGINE`): ChatGPT Images 2.5 first, by the
+  // THE ONE DOOR (search `THE IMAGE ENGINE`): ChatGPT Images 2.6 first, by the
   // server's key or this browser's, and Gemini's image model as the fallback —
   // the order the image setting decides, never the chat toggle.
   return await generateImageDataUrl(prompt, { refDataUrl: refDataUrl || null, transparent: !!transparent });

@@ -1860,7 +1860,7 @@ export const generateChartApp = onCall(CHART_APP_OPTS, async (request) => {
 });
 
 // =====================================================================
-// 🖼 openAiImage — CHATGPT IMAGES 2.5, WITH THE KEY ON THE SERVER
+// 🖼 openAiImage — CHATGPT IMAGES 2.6, WITH THE KEY ON THE SERVER
 // ---------------------------------------------------------------------
 // Every PICTURE the family draws — a trading card, a battle avatar, an
 // answer-key diagram, a redrawn exam figure, a cleaned-up scan, a note card's
@@ -1877,7 +1877,17 @@ export const generateChartApp = onCall(CHART_APP_OPTS, async (request) => {
 // a key into can still draw with it. A browser key is only the route BEHIND
 // this one, and Gemini's image model is the route behind that.
 //
-// THE MODEL IS PINNED TO THE 2.5 FAMILY, and the client may choose only
+// 2.6 (6 NOVEMBER 2026). OpenAI's Images 2.6 shipped `gpt-image-2.6-flare`
+// (fast iteration, OpenAI quotes ~6 s at low quality) and
+// `gpt-image-2.6-sunburst` (detailed work and the most precise edits), both at
+// the same token rates as 2.5 (text in US$5, image in US$8, image out US$30
+// per 1M tokens). The family below is 2.6 now. A client still asking for a
+// 2.5 id — a cached page, a phone that has not reloaded since — is moved UP
+// to the same variant on 2.6 (`openAiImageModelFor`), so every picture drawn
+// through this callable is a 2.6 picture whichever build asked for it. 2.6
+// serves /images/generations and /images/edits, which is all this calls.
+//
+// THE MODEL IS PINNED TO THE 2.6 FAMILY, and the client may choose only
 // WITHIN it. OpenAI released two: `gpt-image-2.5-flare` — the default choice
 // for most applications, higher quality than gpt-image-2 at half the latency
 // — and `gpt-image-2.5-sunburst`, built for tighter control across edits at
@@ -1914,9 +1924,13 @@ export const generateChartApp = onCall(CHART_APP_OPTS, async (request) => {
 // and a class of thirty children marking must not close the art generator.
 // =====================================================================
 const OPENAI_IMAGE_URL = "https://api.openai.com/v1/images";
-const OPENAI_IMAGE_MODEL = "gpt-image-2.5-flare";
-// The FAMILY, not one id: both 2.5 models and their dated snapshots.
-const OPENAI_IMAGE_MODEL_RE = /^gpt-image-2\.5-(flare|sunburst)(-\d{4}-\d{2}-\d{2})?$/;
+const OPENAI_IMAGE_MODEL = "gpt-image-2.6-flare";
+// The FAMILY, not one id: both 2.6 models and their dated snapshots.
+const OPENAI_IMAGE_MODEL_RE = /^gpt-image-2\.6-(flare|sunburst)(-\d{4}-\d{2}-\d{2})?$/;
+// The generation 2.6 replaced. A request naming one of these is drawn by its
+// 2.6 twin (Flare → 2.6 Flare, Sunburst → 2.6 Sunburst); a dated 2.5 snapshot
+// has no 2.6 counterpart of that date, so it gets the undated 2.6 twin.
+const OPENAI_IMAGE_PREVIOUS_RE = /^gpt-image-2\.5-(flare|sunburst)(-\d{4}-\d{2}-\d{2})?$/;
 const OPENAI_IMAGE_QUALITIES = ["low", "medium", "high", "xhigh", "max", "auto"];
 const OPENAI_IMAGE_BACKGROUNDS = ["transparent", "opaque", "auto"];
 const OPENAI_IMAGE_FORMATS = ["png", "jpeg", "webp"];
@@ -1972,7 +1986,10 @@ function openAiImageChoice(raw, allowed, fallback, label) {
    every picture for a reason nothing on the page can name. */
 function openAiImageModelFor(raw) {
   const s = String(raw == null ? "" : raw).trim();
-  return OPENAI_IMAGE_MODEL_RE.test(s) ? s : OPENAI_IMAGE_MODEL;
+  if (OPENAI_IMAGE_MODEL_RE.test(s)) return s;
+  const prev = OPENAI_IMAGE_PREVIOUS_RE.exec(s);
+  if (prev) return `gpt-image-2.6-${prev[1]}`;
+  return OPENAI_IMAGE_MODEL;
 }
 
 /* An `edits` request is multipart: the pictures go up as files. Node 20 has
@@ -2025,7 +2042,7 @@ export const openAiImage = onCall(OPENAI_OPTS, async (request) => {
   // asking for both gets png rather than a picture on a black plate.
   let outputFormat = openAiImageChoice(d.outputFormat, OPENAI_IMAGE_FORMATS, "png", "Output format");
   if (background === "transparent" && outputFormat === "jpeg") outputFormat = "png";
-  // d.inputFidelity is accepted and IGNORED — see the header: the 2.5 family
+  // d.inputFidelity is accepted and IGNORED — see the header: the 2.x family
   // refuses the parameter, and the clients shipped before v1.72.1 still send it.
 
   await reserveBackupSlot(auth.uid, OPENAI_IMAGE_SLOT, auth);
@@ -2058,7 +2075,7 @@ export const openAiImage = onCall(OPENAI_OPTS, async (request) => {
     return res.json();
   };
 
-  // The 2.5 family takes every field above, so a retry without the extras is
+  // The 2.6 family takes every field above, so a retry without the extras is
   // only ever reached if a snapshot narrows its scale under us — in which case
   // a plainer picture beats no picture.
   const unsupported = e => e && e.httpStatus === 400 && /unknown|unrecogni[sz]ed|unsupported|not support|invalid value|additional propert|not (?:allowed|permitted)/i.test(e.detail || e.message || "");

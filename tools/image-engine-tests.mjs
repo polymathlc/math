@@ -1,11 +1,11 @@
-// 🖼 THE IMAGE ENGINE — ChatGPT Images 2.5 for every picture (v1.71.0)
+// 🖼 THE IMAGE ENGINE — ChatGPT Images 2.6 for every picture (v1.71.0; 2.6 since 2026-11-06)
 //
 // Loads the REAL image-engine block out of index.html against stubs, and the
 // real validators out of functions/index.js, and pins the things that fail
 // silently — the app draws a picture either way, and a picture that came out
 // of the wrong model looks exactly like one that did not:
 //
-//  • the default model is gpt-image-2.5-flare, the dropdown leads with it, and
+//  • the default model is gpt-image-2.6-flare, the dropdown leads with it, and
 //    an id the dropdown no longer offers falls back to it;
 //  • the one-shot LIFT off yesterday's default, and a deliberate re-pick after
 //    it sticking;
@@ -19,7 +19,7 @@
 //  • the census: no caller reaches the raw Gemini route or the browser-key
 //    route except the door; _tcgGenOnce, askGeminiImageEdit and
 //    generateEnhancedImageDataUrl all go through generateImageDataUrl;
-//  • the server: the callable exists, pins the model to the 2.5 family, counts
+//  • the server: the callable exists, pins the model to the 2.6 family (2.5 ids move up to their 2.6 twin), counts
 //    on its own throttle fields, validates sizes and forces png under
 //    transparent.
 import fs from 'node:fs';
@@ -114,7 +114,7 @@ return {
   get last() { return imageLastCall; },
   get down() { return _aiDown; },
   resetDown: function () { Object.keys(_aiDown).forEach(function (k) { _aiDown[k] = 0; }); serverCalls.length = 0; fetchCalls.length = 0; geminiCalls.length = 0; },
-  OPENAI_IMAGE_DEFAULT_MODEL, OPENAI_IMAGE_MODELS, OPENAI_IMAGE_25_RE, OPENAI_IMAGE_SUPERSEDED, OPENAI_IMAGE_GEN,
+  OPENAI_IMAGE_DEFAULT_MODEL, OPENAI_IMAGE_MODELS, OPENAI_IMAGE_26_RE, OPENAI_IMAGE_25_RE, openAiImageTwin26, OPENAI_IMAGE_SUPERSEDED, OPENAI_IMAGE_GEN,
   getOpenAiImageModel, openAiImageModelOptionsHtml, aiImageEngineSetting, imageEngineOrder, imageOpenAiPossible,
   imageEngineReady, imageEngineLabel, _tcgArtEngineLabel, _imgRefsFrom, _imgQualityFor, generateImageDataUrl,
   imageRouteReport, _imgRouteFault, _isUnsupportedImageParam, _imgFidelityFor, _imgSizeField
@@ -132,25 +132,33 @@ const run = (name, fn) => Promise.resolve().then(fn).catch(e => { fail++; consol
 
 await run('model', () => {
   const api = build();
-  ok('the default image model is ChatGPT Images 2.5 Flare', api.OPENAI_IMAGE_DEFAULT_MODEL === 'gpt-image-2.5-flare');
-  ok('the dropdown leads with Flare and offers Sunburst second', api.OPENAI_IMAGE_MODELS[0].id === 'gpt-image-2.5-flare' && api.OPENAI_IMAGE_MODELS[1].id === 'gpt-image-2.5-sunburst');
-  ok('the family regex takes both 2.5 models and their dated snapshots',
-     ['gpt-image-2.5-flare', 'gpt-image-2.5-sunburst', 'gpt-image-2.5-flare-2026-09-08'].every(id => api.OPENAI_IMAGE_25_RE.test(id)) && !api.OPENAI_IMAGE_25_RE.test('gpt-image-2'));
+  ok('the default image model is ChatGPT Images 2.6 Flare', api.OPENAI_IMAGE_DEFAULT_MODEL === 'gpt-image-2.6-flare');
+  ok('the dropdown leads with 2.6 Flare and offers 2.6 Sunburst second', api.OPENAI_IMAGE_MODELS[0].id === 'gpt-image-2.6-flare' && api.OPENAI_IMAGE_MODELS[1].id === 'gpt-image-2.6-sunburst');
+  ok('the dropdown no longer offers a 2.5 model', !api.OPENAI_IMAGE_MODELS.some(m => api.OPENAI_IMAGE_25_RE.test(m.id)));
+  ok('the family regex takes both 2.6 models and their dated snapshots, and no 2.5 id',
+     ['gpt-image-2.6-flare', 'gpt-image-2.6-sunburst', 'gpt-image-2.6-flare-2026-11-04'].every(id => api.OPENAI_IMAGE_26_RE.test(id)) && !api.OPENAI_IMAGE_26_RE.test('gpt-image-2') && !api.OPENAI_IMAGE_26_RE.test('gpt-image-2.5-flare'));
+  ok('a 2.5 id has a 2.6 twin of the same variant', api.openAiImageTwin26('gpt-image-2.5-flare') === 'gpt-image-2.6-flare' && api.openAiImageTwin26('gpt-image-2.5-sunburst-2026-09-08') === 'gpt-image-2.6-sunburst' && api.openAiImageTwin26('gpt-image-1') === 'gpt-image-1');
   api.store.x_openai_image_model = 'gpt-image-9-nova';
-  ok('an id the dropdown no longer offers is the DEFAULT, not a 404 on every picture', api.getOpenAiImageModel() === 'gpt-image-2.5-flare');
-  api.store.x_openai_image_model = 'gpt-image-2.5-sunburst';
-  ok('a deliberate Sunburst pick is honoured', api.getOpenAiImageModel() === 'gpt-image-2.5-sunburst');
-  ok('the <select> is BUILT from the list, stored model selected', /value="gpt-image-2.5-sunburst" selected/.test(api.openAiImageModelOptionsHtml()));
-  ok('every legacy default is on the superseded list and no 2.5 model is', ['gpt-image-1', 'gpt-image-1-mini', 'gpt-image-2'].every(id => api.OPENAI_IMAGE_SUPERSEDED.includes(id)) && !api.OPENAI_IMAGE_SUPERSEDED.some(id => api.OPENAI_IMAGE_25_RE.test(id)));
+  ok('an id the dropdown no longer offers is the DEFAULT, not a 404 on every picture', api.getOpenAiImageModel() === 'gpt-image-2.6-flare');
+  api.store.x_openai_image_model = 'gpt-image-2.5-flare';
+  ok('a stray 2.5 id that slipped past the lift still draws on 2.6', api.getOpenAiImageModel() === 'gpt-image-2.6-flare');
+  api.store.x_openai_image_model = 'gpt-image-2.6-sunburst';
+  ok('a deliberate Sunburst pick is honoured', api.getOpenAiImageModel() === 'gpt-image-2.6-sunburst');
+  ok('the <select> is BUILT from the list, stored model selected', /value="gpt-image-2.6-sunburst" selected/.test(api.openAiImageModelOptionsHtml()));
+  ok('every legacy default is on the superseded list and no 2.6 model is', ['gpt-image-1', 'gpt-image-1-mini', 'gpt-image-2'].every(id => api.OPENAI_IMAGE_SUPERSEDED.includes(id)) && !api.OPENAI_IMAGE_SUPERSEDED.some(id => api.OPENAI_IMAGE_26_RE.test(id)));
 });
 
 await run('lift', () => {
   let api = build({ x_openai_image_model: 'gpt-image-1' });
-  ok('a device carrying yesterday\'s default is lifted to Flare', api.store.x_openai_image_model === 'gpt-image-2.5-flare' && api.store.x_openai_image_gen === api.OPENAI_IMAGE_GEN);
-  api = build({ x_openai_image_model: 'gpt-image-1', x_openai_image_gen: 'images25' });
+  ok('a device carrying yesterday\'s default is lifted to 2.6 Flare', api.store.x_openai_image_model === 'gpt-image-2.6-flare' && api.store.x_openai_image_gen === api.OPENAI_IMAGE_GEN && api.OPENAI_IMAGE_GEN === 'images26');
+  api = build({ x_openai_image_model: 'gpt-image-1', x_openai_image_gen: 'images26' });
   ok('a deliberate re-pick of a legacy model AFTER the lift sticks', api.store.x_openai_image_model === 'gpt-image-1');
-  api = build({ x_openai_image_model: 'gpt-image-2.5-sunburst' });
-  ok('a 2.5 pick is never touched by the lift', api.store.x_openai_image_model === 'gpt-image-2.5-sunburst');
+  api = build({ x_openai_image_model: 'gpt-image-2.5-sunburst', x_openai_image_gen: 'images25' });
+  ok('a 2.5 Sunburst pick is lifted to 2.6 Sunburst, keeping the variant', api.store.x_openai_image_model === 'gpt-image-2.6-sunburst');
+  api = build({ x_openai_image_model: 'gpt-image-2.5-flare', x_openai_image_gen: 'images25' });
+  ok('a 2.5 Flare pick is lifted to 2.6 Flare', api.store.x_openai_image_model === 'gpt-image-2.6-flare');
+  api = build({ x_openai_image_model: 'gpt-image-2.6-sunburst' });
+  ok('a 2.6 pick is never touched by the lift', api.store.x_openai_image_model === 'gpt-image-2.6-sunburst');
 });
 
 await run('order', () => {
@@ -170,14 +178,14 @@ await run('order', () => {
   ok('imageEngineReady counts ChatGPT Images as an image model', api.imageEngineReady() === true);
   api.gemini = true;
   ok('skipOpenAi is Gemini and nothing else', api.imageEngineOrder({ skipOpenAi: true }).join() === 'imgGemini');
-  ok('the label names ChatGPT Images and the model, and the Card Art name still answers', /ChatGPT Images · gpt-image-2\.5-flare/.test(api.imageEngineLabel()) && api._tcgArtEngineLabel() === api.imageEngineLabel());
+  ok('the label names ChatGPT Images and the model, and the Card Art name still answers', /ChatGPT Images · gpt-image-2\.6-flare/.test(api.imageEngineLabel()) && api._tcgArtEngineLabel() === api.imageEngineLabel());
 });
 
 await run('door', async () => {
   const api = build();
   api.key = 'sk-test'; api.gemini = true;
   let out = await api.generateImageDataUrl('a unit', {});
-  ok('the server route answers first, on the 2.5 model', out === 'data:image/png;base64,U0VSVkVS' && api.last.route === 'imgServer' && api.serverCalls[0].payload.model === 'gpt-image-2.5-flare');
+  ok('the server route answers first, on the 2.6 model', out === 'data:image/png;base64,U0VSVkVS' && api.last.route === 'imgServer' && api.serverCalls[0].payload.model === 'gpt-image-2.6-flare');
   api.resetDown(); api.serverMode = 'precondition';
   out = await api.generateImageDataUrl('a unit', {});
   ok('a server route that is not deployed hands over to the key in this browser', out === 'data:image/png;base64,S0VZ' && api.last.route === 'imgKey' && api.last.fellBack);
@@ -202,11 +210,11 @@ await run('request shape', async () => {
   const fd = api.fetchCalls[0].init.body;
   ok('a reference makes it an EDIT, as multipart', /\/images\/edits$/.test(api.fetchCalls[0].url) && typeof fd.getAll === 'function');
   ok('several references go up as image[]', fd.getAll('image[]').length === 2);
-  ok('input_fidelity is NEVER sent to the 2.5 family, and an edit sends NO size (auto is the API default)', fd.get('input_fidelity') === null && fd.get('size') === null);
+  ok('input_fidelity is NEVER sent to the 2.x family, and an edit sends NO size (auto is the API default)', fd.get('input_fidelity') === null && fd.get('size') === null);
   ok('transparent asks for a transparent background on png', fd.get('background') === 'transparent' && fd.get('output_format') === 'png');
   ok('the server was offered the same edit, and decides about fidelity itself', api.serverCalls[0].payload.images.length === 2 && api.serverCalls[0].payload.inputFidelity === undefined && api.serverCalls[0].payload.background === 'transparent');
   ok('the fidelity rule: gpt-image-1 and 1-mini take it, nothing newer does',
-     api._imgFidelityFor('gpt-image-1') === 'high' && api._imgFidelityFor('gpt-image-1-mini') === 'high' && api._imgFidelityFor('gpt-image-1.5') === '' && api._imgFidelityFor('gpt-image-2') === '' && api._imgFidelityFor('gpt-image-2.5-flare') === '');
+     api._imgFidelityFor('gpt-image-1') === 'high' && api._imgFidelityFor('gpt-image-1-mini') === 'high' && api._imgFidelityFor('gpt-image-1.5') === '' && api._imgFidelityFor('gpt-image-2') === '' && api._imgFidelityFor('gpt-image-2.5-flare') === '' && api._imgFidelityFor('gpt-image-2.6-flare') === '' && api._imgFidelityFor('gpt-image-2.6-sunburst') === '');
   ok('the size rule: auto and blank send nothing, a real size goes through', api._imgSizeField('auto') === '' && api._imgSizeField('') === '' && api._imgSizeField('1536x1024') === '1536x1024');
   api.resetDown();
   await api.generateImageDataUrl('draw', { refDataUrl: 'data:image/png;base64,QUJD', model: 'gpt-image-1' });
@@ -220,7 +228,7 @@ await run('request shape', async () => {
   api.resetDown();
   await api.generateImageDataUrl('draw', { quality: 'xhigh' });
   const body = JSON.parse(api.fetchCalls[0].init.body);
-  ok('a generation is JSON on /generations at 1024x1024 with xhigh passed through to a 2.5 model', /\/images\/generations$/.test(api.fetchCalls[0].url) && body.size === '1024x1024' && body.quality === 'xhigh');
+  ok('a generation is JSON on /generations at 1024x1024 with xhigh passed through to a 2.6 model', /\/images\/generations$/.test(api.fetchCalls[0].url) && body.size === '1024x1024' && body.quality === 'xhigh');
   ok('xhigh on a legacy model becomes high', api._imgQualityFor('gpt-image-1', 'xhigh') === 'high');
   api.resetDown(); api.fetchMode = 'unsupported';
   await api.generateImageDataUrl('draw', { refDataUrl: 'data:image/png;base64,QUJD' });
@@ -234,15 +242,15 @@ await run('badge', async () => {
   // the teacher which one did is the box. It must name the ROUTE and the
   // MODEL, fire once per picture, and never fire on a failure.
   const api = build({});
-  ok('the server route is described with its model and "server key"', api.imageEngineDescribe('imgServer', 'gpt-image-2.5-flare') === 'ChatGPT Images · gpt-image-2.5-flare · server key');
-  ok('the browser-key route says the key is on this device', api.imageEngineDescribe('imgKey', 'gpt-image-2.5-sunburst') === 'ChatGPT Images · gpt-image-2.5-sunburst · key on this device');
+  ok('the server route is described with its model and "server key"', api.imageEngineDescribe('imgServer', 'gpt-image-2.6-flare') === 'ChatGPT Images · gpt-image-2.6-flare · server key');
+  ok('the browser-key route says the key is on this device', api.imageEngineDescribe('imgKey', 'gpt-image-2.6-sunburst') === 'ChatGPT Images · gpt-image-2.6-sunburst · key on this device');
   ok('the Gemini route is named Gemini with its model', api.imageEngineDescribe('imgGemini', 'gemini-3.5-flash-image') === 'Gemini · gemini-3.5-flash-image');
-  ok('a route with no model recorded falls back to the chosen ChatGPT model, never a blank', api.imageEngineDescribe('imgServer', '') === 'ChatGPT Images · gpt-image-2.5-flare · server key' && api.imageEngineDescribe('imgGemini', '') === 'Gemini · image model');
+  ok('a route with no model recorded falls back to the chosen ChatGPT model, never a blank', api.imageEngineDescribe('imgServer', '') === 'ChatGPT Images · gpt-image-2.6-flare · server key' && api.imageEngineDescribe('imgGemini', '') === 'Gemini · image model');
   // The server answered: the box carries the model the SERVER reported.
   api.resetDown(); api.serverMode = 'ok';
   await api.generateImageDataUrl('draw a beaker');
-  ok('a picture from the server raises the box', api.announced.length === 1 && /^🖼 Picture generated by ChatGPT Images · gpt-image-2\.5-flare · server key$/.test(api.announced[0]), api.announced.join(' | '));
-  ok('the door records the model beside the route', api.last.route === 'imgServer' && api.last.model === 'gpt-image-2.5-flare' && api.last.engine === 'openai' && api.last.fellBack === false);
+  ok('a picture from the server raises the box', api.announced.length === 1 && /^🖼 Picture generated by ChatGPT Images · gpt-image-2\.6-flare · server key$/.test(api.announced[0]), api.announced.join(' | '));
+  ok('the door records the model beside the route', api.last.route === 'imgServer' && api.last.model === 'gpt-image-2.6-flare' && api.last.engine === 'openai' && api.last.fellBack === false);
   ok('the box is on screen', api.badge() && api.badge().classList.contains('show') && api.badge().id === 'imgEngineBadge');
   // The same model again within the hold stacks a ×N rather than a second box.
   await api.generateImageDataUrl('draw a second beaker');
@@ -250,7 +258,7 @@ await run('badge', async () => {
   // The server refused and the browser key drew: the box says so, and says it fell back.
   api.announced.length = 0; api.resetDown(); api.serverMode = 'precondition'; api.key = 'sk-test'; api.fetchMode = 'ok';
   await api.generateImageDataUrl('draw a lever');
-  ok('a picture from the browser key names the device route, WHICH route refused and WHY', api.announced.length === 1 && /ChatGPT Images · gpt-image-2\.5-flare · key on this device \(after ChatGPT Images \(server key\) refused: No OpenAI key is configured on the server\.\)/.test(api.announced[0]), api.announced.join(' | '));
+  ok('a picture from the browser key names the device route, WHICH route refused and WHY', api.announced.length === 1 && /ChatGPT Images · gpt-image-2\.6-flare · key on this device \(after ChatGPT Images \(server key\) refused: No OpenAI key is configured on the server\.\)/.test(api.announced[0]), api.announced.join(' | '));
   ok('…with the transport prefix stripped and the refuser recorded', !/functions\//.test(api.announced[0]) && api.last.refusedBy === 'ChatGPT Images (server key)');
   ok('the fallback is recorded on the last call', api.last.route === 'imgKey' && api.last.fellBack === true && api.last.engine === 'openai');
   // Everything ChatGPT refused and Gemini drew.
@@ -299,7 +307,7 @@ await run('badge', async () => {
   ok('the chat toggle no longer decides who draws', !/openAiActive\(\) \? 'ChatGPT · '/.test(src));
   ok('the callable is the function this repo deploys', /httpsCallable\(cloudFunctions, 'openAiImage'/.test(src));
   ok('the dialog offers the picture engine, ChatGPT Images checked', /name="aiImageEngineChoice" value="openai" checked/.test(src) && /name="aiImageEngineChoice" value="gemini"/.test(src));
-  ok('the dropdown in the markup leads with Flare, selected', /<option value="gpt-image-2\.5-flare" selected>/.test(src) && /<option value="gpt-image-2\.5-sunburst">/.test(src));
+  ok('the dropdown in the markup leads with 2.6 Flare, selected', /<option value="gpt-image-2\.6-flare" selected>/.test(src) && /<option value="gpt-image-2\.6-sunburst">/.test(src) && !/<option value="gpt-image-2\.5-/.test(src));
   ok('the dropdown is rebuilt from the list when the dialog opens', /imgSel\.innerHTML = openAiImageModelOptionsHtml\(getOpenAiImageModel\(\)\);/.test(src));
   ok('the dialog saves the picture engine', /localStorage\.setItem\(AI_ENGINE_STORE\.imageEngine, imgEng\);/.test(src));
   ok('the store carries the two new slots', /imageEngine: 'sq_ai_image_engine', imageGen: 'sq_openai_image_gen'/.test(src));
@@ -310,7 +318,7 @@ await run('badge', async () => {
 /* ---------- the server ---------- */
 {
   ok('the callable exists and carries the OpenAI secret', /export const openAiImage = onCall\(OPENAI_OPTS/.test(fnsrc));
-  ok('the server\'s default is Flare', /const OPENAI_IMAGE_MODEL = "gpt-image-2\.5-flare";/.test(fnsrc));
+  ok('the server\'s default is 2.6 Flare', /const OPENAI_IMAGE_MODEL = "gpt-image-2\.6-flare";/.test(fnsrc));
   ok('the server counts on its OWN throttle fields', /day: "openAiImgDay", count: "openAiImgCount", last: "lastOpenAiImgAt"/.test(fnsrc) && /reserveBackupSlot\(auth\.uid, OPENAI_IMAGE_SLOT\)/.test(fnsrc));
   ok('a missing key is named as a deploy step', /openAiImage[\s\S]{0,1500}failed-precondition", "No OpenAI key is configured on the server\."/.test(fnsrc));
   ok('several references go up as image[], and input_fidelity is NEVER sent — the 2.5 family refuses it', /refs\.length > 1 \? "image\[\]" : "image"/.test(fnsrc) && !/input_fidelity = /.test(fnsrc) && !/OPENAI_IMAGE_FIDELITY\b/.test(fnsrc));
@@ -323,8 +331,9 @@ await run('badge', async () => {
     var FormData = globalThis.FormData, Blob = globalThis.Blob, Buffer = globalThis.Buffer;
     ` + helpers + `
     return { openAiImageSize, openAiImageChoice, openAiImageModelFor, OPENAI_IMAGE_MODEL_RE, openAiImageForm };`)();
-  ok('a client naming a 2.5 model gets it', H.openAiImageModelFor('gpt-image-2.5-sunburst') === 'gpt-image-2.5-sunburst' && H.openAiImageModelFor('gpt-image-2.5-flare-2026-09-08') === 'gpt-image-2.5-flare-2026-09-08');
-  ok('a client naming anything else gets Flare', H.openAiImageModelFor('gpt-image-1') === 'gpt-image-2.5-flare' && H.openAiImageModelFor('gpt-6-astra') === 'gpt-image-2.5-flare' && H.openAiImageModelFor('') === 'gpt-image-2.5-flare');
+  ok('a client naming a 2.6 model gets it', H.openAiImageModelFor('gpt-image-2.6-sunburst') === 'gpt-image-2.6-sunburst' && H.openAiImageModelFor('gpt-image-2.6-flare-2026-11-04') === 'gpt-image-2.6-flare-2026-11-04');
+  ok('a client still naming a 2.5 model is moved up to its 2.6 twin', H.openAiImageModelFor('gpt-image-2.5-sunburst') === 'gpt-image-2.6-sunburst' && H.openAiImageModelFor('gpt-image-2.5-flare') === 'gpt-image-2.6-flare' && H.openAiImageModelFor('gpt-image-2.5-flare-2026-09-08') === 'gpt-image-2.6-flare');
+  ok('a client naming anything else gets 2.6 Flare', H.openAiImageModelFor('gpt-image-1') === 'gpt-image-2.6-flare' && H.openAiImageModelFor('gpt-6-astra') === 'gpt-image-2.6-flare' && H.openAiImageModelFor('') === 'gpt-image-2.6-flare');
   ok('the standard sizes and auto pass', H.openAiImageSize('1024x1024') === '1024x1024' && H.openAiImageSize('auto') === 'auto' && H.openAiImageSize('') === '1024x1024' && H.openAiImageSize('1536x864') === '1536x864');
   const refuses = s => { try { H.openAiImageSize(s); return false; } catch (e) { return e.code === 'invalid-argument'; } };
   ok('a side not divisible by 16 is refused by name', refuses('100x100'));
