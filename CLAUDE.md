@@ -2876,6 +2876,29 @@ edit, search, mark against or cross-check.
   to find the (a) (b) part markers, and a cell beginning "(a)" is not a part.
 - Run **`node tools/table-block-tests.mjs`** after touching any of it.
 
+## 🖼 ChatGPT Images 2.6 — every picture moves up a generation (v1.112.0)
+
+OpenAI released Images 2.6 on 4–5 November 2026 with two API models,
+**`gpt-image-2.6-flare`** (fast iteration; OpenAI quotes ~6 s at low quality)
+and **`gpt-image-2.6-sunburst`** (detailed work, the most precise edits). Both
+have the 2.5 token rates (text in US$5, image in US$8, image out US$30 per 1M)
+but spend more output tokens per picture at low/medium quality, so read
+`usage`, not a per-picture guess. They serve `/images/generations` and
+`/images/edits` only; the Responses API image tool is still 2.5 (this app does
+not use it). New optional knobs exist (`complexity`, `markup` edits, gif/svg
+output) and are not sent.
+
+- `OPENAI_IMAGE_DEFAULT_MODEL` is `gpt-image-2.6-flare`; the dropdown leads
+  with the two 2.6 models and no longer offers 2.5. `OPENAI_IMAGE_26_RE` is the
+  family regex; `OPENAI_IMAGE_25_RE` is kept only to recognise a stored 2.5
+  pick, which the lift (`OPENAI_IMAGE_GEN` = `images26`) moves ONCE to its twin
+  via `openAiImageTwin26` (Flare → 2.6 Flare, Sunburst → 2.6 Sunburst).
+- **The server moves 2.5 requests up too**: `openAiImageModelFor` returns a
+  2.6 id as-is, a 2.5 id as its 2.6 twin (`OPENAI_IMAGE_PREVIOUS_RE`), and
+  anything else as 2.6 Flare. So a cached CER / Anskey / Maths page that still
+  asks for 2.5 draws on 2.6 the moment `deploy-functions.yml` ships this.
+- `polymathlc/cer` and `polymathlc/anskey` were moved in the same change.
+
 ## 🖼 The image engine — ChatGPT Images 2.5 for EVERY picture (v1.71.0)
 
 `OPENAI_IMAGE_DEFAULT_MODEL` / `OPENAI_IMAGE_MODELS` / `OPENAI_IMAGE_25_RE` /
