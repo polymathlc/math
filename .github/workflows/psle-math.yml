@@ -1,0 +1,34 @@
+name: PSLE Papers checks
+on:
+  pull_request:
+    paths: ['index.html', 'psle-math.js', 'psle-math.css', 'tools/psle-math-*.mjs', '.github/workflows/psle-math.yml']
+  push:
+    branches: [main]
+    paths: ['index.html', 'psle-math.js', 'psle-math.css', 'tools/psle-math-*.mjs', '.github/workflows/psle-math.yml']
+permissions:
+  contents: read
+jobs:
+  psle-papers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Engine and wiring
+        run: node --test tools/psle-math-tests.mjs
+      - name: Install browser
+        run: |
+          npm install --prefix /tmp/psle-math --no-audit --no-fund playwright@1.62.1
+          /tmp/psle-math/node_modules/.bin/playwright install --with-deps chromium
+      - name: The page on a computer and a phone
+        env:
+          PLAYWRIGHT_MODULE: /tmp/psle-math/node_modules/playwright/index.mjs
+        run: node tools/psle-math-browser.mjs /tmp/psle-math-shots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: psle-papers-screens
+          path: /tmp/psle-math-shots
+          retention-days: 7
