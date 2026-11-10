@@ -5049,7 +5049,7 @@ body.role-employee #emailBellBtn { display: none !important; }
 </style>
 <link rel="stylesheet" href="arcade-ui.css?v=2">
 <link rel="stylesheet" href="consult-answer.css?v=1">
-<link rel="stylesheet" href="psle-math.css?v=2">
+<link rel="stylesheet" href="psle-math.css?v=3">
 <link rel="stylesheet" href="./tcg-combat.css?v=1">
 <!-- 🎨 The Big M worksheet cover (window.WorksheetCover): the printed cover and
      its editor. A classic script, so it is defined before the module below runs
@@ -5409,6 +5409,11 @@ arcadeSyncOpen();
         <!-- 🧩 Shown only while a dependency chart's ➕ / ⏭ has opened a copy
              of a question here. See A NEW STEP OUT OF THE QUESTION ITSELF. -->
         <div class="qc-spawn" id="qcSpawnBar" hidden></div>
+        <!-- 🎓 Shown only while a question was opened with ✏️ from the PSLE
+             Papers page. It names the paper and the number, steps through the
+             rest of that sheet, and every way out goes back to the PSLE view
+             exactly as it was left. See ✏️ EDITING A PSLE QUESTION. -->
+        <div class="psle-editbar" id="psleEditBar" hidden></div>
         <div class="check-ai-panel" id="checkAiPanel" role="status" aria-live="polite" hidden>
           <div class="traffic-light" aria-hidden="true">
             <span class="lamp red"></span>
@@ -19300,6 +19305,7 @@ function resetEditor() {
   _vetPendingPromote = null;   // abandoning the edit leaves the vetting entry alone
   graphPendingSpawn = null;
   qcSpawn = null; qcSpawnSync();   // 🧩 …nor a chart step, or the next save anywhere joins that chart
+  psleEditCtx = null; psleEditBarSync();   // 🎓 …nor a PSLE trip, or the next save is written back to vetting
   imgChoices.clear();
   editorBlocks = [{ id: genBlockId(), type: "text", content: "" }];
   $("qTitleInput").value = ""; $("qLevelInput").value = ""; $("qTopicInput").value = ""; $("qConceptInput").value = "";
@@ -19348,6 +19354,8 @@ function loadQuestionIntoEditor(q) {
   // …and the 🧩 chart step, for the same reason: `qcSpawnEditor` sets it
   // straight afterwards, and nothing else may inherit it.
   qcSpawn = null; qcSpawnSync();
+  // …and the 🎓 PSLE trip: `psleEditQuestion` sets it straight afterwards.
+  psleEditCtx = null; psleEditBarSync();
   pendingVariantOf = null;
   imgChoices.clear();
   editorBlocks = JSON.parse(JSON.stringify(q.blocks || []));
@@ -19446,6 +19454,10 @@ $("saveQBtn").addEventListener("click", async () => {
   // here is "back onto the sheet". A bank write would leave the sheet and the
   // bank each holding half of it with nothing on any screen reporting it.
   if (cpbEditActive()) { cpbEditSave(); return; }
+  // 🎓 A PSLE question still in 📋 Vetting, opened from the PSLE Papers page,
+  // is saved BACK TO VETTING — the page already offers ✅ Approve all, and an
+  // edit to fix a typo must not quietly approve it into the bank.
+  if (psleEditVettingActive()) { psleEditSaveVetting(); return; }
   const isNewQuestion = !currentEditingId;
   const q = collectQuestion();
   if (!q.blocks.some(b => b.type === "text" || b.type === "table") && !q.blocks.some(b => b.type === "image")) { toast("Add some question content first", "error"); return; }
@@ -31391,6 +31403,10 @@ function qEditLeave() {
   // A plain page to go back to — the 🔑 answer key scanner, whose pile of
   // photographs is still on screen and still has rows waiting to be acted on.
   // Landing on the bank instead reads as the scan having been thrown away.
+  // 🎓 The PSLE Papers page, put back exactly as it was left — the tab, the
+  // open year or topic, the list, the opened rows and the scroll — or on to
+  // the next question of the same sheet after 💾 Save & next.
+  if (back && back.page === "psle") { psleReturnFromEditor(back); return; }
   if (back && back.page) { navigateTo(back.page); return; }
   navigateTo("bank");
 }
@@ -37438,7 +37454,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.115.0 · 2026-11-11";
+const APP_VERSION = "v1.116.0 · 2026-11-11";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -59290,8 +59306,10 @@ function psleRowHtml(e, opts = {}) {
   const diff = psleDiffInfo(e.meta.diff);
   const open = !!_psle.open[e.id];
   const bits = [opts.showYear ? e.meta.year + " " + paper.short : paper.short, e.marks + " mark" + (e.marks === 1 ? "" : "s") + (e.meta.marksGuess ? "?" : ""), t.name];
-  const edit = psleCanManage() ? `<button type="button" class="psle-icon-btn" data-psle-act="edit" data-id="${escapeHtml(e.id)}" title="Change its year, paper, number, marks or difficulty">✏️</button>` : "";
-  return `<div class="psle-row${status ? " st-" + st.status : ""}${open ? " open" : ""}">
+  const edit = psleCanManage()
+    ? `<button type="button" class="psle-icon-btn psle-edit-q" data-psle-act="edit-q" data-id="${escapeHtml(e.id)}" title="Edit the question — wording, pictures, answer and marking guide — then come straight back here">✏️</button>
+       <button type="button" class="psle-icon-btn" data-psle-act="edit" data-id="${escapeHtml(e.id)}" title="Paper details — year, paper, number, marks or difficulty">🏷️</button>` : "";
+  return `<div class="psle-row${status ? " st-" + st.status : ""}${open ? " open" : ""}" data-psle-row="${escapeHtml(e.id)}">
     <div class="psle-row-line">
       <span class="psle-row-n">Q${e.meta.n || "?"}</span>
       <button type="button" class="psle-row-main" data-psle-act="toggle-row" data-id="${escapeHtml(e.id)}" aria-expanded="${open}">
@@ -59394,6 +59412,7 @@ function psleRenderSheet() {
       ${action("pdf", "📄", "Export PDF", "The real exam layout — covers, booklets and marks. Choose “Save as PDF” in the print window.",
         psleCanManage() ? `<label class="psle-key-tick" data-psle-stop><input type="checkbox" data-psle-input="with-key"${_psle.withKey ? " checked" : ""}> answer key at the back</label>` : "")}
       ${action("list", "📋", _psle.showList ? "Hide the questions" : "See the questions", "Read each one, practise it alone" + (psleCanManage() ? ", or fix its details." : "."))}
+      ${psleCanManage() ? action("edit-all", "✏️", "Edit the questions", "Open them in the editor one after another — 💾 Save & next walks the whole " + (s.kind === "year" ? "paper" : "list") + ", and you come back here when you stop.") : ""}
     </div>
     ${_psle.showList ? `<div class="psle-rows psle-sheet-rows">${entries.map(e => psleRowHtml(e, { showYear: s.kind === "topic" && !s.year })).join("")}</div>` : ""}
     <div class="psle-sheet-foot">
@@ -59816,7 +59835,9 @@ function psleJobsHtml() {
       btns = `<span class="psle-job-btns"><button type="button" class="btn btn-primary btn-sm" data-psle-act="shot-retry" data-id="${escapeHtml(x.id)}">↻ Retry</button>
         <button type="button" class="btn btn-ghost btn-sm" data-psle-act="shot-dismiss" data-id="${escapeHtml(x.id)}">Remove</button></span>`;
     }
-    const open = x.status === "filed" && x.qids && x.qids[0] ? `<button type="button" class="psle-icon-btn" data-psle-act="edit" data-id="${escapeHtml(x.qids[0])}" title="Change its year, paper, number or marks">✏️</button>` : "";
+    const open = x.status === "filed" && x.qids && x.qids[0]
+      ? `<span class="psle-shot-btns">${x.qids.map((qid, i) => `<button type="button" class="psle-icon-btn psle-edit-q" data-psle-act="edit-q" data-id="${escapeHtml(qid)}" title="Edit ${x.qids.length > 1 ? "question " + (i + 1) + " from this picture" : "the question"} — wording, pictures, answer — then come straight back here">✏️</button>`).join("")}
+         <button type="button" class="psle-icon-btn" data-psle-act="edit" data-id="${escapeHtml(x.qids[0])}" title="Paper details — year, paper, number or marks">🏷️</button></span>` : "";
     return `<div class="psle-shot ${cls}">
       <img src="${escapeHtml(x.url || "")}" alt="" loading="lazy">
       <div class="psle-shot-main"><div class="psle-job-title"><span class="psle-shot-ico" aria-hidden="true">${icon}</span> Q${escapeHtml(String(x.nLabel || x.n))} <small>· PSLE ${escapeHtml(x.year)} ${escapeHtml(paper)}</small></div>
@@ -60145,6 +60166,12 @@ function psleBindOnce() {
     if (act === "practise-one") { const e1 = index.byId.get(b.dataset.id); return e1 && pslePractise([e1], psleLabel(e1.meta)); }
     if (act === "toggle-row") { _psle.open[b.dataset.id] = !_psle.open[b.dataset.id]; return _psle.sel && sheet.contains(b) ? psleRenderSheet() : psleRenderMain(); }
     if (act === "edit") return psleOpenEdit(b.dataset.id);
+    if (act === "edit-q") return psleEditQuestion(b.dataset.id, psleEditScopeIds(b));
+    if (act === "edit-all") {
+      const ids = psleSheetEntries(index).map(e => e.id);
+      if (!ids.length) return;
+      return psleEditQuestion(ids[0], ids);
+    }
     if (act === "progress-reload") { _psle.progress = null; psleLoadProgress(true); return psleRenderMain(); }
     if (act === "file-all") return psleAutoFile(false);
     if (act === "file-one") {
@@ -60324,6 +60351,255 @@ function psleOnNavigate(page) {
 psleTimerRestore();
 window.renderPslePage = renderPslePage;
 window.psleOpenYear = psleOpenYear;
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ✏️ EDITING A PSLE QUESTION — and back to the paper exactly as it was left
+   (v1.116.0)
+
+   Reported as "I can't edit the questions added to a year from the PSLE
+   Papers page". The ✏️ there only ever changed the PAPER DETAILS (year,
+   paper, number, marks); the question itself — a word the reader got wrong,
+   a picture cropped badly, the answer — could only be fixed by leaving for
+   the bank or 📋 Vetting, finding it again among hundreds, and then finding
+   the way back to the year.
+
+   • ✏️ now opens the REAL editor (`loadQuestionIntoEditor`) on that question;
+     🏷️ is the old paper-details dialog. Every row, every screenshot card and
+     a whole sheet (✏️ Edit the questions) have it.
+   • THE VIEW IS PHOTOGRAPHED BEFORE THE EDITOR OPENS (`psleViewSnapshot`):
+     the tab, the search, the open year or topic and its filters, whether the
+     list was showing, which rows were expanded, and every scroll position.
+     Save, Cancel and ↩ Back all go through `qEditLeave`, whose `psle` branch
+     (`psleReturnFromEditor`) puts all of it back and flashes the row.
+   • 💾 Save & next / ◀ Save & previous walk the SAME list the ✏️ was pressed
+     in — the sheet, the search hits or the screenshots — in the order shown.
+     The snapshot is carried from question to question, so stopping anywhere
+     lands on the view the walk STARTED from.
+   • A question still in 📋 Vetting is saved BACK TO VETTING
+     (`psleEditSaveVetting`), never approved by the save: the page has its own
+     ✅ Approve all, and a typo fix is not an approval. The vetting document's
+     own fields (source, the reader's check, the rapid-add marks) are kept.
+   • `psleEditCtx` is `var` and is cleared in `resetEditor` AND
+     `loadQuestionIntoEditor`, exactly like `qcSpawn` and `cpbEdit`:
+     `resetEditor()` runs during module evaluation, and a context left set
+     would write the NEXT question saved anywhere back into vetting.
+   ═══════════════════════════════════════════════════════════════════════ */
+var psleEditCtx = null;   // { id, vetting, ids, idx, label }
+var _psleNextPress = 0;   // -1 / +1 while a Save & previous / next click is being dispatched
+
+// Every list the ✏️ was pressed in, in the order it is SHOWN.
+function psleEditScopeIds(btn) {
+  const scope = btn && btn.closest ? btn.closest(".psle-rows, .psle-jobs, #psleSheetBody, #psleMain") : null;
+  const ids = [];
+  (scope ? scope.querySelectorAll('[data-psle-act="edit-q"]') : []).forEach(x => {
+    const id = x.dataset.id;
+    if (id && !ids.includes(id)) ids.push(id);
+  });
+  if (btn && btn.dataset && btn.dataset.id && !ids.includes(btn.dataset.id)) ids.push(btn.dataset.id);
+  return ids;
+}
+
+// Where every scroll on the page is — the window, the app's scrolling main
+// column, and the open sheet's card and body.
+function psleScrollTops() {
+  const el = sel => { try { const n = document.querySelector(sel); return n ? n.scrollTop : 0; } catch (e) { return 0; } };
+  return {
+    win: window.scrollY || document.documentElement.scrollTop || 0,
+    main: el(".main"), page: el("#page-psle"),
+    overlay: el("#psleOverlay"), card: el("#psleOverlay .overlay-card"), body: el("#psleSheetBody")
+  };
+}
+function psleScrollRestore(t) {
+  if (!t) return;
+  const put = (sel, v) => { try { const n = document.querySelector(sel); if (n && v) n.scrollTop = v; } catch (e) { /* gone */ } };
+  try { if (t.win) window.scrollTo(0, t.win); } catch (e) { /* no window scroll */ }
+  put(".main", t.main); put("#page-psle", t.page);
+  put("#psleOverlay", t.overlay); put("#psleOverlay .overlay-card", t.card); put("#psleSheetBody", t.body);
+}
+
+// Everything that makes the PSLE page look the way it does right now.
+function psleViewSnapshot(editedId) {
+  const sheetOpen = !!($("psleOverlay") && $("psleOverlay").classList.contains("show") && _psle.sel);
+  const search = $("psleSearch");
+  return {
+    tab: _psle.tab || "years",
+    search: search ? search.value : (_psle.search || ""),
+    sel: sheetOpen ? JSON.parse(JSON.stringify(_psle.sel)) : null,
+    showList: !!_psle.showList,
+    open: Object.assign({}, _psle.open || {}),
+    withKey: !!_psle.withKey,
+    examMinutes: _psle.examMinutes || 0,
+    manageShowAll: !!_psle.manageShowAll,
+    addMode: _psle.addMode || "",
+    scroll: psleScrollTops(),
+    editedId: editedId || ""
+  };
+}
+
+function psleWhereNow(id) {
+  if ((questionBank || []).some(q => q && q.id === id)) return "bank";
+  if ((vettingList || []).some(q => q && q.id === id)) return "vetting";
+  return "";
+}
+
+// THE ONE DOOR from the PSLE page into the editor.
+function psleEditQuestion(id, ids, snap) {
+  if (!psleCanManage()) { toast("Only teachers can edit questions", "error"); return; }
+  const where = psleWhereNow(id);
+  if (!where) { toast("That question is no longer in the bank or in Vetting", "error"); return; }
+  const q = where === "bank" ? questionBank.find(x => x.id === id) : vettingList.find(x => x.id === id);
+  const view = snap || psleViewSnapshot(id);
+  view.editedId = id;
+  const list = Array.isArray(ids) && ids.length ? ids.filter(Boolean) : [id];
+  const stash = Object.assign({}, q);
+  delete stash.duplicateOf;
+  loadQuestionIntoEditor(stash);              // clears qEditReturn and psleEditCtx — both are set below
+  qEditReturn = { page: "psle", psle: view, go: 0 };
+  psleEditCtx = { id, vetting: where === "vetting", ids: list, idx: Math.max(0, list.indexOf(id)), label: psleLabel(psleOf(q) || {}) };
+  psleEditBarSync();
+  try { window.scrollTo(0, 0); const m = document.querySelector(".main"); if (m) m.scrollTop = 0; } catch (e) { /* fine */ }
+}
+
+function psleEditVettingActive() {
+  return !!(psleEditCtx && psleEditCtx.vetting && currentEditingId && currentEditingId === psleEditCtx.id);
+}
+
+// A vetting question's own fields — the source picture, the reader's check,
+// the rapid-add bookkeeping — are kept; the editor's fields win.
+async function psleEditSaveVetting() {
+  if (!canManageQuestions()) { toast("Only admin accounts can save questions", "error"); return; }
+  const id = psleEditCtx && psleEditCtx.id;
+  const orig = (vettingList || []).find(x => x.id === id);
+  if (!orig) { toast("That question has left Vetting — it may have been approved or deleted. Nothing was saved.", "error"); return; }
+  const edited = collectQuestion();
+  if (!edited.blocks.some(b => b.type === "text" || b.type === "table") && !edited.blocks.some(b => b.type === "image")) { toast("Add some question content first", "error"); return; }
+  const merged = Object.assign({}, orig, edited, { id, createdAt: orig.createdAt || edited.createdAt });
+  // A field the author emptied in the editor is emptied here too, rather than
+  // coming back from the vetting copy.
+  if (!edited.options) { delete merged.options; delete merged.correctOption; }
+  if (!edited.variantOf) delete merged.variantOf;
+  if (!edited.psle && orig.psle && psleClean(orig.psle)) merged.psle = psleClean(orig.psle);
+  delete merged.duplicateOf;
+  const btn = $("saveQBtn"); const label = btn.textContent; btn.disabled = true; btn.textContent = "Saving…";
+  try {
+    await saveVettingDoc(merged);
+    const i = vettingList.findIndex(x => x.id === id);
+    if (i >= 0) vettingList[i] = merged;
+    try { updateVettingBadge(); } catch (e) { /* badge is cosmetic */ }
+    toast("Saved — still waiting in 📋 Vetting until you approve it", "success");
+    qEditLeave();
+  } catch (e) {
+    toast("Save failed: " + ((e && e.message) || e), "error");
+  } finally { btn.disabled = false; btn.textContent = label; }
+}
+
+// The bar on top of the editor.
+function psleEditBarSync() {
+  const bar = document.getElementById("psleEditBar");
+  if (!bar) return;
+  const c = psleEditCtx;
+  if (!c) { bar.hidden = true; bar.innerHTML = ""; return; }
+  const n = c.ids.length, i = c.idx;
+  const prev = i > 0, next = i < n - 1;
+  bar.innerHTML =
+    '<div class="psle-editbar-head"><span class="psle-editbar-ico" aria-hidden="true">🎓</span>' +
+      '<div><b>Editing ' + escapeHtml(c.label || "a PSLE question") + '</b>' +
+      (n > 1 ? '<small>Question ' + (i + 1) + ' of ' + n + ' in the list you opened it from</small>' : '') + '</div></div>' +
+    '<p class="psle-editbar-text">' + (c.vetting
+      ? '📋 This one is still in Vetting. 💾 Save keeps it there — pupils see it once you approve it.'
+      : '📚 This one is in the bank, so pupils see your changes as soon as you save.') +
+      ' Saving or cancelling takes you back to the PSLE Papers page exactly where you left it.</p>' +
+    '<div class="psle-editbar-row">' +
+      '<button type="button" class="btn btn-ghost btn-sm" data-psle-edit="back">↩ Back to the PSLE papers</button>' +
+      '<span class="psle-editbar-gap"></span>' +
+      (prev ? '<button type="button" class="btn btn-ghost btn-sm" data-psle-edit="prev">◀ Save &amp; previous</button>' : '') +
+      (next ? '<button type="button" class="btn btn-primary btn-sm" data-psle-edit="next">💾 Save &amp; next ▶</button>' : '') +
+    '</div>';
+  bar.hidden = false;
+}
+
+// Back to the PSLE page — or on to the next question of the same walk.
+function psleReturnFromEditor(back) {
+  const snap = back.psle || {};
+  const go = back.go | 0;
+  if (go && back.ctx) {
+    const ids = back.ctx.ids || [];
+    let j = back.ctx.idx + go;
+    // A question deleted mid-walk is stepped over rather than ending the walk.
+    while (j >= 0 && j < ids.length && !psleWhereNow(ids[j])) j += go;
+    if (j >= 0 && j < ids.length) { psleEditQuestion(ids[j], ids, snap); return; }
+    toast(go > 0 ? "That was the last one — back to the PSLE papers" : "That was the first one — back to the PSLE papers", "");
+  }
+  psleRestoreView(snap);
+}
+
+function psleRestoreView(snap) {
+  const s = snap || {};
+  _psle.tab = s.tab || _psle.tab || "years";
+  _psle.search = s.search || "";
+  _psle.open = Object.assign({}, s.open || {});
+  _psle.showList = !!s.showList;
+  _psle.withKey = !!s.withKey;
+  _psle.examMinutes = s.examMinutes || 0;
+  _psle.manageShowAll = !!s.manageShowAll;
+  if (s.addMode) _psle.addMode = s.addMode;
+  navigateTo("psle");                       // draws the page from the state above
+  const input = $("psleSearch");
+  if (input && input.value !== _psle.search) { input.value = _psle.search; psleRenderMain(); }
+  const clear = document.querySelector('[data-psle-act="search-clear"]');
+  if (clear) clear.hidden = !_psle.search;
+  if (s.sel) {
+    _psle.sel = JSON.parse(JSON.stringify(s.sel));
+    psleRenderSheet();
+    $("psleOverlay").classList.add("show");
+    psleSetHash(_psle.sel.kind === "year" ? { view: "year", year: _psle.sel.year, paper: _psle.sel.paper } : { view: "topic", topic: _psle.sel.topic });
+  } else {
+    _psle.sel = null;
+    $("psleOverlay").classList.remove("show");
+  }
+  // Twice: once now, and once after the pictures in the rows have laid out.
+  const settle = () => { psleScrollRestore(s.scroll); psleFlashRow(s.editedId); };
+  requestAnimationFrame(() => { psleScrollRestore(s.scroll); setTimeout(settle, 180); });
+}
+
+function psleFlashRow(id) {
+  if (!id) return;
+  try {
+    const sel = '[data-psle-row="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]';
+    const row = document.querySelector("#psleOverlay.show " + sel) || document.querySelector(sel);
+    if (!row) return;
+    row.classList.remove("psle-row-flash");
+    void row.offsetWidth;
+    row.classList.add("psle-row-flash");
+    const r = row.getBoundingClientRect();
+    if (r.top < 0 || r.bottom > (window.innerHeight || 800)) row.scrollIntoView({ block: "center" });
+    setTimeout(() => row.classList.remove("psle-row-flash"), 2400);
+  } catch (e) { /* a flash is decoration */ }
+}
+
+// The bar's buttons, and the two save buttons that carry the walk.
+document.addEventListener("click", e => {
+  const b = e.target && e.target.closest ? e.target.closest("[data-psle-edit]") : null;
+  if (!b || !psleEditCtx) return;
+  const what = b.dataset.psleEdit;
+  if (what === "back") { if (qEditReturn) qEditReturn.go = 0; qEditLeave(); return; }
+  if (what === "next" || what === "prev") {
+    _psleNextPress = what === "next" ? 1 : -1;
+    try { $("saveQBtn").click(); } finally { _psleNextPress = 0; }
+  }
+});
+// Capture: runs before the save handler. The walk direction is only kept on a
+// click the bar made — a plain 💾 Save goes back to the PSLE page — and the
+// walk context rides on qEditReturn because the save resets the editor first.
+if ($("saveQBtn")) $("saveQBtn").addEventListener("click", () => {
+  if (!qEditReturn || qEditReturn.page !== "psle") return;
+  qEditReturn.go = _psleNextPress;
+  qEditReturn.ctx = psleEditCtx ? { ids: psleEditCtx.ids.slice(), idx: psleEditCtx.idx } : null;
+}, true);
+if ($("cancelEditBtn")) $("cancelEditBtn").addEventListener("click", () => {
+  if (qEditReturn && qEditReturn.page === "psle") qEditReturn.go = 0;
+}, true);
+window.psleEditQuestion = psleEditQuestion;
 window.psleOpenTopic = psleOpenTopic;
 // 🎓 END PSLE MATH
 

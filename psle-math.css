@@ -363,3 +363,22 @@ button.psle-hero-note { color: var(--primary); }
   .psle-timer-label { max-width: 110px; }
 }
 @media (prefers-reduced-motion: reduce) { .psle-pick, .psle-action, .psle-ring-fg { transition: none; } .psle-timer.over { animation: none; } }
+
+/* ✏️ Editing a PSLE question (v1.116.0) — the bar on top of the editor, the
+   pair of buttons on a row, and the flash on the row you come back to. */
+.psle-editbar { background: var(--surface, #fff); border: 1px solid var(--border, #e2e8f0); border-left: 4px solid #4f5bd5;
+  border-radius: 14px; padding: 18px 20px; margin: 0 0 20px; box-shadow: 0 6px 18px rgba(30, 41, 99, 0.06); }
+.psle-editbar[hidden] { display: none; }
+.psle-editbar-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
+.psle-editbar-head b { display: block; font-size: 1rem; line-height: 1.4; }
+.psle-editbar-head small { display: block; color: var(--text-light, #64748b); margin-top: 2px; }
+.psle-editbar-ico { font-size: 1.4rem; line-height: 1; }
+.psle-editbar-text { margin: 0 0 14px; color: var(--text-light, #475569); line-height: 1.6; font-size: 0.92rem; }
+.psle-editbar-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.psle-editbar-gap { flex: 1 1 auto; }
+@media (max-width: 560px) { .psle-editbar { padding: 16px; } .psle-editbar-gap { display: none; } .psle-editbar-row .btn { flex: 1 1 100%; } }
+.psle-edit-q { font-size: 0.95rem; }
+.psle-shot-btns { display: inline-flex; gap: 6px; align-items: flex-start; flex-wrap: wrap; justify-content: flex-end; }
+.psle-row-flash { animation: psle-row-flash 2.2s ease-out; border-radius: 12px; }
+@keyframes psle-row-flash { 0%, 30% { background: rgba(79, 91, 213, 0.16); box-shadow: 0 0 0 2px rgba(79, 91, 213, 0.45); } 100% { background: transparent; box-shadow: 0 0 0 0 transparent; } }
+@media (prefers-reduced-motion: reduce) { .psle-row-flash { animation: none; background: rgba(79, 91, 213, 0.12); } }

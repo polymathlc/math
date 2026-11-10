@@ -70,6 +70,29 @@ Reported as "the upload of PDF doesn't work". It did: the paper was read and fil
 - Run `PDFJS_DIR=…/pdfjs-dist/build PLAYWRIGHT_MODULE=… node tools/psle-math-upload-browser.mjs`. It loads
   the REAL page with Firebase stand-ins, a scripted AI and a real two-page PDF.
 
+### ✏️ Editing a PSLE question — and back to the paper exactly as it was left (v1.116.0)
+
+`psleEditQuestion` (THE ONE DOOR) / `psleEditScopeIds` / `psleViewSnapshot` / `psleRestoreView` /
+`psleReturnFromEditor` / `psleEditSaveVetting` / `psleEditBarSync` / `psleEditCtx` (search `✏️ EDITING A
+PSLE QUESTION`), `#psleEditBar` above the editor, and the `psle` branch of `qEditLeave`.
+
+Reported as "I can't edit the questions added to a year from the PSLE papers page". The row's ✏️ only
+changed the paper details.
+- **✏️ opens the real editor; 🏷️ is the paper-details dialog.** Every row, every filed screenshot card,
+  and ✏️ **Edit the questions** on a sheet (starts at the first question).
+- **The view is photographed BEFORE the editor opens**: tab, search, open year/topic and filters, list
+  shown, expanded rows, every scroll. Save, Cancel and ↩ Back all go through `qEditLeave` → put back, row
+  flashed, hash restored.
+- **💾 Save & next / ◀ Save & previous walk the list the ✏️ was pressed in**, in the order shown. The
+  snapshot rides from question to question, so stopping lands on the view the walk started from. The
+  direction is set by a CAPTURE listener on `#saveQBtn` (only a bar click sets it; plain Save and Cancel
+  reset it), and the walk rides on `qEditReturn` because the save resets the editor first.
+- **A question still in 📋 Vetting is saved BACK to Vetting**, never approved by the save; the vetting
+  doc's own fields are kept and `psle` stays on.
+- `psleEditCtx` is `var`, cleared in `resetEditor` AND `loadQuestionIntoEditor` — left set, the next
+  question saved anywhere would be written into vetting.
+- Run `node --test tools/psle-math-tests.mjs` and the upload browser harness (three ✏️ scenarios).
+
 ## 🚦 Traffic lights on the vetting cards, and 🔍± sizes in the 👁 peek (v1.111.0)
 
 `aicRunCheck` / `aicEntryFromResult` / `aicAppend` / `aicHistory` / `aicLightOf` / `aicCardHtml` /

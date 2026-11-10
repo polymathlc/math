@@ -1,4 +1,4 @@
-// 📥 PSLE Papers — adding questions, on the REAL page (v1.114.0).
+// 📥 PSLE Papers — adding questions, on the REAL page (v1.114.0), and ✏️ editing them (v1.116.0).
 //
 // "The upload of PDF doesn't work on the PSLE paper page." It did read and file
 // the paper — the questions sat in 📋 Vetting while the page still said "No PSLE
@@ -389,6 +389,134 @@ await scenario('📸 a screenshot the AI could not read says why, and ↻ Retry 
   const rows = await vettingRows(page);
   assert.equal(rows.length, 1);
   assert.equal(rows[0].psle.n, 1, 'it kept the number it was queued under');
+  assert.deepEqual(errors, []);
+});
+
+// ✏️ v1.116.0 — every question of a year can be edited from the PSLE page, and
+// every way out of the editor comes back to the view exactly as it was left.
+function yearSeed() {
+  const seed = {};
+  const long = n => Array.from({ length: 6 }, (_, i) => 'Line ' + (i + 1) + ' of question ' + n + ': a shop sells pens at $' + n + ' each.').join(' ');
+  for (let n = 1; n <= 14; n++) {
+    const id = 'p13_' + n, vet = n === 12;
+    const q = { id, title: 'Pens question ' + n, level: 'P6', topics: ['Whole numbers'], blocks: [{ id: 'b' + n, type: 'text', content: long(n) }],
+      psle: { year: '2013', paper: 'P1B', n, marks: 2 }, createdAt: '2026-10-01T00:00:00.000Z' };
+    if (vet) seed['users/teacher/mathVetting/' + id] = Object.assign({}, q, { expected: '24', source: 'rapid', autoCheck: { verdict: 'ok' } });
+    else { seed['users/teacher/mathQuestions/' + id] = q; seed['users/teacher/mathQuestionKeys/' + id] = { expected: String(n * 2) }; }
+  }
+  return seed;
+}
+const scrolls = page => page.evaluate(() => {
+  const t = s => { const n = document.querySelector(s); return n ? n.scrollTop : 0; };
+  return { win: Math.round(window.scrollY), main: t('.main'), overlay: t('#psleOverlay'), card: t('#psleOverlay .overlay-card'), body: t('#psleSheetBody') };
+});
+const sheetScrolled = s => Math.max(s.overlay, s.card, s.body, s.win, s.main);
+
+await scenario('✏️ a year\'s questions open in the editor from the sheet, Save & next walks the paper, and Save comes back to the SAME view', async (page, errors) => {
+  await boot(page, ADMIN, yearSeed());
+  await page.click('.nav-item[data-page="psle"]');
+  await page.waitForSelector('#psleMain .psle-tabs');
+  await page.click('[data-psle-act="open-year"][data-year="2013"]');
+  await page.waitForSelector('#psleOverlay.show');
+  await page.click('#psleSheetBody [data-psle-act="list"]');
+  await page.waitForSelector('#psleSheetBody [data-psle-row="p13_8"]');
+  // Expand a row and scroll down the sheet, the way a teacher reading it would.
+  await page.click('#psleSheetBody [data-psle-row="p13_3"] [data-psle-act="toggle-row"]');
+  await page.locator('#psleSheetBody [data-psle-row="p13_8"]').scrollIntoViewIfNeeded();
+  await page.evaluate(() => { const r = document.querySelector('#psleSheetBody [data-psle-row="p13_10"]'); r && r.scrollIntoView({ block: 'center' }); });
+  const before = await scrolls(page);
+  assert.ok(sheetScrolled(before) > 40, 'the sheet was scrolled: ' + JSON.stringify(before));
+  // Both buttons on every row: ✏️ the question, 🏷️ the paper details.
+  assert.equal(await page.locator('#psleSheetBody [data-psle-act="edit-q"]').count(), 14);
+  assert.equal(await page.locator('#psleSheetBody .psle-row [data-psle-act="edit"]').count(), 14);
+  await page.click('#psleSheetBody [data-psle-row="p13_8"] [data-psle-act="edit-q"]');
+  await page.waitForSelector('#page-create.active #psleEditBar:not([hidden])');
+  assert.equal(await page.inputValue('#qTitleInput'), 'Pens question 8');
+  const bar = (await page.textContent('#psleEditBar')).replace(/\s+/g, ' ');
+  assert.match(bar, /2013/); assert.match(bar, /Question 8 of 14/); assert.match(bar, /in the bank/);
+  await shot(page, 'edit-1-bar');
+  // 💾 Save & next: Q8 is saved and Q9 opens, still in the walk.
+  await page.fill('#qTitleInput', 'Pens question 8 (fixed)');
+  await page.click('#psleEditBar [data-psle-edit="next"]');
+  await page.waitForFunction(() => document.getElementById('qTitleInput').value === 'Pens question 9');
+  assert.equal(await page.evaluate(() => window.__fx.db.get('users/teacher/mathQuestions/p13_8').title), 'Pens question 8 (fixed)');
+  assert.match(await page.textContent('#psleEditBar'), /Question 9 of 14/);
+  // A plain 💾 Save on Q9 ends the walk and lands on the view it STARTED from.
+  await page.fill('#qTitleInput', 'Pens question 9 (fixed)');
+  await page.click('#saveQBtn');
+  await page.waitForSelector('#page-psle.active');
+  await page.waitForSelector('#psleOverlay.show #psleSheetBody [data-psle-row="p13_9"]');
+  await page.waitForTimeout(400);
+  assert.equal(await page.evaluate(() => window.__fx.db.get('users/teacher/mathQuestions/p13_9').title), 'Pens question 9 (fixed)');
+  assert.match(await page.textContent('#psleSheetTitle'), /2013/);
+  assert.ok(await page.locator('#psleSheetBody [data-psle-row="p13_3"] .psle-row-preview').count() === 1, 'the expanded row is still open');
+  assert.match(await page.textContent('#psleSheetBody [data-psle-row="p13_9"]'), /\(fixed\)/, 'the list shows the new wording');
+  const after = await scrolls(page);
+  assert.ok(Math.abs(sheetScrolled(after) - sheetScrolled(before)) < 30, 'the same scroll: ' + JSON.stringify({ before, after }));
+  assert.match(page.url(), /#psle\/2013/);
+  assert.equal(await page.locator('#psleEditBar:not([hidden])').count(), 0);
+  await shot(page, 'edit-2-back');
+  assert.deepEqual(errors, []);
+});
+
+await scenario('✏️ a question still in Vetting is saved BACK to Vetting, and Cancel / ↩ Back return without saving', async (page, errors) => {
+  await boot(page, ADMIN, yearSeed());
+  await page.click('.nav-item[data-page="psle"]');
+  await page.waitForSelector('#psleMain .psle-tabs');
+  await page.click('[data-psle-act="open-year"][data-year="2013"]');
+  await page.waitForSelector('#psleOverlay.show');
+  // ✏️ Edit the questions starts at the first one of the paper.
+  await page.click('#psleSheetBody [data-psle-act="edit-all"]');
+  await page.waitForFunction(() => document.getElementById('qTitleInput').value === 'Pens question 1');
+  assert.match(await page.textContent('#psleEditBar'), /Question 1 of 14/);
+  assert.equal(await page.locator('#psleEditBar [data-psle-edit="prev"]').count(), 0, 'no previous on the first');
+  // ↩ Back saves nothing and goes back to the sheet, list closed as it was.
+  await page.fill('#qTitleInput', 'should not be saved');
+  await page.click('#psleEditBar [data-psle-edit="back"]');
+  await page.waitForSelector('#psleOverlay.show');
+  assert.equal(await page.evaluate(() => window.__fx.db.get('users/teacher/mathQuestions/p13_1').title), 'Pens question 1');
+  assert.equal(await page.locator('#psleSheetBody .psle-sheet-rows').count(), 0, 'the list was closed, and stays closed');
+  // The vetting one: open it from the list and save.
+  await page.click('#psleSheetBody [data-psle-act="list"]');
+  await page.click('#psleSheetBody [data-psle-row="p13_12"] [data-psle-act="edit-q"]');
+  await page.waitForSelector('#psleEditBar:not([hidden])');
+  assert.match(await page.textContent('#psleEditBar'), /still in Vetting/);
+  await page.fill('#qTitleInput', 'Pens question 12 (fixed)');
+  await page.click('#saveQBtn');
+  await page.waitForSelector('#psleOverlay.show #psleSheetBody [data-psle-row="p13_12"]');
+  const v = await page.evaluate(() => window.__fx.db.get('users/teacher/mathVetting/p13_12'));
+  assert.equal(v.title, 'Pens question 12 (fixed)');
+  assert.equal(v.source, 'rapid', 'the vetting doc keeps its own fields');
+  assert.deepEqual([v.psle.year, v.psle.paper, v.psle.n], ['2013', 'P1B', 12], 'it is still on its paper');
+  assert.equal(await page.evaluate(() => window.__fx.db.has('users/teacher/mathQuestions/p13_12')), false, 'the save did not approve it');
+  // Cancel edit from the editor's own button comes back too.
+  await page.click('#psleSheetBody [data-psle-row="p13_2"] [data-psle-act="edit-q"]');
+  await page.waitForSelector('#psleEditBar:not([hidden])');
+  await page.click('#cancelEditBtn');
+  await page.waitForSelector('#psleOverlay.show #psleSheetBody [data-psle-row="p13_2"]');
+  // A later, unrelated edit from the bank is NOT sent back to the PSLE page or to vetting.
+  await page.evaluate(() => document.getElementById('psleSheetClose').click());
+  assert.equal(await page.locator('#psleEditBar:not([hidden])').count(), 0);
+  assert.deepEqual(errors, []);
+});
+
+await scenario('✏️ a filed screenshot card opens its question in the editor and comes back to 🛠 Manage', async (page, errors) => {
+  await page.addInitScript(AI);
+  await boot(page, ADMIN);
+  await openManage(page);
+  await page.click('[data-psle-act="add-mode"][data-mode="shots"]');
+  await page.selectOption('[data-psle-input="import-year"]', '2013');
+  await page.selectOption('[data-psle-input="import-paper"]', 'P1B');
+  await page.setInputFiles('[data-psle-input="shot-files"]', [{ name: 'a.png', mimeType: 'image/png', buffer: PNG }, { name: 'b.png', mimeType: 'image/png', buffer: PNG }]);
+  await waitIdle(page);
+  assert.equal(await page.locator('#psleJobs [data-psle-act="edit-q"]').count(), 2);
+  await page.locator('#psleJobs [data-psle-act="edit-q"]').first().click();
+  await page.waitForSelector('#psleEditBar:not([hidden])');
+  assert.match(await page.textContent('#psleEditBar'), /of 2/);
+  await page.click('#saveQBtn');
+  await page.waitForSelector('#page-psle.active #psleJobs .psle-shot.ok');
+  assert.equal(await page.getAttribute('.psle-mode.on', 'data-mode'), 'shots', 'back on the screenshots door');
+  assert.equal((await vettingRows(page)).length, 2, 'both still in Vetting');
   assert.deepEqual(errors, []);
 });
 
