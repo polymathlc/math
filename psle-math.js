@@ -740,3 +740,138 @@ export function psleHash(sel) {
   if (sel.view === 'topic' && sel.topic) return '#psle/topic/' + sel.topic;
   return '#psle/' + sel.view;
 }
+
+// =====================================================================
+// 📥 ADDING QUESTIONS — a whole PDF, or one screenshot per question (v1.114.0)
+//
+// The page takes two kinds of file and they are NOT the same job:
+//   • a PDF is a whole booklet. Rapid add explodes it into pages, reads every
+//     question on every page, and keeps the paper's own number on each one
+//     (`sourceQuestionNumber`), so the detector can file it on sight.
+//   • a SCREENSHOT is one question the teacher cut out of a paper. Nothing
+//     on it says which question it is (a single question is read without its
+//     printed number), so its number is ASSIGNED when it is queued — the
+//     teacher says "starting at Q7" and the screenshots take 7, 8, 9… in the
+//     order they were picked, never in the order the AI happened to finish.
+// Everything here is pure: the page decides WHEN, these decide WHAT.
+// =====================================================================
+
+// Which of the two a file is. Anything else is turned away by name, so a
+// .docx dropped by mistake says so instead of disappearing.
+export function psleFileKind(file) {
+  if (!file) return '';
+  const type = low(file.type);
+  const name = low(file.name);
+  if (type === 'application/pdf' || /\.pdf$/.test(name)) return 'pdf';
+  if (type.startsWith('image/') || /\.(png|jpe?g|gif|webp|heic|heif|bmp)$/.test(name)) return 'image';
+  return '';
+}
+
+// Sort a pile of files into the two routes, keeping each route in the order
+// the files were given (the order IS the question order for screenshots).
+export function psleSplitFiles(files) {
+  const out = { pdfs: [], images: [], other: [] };
+  for (const f of Array.from(files || [])) {
+    const k = psleFileKind(f);
+    if (k === 'pdf') out.pdfs.push(f);
+    else if (k === 'image') out.images.push(f);
+    else if (f) out.other.push(f);
+  }
+  return out;
+}
+
+// Where a PDF is filed. A file already named after its paper — "PSLE 2019
+// Paper 2.pdf", "psle_2021_p1_booklet_b.pdf" — is believed over the pickers,
+// because the pickers are whatever was left selected from the LAST paper,
+// and a whole paper filed under the wrong year is forty questions to re-file
+// by hand. `fromName` lets the page say which one it used.
+export function psleImportTarget(fileName, fallback = {}, now) {
+  const fbYear = psleValidYear(fallback.year, now);
+  const fbPaper = (pslePaper(fallback.paper) || String(fallback.paper).toUpperCase() === 'ALL')
+    ? String(fallback.paper).toUpperCase() : 'P1A';
+  const src = psleParseSource(fileName, now);
+  if (!src || !src.year) return { year: fbYear, paper: fbPaper, fromName: false };
+  // "Paper 1" with no booklet is a whole Paper 1 — the booklets are worked
+  // out from the options, which is exactly what ALL does.
+  let paper = src.paper === 'P1' ? 'ALL' : (src.paper || '');
+  if (!paper) paper = src.canonical ? 'ALL' : (fbPaper || 'ALL');
+  return { year: src.year, paper, fromName: true, yearFromName: true, paperFromName: !!src.paper || src.canonical };
+}
+
+// Every slot already taken in one year and paper, read through the ONE
+// normaliser so a half-written field never counts.
+export function psleTakenNumbers(questions, year, paper, now) {
+  const y = psleValidYear(year, now), p = String(paper || '').toUpperCase();
+  const taken = new Set();
+  for (const q of Array.isArray(questions) ? questions : []) {
+    const m = psleOf(q, now);
+    if (m && m.n && m.year === y && m.paper === p) taken.add(m.n);
+  }
+  return taken;
+}
+
+// The number the next screenshot should take: the FIRST gap from Q1. A
+// teacher working through a paper in order gets 1, 2, 3…; one who skipped a
+// question earlier is offered the one they skipped, not the one after the
+// highest — which is where a missing Q6 is otherwise never noticed.
+export function psleNextNumber(questions, year, paper, now) {
+  const taken = psleTakenNumbers(questions, year, paper, now);
+  for (let n = 1; n <= 60; n++) if (!taken.has(n)) return n;
+  return 60;
+}
+
+// The numbers a batch of screenshots will take, from `start`, in order.
+// Numbers already held are NOT skipped silently: the page is told which ones
+// collide so it can say so before anything is read (`clashes`).
+export function psleShotNumbers(count, start, taken) {
+  const k = Math.max(0, Math.min(60, int(count) || 0));
+  let s = int(start);
+  if (!Number.isInteger(s) || s < 1) s = 1;
+  const numbers = [], clashes = [];
+  for (let i = 0; i < k; i++) {
+    const n = Math.min(60, s + i);
+    numbers.push(n);
+    if (taken && typeof taken.has === 'function' && taken.has(n)) clashes.push(n);
+  }
+  return { numbers, clashes, next: Math.min(60, s + k) };
+}
+
+// The field a screenshot's question is filed with. The marks printed on the
+// question win; otherwise the paper's rule, marked as a guess where it is one
+// (Paper 2's longer questions), exactly as the PDF route does.
+export function psleShotMeta({ year, paper, n, text } = {}, now) {
+  const printed = psleMarksFromText(text);
+  const def = psleDefaultMarks(paper, n);
+  const meta = { year, paper, n, marks: printed || def.marks };
+  if (!printed && def.guess) meta.marksGuess = true;
+  return psleClean(meta, now);
+}
+
+// Who already holds a slot (other than `exceptId`), or ''.
+export function psleSlotHolder(questions, meta, exceptId, now) {
+  const m = psleClean(meta, now);
+  if (!m || !m.n) return '';
+  const key = psleSlotKey(m);
+  for (const q of Array.isArray(questions) ? questions : []) {
+    if (!q || q.id === exceptId) continue;
+    const o = psleOf(q, now);
+    if (o && psleSlotKey(o) === key) return q.id;
+  }
+  return '';
+}
+
+// One line saying what is happening to a batch, for the progress panel.
+// `shots` are the page's own screenshot tasks: { status: queued|reading|filed|failed }.
+export function psleShotSummary(shots) {
+  const list = Array.isArray(shots) ? shots : [];
+  const count = s => list.filter(x => x && x.status === s).length;
+  const c = { queued: count('queued'), reading: count('reading'), filed: count('filed'), failed: count('failed'), total: list.length };
+  c.busy = c.queued + c.reading;
+  const bits = [];
+  if (c.reading) bits.push(c.reading + ' being read');
+  if (c.queued) bits.push(c.queued + ' waiting');
+  if (c.filed) bits.push(c.filed + ' filed');
+  if (c.failed) bits.push(c.failed + ' could not be read');
+  c.text = bits.join(' · ');
+  return c;
+}

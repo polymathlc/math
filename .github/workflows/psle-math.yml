@@ -20,12 +20,17 @@ jobs:
         run: node --test tools/psle-math-tests.mjs
       - name: Install browser
         run: |
-          npm install --prefix /tmp/psle-math --no-audit --no-fund playwright@1.62.1
+          npm install --prefix /tmp/psle-math --no-audit --no-fund playwright@1.62.1 pdfjs-dist@4.10.38
           /tmp/psle-math/node_modules/.bin/playwright install --with-deps chromium
       - name: The page on a computer and a phone
         env:
           PLAYWRIGHT_MODULE: /tmp/psle-math/node_modules/playwright/index.mjs
         run: node tools/psle-math-browser.mjs /tmp/psle-math-shots
+      - name: Adding questions on the real page (PDF and screenshots)
+        env:
+          PLAYWRIGHT_MODULE: /tmp/psle-math/node_modules/playwright/index.mjs
+          PDFJS_DIR: /tmp/psle-math/node_modules/pdfjs-dist/build
+        run: node tools/psle-math-upload-browser.mjs /tmp/psle-math-shots/upload
       - uses: actions/upload-artifact@v4
         if: always()
         with:
