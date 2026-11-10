@@ -5049,7 +5049,7 @@ body.role-employee #emailBellBtn { display: none !important; }
 </style>
 <link rel="stylesheet" href="arcade-ui.css?v=2">
 <link rel="stylesheet" href="consult-answer.css?v=1">
-<link rel="stylesheet" href="psle-math.css?v=1">
+<link rel="stylesheet" href="psle-math.css?v=2">
 <link rel="stylesheet" href="./tcg-combat.css?v=1">
 <!-- 🎨 The Big M worksheet cover (window.WorksheetCover): the printed cover and
      its editor. A classic script, so it is defined before the module below runs
@@ -7025,7 +7025,8 @@ import { evaluateQuestionQuality, buildQuestionQualitySummary, questionQualitySi
 import { PSLE_PAPERS, PSLE_DIFFS, PSLE_TOPICS, pslePaper, psleOf, psleClean, psleLabel, psleTopic, psleTopicOf, psleParseSource, psleCanonicalFileName, psleQuestionNumber,
   psleMarksFromText, psleDefaultMarks, psleDetect, psleAutoFileable, psleBuildIndex, psleEntriesFor, psleTopicGroups, psleGaps, psleTrends, pslePrintPlan,
   psleExamMinutes, psleFormatClock, psleTimerRemaining, psleTimerPause, psleTimerResume, psleTimerValid, psleProgress, psleProgressSummary, psleWeakTopics,
-  psleSearch, psleEditValidate, psleParseHash, psleHash, psleYearOptions, psleNowYear, psleDiffInfo } from "./psle-math.js?v=1";
+  psleSearch, psleEditValidate, psleParseHash, psleHash, psleYearOptions, psleNowYear, psleDiffInfo,
+  psleFileKind, psleSplitFiles, psleImportTarget, psleTakenNumbers, psleNextNumber, psleShotNumbers, psleShotMeta, psleSlotHolder, psleShotSummary } from "./psle-math.js?v=2";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
   updateProfile, GoogleAuthProvider, signInWithPopup, signOut, signInAnonymously, browserPopupRedirectResolver }
@@ -37373,7 +37374,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.113.0 · 2026-11-10";
+const APP_VERSION = "v1.114.0 · 2026-11-10";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -58893,15 +58894,42 @@ var _psle = {
   progress: null, progressFor: "", progressBusy: false, progressErr: "",
   importYear: "", importPaper: "P1A", autoRan: false, autoBusy: false,
   editId: "", editDraft: null, fileSlot: null, fileSearch: "", bound: false,
-  examMinutes: 0, searchTimer: 0, manageShowAll: false
+  examMinutes: 0, searchTimer: 0, manageShowAll: false,
+  // 📥 Adding questions (v1.114.0): which door is open, the screenshots in
+  // flight, the PDFs handed to Rapid add, and the one ticker that repaints
+  // the progress panel while any of them is running.
+  addMode: "", shotStart: "", shots: [], shotSeq: 0, shotBusy: 0, pdfs: [], pdfSeq: 0,
+  jobTimer: 0, jobSig: "", mainStale: false
 };
+var PSLE_ADD_MODE_KEY = "mathPsleAddMode_v1";
+var PSLE_SHOT_PAR = 2;          // screenshots read at once — the same pace Rapid add reads PDF pages
 var PSLE_TAB_KEY = "mathPsleTab_v1";
 var PSLE_TIMER_KEY = "mathPsleExam_v1";
 var _psleTimer = null, _psleTimerTick = 0, _psleAutoTimer = 0;
 
 function psleLoOf(id) { return (typeof SYL_LO_BY_ID !== "undefined" && SYL_LO_BY_ID[id]) || null; }
 function psleTextOf(q) { try { return questionText(q); } catch (e) { return String((q && q.title) || ""); } }
-function psleIndexNow() { return psleBuildIndex(questionBank || [], { loOf: psleLoOf, textOf: psleTextOf }); }
+// What the page is built from. A pupil sees the BANK and nothing else. A
+// teacher also sees every question that is FILED but still waiting in 📋
+// Vetting — before v1.114.0 a paper loaded from 🛠 Manage was read, filed and
+// sitting in vetting while this page still said "No PSLE papers loaded yet",
+// which is exactly how an upload that WORKED looked like one that did nothing.
+function psleIndexPool() {
+  const bank = questionBank || [];
+  if (!psleCanManage()) return bank;
+  const ids = new Set(bank.map(q => q && q.id));
+  return bank.concat((vettingList || []).filter(q => q && q.id && !ids.has(q.id) && psleOf(q)));
+}
+function psleIndexNow() {
+  const index = psleBuildIndex(psleIndexPool(), { loOf: psleLoOf, textOf: psleTextOf });
+  index.waiting = 0;
+  if (psleCanManage()) {
+    const vet = new Set((vettingList || []).map(q => q && q.id));
+    for (const e of index.entries) if (vet.has(e.id)) { e.vetting = true; index.waiting++; }
+    for (const y of index.years) y.waiting = index.entries.filter(e => e.vetting && e.meta.year === y.year).length;
+  }
+  return index;
+}
 function psleCanManage() { return !!(currentUser && canManageQuestions()); }
 function psleIsStudent() { return !!(currentUser && currentUser.role === "student"); }
 function psleTabs() {
@@ -58958,6 +58986,7 @@ function renderPslePage() {
   if (author && !_psle.autoRan) { _psle.autoRan = true; psleAutoFile(true, { quiet: true }); }
   if (psleIsStudent() && !_psle.progress && !_psle.progressBusy && _psle.progressFor !== currentUser.uid) psleLoadProgress();
   psleRenderMain();
+  if (author && psleJobsBusy() && !_psle.jobTimer) psleTick();
 }
 function psleRenderMain() {
   const hero = $("psleHero"), main = $("psleMain");
@@ -58993,7 +59022,21 @@ function psleHeroHtml(index) {
       <h2>Every past paper, one tap away</h2>
       <p>Pick a year or a topic, then practise it here, sit it against the clock, or print it in the real exam layout.</p>
       <div class="psle-stats">${stat(papers, papers === 1 ? "year" : "years")}${stat(index.total, "questions")}${stat(index.marks, "marks")}${stat(index.topics.length, "topics")}</div>
+      ${psleCanManage() ? psleHeroAdminHtml(index) : ""}
     </div>${mine}
+  </div>`;
+}
+
+// The teacher's line under the stats: what is still waiting in Vetting (and
+// so not yet seen by pupils), what is being read right now, and the one
+// button that adds more.
+function psleHeroAdminHtml(index) {
+  const busy = psleJobsBusy();
+  const waiting = index.waiting || 0;
+  return `<div class="psle-hero-admin">
+    <button type="button" class="btn btn-primary btn-sm" data-psle-act="go-add">📥 Add PSLE questions</button>
+    ${busy ? `<span class="psle-hero-note"><span class="spinner dark"></span> ${escapeHtml(psleBusyLine())}</span>` : ""}
+    ${waiting ? `<button type="button" class="psle-hero-note psle-linkbtn" data-psle-act="go-add" title="Filed, but pupils only see a question once it is approved">📋 ${waiting} waiting in Vetting — pupils can't see ${waiting === 1 ? "it" : "them"} yet</button>` : ""}
   </div>`;
 }
 
@@ -59010,12 +59053,13 @@ function psleYearCardHtml(y) {
     <span class="psle-pick-eyebrow">PSLE</span>
     <span class="psle-pick-title">${escapeHtml(y.year)}</span>
     <span class="psle-pick-meta">${y.count} questions · ${y.marks} marks</span>
+    ${y.waiting ? `<span class="psle-pick-wait">📋 ${y.waiting} in Vetting</span>` : ""}
     <span class="psle-pps">${papers}</span>${bar}
   </button>`;
 }
 function psleYearsHtml(index) {
   if (!index.total) return psleEmptyHtml();
-  const cards = index.years.map(psleYearCardHtml).join("");
+  const cards = index.years.map(y => psleYearCardHtml(y)).join("");
   let missing = "";
   if (psleCanManage()) {
     const have = new Set(index.years.map(y => y.year));
@@ -59033,8 +59077,11 @@ function psleEmptyHtml() {
     return `<div class="psle-empty card">
       <div class="psle-empty-ico">🎓</div>
       <h3>No PSLE papers loaded yet</h3>
-      <p>Load each paper as a PDF in 🛠 Manage: pick the year and the booklet, drop the file in, and every question is read, cropped and filed under its year, paper and number automatically. Questions already in your bank whose file or title says “PSLE 2019” are found for you too.</p>
-      <button type="button" class="btn btn-primary" data-psle-act="tab" data-tab="manage">🛠 Load PSLE papers</button>
+      <p>Add a whole paper as a PDF, or one question at a time as screenshots: pick the year and the booklet, drop the files in, and every question is read, cropped and filed under its year, paper and number automatically. Questions already in your bank whose file or title says “PSLE 2019” are found for you too.</p>
+      <div class="psle-empty-btns">
+        <button type="button" class="btn btn-primary" data-psle-act="go-add" data-mode="pdf">📄 Add a PDF</button>
+        <button type="button" class="btn btn-ghost" data-psle-act="go-add" data-mode="shots">📸 Add screenshots</button>
+      </div>
     </div>`;
   }
   return `<div class="psle-empty card"><div class="psle-empty-ico">🎓</div><h3>PSLE papers are on their way</h3>
@@ -59184,7 +59231,7 @@ function psleRowHtml(e, opts = {}) {
     <div class="psle-row-line">
       <span class="psle-row-n">Q${e.meta.n || "?"}</span>
       <button type="button" class="psle-row-main" data-psle-act="toggle-row" data-id="${escapeHtml(e.id)}" aria-expanded="${open}">
-        <b>${escapeHtml(e.q.title || "Question")}</b>
+        <b>${escapeHtml(e.q.title || "Question")}${e.vetting ? ` <span class="psle-vet-tag" title="Filed, but still in 📋 Vetting — pupils see it once it is approved">📋 In Vetting</span>` : ""}</b>
         <small>${bits.map(escapeHtml).join(" · ")}${diff ? ` · <span class="psle-diff" style="--c:${diff.colour}">${diff.label}</span>` : ""}</small>
       </button>
       ${status ? `<span class="psle-status" title="${status[1]}">${status[0]}</span>` : ""}
@@ -59294,7 +59341,11 @@ function psleRenderSheet() {
 // ---- Doing things -------------------------------------------------------
 function pslePractise(entries, label) {
   if (typeof _isEmployee === "function" && _isEmployee()) { toast("Practice is for students — use 👁 to read the questions", ""); return; }
-  const qs = (entries || []).map(e => e.q).filter(Boolean);
+  // A question still in 📋 Vetting is on the teacher's page but not in the
+  // bank, so practice could not serve it — it is left out, and said so.
+  const live = (entries || []).filter(e => e && !e.vetting);
+  if ((entries || []).length && !live.length) { toast("These are still in 📋 Vetting — approve them first, then they can be practised", "error"); return false; }
+  const qs = live.map(e => e.q).filter(Boolean);
   if (!qs.length) { toast("Nothing to practise here yet", "error"); return false; }
   const allowed = _studentManualQuestions(qs);
   if (!allowed.length) return false;
@@ -59446,6 +59497,7 @@ function psleAfterRapid(questions) {
   if (!canManageQuestions() || !(questions || []).some(q => psleParseSource(q && q.sourcePdf))) return;
   clearTimeout(_psleAutoTimer);
   _psleAutoTimer = setTimeout(() => psleAutoFile(true, { silent: true }), 1200);
+  if (!_psle.jobTimer) psleTick();
 }
 function psleVetBadge(q) {
   const m = psleOf(q);
@@ -59455,12 +59507,6 @@ function psleVetBadge(q) {
 }
 function psleManageHtml(index) {
   if (!psleCanManage()) return "";
-  const years = psleYearOptions();
-  const yearSel = _psle.importYear || years[1] || years[0];
-  const yearOpts = years.map(y => `<option value="${y}"${y === yearSel ? " selected" : ""}>${y}</option>`).join("");
-  const paperOpts = PSLE_PAPERS.map(p => [p.key, p.label]).concat([["ALL", "Whole sitting (both papers in one file)"]])
-    .map(([k, l]) => `<option value="${k}"${_psle.importPaper === k ? " selected" : ""}>${escapeHtml(l)}</option>`).join("");
-  const running = (rapidJobs || []).filter(j => /PSLE-\d{4}-/i.test(String(j.source || j.title || "")));
   const proposals = psleDetectNow();
   const ready = proposals.filter(psleAutoFileable);
   const blocked = proposals.filter(p => !psleAutoFileable(p));
@@ -59484,7 +59530,10 @@ function psleManageHtml(index) {
       ${proposals.length > 25 && !_psle.manageShowAll ? `<button type="button" class="psle-linkbtn" data-psle-act="manage-all">Show all ${proposals.length}</button>` : ""}
     </div>` : "";
   const vettingPsle = (vettingList || []).filter(q => psleOf(q));
-  const vetCard = vettingPsle.length ? `<div class="card card-pad psle-card psle-card-vet">
+  // The progress panel offers ✅ Approve all itself once a batch it is showing
+  // has finished, so this card stands down then rather than ask twice.
+  const panelApproves = ((_psle.pdfs || []).length || (_psle.shots || []).length) && !psleJobsBusy();
+  const vetCard = vettingPsle.length && !panelApproves ? `<div class="card card-pad psle-card psle-card-vet">
       <div class="psle-card-head"><h4>📋 ${vettingPsle.length} filed PSLE question${vettingPsle.length === 1 ? " is" : "s are"} still in Vetting</h4>
         <div class="psle-card-btns"><button type="button" class="btn btn-ghost btn-sm" data-psle-act="go-vetting">Check them</button>
         <button type="button" class="btn btn-primary btn-sm" data-psle-act="approve-vetting">✅ Approve all ${vettingPsle.length}</button></div></div>
@@ -59502,23 +59551,13 @@ function psleManageHtml(index) {
     const cell = k => { const c = y.papers[k]; return c ? `${c.count}<small> · ${c.marks}m</small>` : `<span class="psle-dim">—</span>`; };
     const gapTxt = Object.entries(gaps).map(([k, g]) => (g.missing.length ? `${k} missing Q${g.missing.slice(0, 6).join(", Q")}${g.missing.length > 6 ? "…" : ""}` : "")
       + (g.dupes.length ? ` ${k} Q${g.dupes.join(", Q")} filed twice` : "")).filter(Boolean).join("; ");
-    return `<tr><th scope="row"><button type="button" class="psle-linkbtn" data-psle-act="open-year" data-year="${y.year}">${y.year}</button></th>
+    return `<tr><th scope="row"><button type="button" class="psle-linkbtn" data-psle-act="open-year" data-year="${y.year}">${y.year}</button>${y.waiting ? `<small class="psle-wait-sub">📋 ${y.waiting} in Vetting</small>` : ""}</th>
       <td>${cell("P1A")}</td><td>${cell("P1B")}</td><td>${cell("P2")}</td><td><b>${y.marks}</b></td>
       <td class="psle-gaps">${gapTxt ? "⚠ " + escapeHtml(gapTxt) : "✓"}</td>
       <td><button type="button" class="btn btn-ghost btn-sm" data-psle-act="file-pick" data-year="${y.year}">＋ File a question</button></td></tr>`;
   }).join("");
   return `<section class="psle-section psle-manage">
-    <div class="card card-pad psle-card psle-import">
-      <div class="psle-card-head"><h4>📥 Load a PSLE paper</h4></div>
-      <p class="psle-note">One PDF per booklet works best. Every page is read as its own screenshot by ⚡ Rapid add, each figure is cropped, and every question lands in 📋 Vetting already filed under its year, paper and number. A whole sitting in one file works too — the booklets are worked out from the options and from where the numbering restarts.</p>
-      <div class="psle-import-row">
-        <label>Year <select data-psle-input="import-year">${yearOpts}</select></label>
-        <label>Paper <select data-psle-input="import-paper">${paperOpts}</select></label>
-        <label class="btn btn-primary psle-import-btn">📄 Choose PDF${"s"}<input type="file" accept="application/pdf,.pdf" multiple hidden data-psle-input="import-files"></label>
-      </div>
-      <div class="psle-drop" data-psle-drop tabindex="0">or drop the PDF here</div>
-      ${running.length ? `<div class="psle-running"><span class="spinner dark"></span> ${running.length} PSLE paper${running.length === 1 ? " is" : "s are"} being read — <button type="button" class="psle-linkbtn" data-psle-act="go-vetting">watch in 📋 Vetting</button></div>` : ""}
-    </div>
+    ${psleAddCardHtml()}
     ${vetCard}${detectCard}${guessCard}
     <div class="card card-pad psle-card">
       <div class="psle-card-head"><h4>📚 Papers filed</h4><button type="button" class="btn btn-ghost btn-sm" data-psle-act="file-pick" data-year="">＋ File any bank question</button></div>
@@ -59527,22 +59566,415 @@ function psleManageHtml(index) {
     </div>
   </section>`;
 }
-async function psleImportFiles(files) {
-  if (!canManageQuestions()) return;
-  const list = Array.from(files || []).filter(f => f && (f.type === "application/pdf" || /\.pdf$/i.test(f.name || "")));
-  if (!list.length) { toast("Please choose a PDF of the paper", "error"); return; }
-  const year = _psle.importYear || psleYearOptions()[1];
-  const paper = _psle.importPaper || "P1A";
+// ---- 📥 ADDING QUESTIONS — a whole PDF, or one screenshot per question (v1.114.0)
+//
+// Two doors into one card on 🛠 Manage, and they are two different jobs:
+//   📄 A PDF is a whole booklet. It is handed to ⚡ Rapid add exactly as before
+//      (renamed `PSLE-<year>-<paper> — <name>.pdf` so every question is filed on
+//      sight), and its progress — page by page, and any failure with the reason
+//      and a ↻ Retry — is shown HERE, not only on the Vetting page.
+//   📸 A screenshot is ONE question. Its number is assigned when it is queued
+//      ("starting at Q7" → 7, 8, 9… in the order the files were picked), it is
+//      read by the same Rapid add reader, and it is filed the moment it lands.
+//
+// What went wrong before (reported as "the upload doesn't work"):
+//   • the page counted only APPROVED bank questions, so a paper that had been
+//     read and filed — and was sitting in Vetting — left the page saying "No
+//     PSLE papers loaded yet". `psleIndexNow` now shows a teacher the questions
+//     waiting in Vetting too, badged, with a count in the hero.
+//   • the progress line was painted ONCE, 300 ms after the drop, and never
+//     again — a paper that failed (an AI outage, a blocked PDF reader) failed
+//     silently from where the teacher was looking. `psleTick` repaints the
+//     panel every second while anything is running.
+//   • the drop box looked like a button and did nothing when clicked, and a
+//     file dropped on any tab but 🛠 Manage was opened by the browser instead.
+//   • the picker sat in a `hidden` input inside a label, which some tablet
+//     browsers will not open. The inputs are now visually hidden (never
+//     display:none) and opened with `.click()` from a real button.
+function psleAddMode() {
+  if (!_psle.addMode) {
+    try { _psle.addMode = localStorage.getItem(PSLE_ADD_MODE_KEY) || ""; } catch (e) { _psle.addMode = ""; }
+    if (_psle.addMode !== "shots") _psle.addMode = "pdf";
+  }
+  return _psle.addMode;
+}
+function psleSetAddMode(mode) {
+  _psle.addMode = mode === "shots" ? "shots" : "pdf";
+  try { localStorage.setItem(PSLE_ADD_MODE_KEY, _psle.addMode); } catch (e) { /* not remembered — harmless */ }
+  // A whole sitting (ALL) is a PDF-only choice: a screenshot is one question
+  // from one booklet, and filing it needs to know which.
+  if (_psle.addMode === "shots" && _psle.importPaper === "ALL") _psle.importPaper = "P1A";
+}
+function psleAddYear() {
+  const years = psleYearOptions();
+  return years.includes(_psle.importYear) ? _psle.importYear : (years[1] || years[0]);
+}
+function psleAddPaper() {
+  const p = String(_psle.importPaper || "P1A").toUpperCase();
+  if (psleAddMode() === "shots") return pslePaper(p) ? p : "P1A";
+  return pslePaper(p) || p === "ALL" ? p : "P1A";
+}
+// Numbers already held in a year and paper — filed questions AND screenshots
+// still being read, so a second batch queued while the first is in flight
+// does not hand out the same numbers again.
+function psleShotTaken(year, paper) {
+  const pending = (_psle.shots || []).filter(x => x.status === "queued" || x.status === "reading")
+    .map(x => ({ id: x.id, psle: { year: x.year, paper: x.paper, n: x.n } }));
+  return psleTakenNumbers(psleAllForDetect().concat(pending), year, paper);
+}
+function psleShotStartValue() {
+  const typed = Number(_psle.shotStart);
+  if (Number.isInteger(typed) && typed >= 1 && typed <= 60) return typed;
+  const year = psleAddYear(), paper = psleAddPaper();
+  const pending = (_psle.shots || []).filter(x => x.status === "queued" || x.status === "reading")
+    .map(x => ({ id: x.id, psle: { year: x.year, paper: x.paper, n: x.n } }));
+  return psleNextNumber(psleAllForDetect().concat(pending), year, paper);
+}
+function psleAddCardHtml() {
+  const mode = psleAddMode();
+  const years = psleYearOptions();
+  const yearSel = psleAddYear(), paperSel = psleAddPaper();
+  const yearOpts = years.map(y => `<option value="${y}"${y === yearSel ? " selected" : ""}>${y}</option>`).join("");
+  const papers = PSLE_PAPERS.map(p => [p.key, p.label]).concat(mode === "pdf" ? [["ALL", "Whole sitting (both papers in one file)"]] : []);
+  const paperOpts = papers.map(([k, l]) => `<option value="${k}"${paperSel === k ? " selected" : ""}>${escapeHtml(l)}</option>`).join("");
+  const modeBtn = (k, icon, label) => `<button type="button" class="psle-mode${mode === k ? " on" : ""}" data-psle-act="add-mode" data-mode="${k}" role="tab" aria-selected="${mode === k}">${icon} ${label}</button>`;
+  const start = psleShotStartValue();
+  const taken = psleShotTaken(yearSel, paperSel);
+  const pdfNote = `One PDF per booklet works best. Every page is read as its own screenshot by ⚡ Rapid add, each figure is cropped, and every question lands in 📋 Vetting already filed under its year, paper and number. A file already named after its paper (“PSLE 2019 Paper 2.pdf”) is filed under that year and paper whatever the pickers say. A whole sitting in one file works too — the booklets are worked out from the options and from where the numbering restarts.`;
+  const shotNote = `One question per screenshot. Paste them (Ctrl+V or ⌘V), drop them, choose them, or take a photo — they are numbered in the order you add them, starting at the number below, and each one is read, cropped and filed the moment it lands. A screenshot holding several numbered questions is split, and each keeps its own printed number.`;
+  const shotRow = mode === "shots" ? `<label>Starting at <span class="psle-qnum">Q<input type="number" min="1" max="60" value="${start}" data-psle-input="shot-start" aria-label="Question number for the first screenshot"></span></label>
+        ${taken.size ? `<span class="psle-taken" title="Already filed in PSLE ${escapeHtml(yearSel)} ${escapeHtml(pslePaper(paperSel) ? pslePaper(paperSel).short : paperSel)}">Filed: Q${psleNumberRanges([...taken])}</span>` : ""}` : "";
+  const buttons = mode === "pdf"
+    ? `<button type="button" class="btn btn-primary psle-import-btn" data-psle-act="pick" data-pick="pdf">📄 Choose PDFs</button>`
+    : `<button type="button" class="btn btn-primary psle-import-btn" data-psle-act="pick" data-pick="shots">🖼 Choose screenshots</button>
+       <button type="button" class="btn btn-ghost psle-import-btn psle-camera-btn" data-psle-act="pick" data-pick="camera">📷 Take a photo</button>`;
+  const dropText = mode === "pdf"
+    ? `<b>Drop PDFs here</b><span>or click to choose them</span>`
+    : `<b>Paste a screenshot here</b><span>Ctrl+V / ⌘V, drop images, or click to choose — one question each</span>`;
+  return `<div class="card card-pad psle-card psle-import" id="psleAddCard">
+      <div class="psle-card-head"><h4>📥 Add PSLE questions</h4></div>
+      <div class="psle-modes" role="tablist" aria-label="How to add questions">
+        ${modeBtn("pdf", "📄", "A whole paper (PDF)")}${modeBtn("shots", "📸", "Question screenshots")}
+      </div>
+      <p class="psle-note">${mode === "pdf" ? pdfNote : shotNote}</p>
+      <div class="psle-import-row">
+        <label>Year <select data-psle-input="import-year">${yearOpts}</select></label>
+        <label>Paper <select data-psle-input="import-paper">${paperOpts}</select></label>
+        ${shotRow}
+        <span class="psle-import-btns">${buttons}</span>
+      </div>
+      <div class="psle-drop" data-psle-drop data-psle-act="pick" data-pick="${mode === "pdf" ? "pdf" : "shots"}" role="button" tabindex="0" aria-label="${mode === "pdf" ? "Drop PDFs here, or press to choose them" : "Paste, drop or choose screenshots"}">${dropText}</div>
+      <input type="file" class="psle-file-input" accept="application/pdf,.pdf" multiple data-psle-input="import-files" tabindex="-1" aria-hidden="true">
+      <input type="file" class="psle-file-input" accept="image/*" multiple data-psle-input="shot-files" tabindex="-1" aria-hidden="true">
+      <input type="file" class="psle-file-input" accept="image/*" capture="environment" data-psle-input="shot-camera" tabindex="-1" aria-hidden="true">
+      <div id="psleJobs" class="psle-jobs" aria-live="polite">${psleJobsHtml()}</div>
+    </div>`;
+}
+// "1–5, 7, 9–12" — the numbers already filed, short enough to read at a glance.
+function psleNumberRanges(nums) {
+  const list = [...new Set(nums.map(Number).filter(n => Number.isInteger(n)))].sort((a, b) => a - b);
+  const out = [];
+  for (let i = 0; i < list.length; i++) {
+    let j = i;
+    while (j + 1 < list.length && list[j + 1] === list[j] + 1) j++;
+    out.push(j > i + 1 ? list[i] + "–" + list[j] : j === i + 1 ? list[i] + ", " + list[j] : String(list[i]));
+    i = j;
+  }
+  return out.join(", ");
+}
+
+// ---- The progress panel ---------------------------------------------------
+// A PDF's state is read off ⚡ Rapid add's own job list, by the canonical name
+// it was queued under: the paper's job wears that name exactly while it reads
+// (and when it fails); its pages wear "<name> — page n of m". A paper that is
+// not in the list YET is waiting its turn behind another (one PDF renders at
+// a time); one that has been seen and is gone has finished.
+function pslePdfState(p) {
+  const jobs = (rapidJobs || []).filter(j => j && (j.source === p.name || String(j.source || "").startsWith(p.name + " — page")));
+  const parent = jobs.find(j => j.source === p.name);
+  if (parent) p.seen = true;
+  const pages = jobs.filter(j => j !== parent && j.status === "processing");
+  const filed = psleAllForDetect().filter(q => q && q.sourcePdf === p.name);
+  const n = filed.length, nFiled = filed.filter(q => psleOf(q)).length;
+  if (parent && parent.status === "error") return { state: "failed", job: parent, n, nFiled };
+  if (parent) return { state: "running", job: parent, sub: parent.sub || (pages[0] && pages[0].sub) || "Reading…", n, nFiled };
+  if (!p.seen && Date.now() - p.at < 10 * 60 * 1000) return { state: "waiting", n, nFiled };
+  return { state: "done", n, nFiled };
+}
+function psleJobsBusy() {
+  return (_psle.pdfs || []).some(p => { const s = pslePdfState(p).state; return s === "running" || s === "waiting"; })
+    || (_psle.shots || []).some(x => x.status === "queued" || x.status === "reading");
+}
+function psleBusyLine() {
+  const pdfs = (_psle.pdfs || []).map(pslePdfState).filter(s => s.state === "running" || s.state === "waiting").length;
+  const shots = psleShotSummary(_psle.shots).busy;
+  const bits = [];
+  if (pdfs) bits.push(pdfs + " PDF" + (pdfs === 1 ? "" : "s"));
+  if (shots) bits.push(shots + " screenshot" + (shots === 1 ? "" : "s"));
+  return bits.length ? "Reading " + bits.join(" and ") + "…" : "";
+}
+function psleJobsHtml() {
+  const pdfs = (_psle.pdfs || []).slice(0, 12);
+  const shots = (_psle.shots || []).slice(0, 60);
+  if (!pdfs.length && !shots.length) return "";
+  const pdfRow = p => {
+    const st = pslePdfState(p);
+    const where = `PSLE ${escapeHtml(p.year)} · ${escapeHtml(p.paper === "ALL" ? "whole sitting" : (pslePaper(p.paper) || { short: p.paper }).short)}${p.fromName ? ` <small title="Read off the file's name">(from the file name)</small>` : ""}`;
+    const unfiled = st.n - st.nFiled;
+    const count = st.n ? `${st.n} question${st.n === 1 ? "" : "s"} ${st.state === "done" ? "read" : "in so far"}${unfiled > 0 ? ` · ${unfiled} still need${unfiled === 1 ? "s" : ""} a number — see 🔎 below` : st.state === "done" ? ", all filed" : ""}` : "";
+    let body = "", icon = "⏳", cls = "run";
+    if (st.state === "running") { icon = `<span class="spinner dark"></span>`; body = escapeHtml(st.sub || "Reading…") + (count ? " · " + count : ""); }
+    else if (st.state === "waiting") { body = "Waiting its turn — one PDF is read at a time."; }
+    else if (st.state === "failed") {
+      icon = st.job.outage ? "⏸️" : "⚠️"; cls = "bad";
+      body = `<b>${escapeHtml(st.job.title || "Couldn't read it")}</b>${st.job.sub ? " — " + escapeHtml(st.job.sub) : ""}${count ? " · " + count : ""}
+        ${(typeof aiFailureHtml === "function" && st.job.report) ? aiFailureHtml(st.job.report) : (st.job.error ? `<div class="psle-job-err">${escapeHtml(st.job.error)}</div>` : "")}
+        <span class="psle-job-btns">${st.job.retry ? `<button type="button" class="btn btn-primary btn-sm" data-psle-act="pdf-retry" data-id="${escapeHtml(p.id)}">↻ Retry${/page\s+\d+/i.test(st.job.sub || "") ? " from where it stopped" : ""}</button>` : ""}
+        <button type="button" class="btn btn-ghost btn-sm" data-psle-act="pdf-dismiss" data-id="${escapeHtml(p.id)}">Dismiss</button></span>`;
+    } else {
+      icon = st.n ? "✅" : "⚠️"; cls = st.n ? "ok" : "bad";
+      body = st.n ? `Done — ${count}.` : "Finished, but no questions came off it. If it is a scan, try ⚡ Rapid add's 📄 Choose a paper, or add the questions as 📸 screenshots.";
+      body += ` <button type="button" class="psle-linkbtn" data-psle-act="pdf-dismiss" data-id="${escapeHtml(p.id)}">Hide</button>`;
+    }
+    return `<div class="psle-job ${cls}"><span class="psle-job-ico" aria-hidden="true">${icon}</span>
+      <div class="psle-job-main"><div class="psle-job-title">📄 ${escapeHtml(p.original)} <small>→ ${where}</small></div><div class="psle-job-sub">${body}</div></div></div>`;
+  };
+  const shotRow = x => {
+    const paper = (pslePaper(x.paper) || { short: x.paper }).short;
+    let icon = "⏳", sub = "Waiting to be read…", cls = "run", btns = "";
+    if (x.status === "reading") { icon = `<span class="spinner dark"></span>`; sub = "Reading the question…"; }
+    else if (x.status === "filed") {
+      icon = "✅"; cls = "ok";
+      sub = escapeHtml(x.note || "Filed — waiting in 📋 Vetting");
+      if (x.clash) sub += ` <span class="psle-clash" title="Another question already holds this number — open the year and keep the right one">⚠ ${escapeHtml(x.clash)}</span>`;
+    } else if (x.status === "failed") {
+      icon = "⚠️"; cls = "bad"; sub = escapeHtml(x.error || "Couldn't read this screenshot");
+      btns = `<span class="psle-job-btns"><button type="button" class="btn btn-primary btn-sm" data-psle-act="shot-retry" data-id="${escapeHtml(x.id)}">↻ Retry</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-psle-act="shot-dismiss" data-id="${escapeHtml(x.id)}">Remove</button></span>`;
+    }
+    const open = x.status === "filed" && x.qids && x.qids[0] ? `<button type="button" class="psle-icon-btn" data-psle-act="edit" data-id="${escapeHtml(x.qids[0])}" title="Change its year, paper, number or marks">✏️</button>` : "";
+    return `<div class="psle-shot ${cls}">
+      <img src="${escapeHtml(x.url || "")}" alt="" loading="lazy">
+      <div class="psle-shot-main"><div class="psle-job-title"><span class="psle-shot-ico" aria-hidden="true">${icon}</span> Q${escapeHtml(String(x.nLabel || x.n))} <small>· PSLE ${escapeHtml(x.year)} ${escapeHtml(paper)}</small></div>
+        <div class="psle-job-sub">${sub}</div>${btns}</div>${open}
+    </div>`;
+  };
+  const sum = psleShotSummary(_psle.shots);
+  const waiting = (vettingList || []).filter(q => psleOf(q)).length;
+  const head = `<div class="psle-jobs-head">
+      <b>${psleJobsBusy() ? `<span class="spinner dark"></span> ${escapeHtml(psleBusyLine())}` : "Added this session"}</b>
+      <span class="psle-jobs-links">
+        ${sum.filed ? `<button type="button" class="psle-linkbtn" data-psle-act="shots-clear">Clear finished screenshots</button>` : ""}
+        <button type="button" class="psle-linkbtn" data-psle-act="go-vetting">Open 📋 Vetting</button>
+      </span></div>`;
+  const approve = !psleJobsBusy() && waiting ? `<div class="psle-jobs-done">✅ ${waiting} PSLE question${waiting === 1 ? " is" : "s are"} filed and waiting in 📋 Vetting. Pupils see ${waiting === 1 ? "it" : "them"} once approved.
+      <button type="button" class="btn btn-primary btn-sm" data-psle-act="approve-vetting">✅ Approve all ${waiting}</button></div>` : "";
+  return head
+    + (pdfs.length ? `<div class="psle-job-list">${pdfs.map(pdfRow).join("")}</div>` : "")
+    + (shots.length ? `<div class="psle-shot-grid">${shots.map(shotRow).join("")}</div>` : "")
+    + approve;
+}
+// The ticker. It repaints ONLY the progress panel and the hero every second
+// while anything is running — never the whole tab, which would wipe a number
+// half-typed into "Starting at". When the state CHANGES (a paper finishes, a
+// screenshot is filed) the rest of the page follows, unless the teacher is
+// typing in it, in which case it waits for them to leave the box.
+function psleTick() {
+  clearTimeout(_psle.jobTimer);
+  _psle.jobTimer = 0;
+  const page = $("page-psle");
+  if (!page || !page.classList.contains("active")) return;
+  const host = $("psleJobs");
+  if (host) host.innerHTML = psleJobsHtml();
+  const busy = psleJobsBusy();
+  const sig = [busy, (_psle.shots || []).map(x => x.status).join(""), (_psle.pdfs || []).map(p => pslePdfState(p).state + pslePdfState(p).n).join(","),
+    (vettingList || []).filter(q => psleOf(q)).length, (questionBank || []).length].join("|");
+  if (sig !== _psle.jobSig) {
+    _psle.jobSig = sig;
+    const hero = $("psleHero");
+    if (hero) hero.innerHTML = psleHeroHtml(psleIndexNow());
+    const typing = document.activeElement && document.activeElement.closest && document.activeElement.closest("#psleMain") && /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName);
+    if (typing) _psle.mainStale = true; else psleRenderMain();
+  }
+  if (busy) _psle.jobTimer = setTimeout(psleTick, 1000);
+}
+function psleGoAdd(mode) {
+  if (!psleCanManage()) return;
+  if (mode) psleSetAddMode(mode);
+  if (_psle.search) { _psle.search = ""; const i = $("psleSearch"); if (i) i.value = ""; }
+  psleSetTab("manage");
+  setTimeout(() => { const c = $("psleAddCard"); if (c && c.scrollIntoView) c.scrollIntoView({ behavior: "smooth", block: "start" }); }, 30);
+}
+function psleOpenPicker(kind) {
+  if (!psleCanManage()) return;
+  const key = kind === "camera" ? "shot-camera" : kind === "shots" ? "shot-files" : "import-files";
+  const input = document.querySelector(`#psleAddCard [data-psle-input="${key}"]`);
+  if (input) { input.value = ""; input.click(); }
+}
+
+// ---- THE ONE DOOR ---------------------------------------------------------
+// Every route — the pickers, the camera, a drop anywhere on the page, a paste
+// — hands its files here, and the files decide the route: a PDF goes to the
+// paper reader, an image to the screenshot reader, whichever mode is showing.
+async function psleImportFiles(files, how) {
+  if (!psleCanManage()) return 0;
+  const split = psleSplitFiles(files);
+  if (!split.pdfs.length && !split.images.length) {
+    toast(split.other.length ? "Please use a PDF or a screenshot (PNG / JPG)" : (how === "paste" ? "That paste had no picture in it — copy a screenshot and try again" : "No file was chosen"), "error");
+    return 0;
+  }
+  if (split.other.length) toast(split.other.length + " file" + (split.other.length === 1 ? " was" : "s were") + " not a PDF or a picture and " + (split.other.length === 1 ? "was" : "were") + " skipped", "info");
+  // The mode follows what arrived, so the panel shows the right pickers next.
+  if (split.images.length && !split.pdfs.length && psleAddMode() !== "shots") psleSetAddMode("shots");
+  if (split.pdfs.length && !split.images.length && psleAddMode() !== "pdf") psleSetAddMode("pdf");
+  if (_psle.tab !== "manage") { _psle.tab = "manage"; try { localStorage.setItem(PSLE_TAB_KEY, "manage"); } catch (e) {} }
+  let n = 0;
+  if (split.pdfs.length) n += psleImportPdfs(split.pdfs);
+  if (split.images.length) n += psleImportShots(split.images);
+  renderPslePage();
+  psleTick();
+  // Bring the progress into view — it sits under the drop box, and on a
+  // laptop screen that is below the fold, where a running import is invisible.
+  if (n) setTimeout(() => { const j = $("psleJobs"); if (j && j.scrollIntoView) j.scrollIntoView({ behavior: "smooth", block: "nearest" }); }, 60);
+  return n;
+}
+function psleImportPdfs(list) {
+  const fallback = { year: psleAddYear(), paper: _psle.importPaper === "ALL" ? "ALL" : psleAddPaper() };
+  const named = [];
   for (const f of list) {
+    const t = psleImportTarget(f.name, fallback);
+    const year = t.year || fallback.year, paper = t.paper || fallback.paper;
+    const name = psleCanonicalFileName(year, paper, f.name);
     let file = f;
-    try { file = new File([f], psleCanonicalFileName(year, paper, f.name), { type: "application/pdf" }); }
+    try { file = new File([f], name, { type: "application/pdf", lastModified: f.lastModified || Date.now() }); }
     catch (e) { /* an old browser without the File constructor: the original name still files by year */ }
+    // A paper already in flight under the same name is not queued twice — a
+    // double-click on the picker is otherwise forty questions read twice.
+    if ((_psle.pdfs || []).some(p => p.name === file.name && ["running", "waiting"].includes(pslePdfState(p).state))) continue;
+    _psle.pdfs.unshift({ id: "pp" + (++_psle.pdfSeq), name: file.name, original: f.name || "paper.pdf", year, paper, fromName: !!t.fromName, at: Date.now(), seen: false });
     // P6 is the PSLE's level; the release date is deliberately NOT the pad's —
     // a paper loaded from here is not part of whatever batch is being held back.
     startRapidJob(file, "P6", { release: "" });
+    named.push(year + (t.fromName ? "*" : ""));
   }
-  toast(`📥 Reading ${list.length} PSLE ${year} paper${list.length === 1 ? "" : "s"} — the questions land in 📋 Vetting, filed as they arrive`, "success");
-  setTimeout(psleRenderMain, 300);
+  if (named.length) {
+    const fromName = named.some(x => x.endsWith("*"));
+    toast(`📥 Reading ${named.length} PSLE paper${named.length === 1 ? "" : "s"} — follow it below; questions land in 📋 Vetting, filed as they arrive${fromName ? " (year and paper read from the file name)" : ""}`, "success");
+  }
+  return named.length;
+}
+function psleImportShots(list) {
+  const year = psleAddYear(), paper = psleAddPaper();
+  if (!pslePaper(paper)) { toast("Choose which booklet these screenshots are from first", "error"); return 0; }
+  const start = psleShotStartValue();
+  const plan = psleShotNumbers(list.length, start, psleShotTaken(year, paper));
+  if (plan.clashes.length) {
+    const label = `PSLE ${year} ${pslePaper(paper).short}`;
+    const ok = confirm(`${label} already has Q${psleNumberRanges(plan.clashes)} filed.\n\nAdd ${list.length === 1 ? "this screenshot" : "these screenshots"} as Q${psleNumberRanges(plan.numbers)} anyway? Both copies will be listed under the year so you can keep the right one.\n\nPress Cancel to change “Starting at” first.`);
+    if (!ok) return 0;
+  }
+  list.forEach((f, i) => {
+    let url = "";
+    try { url = URL.createObjectURL(f); } catch (e) { url = ""; }
+    _psle.shots.unshift({ id: "ps" + (++_psle.shotSeq), seq: _psle.shotSeq, file: f, url, year, paper, n: plan.numbers[i], status: "queued", error: "", qids: [], clash: "", note: "" });
+  });
+  // The next batch carries on from here, so a teacher pasting one question at
+  // a time never has to touch the number.
+  _psle.shotStart = String(plan.next);
+  toast(`📸 Reading ${list.length} screenshot${list.length === 1 ? "" : "s"} as PSLE ${year} ${pslePaper(paper).short} Q${psleNumberRanges(plan.numbers)}`, "success");
+  psleShotPump();
+  return list.length;
+}
+// Two at a time, oldest first — the order they were added is the order they
+// are numbered, and the order they should appear in.
+function psleShotPump() {
+  while (_psle.shotBusy < PSLE_SHOT_PAR) {
+    const next = (_psle.shots || []).filter(x => x.status === "queued").sort((a, b) => a.seq - b.seq)[0];
+    if (!next) break;
+    _psle.shotBusy++;
+    next.status = "reading";
+    psleShotRun(next).catch(e => { next.status = "failed"; next.error = (e && e.message) || String(e); })
+      .finally(() => { _psle.shotBusy--; psleShotPump(); psleTick(); });
+  }
+}
+function psleShotSource(x) { return `PSLE ${x.year} ${(pslePaper(x.paper) || { short: x.paper }).short} · Q${x.n} (screenshot)`; }
+async function psleShotRun(x) {
+  if (!psleCanManage()) { x.status = "failed"; x.error = "Only teachers can add PSLE questions"; return; }
+  const source = psleShotSource(x);
+  // A retry must not leave the last attempt's red card behind in Vetting.
+  (rapidJobs || []).filter(j => j && j.status === "error" && j.source === source).forEach(j => removeRapidJob(j.id));
+  let res = null, err = null;
+  try { res = await startRapidJob(x.file, "P6", { release: "", source }); }
+  catch (e) { err = e; }
+  const qs = (res && Array.isArray(res.questions)) ? res.questions.filter(q => q && q.id) : [];
+  if (!qs.length) {
+    // processRapidJob leaves its reason on a red card in Vetting — read it
+    // back here so the teacher does not have to go and look for it.
+    const card = (rapidJobs || []).find(j => j && j.status === "error" && j.source === source);
+    const why = (err && err.message) || (card && ((card.report && card.report.sentence) || card.error)) || "No question could be read off this picture.";
+    x.status = "failed"; x.error = String(why).trim();
+    if (card) removeRapidJob(card.id);   // the panel here carries the ↻ Retry
+    updateRapidCounts(); renderVettingList();
+    return;
+  }
+  const filed = [], clashes = [], labels = [];
+  for (let k = 0; k < qs.length; k++) {
+    const q = psleFind(qs[k].id) || qs[k];
+    // One question → the number it was queued under. Several on one picture →
+    // each keeps the number printed on it, and only a missing one counts on.
+    const printed = qs.length > 1 ? psleQuestionNumber(q) : null;
+    const n = printed || (x.n + k);
+    const meta = psleShotMeta({ year: x.year, paper: x.paper, n, text: psleTextOf(q) });
+    if (!meta) continue;
+    const holder = psleSlotHolder(psleAllForDetect(), meta, q.id);
+    try {
+      await psleWrite(q, meta);
+      filed.push(q.id); labels.push("Q" + n);
+      if (holder) clashes.push("Q" + n + " was already filed");
+    } catch (e) { console.warn("psle screenshot file", e); x.error = "Read, but couldn't be filed: " + ((e && e.message) || e); }
+  }
+  x.qids = filed;
+  if (!filed.length) { x.status = "failed"; x.error = x.error || "Read, but couldn't be filed — open it in 📋 Vetting"; return; }
+  x.status = "filed";
+  x.nLabel = labels.length > 1 ? labels.map(l => l.slice(1)).join(", Q") : String(x.n);
+  x.note = qs.length > 1 ? `This picture held ${qs.length} questions — filed as ${labels.join(", ")} · in 📋 Vetting` : "Filed — waiting in 📋 Vetting";
+  x.clash = clashes.join("; ");
+  if ($("page-vetting") && $("page-vetting").classList.contains("active")) renderVettingList();
+}
+function psleShotRetry(id) {
+  const x = (_psle.shots || []).find(s => s.id === id);
+  if (!x || x.status !== "failed" || !x.file) return;
+  x.status = "queued"; x.error = "";
+  psleShotPump();
+  psleTick();
+}
+function psleShotDismiss(id) {
+  const x = (_psle.shots || []).find(s => s.id === id);
+  if (!x || x.status === "reading") return;
+  try { if (x.url) URL.revokeObjectURL(x.url); } catch (e) {}
+  _psle.shots = _psle.shots.filter(s => s !== x);
+  psleTick(); const host = $("psleJobs"); if (host) host.innerHTML = psleJobsHtml();
+}
+function psleShotsClearDone() {
+  _psle.shots = (_psle.shots || []).filter(x => { if (x.status !== "filed") return true; try { if (x.url) URL.revokeObjectURL(x.url); } catch (e) {} return false; });
+  const host = $("psleJobs"); if (host) host.innerHTML = psleJobsHtml();
+}
+function pslePdfRetry(id) {
+  const p = (_psle.pdfs || []).find(x => x.id === id);
+  const st = p && pslePdfState(p);
+  if (!st || st.state !== "failed" || !st.job) return;
+  if (retryRapidJob(st.job.id)) { p.seen = false; p.at = Date.now(); toast("↻ Reading it again" + (/page\s+\d+/i.test(st.job.sub || "") ? " from where it stopped" : ""), "success"); }
+  psleTick();
+}
+function pslePdfDismiss(id) {
+  const p = (_psle.pdfs || []).find(x => x.id === id);
+  if (!p) return;
+  const st = pslePdfState(p);
+  if (st.state === "failed" && st.job) { removeRapidJob(st.job.id); updateRapidCounts(); renderVettingList(); }
+  if (st.state === "running" || st.state === "waiting") return;
+  _psle.pdfs = _psle.pdfs.filter(x => x !== p);
+  const host = $("psleJobs"); if (host) host.innerHTML = psleJobsHtml();
+  psleTick();
 }
 // ✏️ The edit dialog: one question's year, paper, number, marks, difficulty
 // and (optionally) the topic it is shown under.
@@ -59661,6 +60093,15 @@ function psleBindOnce() {
     if (act === "go-vetting") { closeOverlay("psleOverlay"); return navigateTo("vetting"); }
     if (act === "approve-vetting") return psleApproveVetting();
     if (act === "file-pick") return psleOpenFilePicker(b.dataset.year);
+    // 📥 Adding questions
+    if (act === "go-add") return psleGoAdd(b.dataset.mode || "");
+    if (act === "add-mode") { psleSetAddMode(b.dataset.mode); _psle.shotStart = ""; return psleRenderMain(); }
+    if (act === "pick") return psleOpenPicker(b.dataset.pick);
+    if (act === "pdf-retry") return pslePdfRetry(b.dataset.id);
+    if (act === "pdf-dismiss") return pslePdfDismiss(b.dataset.id);
+    if (act === "shot-retry") return psleShotRetry(b.dataset.id);
+    if (act === "shot-dismiss") return psleShotDismiss(b.dataset.id);
+    if (act === "shots-clear") return psleShotsClearDone();
     // The sheet
     const s = _psle.sel;
     if (!s) return;
@@ -59680,9 +60121,18 @@ function psleBindOnce() {
     const k = el.dataset.psleInput;
     if (k === "exam-mins") _psle.examMinutes = Math.max(5, Math.min(300, Number(el.value) || 0));
     else if (k === "with-key") _psle.withKey = !!el.checked;
-    else if (k === "import-year") _psle.importYear = el.value;
-    else if (k === "import-paper") _psle.importPaper = el.value;
-    else if (k === "import-files" && e.type === "change") { const files = Array.from(el.files || []); el.value = ""; psleImportFiles(files); }
+    else if (k === "import-year" || k === "import-paper") {
+      if (k === "import-year") _psle.importYear = el.value; else _psle.importPaper = el.value;
+      // A different paper starts counting from ITS first free number.
+      if (e.type === "change") { _psle.shotStart = ""; psleRenderMain(); }
+    }
+    else if (k === "shot-start") _psle.shotStart = el.value;
+    else if ((k === "import-files" || k === "shot-files" || k === "shot-camera") && e.type === "change") {
+      // The value is cleared BEFORE the files are queued: a picker still holding
+      // last time's file fires no change for the same file chosen twice.
+      const files = Array.from(el.files || []); el.value = "";
+      psleImportFiles(files, k === "shot-camera" ? "camera" : "pick");
+    }
     else if (k === "guess-marks" && e.type === "change") {
       const q = psleFind(el.dataset.id), m = q && psleOf(q), v = Number(el.value);
       if (!m || !(v >= 1 && v <= 6)) return;
@@ -59697,17 +60147,60 @@ function psleBindOnce() {
     host.addEventListener("change", onInput);
     host.addEventListener("input", onInput);
   });
-  // Drag a PDF onto the drop zone (or anywhere on 🛠 Manage).
+  // Files dragged ANYWHERE on the page land in the importer (a teacher only):
+  // a PDF dropped on 📅 Years used to be opened by the browser instead, which
+  // looks exactly like an upload that did nothing.
   if (page) {
-    page.addEventListener("dragover", e => { if (_psle.tab === "manage" && psleCanManage()) { e.preventDefault(); const z = page.querySelector("[data-psle-drop]"); if (z) z.classList.add("over"); } });
-    page.addEventListener("dragleave", e => { const z = page.querySelector("[data-psle-drop]"); if (z && !page.contains(e.relatedTarget)) z.classList.remove("over"); });
-    page.addEventListener("drop", e => {
-      if (_psle.tab !== "manage" || !psleCanManage()) return;
+    const hasFiles = e => { const t = e.dataTransfer && e.dataTransfer.types; return !!t && Array.from(t).includes("Files"); };
+    const zone = () => page.querySelector("[data-psle-drop]");
+    page.addEventListener("dragover", e => {
+      if (!psleCanManage() || !hasFiles(e)) return;
       e.preventDefault();
-      const z = page.querySelector("[data-psle-drop]"); if (z) z.classList.remove("over");
-      psleImportFiles(e.dataTransfer && e.dataTransfer.files);
+      try { e.dataTransfer.dropEffect = "copy"; } catch (err) {}
+      const z = zone(); if (z) z.classList.add("over");
+      page.classList.add("psle-dragging");
     });
+    page.addEventListener("dragleave", e => {
+      if (e.relatedTarget && page.contains(e.relatedTarget)) return;
+      const z = zone(); if (z) z.classList.remove("over");
+      page.classList.remove("psle-dragging");
+    });
+    page.addEventListener("drop", e => {
+      if (!psleCanManage() || !hasFiles(e)) return;
+      e.preventDefault();
+      const z = zone(); if (z) z.classList.remove("over");
+      page.classList.remove("psle-dragging");
+      psleImportFiles(e.dataTransfer.files, "drop");
+    });
+    // The drop box is a button too: Enter or Space opens the picker.
+    page.addEventListener("keydown", e => {
+      const z = e.target.closest && e.target.closest("[data-psle-drop]");
+      if (!z || (e.key !== "Enter" && e.key !== " ")) return;
+      e.preventDefault();
+      psleOpenPicker(z.dataset.pick);
+    });
+    // A page change that was held while the teacher typed lands when they leave the box.
+    page.addEventListener("focusout", () => setTimeout(() => {
+      if (!_psle.mainStale) return;
+      const a = document.activeElement;
+      if (a && a.closest && a.closest("#psleMain") && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)) return;
+      _psle.mainStale = false; psleRenderMain();
+    }, 0));
   }
+  // 📋 Paste a screenshot (or a PDF copied in Explorer / Finder) while 🛠 Manage
+  // is open. Only on this page, only for a teacher, never while a dialog is up,
+  // and never when the paste is text going into a box.
+  document.addEventListener("paste", e => {
+    if (e.defaultPrevented || !psleCanManage()) return;
+    const pg = $("page-psle");
+    if (!pg || !pg.classList.contains("active") || _psle.tab !== "manage") return;
+    if (["psleEditOverlay", "psleFileOverlay", "psleOverlay"].some(id => $(id) && $(id).classList.contains("show"))) return;
+    const items = Array.from((e.clipboardData && e.clipboardData.items) || []);
+    const files = items.filter(it => it.kind === "file").map(it => it.getAsFile()).filter(Boolean);
+    if (!files.length) return;
+    e.preventDefault();
+    psleImportFiles(files, "paste");
+  });
   const close = $("psleSheetClose");
   if (close) close.addEventListener("click", psleCloseSheet);
   if (sheet) sheet.addEventListener("click", e => { if (e.target === sheet) psleCloseSheet(); });

@@ -402,3 +402,108 @@ test('APP_VERSION was bumped for this feature', () => {
   const v = html.match(/const APP_VERSION = "v(\d+)\.(\d+)\.(\d+)/);
   assert.ok(v && (Number(v[1]) > 1 || Number(v[2]) >= 113), 'v1.113.0 or later');
 });
+
+// ---------------------------------------------------------------------
+// 📥 Adding questions — a whole PDF, or one screenshot per question (v1.114.0)
+// ---------------------------------------------------------------------
+test('psleFileKind and psleSplitFiles sort a pile into PDFs and pictures, in order', () => {
+  assert.equal(P.psleFileKind({ name: 'a.pdf', type: '' }), 'pdf');
+  assert.equal(P.psleFileKind({ name: 'x', type: 'application/pdf' }), 'pdf');
+  assert.equal(P.psleFileKind({ name: 'shot.PNG', type: '' }), 'image');
+  assert.equal(P.psleFileKind({ name: 'blob', type: 'image/jpeg' }), 'image');
+  assert.equal(P.psleFileKind({ name: 'notes.docx', type: 'application/msword' }), '');
+  assert.equal(P.psleFileKind(null), '');
+  const files = [{ name: 'q3.png', type: 'image/png' }, { name: 'p.pdf', type: 'application/pdf' }, { name: 'q4.jpg', type: 'image/jpeg' }, { name: 'x.txt', type: 'text/plain' }];
+  const s = P.psleSplitFiles(files);
+  assert.deepEqual(s.images.map(f => f.name), ['q3.png', 'q4.jpg'], 'the order picked IS the question order');
+  assert.deepEqual(s.pdfs.map(f => f.name), ['p.pdf']);
+  assert.deepEqual(s.other.map(f => f.name), ['x.txt']);
+});
+
+test('psleImportTarget believes a file named after its paper over the pickers', () => {
+  const fb = { year: '2025', paper: 'P1A' };
+  assert.deepEqual(P.psleImportTarget('PSLE 2019 Paper 2.pdf', fb, NOW), { year: '2019', paper: 'P2', fromName: true, yearFromName: true, paperFromName: true });
+  assert.equal(P.psleImportTarget('psle_2021_p1_booklet_b.pdf', fb, NOW).paper, 'P1B');
+  // "Paper 1" with no booklet is a whole Paper 1 — the booklets are worked out.
+  assert.equal(P.psleImportTarget('PSLE 2018 Paper 1.pdf', fb, NOW).paper, 'ALL');
+  // A year with no paper keeps the picker's paper.
+  assert.deepEqual(P.psleImportTarget('PSLE 2017 maths.pdf', { year: '2025', paper: 'P1B' }, NOW).paper, 'P1B');
+  // A canonical name is already filed by its own words.
+  assert.equal(P.psleImportTarget('PSLE-2016-P2 — x.pdf', fb, NOW).paper, 'P2');
+  // A name that says nothing is filed by the pickers.
+  assert.deepEqual(P.psleImportTarget('scan 3.pdf', fb, NOW), { year: '2025', paper: 'P1A', fromName: false });
+  assert.deepEqual(P.psleImportTarget('scan.pdf', { year: '2024', paper: 'ALL' }, NOW), { year: '2024', paper: 'ALL', fromName: false });
+});
+
+test('psleNextNumber offers the FIRST gap, and psleShotNumbers says what collides', () => {
+  const qs = [q('a', { year: '2019', paper: 'P2', n: 1 }), q('b', { year: '2019', paper: 'P2', n: 2 }), q('c', { year: '2019', paper: 'P2', n: 4 }),
+    q('d', { year: '2019', paper: 'P1A', n: 3 }), q('e', { year: '2018', paper: 'P2', n: 3 }), q('f', { year: 'junk', paper: 'P2', n: 3 })];
+  assert.deepEqual([...P.psleTakenNumbers(qs, '2019', 'P2', NOW)].sort(), [1, 2, 4]);
+  assert.equal(P.psleNextNumber(qs, '2019', 'P2', NOW), 3, 'the skipped Q3, not Q5');
+  assert.equal(P.psleNextNumber(qs, '2020', 'P2', NOW), 1, 'an empty paper starts at Q1');
+  const plan = P.psleShotNumbers(3, 3, P.psleTakenNumbers(qs, '2019', 'P2', NOW));
+  assert.deepEqual(plan, { numbers: [3, 4, 5], clashes: [4], next: 6 });
+  assert.deepEqual(P.psleShotNumbers(2, 'x').numbers, [1, 2], 'junk starts at 1');
+  assert.deepEqual(P.psleShotNumbers(0, 5), { numbers: [], clashes: [], next: 5 });
+  assert.equal(P.psleShotNumbers(5, 59).numbers.at(-1), 60, 'never past 60');
+});
+
+test('psleShotMeta files a screenshot with printed marks, or the paper rule marked as a guess', () => {
+  assert.deepEqual(P.psleShotMeta({ year: '2019', paper: 'P2', n: 8, text: 'Find x. [3]' }, NOW), { year: '2019', paper: 'P2', n: 8, marks: 3 });
+  assert.deepEqual(P.psleShotMeta({ year: '2019', paper: 'P2', n: 8, text: 'Find x.' }, NOW), { year: '2019', paper: 'P2', n: 8, marks: 4, marksGuess: true });
+  assert.deepEqual(P.psleShotMeta({ year: '2019', paper: 'P1A', n: 4, text: '' }, NOW), { year: '2019', paper: 'P1A', n: 4, marks: 1 });
+  assert.equal(P.psleShotMeta({ year: '1890', paper: 'P2', n: 1 }, NOW), null, 'an unreadable year files nothing');
+});
+
+test('psleSlotHolder finds who else holds a slot, and psleShotSummary counts a batch', () => {
+  const qs = [q('a', { year: '2019', paper: 'P2', n: 7 }), q('b', null)];
+  assert.equal(P.psleSlotHolder(qs, { year: '2019', paper: 'P2', n: 7 }, 'z', NOW), 'a');
+  assert.equal(P.psleSlotHolder(qs, { year: '2019', paper: 'P2', n: 7 }, 'a', NOW), '', 'a question does not clash with itself');
+  assert.equal(P.psleSlotHolder(qs, { year: '2019', paper: 'P2', n: 8 }, 'z', NOW), '');
+  const s = P.psleShotSummary([{ status: 'queued' }, { status: 'reading' }, { status: 'filed' }, { status: 'filed' }, { status: 'failed' }]);
+  assert.equal(s.busy, 2);
+  assert.equal(s.text, '1 being read · 1 waiting · 2 filed · 1 could not be read');
+  assert.equal(P.psleShotSummary(null).total, 0);
+});
+
+test('a teacher\'s page counts questions still in Vetting; a pupil\'s never does', () => {
+  const block = html.slice(html.indexOf('// 🎓 PSLE MATH — THE PAPERS PAGE'), html.indexOf('// 🎓 END PSLE MATH'));
+  assert.match(block, /function psleIndexPool\(\) \{\s*const bank = questionBank \|\| \[\];\s*if \(!psleCanManage\(\)\) return bank;/, 'a pupil is built from the bank alone');
+  assert.match(block, /psleBuildIndex\(psleIndexPool\(\)/, 'the index reads the pool');
+  assert.match(block, /e\.vetting = true/, 'vetting entries are marked');
+  assert.match(block, /filter\(e => e && !e\.vetting\)/, 'practice never serves a vetting question');
+});
+
+test('the add card: one door, visible pickers, drops anywhere, paste, and a live panel', () => {
+  const block = html.slice(html.indexOf('// 🎓 PSLE MATH — THE PAPERS PAGE'), html.indexOf('// 🎓 END PSLE MATH'));
+  // The pickers are never `hidden` (some tablets will not open one) and never inside a label.
+  assert.ok(!/<label[^>]*>[^<]*<input type="file"[^>]*hidden/.test(block), 'no label-wrapped hidden picker');
+  assert.equal((block.match(/class="psle-file-input"/g) || []).length, 3, 'PDF, screenshots and camera pickers');
+  assert.match(block, /capture="environment"/);
+  assert.match(css, /\.psle-file-input \{[^}]*opacity: 0/);
+  assert.ok(!/\.psle-file-input \{[^}]*display: none/.test(css));
+  // The drop box opens the picker; drops are taken on every tab; paste on 🛠 Manage.
+  assert.match(block, /data-psle-drop data-psle-act="pick"/);
+  assert.match(block, /page\.addEventListener\("dragover", e => \{\s*if \(!psleCanManage\(\) \|\| !hasFiles\(e\)\) return;/, 'not gated on the Manage tab any more');
+  assert.match(block, /document\.addEventListener\("paste"/);
+  assert.match(block, /_psle\.tab !== "manage"\) return;/, 'the paste is only taken on 🛠 Manage');
+  // Every route goes through the one door, which splits by file kind.
+  assert.match(block, /async function psleImportFiles\(files, how\) \{\s*if \(!psleCanManage\(\)\) return 0;\s*const split = psleSplitFiles\(files\);/);
+  for (const k of ['import-files', 'shot-files', 'shot-camera']) assert.ok(block.includes(`k === "${k}"`), k + ' is wired');
+  assert.match(block, /const files = Array\.from\(el\.files \|\| \[\]\); el\.value = "";\s*psleImportFiles\(files/, 'the value is cleared before queueing');
+  // Screenshots: numbered at QUEUE time, two at a time, filed through the ONE write.
+  assert.match(block, /const PSLE_SHOT_PAR|var PSLE_SHOT_PAR = 2/);
+  assert.match(block, /psleShotNumbers\(list\.length, start, psleShotTaken\(year, paper\)\)/);
+  assert.match(block, /startRapidJob\(x\.file, "P6", \{ release: "", source \}\)/);
+  assert.match(block, /await psleWrite\(q, meta\);/);
+  // The panel is repainted by a ticker, not once.
+  assert.match(block, /if \(busy\) _psle\.jobTimer = setTimeout\(psleTick, 1000\);/);
+  assert.match(block, /if \(!_psle\.jobTimer\) psleTick\(\);/, 'Rapid add landing a page kicks the ticker');
+});
+
+test('APP_VERSION was bumped for adding questions', () => {
+  const v = html.match(/const APP_VERSION = "v(\d+)\.(\d+)\.(\d+)/);
+  assert.ok(v && (Number(v[1]) > 1 || Number(v[2]) >= 114), 'v1.114.0 or later');
+  assert.match(html, /psle-math\.js\?v=2/);
+  assert.match(html, /psle-math\.css\?v=2/);
+});

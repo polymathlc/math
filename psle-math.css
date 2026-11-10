@@ -222,8 +222,72 @@ button.psle-action:hover:not(:disabled) { transform: translateY(-1px); box-shado
 .psle-import-row label:not(.btn) { display: flex; flex-direction: column; gap: 6px; font-size: 0.78rem; font-weight: 700; color: var(--text-muted); }
 .psle-import-row select { padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px; font: inherit; background: var(--surface); color: var(--text); min-width: 120px; }
 .psle-import-btn { cursor: pointer; }
-.psle-drop { margin-top: 14px; padding: 22px; text-align: center; border: 2px dashed var(--border); border-radius: var(--radius-lg); color: var(--text-muted); font-size: 0.88rem; transition: border-color var(--transition), background var(--transition); }
+.psle-drop {
+  margin-top: 16px; padding: 26px 22px; text-align: center; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  border: 2px dashed var(--border); border-radius: var(--radius-lg);
+  color: var(--text-muted); font-size: 0.88rem; line-height: 1.5;
+  transition: border-color var(--transition), background var(--transition), color var(--transition);
+}
+.psle-drop b { color: var(--text); font-size: 0.98rem; }
+.psle-drop:hover, .psle-drop:focus-visible { border-color: var(--primary); background: var(--primary-light); outline: none; }
 .psle-drop.over { border-color: var(--primary); background: var(--primary-light); color: var(--primary); }
+.psle-drop.over b { color: var(--primary); }
+
+/* ---- 📥 Adding questions (v1.114.0) ------------------------------------ */
+/* The pickers are VISUALLY hidden, never display:none: some tablet browsers
+   will not open a file picker that is not rendered, which is one of the ways
+   the old label-wrapped input "did nothing". */
+.psle-file-input { position: absolute !important; width: 1px; height: 1px; opacity: 0; overflow: hidden; clip: rect(0 0 0 0); pointer-events: none; }
+.psle-import { position: relative; }
+.psle-modes { display: inline-flex; flex-wrap: wrap; gap: 6px; padding: 5px; margin: 4px 0 6px; border-radius: 14px; background: var(--bg, var(--surface)); border: 1px solid var(--border); }
+.psle-mode { border: 0; background: transparent; color: var(--text-muted); font: inherit; font-size: 0.86rem; font-weight: 700; padding: 9px 16px; border-radius: 10px; cursor: pointer; transition: background var(--transition), color var(--transition); }
+.psle-mode:hover { color: var(--text); }
+.psle-mode.on { background: var(--surface); color: var(--primary); box-shadow: var(--shadow-sm); }
+.psle-import-btns { display: flex; flex-wrap: wrap; gap: 10px; margin-left: auto; }
+.psle-qnum { display: inline-flex; align-items: center; gap: 4px; font-size: 0.95rem; color: var(--text); font-weight: 800; }
+.psle-qnum input { width: 76px; padding: 9px 10px; border: 1px solid var(--border); border-radius: 10px; font: inherit; background: var(--surface); color: var(--text); }
+.psle-taken { align-self: center; font-size: 0.78rem; color: var(--text-muted); padding: 6px 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); max-width: 100%; overflow-wrap: anywhere; }
+/* 📷 is for a phone or tablet; a computer has the picker and paste. */
+@media (pointer: fine) { .psle-camera-btn { display: none; } }
+
+.psle-jobs:empty { display: none; }
+.psle-jobs { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); }
+.psle-jobs-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; font-size: 0.9rem; }
+.psle-jobs-head b { display: inline-flex; align-items: center; gap: 8px; color: var(--text); }
+.psle-jobs-links { display: flex; flex-wrap: wrap; gap: 14px; }
+.psle-job-list { display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); }
+.psle-job { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: var(--radius-lg); border: 1px solid var(--border); background: var(--surface); }
+.psle-job.ok { border-color: color-mix(in srgb, var(--accent-green, #2E7D32) 40%, var(--border)); }
+.psle-job.bad { border-color: color-mix(in srgb, var(--accent-orange, #E65100) 50%, var(--border)); background: color-mix(in srgb, var(--accent-orange, #E65100) 6%, var(--surface)); }
+.psle-job-ico { flex-shrink: 0; width: 24px; display: flex; justify-content: center; padding-top: 1px; }
+.psle-job-main { flex: 1; min-width: 0; }
+.psle-job-title { font-weight: 700; font-size: 0.9rem; color: var(--text); line-height: 1.45; overflow-wrap: anywhere; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.psle-job-title small { font-weight: 600; color: var(--text-muted); }
+.psle-job-sub { margin-top: 4px; font-size: 0.83rem; color: var(--text-muted); line-height: 1.55; overflow-wrap: anywhere; }
+.psle-job-sub .ai-fault-list { margin: 8px 0 0; }
+.psle-job-err { margin-top: 6px; color: var(--accent-orange, #E65100); }
+.psle-job-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.psle-shot-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); }
+.psle-shot { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border-radius: var(--radius-lg); border: 1px solid var(--border); background: var(--surface); min-width: 0; }
+.psle-shot img { width: 64px; height: 64px; object-fit: cover; border-radius: 10px; border: 1px solid var(--border); background: #fff; flex-shrink: 0; }
+.psle-shot-main { flex: 1; min-width: 0; }
+.psle-shot.ok { border-color: color-mix(in srgb, var(--accent-green, #2E7D32) 40%, var(--border)); }
+.psle-shot.bad { border-color: color-mix(in srgb, var(--accent-orange, #E65100) 50%, var(--border)); background: color-mix(in srgb, var(--accent-orange, #E65100) 6%, var(--surface)); }
+.psle-shot-ico { display: inline-flex; width: 20px; justify-content: center; }
+.psle-clash { display: inline-block; margin-top: 4px; color: var(--accent-orange, #E65100); font-weight: 700; }
+.psle-jobs-done { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 16px; border-radius: var(--radius-lg); background: var(--primary-light); color: var(--text); font-size: 0.88rem; line-height: 1.55; }
+.psle-jobs-done .btn { margin-left: auto; }
+#page-psle.psle-dragging .psle-drop { border-color: var(--primary); background: var(--primary-light); }
+
+/* The teacher's line in the hero, and what is still waiting in Vetting. */
+.psle-hero-admin { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 16px; }
+.psle-hero-note { display: inline-flex; align-items: center; gap: 8px; font-size: 0.84rem; color: var(--text-muted); }
+button.psle-hero-note { color: var(--primary); }
+.psle-vet-tag { display: inline-block; margin-left: 6px; padding: 2px 8px; border-radius: 999px; font-size: 0.7rem; font-weight: 700; vertical-align: middle; color: var(--accent-orange, #E65100); background: color-mix(in srgb, var(--accent-orange, #E65100) 12%, transparent); }
+.psle-pick-wait { font-size: 0.74rem; font-weight: 700; color: var(--accent-orange, #E65100); }
+.psle-wait-sub { display: block; font-size: 0.72rem; font-weight: 600; color: var(--accent-orange, #E65100); margin-top: 2px; }
+.psle-empty-btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 4px; }
 .psle-running { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 0.86rem; color: var(--text-muted); }
 .psle-detect { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin: 8px 0; max-height: 520px; overflow: auto; }
 .psle-detect-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }

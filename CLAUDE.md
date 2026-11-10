@@ -42,6 +42,34 @@ the `#psleTimer` pill. The Mathematics twin of the Science portal's 🎓 PSLE Pa
   (real styles + markup + the shipped block, synthetic questions, computer and phone). CI:
   `.github/workflows/psle-math.yml`.
 
+### 📥 Adding questions — a whole PDF, or one screenshot per question (v1.114.0)
+
+`psleAddCardHtml` / `psleImportFiles` (THE ONE DOOR) / `psleImportPdfs` / `psleImportShots` / `psleShotRun` /
+`psleShotPump` / `pslePdfState` / `psleJobsHtml` / `psleTick` / `psleIndexPool`, and in `psle-math.js`
+`psleFileKind`, `psleSplitFiles`, `psleImportTarget`, `psleTakenNumbers`, `psleNextNumber`, `psleShotNumbers`,
+`psleShotMeta`, `psleSlotHolder`, `psleShotSummary`.
+
+Reported as "the upload of PDF doesn't work". It did: the paper was read and filed, and the questions sat in
+📋 Vetting while the page still said **No PSLE papers loaded yet**.
+- **A teacher's page counts filed questions still in Vetting** (`psleIndexPool`), badged 📋 In Vetting, with a
+  count in the hero and on each year. A pupil's index is the bank alone. Practice drops vetting entries and
+  says so.
+- **The progress is live and on the page** (`psleTick`, every second while anything runs). It shows the
+  page being read, the questions in so far and a failure with `aiFailureHtml` plus ↻ Retry (a PDF resumes
+  where it stopped). Before, it was painted once, 300 ms after the drop.
+- **The pickers are visually hidden, never `hidden`**, and opened with `.click()`. The drop box is a button,
+  a file dropped on ANY tab is imported rather than opened by the browser, and a paste works on 🛠 Manage.
+- **A PDF named after its paper** ("PSLE 2019 Paper 2.pdf") is filed under that year and paper whatever the
+  pickers say (`psleImportTarget`).
+- **📸 Screenshots: one question each, numbered when QUEUED.** "Starting at Q7" gives 7, 8, 9… in the order
+  added, never in finish order. The start defaults to the first gap (`psleNextNumber`, counting shots in
+  flight), and the next batch carries on. Two are read at a time through `startRapidJob(file, "P6",
+  { release: "", source })`. Each is filed through `psleWrite` the moment it lands. A picture holding several
+  printed questions keeps their printed numbers. A clash is confirmed before reading and flagged after. A
+  failure's red card is moved from Vetting onto this panel, which carries the ↻ Retry.
+- Run `PDFJS_DIR=…/pdfjs-dist/build PLAYWRIGHT_MODULE=… node tools/psle-math-upload-browser.mjs`. It loads
+  the REAL page with Firebase stand-ins, a scripted AI and a real two-page PDF.
+
 ## 🚦 Traffic lights on the vetting cards, and 🔍± sizes in the 👁 peek (v1.111.0)
 
 `aicRunCheck` / `aicEntryFromResult` / `aicAppend` / `aicHistory` / `aicLightOf` / `aicCardHtml` /
