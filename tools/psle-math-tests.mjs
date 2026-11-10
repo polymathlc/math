@@ -505,5 +505,19 @@ test('APP_VERSION was bumped for adding questions', () => {
   const v = html.match(/const APP_VERSION = "v(\d+)\.(\d+)\.(\d+)/);
   assert.ok(v && (Number(v[1]) > 1 || Number(v[2]) >= 114), 'v1.114.0 or later');
   assert.match(html, /psle-math\.js\?v=2/);
-  assert.match(html, /psle-math\.css\?v=2/);
+  assert.match(html, /psle-math\.css\?v=[2-9]/);
+});
+
+// ✏️ v1.116.0 — editing a PSLE question from the page, and back again.
+test('✏️ every PSLE row opens the REAL editor and comes back to the PSLE view', () => {
+  assert.match(html, /data-psle-act="edit-q"/, 'a ✏️ on the row');
+  assert.match(html, /if \(act === "edit-q"\) return psleEditQuestion\(b\.dataset\.id, psleEditScopeIds\(b\)\);/);
+  assert.match(html, /loadQuestionIntoEditor\(stash\);\s+\/\/ clears qEditReturn and psleEditCtx[^\n]*\n\s+qEditReturn = \{ page: "psle", psle: view, go: 0 \};/, 'the return is set AFTER the loader clears it');
+  assert.match(html, /if \(back && back\.page === "psle"\) \{ psleReturnFromEditor\(back\); return; \}/, 'qEditLeave goes back to the PSLE page');
+  assert.match(html, /var psleEditCtx = null;/, 'var — resetEditor runs during module evaluation');
+  assert.match(html, /psleEditCtx = null; psleEditBarSync\(\);   \/\/ 🎓/, 'resetEditor clears it');
+  assert.match(html, /\/\/ …and the 🎓 PSLE trip[^\n]*\n\s+psleEditCtx = null; psleEditBarSync\(\);/, 'loadQuestionIntoEditor clears it');
+  assert.match(html, /if \(psleEditVettingActive\(\)\) \{ psleEditSaveVetting\(\); return; \}/, 'a vetting question is saved back to vetting');
+  assert.match(html, /id="psleEditBar"/);
+  assert.match(css, /\.psle-editbar \{/);
 });
