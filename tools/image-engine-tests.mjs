@@ -312,14 +312,22 @@ await run('badge', async () => {
   ok('the dialog saves the picture engine', /localStorage\.setItem\(AI_ENGINE_STORE\.imageEngine, imgEng\);/.test(src));
   ok('the store carries the two new slots', /imageEngine: 'sq_ai_image_engine', imageGen: 'sq_openai_image_gen'/.test(src));
   ok('no API key is committed', !/sk-[A-Za-z0-9]{20,}/.test(src) && !/sk-[A-Za-z0-9]{20,}/.test(fnsrc));
-  ok('the version was bumped', /const APP_VERSION = "v1\.72\./.test(src));
+  ok('the version was bumped', /const APP_VERSION = "v1\.(1[1-9]\d|[2-9]\d\d)\./.test(src));
+  // 🖼 v1.115.0 — the picture engine follows the Science portal's centre-wide field.
+  ok('the picture engine is read from the Science portal\'s config/admin field', /const AI_IMAGE_SHARED_DOC = \['config', 'admin'\];/.test(src) && /const AI_IMAGE_SHARED_FIELD = 'aiImageEngine';/.test(src));
+  ok('an unset shared field is ChatGPT Images', /return v === 'openai' \|\| v === 'gemini' \? v : 'openai';/.test(src));
+  ok('the shared write is a MERGE (that doc is Science\'s bank pointer)', /aiImageSharedSave[\s\S]{0,500}\{ merge: true \}/.test(src));
+  ok('the shared setting is loaded on sign-in', /syncAiEngineConfig[\s\S]{0,900}aiImageSharedLoad\(\)/.test(src));
+  ok('the dialog writes the shared picture setting', /await aiImageSharedSave\(imgEng\)/.test(src));
+  ok('a stale device "gemini" is lifted once', /_aiImageEngineLiftOnce[\s\S]{0,500}=== 'gemini'\) localStorage\.setItem\(AI_ENGINE_STORE\.imageEngine, 'openai'\)/.test(src));
+  ok('the shared value is cleared on an account change', /sharedAiEngine = null;\n  _aiSharedImageEngine = null;/.test(src));
 }
 
 /* ---------- the server ---------- */
 {
   ok('the callable exists and carries the OpenAI secret', /export const openAiImage = onCall\(OPENAI_OPTS/.test(fnsrc));
   ok('the server\'s default is 2.6 Flare', /const OPENAI_IMAGE_MODEL = "gpt-image-2\.6-flare";/.test(fnsrc));
-  ok('the server counts on its OWN throttle fields', /day: "openAiImgDay", count: "openAiImgCount", last: "lastOpenAiImgAt"/.test(fnsrc) && /reserveBackupSlot\(auth\.uid, OPENAI_IMAGE_SLOT\)/.test(fnsrc));
+  ok('the server counts on its OWN throttle fields', /day: "openAiImgDay", count: "openAiImgCount", last: "lastOpenAiImgAt"/.test(fnsrc) && /reserveBackupSlot\(auth\.uid, OPENAI_IMAGE_SLOT(, auth)?\)/.test(fnsrc));
   ok('a missing key is named as a deploy step', /openAiImage[\s\S]{0,1500}failed-precondition", "No OpenAI key is configured on the server\."/.test(fnsrc));
   ok('several references go up as image[], and input_fidelity is NEVER sent — the 2.5 family refuses it', /refs\.length > 1 \? "image\[\]" : "image"/.test(fnsrc) && !/input_fidelity = /.test(fnsrc) && !/OPENAI_IMAGE_FIDELITY\b/.test(fnsrc));
   ok('…and "auto" is never sent as a size word', /if \(size !== "auto"\) fields\.size = size;/.test(fnsrc) && /if \(size !== "auto"\) bare\.size = size;/.test(fnsrc));

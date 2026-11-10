@@ -7519,6 +7519,8 @@ async function syncAiEngineConfig() {
     const e = data && data.engine;
     sharedAiEngine = AI_TEXT_ENGINES.includes(e) && (data.updatedBy || data.modelPolicyVersion || e !== 'gemini') ? e : AI_TEXT_ENGINE_DEFAULT;
   } catch (e) { console.warn('Using the default AI policy until the shared setting is available:', e); }
+  // 🖼 …and the centre's PICTURE engine, the field the Science portal reads.
+  try { if (typeof aiImageSharedLoad === 'function') await aiImageSharedLoad(); } catch (e) { /* the device setting stands */ }
 }
 function getOpenAiKey() { try { return (localStorage.getItem(AI_ENGINE_STORE.key) || '').trim(); } catch (_) { return ''; } }
 function getOpenAiModel() { try { return localStorage.getItem(AI_ENGINE_STORE.model) || OPENAI_DEFAULT_MODEL; } catch (_) { return OPENAI_DEFAULT_MODEL; } }
@@ -7935,11 +7937,65 @@ function openAiImageModelOptionsHtml(selected) {
 /* ── WHICH ENGINE DRAWS — its own setting ──────────────────────────────── */
 const AI_IMAGE_ENGINES = ['openai', 'gemini'];
 const AI_IMAGE_ENGINE_DEFAULT = 'openai';
-/* This app has no centre-wide engine document (see the Science portal for the
-   one that does), so the shared slot is always null here and the device's own
-   setting is what stands. The name is kept so the block reads the same in all
-   three portals. */
+/* 🖼 THE PICTURE ENGINE IS THE CENTRE'S, AND IT IS THE SCIENCE PORTAL'S
+   SETTING (v1.115.0). Until v1.114.0 this slot was always null here, so the
+   only thing deciding who drew a Maths picture was `sq_ai_image_engine` in
+   THIS BROWSER — a slot the four portals share on one origin, which an old
+   build or one press of the Gemini radio years ago could have left on
+   "gemini". The Science portal ignores that slot whenever it can read the
+   centre-wide `aiImageEngine` on `config/admin` (unset = ChatGPT Images), so
+   the same laptop drew Science pictures with ChatGPT Images 2.6 and Maths
+   pictures with Gemini. Both apps share one Firebase project, so Maths now
+   reads THE SAME FIELD on THE SAME DOCUMENT (`aiImageSharedLoad`), and the
+   AI Engine dialog writes it there with a MERGE (`aiImageSharedSave`) — never
+   a plain set: that document is the Science portal's bank pointer as well.
+   A read that fails leaves this null and the device setting stands, after
+   the one-time lift below has moved a stale "gemini" off it. */
+const AI_IMAGE_SHARED_DOC = ['config', 'admin'];
+const AI_IMAGE_SHARED_FIELD = 'aiImageEngine';
 let _aiSharedImageEngine = null;
+let _aiSharedImageWhy = '';
+/* What the shared document says, as an engine. An UNSET or unreadable field is
+   ChatGPT Images — the Science portal's rule word for word — so a centre that
+   never opened either dialog draws with the 2.6 models everywhere. */
+function aiImageFromSharedDoc(d) {
+  const v = d ? d[AI_IMAGE_SHARED_FIELD] : null;
+  return v === 'openai' || v === 'gemini' ? v : 'openai';
+}
+async function aiImageSharedLoad() {
+  try {
+    const snap = await getDoc(doc(db, AI_IMAGE_SHARED_DOC[0], AI_IMAGE_SHARED_DOC[1]));
+    _aiSharedImageEngine = aiImageFromSharedDoc(snap.exists() ? snap.data() : null);
+    _aiSharedImageWhy = '';
+  } catch (e) {
+    // Refused or offline: the device setting carries on, and the dialog says so.
+    _aiSharedImageEngine = null;
+    _aiSharedImageWhy = String((e && e.message) || e || '');
+  }
+  return _aiSharedImageEngine;
+}
+async function aiImageSharedSave(engine) {
+  const v = engine === 'gemini' ? 'gemini' : 'openai';
+  await setDoc(doc(db, AI_IMAGE_SHARED_DOC[0], AI_IMAGE_SHARED_DOC[1]), {
+    [AI_IMAGE_SHARED_FIELD]: v,
+    aiImageEngineAt: new Date().toISOString(),
+    aiImageEngineBy: (currentUser && currentUser.email) || ''
+  }, { merge: true });
+  _aiSharedImageEngine = v;
+  return v;
+}
+/* A "gemini" left in THIS BROWSER by an earlier build is lifted to ChatGPT
+   Images ONCE per device — the same one-shot rule as the chat model's lift.
+   The flag is what lets a deliberate Gemini pick made after today stick. */
+const AI_IMAGE_ENGINE_GEN = 'images26-follow-science';
+const AI_IMAGE_ENGINE_GEN_KEY = 'mathAiImageEngineGen';
+(function _aiImageEngineLiftOnce() {
+  try {
+    if (localStorage.getItem(AI_IMAGE_ENGINE_GEN_KEY) === AI_IMAGE_ENGINE_GEN) return;
+    localStorage.setItem(AI_IMAGE_ENGINE_GEN_KEY, AI_IMAGE_ENGINE_GEN);
+    if ((localStorage.getItem(AI_ENGINE_STORE.imageEngine) || '') === 'gemini') localStorage.setItem(AI_ENGINE_STORE.imageEngine, 'openai');
+  } catch (e) { /* private browsing: nothing stored, nothing to lift */ }
+})();
 /* A REFUSAL IS REMEMBERED FOR AI_DOWN_MS, or a batch of two hundred card
    pictures pays for the same failed server call on every one of them before
    falling back on every one of them. The route goes to the BACK of the list,
@@ -8278,6 +8334,7 @@ function imageRouteReport() {
       ? 'The server image route is not switched on yet — the openAiImage function has not been deployed, or OPENAI_API_KEY has not been set. Until then ChatGPT Images needs a key in this browser. (' + _aiWhy.imgServer + ')'
       : 'The server image route refused a moment ago and is being skipped for a few minutes: ' + _aiWhy.imgServer);
   }
+  if (!_aiSharedImageEngine && _aiSharedImageWhy) notes.push('The centre-wide picture setting (shared with Science) could not be read, so this browser\'s own choice is being used: ' + _aiSharedImageWhy);
   if (aiEngineIsDown('imgKey') && _aiWhy.imgKey) notes.push('The ChatGPT key in this browser was refused for pictures: ' + _aiWhy.imgKey);
   if (aiEngineIsDown('imgGemini') && _aiWhy.imgGemini) notes.push('The Gemini image model refused a moment ago and is being skipped for a few minutes: ' + _aiWhy.imgGemini);
   order.forEach(r => {
@@ -10987,6 +11044,7 @@ onAuthStateChanged(auth, async (user) => {
   studentQuestionHistory.close(); _studentHistoryLoading = null; _practicePresentation = null;
   currentUser = null;
   sharedAiEngine = null;
+  _aiSharedImageEngine = null;
   ++aiEngineConfigEpoch;
   hadesMathBeta.close();
   pirateRiftPortal.close();
@@ -12592,6 +12650,12 @@ async function saveAiEngineSettings() {
     sharedAiEngine = eng;
     sharedSaved = true;
   } catch (e) { console.warn('Shared engine setting unavailable; saving this browser’s preference:', e); sharedAiEngine = eng; }
+  // 🖼 The picture engine is written where the Science portal reads it, so the
+  // two apps cannot draw with different models again. A refusal leaves the
+  // shared value as it was and this browser's own setting is saved below.
+  let imgShared = false;
+  try { await aiImageSharedSave(imgEng); imgShared = true; }
+  catch (e) { console.warn('Shared picture setting unavailable; saving this browser’s preference:', e); _aiSharedImageEngine = null; }
   try {
     localStorage.setItem(AI_ENGINE_STORE.engine, eng);
     localStorage.setItem(AI_ENGINE_STORE.model, model);
@@ -12610,7 +12674,7 @@ async function saveAiEngineSettings() {
   // and do this again in Science, English and Chinese.
   const what = eng === "openai" ? `ChatGPT (${model})` : eng === "kimi" ? `Kimi (${kimiModel})` : "Gemini";
   const pics = imgEng === "gemini" ? "Gemini image model" : `ChatGPT Images (${imageModel})`;
-  toast(`AI engine set to ${what}, pictures by ${pics} — ${sharedSaved ? "shared with signed-in devices" : "saved in this browser"}`, "success");
+  toast(`AI engine set to ${what}, pictures by ${pics} — ${sharedSaved ? "shared with signed-in devices" : "saved in this browser"}${imgShared ? " (pictures follow the same setting as Science)" : ""}`, "success");
 }
 $("navAiEngine").addEventListener("click", openAiEngineSettings);
 $("saveAiEngineBtn").addEventListener("click", saveAiEngineSettings);
@@ -37374,7 +37438,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.114.0 · 2026-11-10";
+const APP_VERSION = "v1.115.0 · 2026-11-11";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)

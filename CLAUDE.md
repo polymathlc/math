@@ -2944,6 +2944,26 @@ edit, search, mark against or cross-check.
   to find the (a) (b) part markers, and a cell beginning "(a)" is not a part.
 - Run **`node tools/table-block-tests.mjs`** after touching any of it.
 
+## 🖼 Maths draws with the SAME picture engine as Science (v1.115.0)
+
+`AI_IMAGE_SHARED_DOC` / `AI_IMAGE_SHARED_FIELD` / `aiImageFromSharedDoc` / `aiImageSharedLoad` /
+`aiImageSharedSave` / `_aiImageEngineLiftOnce` (search `THE PICTURE ENGINE IS THE CENTRE'S`).
+
+Reported as "why is maths using Gemini for image generation; it should use the same models as /cer".
+`_aiSharedImageEngine` was always null here, so the only thing choosing who drew a Maths picture was
+`sq_ai_image_engine` in the browser — a slot the four portals share on one origin, and one an old build
+or an old Gemini pick could have left on "gemini". The Science portal ignores that slot whenever it can
+read the centre-wide `aiImageEngine` on `config/admin` (unset = ChatGPT Images), so the same laptop drew
+Science pictures with ChatGPT Images 2.6 and Maths pictures with Gemini.
+- **Maths reads the same field on the same document**, on sign-in (`syncAiEngineConfig`), and the AI
+  Engine dialog writes it there with a **MERGE** — `config/admin` is the Science portal's bank pointer
+  too, so a plain set would take `uid` off it. Unset or unreadable = ChatGPT Images.
+- A read that fails leaves the shared value null and the device setting stands; the dialog's route
+  report says the shared setting could not be read.
+- A device `gemini` is lifted to ChatGPT Images ONCE (`mathAiImageEngineGen`), so a deliberate Gemini
+  pick made afterwards sticks.
+- It is cleared on every account change. Run `node tools/image-engine-tests.mjs`.
+
 ## 🖼 ChatGPT Images 2.6 — every picture moves up a generation (v1.112.0)
 
 OpenAI released Images 2.6 on 4–5 November 2026 with two API models,
