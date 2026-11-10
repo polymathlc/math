@@ -1,0 +1,38 @@
+name: Explanation apps checks
+on:
+  pull_request:
+    paths: ['index.html', 'explanation-apps.js', 'functions/index.js', 'student-question-history.js', 'tools/explanation-apps-*.mjs', '.github/workflows/explanation-apps.yml']
+  push:
+    branches: [main]
+    paths: ['index.html', 'explanation-apps.js', 'functions/index.js', 'student-question-history.js', 'tools/explanation-apps-*.mjs', '.github/workflows/explanation-apps.yml']
+permissions:
+  contents: read
+jobs:
+  explanation-apps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax of the helper and the functions
+        run: |
+          node --check explanation-apps.js
+          node --check functions/index.js
+      - name: The pure half, the wiring and the server's copy
+        run: node --test tools/explanation-apps-tests.mjs
+      - name: Install browser
+        run: |
+          npm install --prefix /tmp/xa --no-audit --no-fund playwright@1.62.1
+          /tmp/xa/node_modules/.bin/playwright install --with-deps chromium
+      - name: The real page — teacher, sandbox, pupil, phone, AI
+        env:
+          PLAYWRIGHT_MODULE: /tmp/xa/node_modules/playwright/index.mjs
+        run: node tools/explanation-apps-browser.mjs /tmp/xa-shots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: explanation-apps-screens
+          path: /tmp/xa-shots
+          retention-days: 7

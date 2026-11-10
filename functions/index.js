@@ -746,6 +746,41 @@ function cleanVideoOverlays(list) {
   }).filter(Boolean);
 }
 
+// 🧩 Explanation apps (v1.117.0): small interactive pages a teacher attaches to
+// a question. They live in the PRIVATE key half (they usually solve the
+// question), so a pupil only ever receives them here, after their answer is in.
+// The limits match explanation-apps.js on the page; an app over a limit is
+// DROPPED, never cut, because half a page of HTML is a broken page. Only the
+// four fields the viewer needs leave the server: never the brief or the source.
+const EXPLANATION_APPS_MAX = 3;
+const EXPLANATION_APP_HTML_MAX = 300000;
+const EXPLANATION_APPS_TOTAL_MAX = 600000;
+const WORKSHEET_APPS_BUDGET = 5000000;
+function cleanExplanationApps(list, budget) {
+  if (!Array.isArray(list)) return [];
+  let room = Math.min(EXPLANATION_APPS_TOTAL_MAX, Number.isFinite(budget) ? budget : EXPLANATION_APPS_TOTAL_MAX);
+  const out = [];
+  const seen = new Set();
+  for (const raw of list) {
+    if (out.length >= EXPLANATION_APPS_MAX) break;
+    if (!raw || typeof raw !== "object") continue;
+    const html = typeof raw.html === "string" ? raw.html : "";
+    if (!html.trim() || html.length > EXPLANATION_APP_HTML_MAX || html.length > room) continue;
+    let id = /^xa_[a-z0-9_]{4,40}$/.test(String(raw.id || "")) ? String(raw.id) : "";
+    if (!id || seen.has(id)) id = `xa_srv${out.length}_${Math.random().toString(36).slice(2, 8)}`;
+    seen.add(id);
+    const h = Math.round(Number(raw.height));
+    out.push({
+      id,
+      title: cleanText(raw.title, 120) || "Explore this question",
+      html,
+      height: Number.isFinite(h) ? Math.min(900, Math.max(240, h)) : 560
+    });
+    room -= html.length;
+  }
+  return out;
+}
+
 // Fetches the teacher's answer-key image so it can be attached privately.
 async function answerKeyMedia(q) {
   const url = String((q && q.answerKeyImageUrl) || "").trim();
@@ -1182,6 +1217,7 @@ async function markKnownQuestion({ uid, isAdmin, isGuest = false, displayName = 
     totals,
     videoExplanationUrl: cleanText(q.videoExplanationUrl, 800),
     videoOverlays: cleanVideoOverlays(q.videoOverlays),
+    explanationApps: cleanExplanationApps(q.explanationApps),
     answerKeyImageUrl: publicAnswerKeyImageUrl(q),
     // Annotation questions: the correctly annotated diagram, released only now
     // that the student's work is in. It is never in a doc they can read.
@@ -2322,6 +2358,9 @@ export const getWorksheetSolutions = onCall(LIGHT_OPTS, async (request) => {
   }
 
   const solutions = [];
+  // Apps are whole HTML pages: one sheet's worth is held under a budget so a
+  // forty-question sheet cannot push the reply past what a callable may send.
+  let appBudget = WORKSHEET_APPS_BUDGET;
   ids.forEach((id, i) => {
     const data = keySnaps[i].exists ? (keySnaps[i].data() || {}) : legacy[id];
     if (!data) return;
@@ -2342,7 +2381,12 @@ export const getWorksheetSolutions = onCall(LIGHT_OPTS, async (request) => {
       videoExplanationUrl: cleanText(data.videoExplanationUrl, 800),
       videoOverlays: cleanVideoOverlays(data.videoOverlays),
       correctOption: typeof data.correctOption === "number" ? data.correctOption : null,
-      annotationAnswers
+      annotationAnswers,
+      explanationApps: (() => {
+        const apps = cleanExplanationApps(data.explanationApps, appBudget);
+        apps.forEach(a => { appBudget -= a.html.length; });
+        return apps;
+      })()
     });
   });
   return { shared: true, solutions };
