@@ -2,6 +2,34 @@
 
 Guidance for Claude when working in this repo.
 
+## 🧩 Explanation apps — shown to a pupil after their answer is marked (v1.117.0)
+
+`explanation-apps.js` (classic script, `window.ExplanationApps`: `fromCode`, `fromFile`, `fromModelText`,
+`clean`, `forPupil`, `problems`, `frameHtml`, `cardHtml`, `revealHtml`, `feedbackBlockHtml`, …), and in
+`index.html` the block `🧩 EXPLANATION APPS` (`xaEditorSet` / `xaEditorCollect` / `xaShowReveal` / `xaReadFile` /
+`xaRunAi` / `xaUseChartApp` / `xaWire`), `#xaField` in the question editor, `#xaRevealBlock` in the result, and
+`cleanExplanationApps` in `functions/index.js`. The Maths twin of the Science portal's 🧩 Interactive app block.
+
+- **A question FIELD, `q.explanationApps`** (up to 3 pages, 300 KB each, 600 KB together), never a block: blocks
+  are printed, previewed, sent to the marker and copied into games, and an app is none of those.
+- **It is in `QUESTION_KEY_FIELDS`** (the admin-only half), because an app that walks through the question ends
+  on its answer. A pupil gets it ONLY from `markAttempt` / `markFromPhoto` (`markKnownQuestion`) and from
+  `getWorksheetSolutions`, through `cleanExplanationApps` (id, title, html, height — never the brief or model).
+  **A change there needs the functions deploy the merge triggers.** Its limits must equal the page's (tested).
+- **Four ways in, one list**: ⌨ paste (a whole page, a piece of HTML, or bare JavaScript), 📂 upload an .html
+  file (picker or dropped on the code box; a PDF/picture is refused by name), ✨ build with AI (the dependency
+  chart's `qcAppPrompt` + `qcRequestApp`, told the question as it is in the editor now), 🧩 copy a chart's app.
+- **One sealed frame everywhere**: `sandbox="allow-scripts"`, never `allow-same-origin`, inside a CSP that blocks
+  every request (the four portals share one origin and the ChatGPT key in localStorage). The browser harness
+  proves fetch and image beacons are blocked and the frame cannot read the page or its storage.
+- Shown in `showResult` (after marking), 📸 Snap & Mark, the worksheet overview's solutions, and the admin
+  preview. `hideResult` empties it, so the app stops with its result. State is `var` (`resetEditor` runs at
+  module evaluation); the chart constants are only read at call time.
+- `collectQuestion` carries the field; `resetEditor`, `loadQuestionIntoEditor` and `qcSpawnEditor` set it;
+  `CPB_EDITOR_FIELDS` and the PSLE vetting save carry or drop it. QR printing of apps is not ported yet.
+- Run `node --test tools/explanation-apps-tests.mjs` and
+  `PLAYWRIGHT_MODULE=… node tools/explanation-apps-browser.mjs` (CI: `.github/workflows/explanation-apps.yml`).
+
 ## 🎓 PSLE Papers — every past PSLE Maths paper by year and topic (v1.113.0)
 
 `psle-math.js` (pure engine, ES module: `psleClean`, `psleDetect`, `psleBuildIndex`, `psleTrends`,

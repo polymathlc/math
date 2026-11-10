@@ -999,7 +999,7 @@ html.app-share-open, html.app-share-open body { overflow: hidden; }
 .final-answer label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; }
 .final-answer input { width: 100%; padding: 11px 13px; font-size: 1.05rem; font-family: 'Space Grotesk', sans-serif; border: 1.5px solid var(--border); border-radius: var(--radius-md); background: var(--surface-alt); }
 .final-answer input:focus { outline: none; border-color: var(--border-focus); background: #fff; }
-.q-nav { display: flex; gap: 10px; margin-top: 16px; }
+.q-nav { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }   /* wraps: six buttons ran 128px off a phone */
 .empty-note { text-align: center; padding: 40px 20px; color: var(--text-muted); }
 
 /* ========== WORKING PAD ========== */
@@ -1252,6 +1252,63 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .feedback-block .answer-key-text { white-space: pre-line; }
 .feedback-block ul { margin: 4px 0 0 18px; }
 .feedback-block li { font-size: 0.92rem; margin-bottom: 4px; }
+/* 🧩 EXPLANATION APPS — the pupil's card after marking, and the editor's card.
+   The frame is ALWAYS sandbox="allow-scripts" with no allow-same-origin and a
+   CSP that blocks the network (explanation-apps.js); the CSS only sizes it. */
+.xa-reveal { background: #fbf7ef; border: 1px solid #ecdcc0; border-radius: var(--radius-md); padding: 16px 18px 6px; }
+.xa-reveal h4 { color: #a4691f; }
+.xa-intro { font-size: 0.9rem; line-height: 1.55; color: var(--text-muted); margin: 0 0 12px; max-width: 640px; }
+.xa-note { font-size: 0.84rem; line-height: 1.5; color: #8a5a17; background: #fff3dc; border: 1px dashed #e5c48d; border-radius: 10px; padding: 8px 12px; margin: 0 0 12px; }
+.xa-card { background: #fff; border: 1px solid var(--border); border-radius: 12px; margin: 0 0 14px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+.xa-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-bottom: 1px solid var(--border); background: #fffdf8; }
+.xa-card-title { font-weight: 700; font-size: 0.95rem; color: var(--text); }
+.xa-card-tools { display: flex; gap: 6px; flex-wrap: wrap; }
+.xa-tool { appearance: none; border: 1px solid var(--border); background: #fff; color: var(--text); border-radius: 999px; padding: 5px 12px; font-size: 0.8rem; cursor: pointer; font-family: inherit; min-height: 32px; }
+.xa-tool:hover { border-color: #d9b878; background: #fff8ea; }
+.xa-tool[aria-pressed="true"] { background: #fff3dc; border-color: #d9b878; }
+.xa-frame-wrap { background: #fff; }
+.xa-frame { display: block; width: 100%; border: 0; background: #fff; }
+.xa-card.is-big .xa-frame { height: min(86vh, 1100px) !important; }
+.wv-sol-body .xa-reveal { margin-top: 12px; }
+/* The editor's card */
+.xa-field .xa-empty { font-size: 0.86rem; color: var(--text-muted); padding: 12px 14px; border: 1px dashed var(--border); border-radius: 12px; margin-bottom: 10px; line-height: 1.55; }
+.xa-edit { border: 1px solid var(--border); border-radius: 14px; background: #fff; padding: 14px 16px 16px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04); }
+.xa-edit-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+.xa-edit-num { font-family: 'Space Mono', monospace; font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: #a4691f; background: #fff3dc; border-radius: 999px; padding: 4px 10px; flex: none; }
+.xa-edit-head .xa-title-in { flex: 1 1 220px; min-width: 0; }
+.xa-edit-head .xa-height-in { width: 92px; flex: none; }
+.xa-edit-head label.xa-mini { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-muted); }
+.xa-edit-actions { display: flex; gap: 6px; flex: none; margin-left: auto; }
+.xa-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.xa-tab { appearance: none; border: 1px solid var(--border); background: var(--bg, #fafafa); border-radius: 999px; padding: 6px 14px; font-size: 0.82rem; cursor: pointer; font-family: inherit; color: var(--text); }
+.xa-tab.on { background: #fff3dc; border-color: #d9b878; font-weight: 700; }
+.xa-pane[hidden] { display: none !important; }
+.xa-code { width: 100%; min-height: 180px; font-family: 'Space Mono', ui-monospace, monospace; font-size: 0.78rem; line-height: 1.5; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; resize: vertical; background: #fcfcfc; }
+.xa-code.xa-drop-on { border-color: #d9b878; background: #fff8ea; outline: 2px dashed #e5c48d; outline-offset: 2px; }
+.xa-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+.xa-status { font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; margin-top: 8px; min-height: 1.2em; }
+.xa-status.ok { color: var(--accent-green, #2E7D32); }
+.xa-status.warn { color: #a4691f; }
+.xa-status.err { color: var(--accent-red, #c62828); }
+.xa-status.busy { color: var(--text); }
+.xa-preview { margin-top: 12px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: #fff; }
+.xa-preview-head { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; font-size: 0.8rem; color: var(--text-muted); padding: 8px 12px; border-bottom: 1px solid var(--border); background: #fffdf8; }
+.xa-preview-stage { display: flex; justify-content: center; background: #f4f4f4; }
+.xa-preview-stage > .xa-frame { background: #fff; }
+.xa-preview.is-phone .xa-preview-stage > .xa-frame { max-width: 390px; border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+.xa-gen-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-top: 10px; }
+.xa-gen-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; color: var(--text-muted); }
+.xa-brief { width: 100%; min-height: 110px; font-size: 0.86rem; line-height: 1.5; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; resize: vertical; }
+.xa-chart-list { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.xa-chart-row { display: flex; gap: 10px; align-items: center; justify-content: space-between; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; flex-wrap: wrap; }
+.xa-chart-row b { font-size: 0.9rem; }
+.xa-chart-row .xa-chart-meta { font-size: 0.78rem; color: var(--text-muted); }
+.xa-file { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+@media (max-width: 600px) {
+  .xa-edit { padding: 12px; }
+  .xa-edit-actions { margin-left: 0; }
+  .xa-reveal { padding: 14px 12px 4px; }
+}
 .video-explanation-frame { position: relative; width: 100%; aspect-ratio: 16 / 9; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: #000; margin-top: 8px; }
 .video-explanation-frame iframe, .video-explanation-frame video { display: block; width: 100%; height: 100%; border: 0; background: #000; }
 
@@ -5056,6 +5113,12 @@ body.role-employee #emailBellBtn { display: none !important; }
      and can find its own artwork from its own URL. If it fails to load, every
      print falls back to the plain cover (wsCoverPlainHtml). -->
 <script src="worksheet-cover.js?v=1"></script>
+<!-- 🧩 Explanation apps (window.ExplanationApps): the pure half — cleaning a
+     stored list, turning pasted / uploaded code into a page, and the sealed
+     frame every app runs in. A classic script for the same reason as the cover:
+     resetEditor() runs while the module is still being evaluated and draws the
+     editor's 🧩 card, so the helpers must already be there. -->
+<script src="explanation-apps.js?v=1.117.0"></script>
 </head>
 <body>
 
@@ -5381,6 +5444,10 @@ arcadeSyncOpen();
               </div>
             </div>
             <div class="feedback-block" id="videoExplanationBlock" style="display:none;"><h4>Video explanation</h4><div id="videoExplanationEmbed"></div></div>
+            <!-- 🧩 The question's explanation apps, revealed only here, after
+                 marking (xaShowReveal). A pupil's browser receives them from the
+                 marking response; they are never in a document it can read. -->
+            <div class="feedback-block xa-reveal" id="xaRevealBlock" style="display:none;"><h4>🧩 Explore it — interactive</h4><div id="xaRevealBody"></div></div>
             <div class="feedback-block"><h4>📸 Worksheet sent to the AI</h4>
               <div class="captured"><img id="capturedImg" alt="Your worksheet"><div class="captured-cap" id="capturedCap">This screenshot of your question, annotations, and working is what the AI marked.</div></div>
             </div>
@@ -5511,6 +5578,21 @@ arcadeSyncOpen();
         </div>
         <div class="editor-field"><label>Video explanation link <span style="color:var(--text-light);font-weight:400;">(optional)</span></label><input id="qVideoInput" type="text" placeholder="YouTube, Dropbox or Google Drive video link"><div class="hint">Shown only after a student uses AI marking. YouTube, Vimeo, Dropbox and Google Drive share links are converted for embedding automatically.</div>
           <button class="btn btn-ghost btn-sm" type="button" id="qVideoOverlayBtn" style="margin-top:10px;" title="Correct the video without re-recording it — put a note or a scribble over the film at the second it is needed">🎬 Video amendments</button>
+        </div>
+        <!-- 🧩 EXPLANATION APPS — an interactive page shown to the pupil AFTER
+             their answer is marked, as part of the explanation. Paste the code,
+             upload an .html file, generate one with AI or copy one from this
+             question's dependency chart. Drawn by xaRender (search 🧩 EXPLANATION
+             APPS); saved in the admin-only half of the question. -->
+        <div class="editor-field xa-field" id="xaField">
+          <label>🧩 Explanation app <span style="color:var(--text-light);font-weight:400;">(optional — shown after the student answers)</span></label>
+          <div class="hint" style="margin:0 0 10px;">An interactive page the student opens <b>after their answer is marked</b>, beside the feedback and the video. Paste the code, upload an <b>.html</b> file, or build one with AI. It runs sealed off: no internet, no sign-in, nothing it can read from this site.</div>
+          <div id="xaList"></div>
+          <div class="xa-row" style="margin-top:0;">
+            <button class="btn btn-ghost btn-sm" type="button" id="xaAddBtn">＋ Add an app</button>
+            <button class="btn btn-ghost btn-sm" type="button" id="xaUploadNewBtn" title="Choose an .html file — it becomes a new app on this question">📂 Upload an .html file</button>
+          </div>
+          <input type="file" id="xaFileInput" class="xa-file" accept=".html,.htm,.xhtml,.js,.txt,text/html,text/javascript,text/plain" tabindex="-1" aria-hidden="true">
         </div>
         <div class="editor-field">
           <label>Answer key image <span style="color:var(--text-light);font-weight:400;">(optional)</span></label>
@@ -12986,7 +13068,11 @@ function wsLockNote(ids) {
     (on ? " — the first unlocks " + qReleaseWhen(on) + " (" + qReleaseLabel(on) + ")" : "");
 }
 
-const QUESTION_KEY_FIELDS = ["expected", "markingGuide", "answerKeyImageUrl", "videoExplanationUrl", "videoOverlays", "sourcePages", "sourcePdf", "autoCheck", "aiChecks", "importWarning"];
+// 🧩 `explanationApps` is here because an app that walks a pupil through the
+// question ends on its ANSWER. A pupil receives it from the marking response
+// (markAttempt / markFromPhoto) and the worksheet's shared solutions, never
+// from a document they can read before answering. See 🧩 EXPLANATION APPS.
+const QUESTION_KEY_FIELDS = ["expected", "markingGuide", "answerKeyImageUrl", "videoExplanationUrl", "videoOverlays", "explanationApps", "sourcePages", "sourcePdf", "autoCheck", "aiChecks", "importWarning"];
 // Per-block answers (annotation questions) live on the BLOCKS, and `blocks`
 // stays in the student-readable half — so they have to be lifted out block by
 // block, or every student who reads the bank can read the answer. They come
@@ -13031,6 +13117,10 @@ function splitQuestionDoc(q) {
   // Keep a non-sensitive flag in the student-readable doc so students can
   // filter to questions that have a video explanation, without exposing the URL.
   pub.hasVideoExplanation = !!q.videoExplanationUrl;
+  // 🧩 An emptied app list is simply absent from the key doc (it is written
+  // whole, so the old apps go with it); no flag is published — a pupil learns
+  // a question has an app when the marking response hands it over.
+  if (Array.isArray(key.explanationApps) && !key.explanationApps.length) delete key.explanationApps;
   return { pub, key };
 }
 async function loadBank(uid) {
@@ -13483,10 +13573,11 @@ function renderBank() {
         : `<span title="Students annotate the diagram, but no answer screenshot is attached — add one so the AI can compare two diagrams">✍️ Annotate — no answer screenshot</span>`)
       : "";
     const videoBadge = q.videoExplanationUrl ? `<span>Video explanation</span>` : "";
+    const appBadge = xaCount(q) ? `<span title="Shown to the student after their answer is marked">${escapeHtml(xaSummary(q))}</span>` : "";
     const conceptBadge = conceptLabel(q) ? `<span>Concept: ${escapeHtml(conceptLabel(q))}</span>` : "";
     el.innerHTML =
       `<div class="bank-item-main"><h4>${escapeHtml(q.title || "Untitled")}</h4>
-        <div class="meta"><span class="chip">${escapeHtml(q.level || "—")}</span><span class="chip topic">${escapeHtml(adminTopicsLabel(q))}</span>${qReleaseChipHtml(q)}${conceptBadge}${annotBadge}${videoBadge}${answerKeyBadge}<span>${escapeHtml(preview)}</span></div></div>
+        <div class="meta"><span class="chip">${escapeHtml(q.level || "—")}</span><span class="chip topic">${escapeHtml(adminTopicsLabel(q))}</span>${qReleaseChipHtml(q)}${conceptBadge}${annotBadge}${videoBadge}${appBadge}${answerKeyBadge}<span>${escapeHtml(preview)}</span></div></div>
        <div class="bank-item-actions">
         <button class="btn btn-ghost btn-sm" data-preview="${q.id}">Preview</button>
         <button class="btn btn-ghost btn-sm" data-share="${q.id}">🔗 Share / QR</button>
@@ -19314,6 +19405,7 @@ function resetEditor() {
   qaaUndo = null; if (typeof qaaStatus === "function") qaaStatus("", "");
   $("qVideoInput").value = "";
   editorVideoOverlays = []; voSyncButton();
+  xaEditorSet([]);   // 🧩 no explanation apps on a new question
   setAnswerKeyImage("");
   setEditorOptions([]);
   $("createHeading").textContent = "Create Question";
@@ -19367,6 +19459,7 @@ function loadQuestionIntoEditor(q) {
   qaaUndo = null; qaaStatus("", "");
   $("qVideoInput").value = q.videoExplanationUrl || "";
   editorVideoOverlays = voClean(q.videoOverlays); voSyncButton();
+  xaEditorSet(q.explanationApps);   // 🧩 its explanation apps come with it
   setAnswerKeyImage(q.answerKeyImageUrl || "");
   setEditorOptions(q.options, q.correctOption);
   $("createHeading").textContent = "Edit Question";
@@ -19426,6 +19519,8 @@ function collectQuestion() {
     // what the answer should have been is an answer.
     videoOverlays: voClean(editorVideoOverlays),
     answerKeyImageUrl: $("answerKeyUrlInput").value.trim(),
+    // 🧩 The explanation apps, cleaned (count, size, fields). Admin-only half.
+    explanationApps: xaEditorCollect(),
     createdAt: currentEditingId ? (questionBank.find(q => q.id === currentEditingId) || {}).createdAt || new Date().toISOString() : new Date().toISOString(),
     createdBy: currentUser ? currentUser.name : "Admin"
   };
@@ -19488,6 +19583,521 @@ $("saveQBtn").addEventListener("click", async () => {
   finally { btn.disabled = false; btn.textContent = orig; }
 });
 $("previewCreateBtn").addEventListener("click", () => openQuestionPreview(collectQuestion(), "Practice preview — as students see it"));
+
+// =====================================================================
+// 🧩 EXPLANATION APPS — the editor's card and the pupil's reveal (v1.117.0)
+// =====================================================================
+// Asked for as "the /cer system, where I can add an app with the
+// explanation: after answering, as part of the explanation, the app is shown.
+// I can copy and paste code into the app or upload the code." The Science
+// portal's 🧩 Interactive app block, brought across in this app's own shape:
+//
+//  • A QUESTION FIELD, `q.explanationApps` — up to `MAX_APPS` pages, each
+//    { id, title, html, height, source, brief?, model?, effort?, size?,
+//    chartAppId?, updatedAt? }. Not a block: every block here is printed,
+//    previewed, sent to the marker and copied into the games, and an app is
+//    none of those things.
+//  • IN `QUESTION_KEY_FIELDS`. An app that solves the question ends on its
+//    answer, so it rides in the admin-only half beside the video. A pupil's
+//    browser receives it from `markAttempt` / `markFromPhoto` and from the
+//    worksheet's shared solutions (`cleanExplanationApps` in functions/), and
+//    is shown it by `xaShowReveal` in `showResult` — after marking, never
+//    before. Marked on this device (the functions unreachable), a pupil gets
+//    no app, exactly as they get no video.
+//  • FOUR WAYS IN, one list: ⌨ paste the code (a whole page, a piece of HTML
+//    or bare JavaScript — `ExplanationApps.fromCode` says which it saw),
+//    📂 upload an .html file (the picker, or dropped on the code box), ✨ build
+//    it with AI (the dependency chart's own generator, `qcAppPrompt` +
+//    `qcRequestApp`, told the question as it stands in the editor now), or
+//    🧩 copy an app already drawn on one of the teacher's charts.
+//  • ONE SEALED FRAME everywhere — the editor's preview, the pupil's result,
+//    📸 Snap & Mark and the worksheet overview all draw
+//    `ExplanationApps.frameHtml`: `sandbox="allow-scripts"`, never
+//    `allow-same-origin`, inside a CSP that blocks every request.
+//  • The state is `var` and every function here only reads it at CALL time:
+//    `resetEditor()` runs while the module is still being evaluated and calls
+//    `xaEditorSet`, long before the 🧩 dependency-chart constants it borrows
+//    for ✨ Generate exist (the `var editorLos` lesson).
+var xaEditorApps = [];   // the editor's apps, each with its UI state (tab, phone, status)
+var xaBusy = {};         // appId -> true while ✨ Generate / 🔁 Refine is running
+var xaPreviewed = {};    // appId -> true once its preview has been run
+var xaUploadTarget = ""; // the app an 📂 upload replaces; "" = a new app
+const XA_TABS = { code: "⌨ Code", gen: "✨ Build with AI", chart: "🧩 From a chart" };
+const XA_SOURCE_LABEL = { pasted: "Your code", uploaded: "Uploaded file", generated: "Built with AI", chart: "Copied from a chart" };
+
+function xaApi() { return (typeof window !== "undefined" && window.ExplanationApps) || null; }
+// A question's apps as a pupil may be shown them. Never throws: a page whose
+// helper script failed to load shows no app rather than a broken result.
+function xaListOf(q) { const A = xaApi(); try { return A ? A.forPupil(q && q.explanationApps) : []; } catch (e) { return []; } }
+function xaCount(q) { return xaListOf(q).length; }
+function xaSummary(q) { const A = xaApi(); return A ? A.summary(q && q.explanationApps) : ""; }
+function xaFeedbackBlockHtml(list, opts) { const A = xaApi(); try { return A ? A.feedbackBlockHtml(list, opts) : ""; } catch (e) { console.warn("explanation apps", e); return ""; } }
+
+// ---- The pupil's side --------------------------------------------------
+// Called from showResult — the ONE moment a marked answer is on screen.
+function xaShowReveal(q) {
+  const block = document.getElementById("xaRevealBlock"), body = document.getElementById("xaRevealBody");
+  if (!block || !body) return;
+  const A = xaApi();
+  let html = "";
+  try { html = A ? A.revealHtml(q && q.explanationApps, { lazy: false }) : ""; } catch (e) { console.warn("explanation apps", e); }
+  if (!html) { body.innerHTML = ""; block.style.display = "none"; return; }
+  body.innerHTML = html;
+  block.style.display = "block";
+}
+// ↻ Start again and ⤢ Bigger on every app card, wherever it is drawn. ONE
+// delegated listener, because the cards are drawn into four different places
+// by innerHTML and none of them knows to wire anything.
+function xaRestartFrame(frame) {
+  if (!frame) return;
+  const doc = frame.getAttribute("srcdoc") || "";
+  frame.removeAttribute("srcdoc");
+  // A fresh navigation of the same document: the app starts from nothing,
+  // which is what "start again" means to a child who has dragged everything
+  // into the wrong place.
+  requestAnimationFrame(() => frame.setAttribute("srcdoc", doc));
+}
+document.addEventListener("click", e => {
+  const t = e.target && e.target.closest ? e.target.closest("[data-xa-restart],[data-xa-expand]") : null;
+  if (!t) return;
+  const card = t.closest(".xa-card");
+  if (!card) return;
+  if (t.hasAttribute("data-xa-restart")) { xaRestartFrame(card.querySelector("iframe.xa-frame")); return; }
+  const big = card.classList.toggle("is-big");
+  t.setAttribute("aria-pressed", big ? "true" : "false");
+  t.textContent = big ? "⤡ Smaller" : "⤢ Bigger";
+});
+
+// ---- The editor's side --------------------------------------------------
+function xaEditorSet(list) {
+  const A = xaApi();
+  let apps = [];
+  try { apps = A ? A.clean(list) : []; } catch (e) { apps = []; }
+  xaEditorApps = apps.map(a => Object.assign({}, a, { tab: "code", phone: false, status: "", tone: "" }));
+  xaBusy = {};
+  xaPreviewed = {};
+  // An app that is already saved is shown running: the teacher opening a
+  // question to check its app should not have to press anything to see it.
+  xaEditorApps.forEach(a => { xaPreviewed[a.id] = true; });
+  xaUploadTarget = "";
+  xaRender();
+}
+// What Save writes. Cleaned by the ONE cleaner, so the editor cannot save a
+// list the marker would refuse — an over-size app is not saved half-cut.
+function xaEditorCollect() {
+  const A = xaApi();
+  if (!A) return [];
+  return A.clean(xaEditorApps.map(a => ({
+    id: a.id, title: a.title, html: a.html, height: a.height, source: a.source,
+    brief: a.brief, model: a.model, effort: a.effort, size: a.size, chartAppId: a.chartAppId, updatedAt: a.updatedAt
+  })));
+}
+function xaFind(id) { return xaEditorApps.find(a => a.id === id) || null; }
+function xaStamp(a) { a.updatedAt = new Date().toISOString(); }
+// The line under an app: what it is and how big, unless something more
+// pressing (a build running, a refusal) has been said.
+function xaDefaultStatus(a) {
+  const A = xaApi();
+  if (!a || !String(a.html || "").trim()) return { text: "No code yet — paste it above, upload an .html file, or build it with AI.", tone: "" };
+  const bits = [XA_SOURCE_LABEL[a.source] || "App", A ? A.sizeLabel(a.html) : ""];
+  const p = A ? A.problems([a]) : [];
+  if (p.length) return { text: p.join(" "), tone: "err" };
+  return { text: bits.filter(Boolean).join(" · ") + (xaPreviewed[a.id] ? "" : " — press ▶ Run preview to try it."), tone: "ok" };
+}
+function xaModelOptionsHtml(a) {
+  // Read at CALL time (see the note above): these live in the 🧩 chart block.
+  try {
+    const shape = qcAppRequestShape(a.model, a.effort, a.size);
+    const models = Object.keys(QC_APP_MODELS).map(k => `<option value="${k}"${shape.model === k ? " selected" : ""}>${escapeHtml(QC_APP_MODELS[k].label)}</option>`).join("");
+    const efforts = QC_APP_EFFORTS.map(k => `<option value="${k}"${shape.effort === k ? " selected" : ""}>${k}</option>`).join("");
+    const sizes = Object.keys(QC_APP_SIZES).map(k => `<option value="${k}"${shape.size === k ? " selected" : ""}>${escapeHtml(QC_APP_SIZES[k].label)} — ${escapeHtml(QC_APP_SIZES[k].hint)}</option>`).join("");
+    return `<div class="xa-gen-grid">
+      <label>Model<select class="form-input" data-xa-model="${a.id}">${models}</select></label>
+      <label>Effort<select class="form-input" data-xa-effort="${a.id}"${QC_APP_MODELS[shape.model].effort ? "" : " disabled"}>${efforts}</select></label>
+      <label>Size<select class="form-input" data-xa-size="${a.id}">${sizes}</select></label>
+    </div>`;
+  } catch (e) { return `<div class="xa-status warn">The AI builder is still loading — try again in a moment.</div>`; }
+}
+function xaChartPaneHtml(a) {
+  if (typeof _isAdmin === "function" && !_isAdmin()) return `<div class="xa-status">Only the teacher's account can open the dependency charts. Paste the code or upload the file instead.</div>`;
+  let loaded = false, apps = {}, charts = {};
+  try { loaded = qcLoaded; apps = qcApps || {}; charts = qcCharts || {}; } catch (e) { loaded = false; }
+  if (!loaded) return `<div class="xa-status">The dependency charts have not loaded on this device yet. Open 🧩 Dependency Charts once, then come back.</div>`;
+  const runnable = Object.values(apps).filter(x => x && String(x.html || "").trim());
+  if (!runnable.length) return `<div class="xa-status">No chart has an app yet. Build one here with ✨ Build with AI instead.</div>`;
+  let linked = [];
+  try { linked = (qcAppsByQuestion(charts, id => !!apps[id])[currentEditingId] || []); } catch (e) { linked = []; }
+  const order = runnable.slice().sort((x, y) => (linked.indexOf(y.id) >= 0) - (linked.indexOf(x.id) >= 0) || String(x.title || "").localeCompare(String(y.title || "")));
+  const rows = order.slice(0, 40).map(x => `<div class="xa-chart-row">
+      <div><b>${escapeHtml(x.title || "App")}</b><div class="xa-chart-meta">${linked.indexOf(x.id) >= 0 ? "🔗 Already on this question's chart · " : ""}${escapeHtml(typeof qcAppMetaLabel === "function" ? qcAppMetaLabel(x) : "")} · ${escapeHtml(xaApi() ? xaApi().sizeLabel(x.html) : "")}</div></div>
+      <button type="button" class="btn btn-ghost btn-sm" data-xa-usechart="${escapeHtml(x.id)}" data-xa-for="${a.id}">Use a copy</button>
+    </div>`).join("");
+  const linkOnly = Object.values(apps).filter(x => x && !String(x.html || "").trim()).length;
+  return `<div class="hint" style="margin:0 0 6px;">A COPY is made: editing it here never changes the chart's app.${linkOnly ? " Linked web pages (" + linkOnly + ") are not listed — a page from another site cannot run sealed inside the explanation." : ""}</div><div class="xa-chart-list">${rows}</div>`;
+}
+function xaPreviewHtml(a) {
+  const A = xaApi();
+  if (!A || !String(a.html || "").trim() || !xaPreviewed[a.id]) return "";
+  return `<div class="xa-preview${a.phone ? " is-phone" : ""}" data-xa-preview="${a.id}">
+    <div class="xa-preview-head"><span>👁 Preview — exactly what a student sees after their answer is marked</span>
+      <span class="xa-card-tools">
+        <button type="button" class="xa-tool" data-xa-phone="${a.id}" aria-pressed="${a.phone ? "true" : "false"}" title="See it at a phone's width">📱 Phone width</button>
+        <button type="button" class="xa-tool" data-xa-run="${a.id}" title="Start the preview again from the beginning">↻ Run again</button>
+      </span></div>
+    <div class="xa-preview-stage">${A.frameHtml(a, { lazy: false })}</div>
+  </div>`;
+}
+function xaCardHtml(a, i, n) {
+  const A = xaApi();
+  const busy = !!xaBusy[a.id];
+  const dis = busy ? " disabled" : "";
+  const has = !!String(a.html || "").trim();
+  const st = a.status ? { text: a.status, tone: a.tone } : xaDefaultStatus(a);
+  const tabs = Object.keys(XA_TABS).map(k => `<button type="button" class="xa-tab${a.tab === k ? " on" : ""}" role="tab" aria-selected="${a.tab === k}" data-xa-tab="${k}" data-xa-for="${a.id}">${XA_TABS[k]}</button>`).join("");
+  return `<div class="xa-edit" data-xa-edit="${a.id}">
+    <div class="xa-edit-head">
+      <span class="xa-edit-num">App ${i + 1}${n > 1 ? " of " + n : ""}</span>
+      <input class="form-input xa-title-in" type="text" maxlength="${A ? A.TITLE_MAX : 120}" value="${escapeHtml(a.title || "")}" placeholder="${escapeHtml(A ? A.DEFAULT_TITLE : "Explore this question")}" data-xa-title="${a.id}" aria-label="App title"${dis}>
+      <label class="xa-mini">Height <input class="form-input xa-height-in" type="number" min="${A ? A.HEIGHT_MIN : 240}" max="${A ? A.HEIGHT_MAX : 900}" step="20" value="${A ? A.normalizeHeight(a.height) : 560}" data-xa-height="${a.id}" aria-label="App height in pixels"${dis}> px</label>
+      <div class="xa-edit-actions">
+        <button type="button" class="mini-btn" data-xa-move="-1" data-xa-for="${a.id}" title="Move up"${i === 0 || busy ? " disabled" : ""}>↑</button>
+        <button type="button" class="mini-btn" data-xa-move="1" data-xa-for="${a.id}" title="Move down"${i === n - 1 || busy ? " disabled" : ""}>↓</button>
+        <button type="button" class="mini-btn" data-xa-remove="${a.id}" title="Remove this app"${dis}>✕</button>
+      </div>
+    </div>
+    <div class="xa-tabs" role="tablist">${tabs}</div>
+    <div class="xa-pane" data-xa-pane="code"${a.tab === "code" ? "" : " hidden"}>
+      <textarea class="xa-code" data-xa-code="${a.id}" spellcheck="false" autocomplete="off" aria-label="The app's code" placeholder="Paste the app's code here — a whole .html page, a piece of HTML, or just the JavaScript. You can also drop an .html file onto this box."${dis}>${escapeHtml(a.html || "")}</textarea>
+      <div class="xa-row">
+        <button type="button" class="btn btn-primary btn-sm" data-xa-run="${a.id}"${has && !busy ? "" : " disabled"}>▶ Run preview</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-xa-paste="${a.id}" title="Paste the code you copied"${dis}>📋 Paste</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-xa-upload="${a.id}" title="Choose an .html file — it replaces the code in this app"${dis}>📂 Upload .html</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-xa-download="${a.id}" title="Save this app as an .html file"${has ? "" : " disabled"}>💾 Download</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-xa-clear="${a.id}"${has && !busy ? "" : " disabled"}>Clear code</button>
+      </div>
+    </div>
+    <div class="xa-pane" data-xa-pane="gen"${a.tab === "gen" ? "" : " hidden"}>
+      <div class="hint" style="margin:0 0 6px;">Say what the app should do. The question as it stands in the editor — wording, options, answer and marking guide — is sent with it, so the app solves THIS question.</div>
+      <textarea class="xa-brief" data-xa-brief="${a.id}" aria-label="What the app should do"${dis}>${escapeHtml(a.brief || (A ? A.defaultBrief() : ""))}</textarea>
+      ${a.tab === "gen" ? xaModelOptionsHtml(a) : ""}
+      <div class="xa-row">
+        <button type="button" class="btn btn-primary btn-sm" data-xa-gen="${a.id}"${dis}>${busy ? '<span class="spinner"></span> Building…' : has ? "✨ Build it again" : "✨ Build the app"}</button>
+        ${has ? '<span class="hint" style="margin:0;">Building again replaces the code in this app.</span>' : ""}
+      </div>
+      ${has ? `<div style="margin-top:12px;">
+        <label class="hint" style="display:block;margin:0 0 6px;">🔁 Or change it — say what should be different, and the app is updated in place:</label>
+        <textarea class="xa-brief" style="min-height:64px;" data-xa-refine="${a.id}" placeholder="e.g. make the buttons bigger, add a ↺ Reset button, and start the bar model at zero"${dis}>${escapeHtml(a.refine || "")}</textarea>
+        <div class="xa-row"><button type="button" class="btn btn-ghost btn-sm" data-xa-refine-go="${a.id}"${dis}>🔁 Change the app</button></div>
+      </div>` : ""}
+    </div>
+    <div class="xa-pane" data-xa-pane="chart"${a.tab === "chart" ? "" : " hidden"}>${a.tab === "chart" ? xaChartPaneHtml(a) : ""}</div>
+    <div class="xa-status ${st.tone || ""}" data-xa-status="${a.id}" role="status" aria-live="polite">${escapeHtml(st.text || "")}</div>
+    ${xaPreviewHtml(a)}
+  </div>`;
+}
+function xaRender() {
+  const wrap = document.getElementById("xaList");
+  if (!wrap) return;
+  const A = xaApi();
+  if (!A) { wrap.innerHTML = `<div class="xa-empty">The app tools did not load — refresh the page to add an explanation app.</div>`; return; }
+  wrap.innerHTML = xaEditorApps.length
+    ? xaEditorApps.map((a, i) => xaCardHtml(a, i, xaEditorApps.length)).join("")
+    : `<div class="xa-empty">No app on this question yet. Students see the feedback, the answer and the video after marking — add an app to let them <b>explore</b> the question too.</div>`;
+  const add = document.getElementById("xaAddBtn"), up = document.getElementById("xaUploadNewBtn");
+  const full = xaEditorApps.length >= A.MAX_APPS;
+  if (add) { add.disabled = full; add.title = full ? "A question holds up to " + A.MAX_APPS + " apps" : "Add an empty app, then paste its code or build it with AI"; }
+  if (up) up.disabled = full;
+}
+// Redraw ONE app's card — the others keep running and keep their caret.
+function xaRefreshCard(id) {
+  const wrap = document.getElementById("xaList");
+  const i = xaEditorApps.findIndex(a => a.id === id);
+  const el = wrap && wrap.querySelector(`[data-xa-edit="${CSS.escape(id)}"]`);
+  if (!el || i < 0) { xaRender(); return; }
+  el.outerHTML = xaCardHtml(xaEditorApps[i], i, xaEditorApps.length);
+}
+function xaSetStatus(id, text, tone) {
+  const a = xaFind(id);
+  if (a) { a.status = text || ""; a.tone = tone || ""; }
+  const el = document.querySelector(`[data-xa-status="${CSS.escape(id)}"]`);
+  if (!el) return;
+  const st = text ? { text, tone } : xaDefaultStatus(a);
+  el.textContent = st.text || "";
+  el.className = "xa-status " + (st.tone || "");
+}
+function xaAdd(seed) {
+  const A = xaApi();
+  if (!A) return null;
+  if (xaEditorApps.length >= A.MAX_APPS) { toast("A question holds up to " + A.MAX_APPS + " apps", "error"); return null; }
+  const a = Object.assign({ id: A.newId(), title: A.DEFAULT_TITLE, html: "", height: A.HEIGHT_DEFAULT, tab: "code", phone: false, status: "", tone: "" }, seed || {});
+  xaEditorApps.push(a);
+  if (String(a.html || "").trim()) xaPreviewed[a.id] = true;
+  xaRender();
+  return a;
+}
+// The code box's text becomes the app's page as it is typed — nothing is
+// re-run until ▶ Run, so a half-typed <script> is never executed.
+function xaSetCode(a, code, source) {
+  const A = xaApi();
+  const r = A.fromCode(code);
+  a.html = r.html;
+  if (source) a.source = source;
+  else if (!a.source || a.source === "chart") a.source = "pasted";
+  xaStamp(a);
+  a.status = ""; a.tone = "";
+  return r;
+}
+function xaCodeNote(r) {
+  if (!r || !r.html) return "";
+  if (r.cut) return "This is longer than an app can hold and was cut short — make it smaller.";
+  if (r.kind === "fragment") return "Your HTML was put inside a page for you.";
+  if (r.kind === "script") return "No HTML tags found, so this is run as JavaScript inside a page.";
+  return "";
+}
+async function xaReadFile(file, targetId) {
+  const A = xaApi();
+  if (!A || !file) return;
+  if (!canManageQuestions()) { toast("Only question authors can add apps", "error"); return; }
+  if (file.size > A.HTML_MAX * 4) { toast(A.fileProblem(file.name, file.size, "x"), "error"); return; }
+  let text = "";
+  try { text = await file.text(); } catch (e) { toast("Couldn't read that file", "error"); return; }
+  const r = A.fromFile(file.name, file.size, text);
+  if (r.problem) { toast(r.problem, "error"); return; }
+  let a = targetId ? xaFind(targetId) : null;
+  if (targetId && !a) return;   // the editor moved on to another question while the file was read
+  if (!a) {
+    a = xaAdd({ title: A.titleFrom(r.html, file.name), html: r.html, source: "uploaded", updatedAt: new Date().toISOString() });
+    if (!a) return;
+  } else {
+    if (xaBusy[a.id]) return;
+    a.html = r.html; a.source = "uploaded"; xaStamp(a);
+    if (!a.title || a.title === A.DEFAULT_TITLE) a.title = A.titleFrom(r.html, file.name);
+    a.tab = "code";
+  }
+  xaPreviewed[a.id] = true;
+  a.status = "📂 " + file.name + " · " + A.sizeLabel(r.html) + (xaCodeNote(r) ? " — " + xaCodeNote(r) : "") + " Save the question to keep it.";
+  a.tone = r.cut ? "warn" : "ok";
+  xaRefreshCard(a.id);
+  toast("App added from " + file.name + " — try it below, then save the question", "success");
+}
+function xaDownload(a) {
+  if (!a || !String(a.html || "").trim()) return;
+  const name = (String(a.title || "app").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "app") + ".html";
+  const url = URL.createObjectURL(new Blob([a.html], { type: "text/html" }));
+  const link = document.createElement("a");
+  link.href = url; link.download = name;
+  document.body.appendChild(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+// ✨ The dependency chart's own generator, told the question AS IT IS NOW in
+// the editor (an edit to the wording reaches the next build). A reply that
+// lands after the editor moved on to another question is dropped.
+function xaQuestionFacts() {
+  try { return qcAppQuestionFacts(collectQuestion()); } catch (e) { return { text: "", options: [], answer: "", working: "" }; }
+}
+function xaBasePrompt(a) {
+  const shape = qcAppRequestShape(a.model, a.effort, a.size);
+  const brief = String(a.brief || (xaApi() ? xaApi().defaultBrief() : "")).trim();
+  return { shape, prompt: qcAppPrompt({ title: a.title || "Explore this question", brief, level: ($("qLevelInput") || {}).value || "", size: shape.size, question: xaQuestionFacts() }) };
+}
+async function xaRunAi(id, makePrompt, doneText) {
+  const a = xaFind(id);
+  if (!a || xaBusy[id]) return;
+  if (!canManageQuestions()) { toast("Only question authors can build apps", "error"); return; }
+  let job;
+  try { job = makePrompt(a); } catch (e) { toast("The AI builder is still loading — try again in a moment", "error"); return; }
+  if (!job) return;
+  const facts = xaQuestionFacts();
+  if (!facts.text) { toast("Write the question first — the app is built to solve it", "error"); return; }
+  xaBusy[id] = true;
+  a.status = "✨ " + (QC_APP_MODELS[job.shape.model] || {}).label + (job.shape.effort ? " (" + job.shape.effort + " effort)" : "") + " is building the app… bigger sizes and higher effort take longer, up to a few minutes.";
+  a.tone = "busy";
+  xaRefreshCard(id);
+  const t0 = Date.now(), list = xaEditorApps;
+  try {
+    const res = await qcRequestApp(job.prompt, job.shape);
+    if (xaEditorApps !== list || !xaFind(id)) return;   // another question is in the editor now
+    const html = xaApi().fromModelText(res.html) || res.html;
+    a.html = html; a.source = "generated"; a.model = job.shape.model; a.effort = job.shape.effort; a.size = job.shape.size;
+    xaStamp(a);
+    xaPreviewed[id] = true;
+    a.tab = "gen";
+    a.status = doneText + " in " + Math.round((Date.now() - t0) / 1000) + "s · " + xaApi().sizeLabel(html) + ". Try it below, then save the question.";
+    a.tone = "ok";
+  } catch (e) {
+    console.error(e);
+    if (xaEditorApps !== list || !xaFind(id)) return;
+    a.status = "Couldn't build the app: " + (typeof serverErrorMessage === "function" ? serverErrorMessage(e) : (e.message || e));
+    a.tone = "err";
+  } finally {
+    delete xaBusy[id];
+    if (xaEditorApps === list && xaFind(id)) xaRefreshCard(id);
+  }
+}
+function xaGenerate(id) {
+  const a = xaFind(id);
+  if (a && String(a.html || "").trim() && !confirm("Build this app again? The code in it now is replaced.")) return;
+  xaRunAi(id, a => xaBasePrompt(a), "Built");
+}
+function xaRefine(id) {
+  const a = xaFind(id);
+  const change = String((a && a.refine) || "").trim();
+  if (!a) return;
+  if (!change) { toast("Say what should change first", "error"); return; }
+  xaRunAi(id, a => {
+    const base = xaBasePrompt(a);
+    return { shape: base.shape, prompt: xaApi().refinePrompt(base.prompt, a.html, change) };
+  }, "Changed");
+}
+function xaUseChartApp(id, appId) {
+  const a = xaFind(id);
+  let src = null;
+  try { src = qcApps[appId]; } catch (e) { src = null; }
+  if (!a || !src || !String(src.html || "").trim()) { toast("That app isn't on the charts any more", "error"); return; }
+  if (String(a.html || "").trim() && !confirm("Replace the code in this app with a copy of “" + (src.title || "the chart's app") + "”?")) return;
+  a.html = String(src.html).slice(0, xaApi().HTML_MAX);
+  a.source = "chart"; a.chartAppId = appId;
+  if (!a.title || a.title === xaApi().DEFAULT_TITLE) a.title = xaApi().cleanTitle(src.title);
+  if (src.brief && !a.brief) a.brief = String(src.brief);
+  xaStamp(a);
+  xaPreviewed[id] = true;
+  a.tab = "code";
+  a.status = "Copied from the chart · " + xaApi().sizeLabel(a.html) + ". Changing it here never changes the chart's app. Save the question to keep it.";
+  a.tone = "ok";
+  xaRefreshCard(id);
+}
+
+// ---- Wiring — once, on the containers that outlive every redraw ----------
+(function xaWire() {
+  const list = document.getElementById("xaList");
+  const fileIn = document.getElementById("xaFileInput");
+  if (!list || !fileIn) return;
+  const addBtn = document.getElementById("xaAddBtn");
+  if (addBtn) addBtn.addEventListener("click", () => {
+    if (!canManageQuestions()) { toast("Only question authors can add apps", "error"); return; }
+    const a = xaAdd();
+    if (a) requestAnimationFrame(() => { const t = list.querySelector(`[data-xa-code="${CSS.escape(a.id)}"]`); if (t) { t.scrollIntoView({ behavior: "smooth", block: "nearest" }); t.focus(); } });
+  });
+  const upNew = document.getElementById("xaUploadNewBtn");
+  // The picker is visually hidden, never `hidden`, and opened with .click()
+  // (the PSLE page's lesson: a `hidden` input refuses to open on some phones).
+  if (upNew) upNew.addEventListener("click", () => { xaUploadTarget = ""; fileIn.value = ""; fileIn.click(); });
+  fileIn.addEventListener("change", () => {
+    const f = fileIn.files && fileIn.files[0];
+    const target = xaUploadTarget;
+    fileIn.value = "";   // cleared BEFORE reading, or picking the same file twice fires nothing
+    xaUploadTarget = "";
+    if (f) xaReadFile(f, target);
+  });
+  list.addEventListener("input", e => {
+    const t = e.target;
+    if (t.matches("[data-xa-title]")) { const a = xaFind(t.dataset.xaTitle); if (a) { a.title = t.value; xaStamp(a); } return; }
+    if (t.matches("[data-xa-brief]")) { const a = xaFind(t.dataset.xaBrief); if (a) a.brief = t.value; return; }
+    if (t.matches("[data-xa-refine]")) { const a = xaFind(t.dataset.xaRefine); if (a) a.refine = t.value; return; }
+    if (t.matches("[data-xa-code]")) {
+      const a = xaFind(t.dataset.xaCode);
+      if (!a || xaBusy[a.id]) return;
+      const r = xaSetCode(a, t.value);
+      const run = list.querySelector(`[data-xa-run="${CSS.escape(a.id)}"].btn`);
+      if (run) run.disabled = !r.html;
+      const note = xaCodeNote(r);
+      if (!r.html) xaSetStatus(a.id, "", "");
+      else xaSetStatus(a.id, (XA_SOURCE_LABEL[a.source] || "Your code") + " · " + xaApi().sizeLabel(r.html) + (note ? " — " + note : "") + (xaPreviewed[a.id] ? " Changed — press ▶ Run preview to see it." : " Press ▶ Run preview to try it."), r.cut ? "warn" : "");
+    }
+  });
+  list.addEventListener("change", e => {
+    const t = e.target;
+    if (t.matches("[data-xa-height]")) {
+      const a = xaFind(t.dataset.xaHeight); if (!a) return;
+      a.height = xaApi().normalizeHeight(t.value); t.value = a.height; xaStamp(a);
+      const f = list.querySelector(`[data-xa-preview="${CSS.escape(a.id)}"] iframe`);
+      if (f) f.style.height = a.height + "px";
+      return;
+    }
+    const pick = (attr, field) => { if (!t.matches(`[${attr}]`)) return false; const a = xaFind(t.getAttribute(attr)); if (a) { a[field] = t.value; if (field === "model") xaRefreshCard(a.id); } return true; };
+    if (pick("data-xa-model", "model") || pick("data-xa-effort", "effort") || pick("data-xa-size", "size")) return;
+  });
+  list.addEventListener("click", async e => {
+    const b = e.target.closest("button");
+    if (!b || !list.contains(b) || b.disabled) return;
+    const d = b.dataset;
+    if (d.xaTab) { const a = xaFind(d.xaFor); if (a) { a.tab = d.xaTab; xaRefreshCard(a.id); } return; }
+    if (d.xaRun) {
+      const a = xaFind(d.xaRun); if (!a || !String(a.html || "").trim()) return;
+      xaPreviewed[a.id] = true; a.status = ""; a.tone = "";
+      const p = list.querySelector(`[data-xa-preview="${CSS.escape(a.id)}"]`);
+      if (p) { p.outerHTML = xaPreviewHtml(a); xaSetStatus(a.id, "", ""); }   // re-run just the frame; the caret stays in the code
+      else xaRefreshCard(a.id);
+      return;
+    }
+    if (d.xaPhone) {
+      const a = xaFind(d.xaPhone); if (!a) return;
+      a.phone = !a.phone;
+      const p = list.querySelector(`[data-xa-preview="${CSS.escape(a.id)}"]`);
+      if (p) { p.classList.toggle("is-phone", a.phone); b.setAttribute("aria-pressed", a.phone ? "true" : "false"); }
+      return;
+    }
+    if (d.xaPaste) {
+      const a = xaFind(d.xaPaste); if (!a) return;
+      let text = "";
+      try { text = await navigator.clipboard.readText(); }
+      catch (err) { toast("This browser would not hand over the clipboard — click in the code box and press Ctrl/⌘ V instead", "error"); return; }
+      if (!String(text || "").trim()) { toast("The clipboard is empty — copy the app's code first", "error"); return; }
+      if (!xaFind(a.id) || xaBusy[a.id]) return;
+      const r = xaSetCode(a, text, "pasted");
+      xaPreviewed[a.id] = true;
+      a.status = "📋 Pasted · " + xaApi().sizeLabel(r.html) + (xaCodeNote(r) ? " — " + xaCodeNote(r) : "") + " Save the question to keep it.";
+      a.tone = r.cut ? "warn" : "ok";
+      xaRefreshCard(a.id);
+      return;
+    }
+    if (d.xaUpload) { xaUploadTarget = d.xaUpload; fileIn.value = ""; fileIn.click(); return; }
+    if (d.xaDownload) { xaDownload(xaFind(d.xaDownload)); return; }
+    if (d.xaClear) {
+      const a = xaFind(d.xaClear); if (!a) return;
+      if (!confirm("Clear this app's code? (Nothing is saved until you save the question.)")) return;
+      a.html = ""; xaStamp(a); delete xaPreviewed[a.id]; a.status = ""; a.tone = "";
+      xaRefreshCard(a.id);
+      return;
+    }
+    if (d.xaRemove) {
+      const a = xaFind(d.xaRemove); if (!a) return;
+      if (String(a.html || "").trim() && !confirm("Remove “" + (a.title || "this app") + "” from the question? (It stays saved until you save the question.)")) return;
+      xaEditorApps = xaEditorApps.filter(x => x !== a);
+      delete xaPreviewed[a.id];
+      xaRender();
+      return;
+    }
+    if (d.xaMove) {
+      const i = xaEditorApps.findIndex(x => x.id === d.xaFor), j = i + Number(d.xaMove);
+      if (i < 0 || j < 0 || j >= xaEditorApps.length) return;
+      const next = xaEditorApps.slice();
+      [next[i], next[j]] = [next[j], next[i]];
+      xaEditorApps = next;
+      xaRender();
+      return;
+    }
+    if (d.xaGen) { xaGenerate(d.xaGen); return; }
+    if (d.xaRefineGo) { xaRefine(d.xaRefineGo); return; }
+    if (d.xaUsechart) { xaUseChartApp(d.xaFor, d.xaUsechart); return; }
+  });
+  // An .html file dropped straight onto a code box replaces that app's code.
+  list.addEventListener("dragover", e => {
+    const t = e.target.closest && e.target.closest("[data-xa-code]");
+    if (!t || !e.dataTransfer || ![...(e.dataTransfer.types || [])].includes("Files")) return;
+    e.preventDefault(); t.classList.add("xa-drop-on");
+  });
+  list.addEventListener("dragleave", e => { const t = e.target.closest && e.target.closest("[data-xa-code]"); if (t) t.classList.remove("xa-drop-on"); });
+  list.addEventListener("drop", e => {
+    const t = e.target.closest && e.target.closest("[data-xa-code]");
+    if (!t) return;
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    t.classList.remove("xa-drop-on");
+    if (!f) return;   // dropped text falls through to the textarea itself
+    e.preventDefault(); e.stopPropagation();
+    xaReadFile(f, t.dataset.xaCode);
+  });
+})();
 
 // =====================================================================
 // AI GENERATION (build a question from a photo/PDF)
@@ -26432,7 +27042,9 @@ function openQuestionPreview(q, title = "Practice preview") {
   if (!q || !(q.blocks || []).length) { toast("Add question content before previewing", "error"); return; }
   previewPrintQuestions = [q];
   $("previewTitle").textContent = title;
-  $("previewBody").innerHTML = practicePreviewHtml(q);
+  $("previewBody").innerHTML = practicePreviewHtml(q) +
+    // 🧩 A teacher previewing sees the apps too, labelled with WHEN a pupil does.
+    (canManageQuestions() ? xaFeedbackBlockHtml(q.explanationApps, { note: "Shown to the student only after their answer is marked." }) : "");
   $("previewOverlay").classList.add("show");
 }
 
@@ -28945,6 +29557,7 @@ function cpbEditActive() { return !!(cpbEdit && cpbEdit.id); }
 const CPB_EDITOR_FIELDS = new Set([
   "id", "title", "level", "topic", "topics", "concept", "los", "blocks",
   "expected", "markingGuide", "videoExplanationUrl", "videoOverlays",
+  "explanationApps",
   "answerKeyImageUrl", "createdAt", "createdBy", "options", "correctOption",
   "variantOf",
 ]);
@@ -30811,7 +31424,8 @@ async function wvLoadSolutions(ws) {
         videoExplanationUrl: q.videoExplanationUrl || "",
         videoOverlays: voClean(q.videoOverlays),
         correctOption: typeof q.correctOption === "number" ? q.correctOption : undefined,
-        annotationAnswers: wvAnnotationAnswers(q)
+        annotationAnswers: wvAnnotationAnswers(q),
+        explanationApps: Array.isArray(q.explanationApps) ? q.explanationApps : []
       };
     });
     _wvSolutionState = "ready";
@@ -30963,7 +31577,10 @@ function wvSolutionBodyHtml(q) {
     (guide ? `<div class="wv-sol-guide">${escapeHtml(guide)}</div>` : "") + annot + img;
   return (video || "") +
     `<div class="wv-sol-lbl">Answer key</div>
-     <div class="wv-sol-key">${key || `<div class="wv-sol-none">No answer key on this question yet.</div>`}</div>`;
+     <div class="wv-sol-key">${key || `<div class="wv-sol-none">No answer key on this question yet.</div>`}</div>` +
+    // 🧩 The explanation apps, under the key — the frames are lazy, and this
+    // body is hidden until 🎬 Show is pressed, so none starts before then.
+    xaFeedbackBlockHtml(s.explanationApps);
 }
 function wvSolutionHtml(q) {
   if (_wvSolutionState === "loading") return `<div class="wv-sol"><div class="wv-sol-none">Loading the worked solutions…</div></div>`;
@@ -32020,6 +32637,11 @@ function hideResult() {
   resultEl.classList.remove("show");
   $("videoExplanationEmbed").innerHTML = "";
   $("videoExplanationBlock").style.display = "none";
+  // 🧩 The app stops with the result: a hidden frame left running would keep
+  // the last question's app (and its answer) alive behind the next question.
+  const xaBody = $("xaRevealBody"), xaBlock = $("xaRevealBlock");
+  if (xaBody) xaBody.innerHTML = "";
+  if (xaBlock) xaBlock.style.display = "none";
 }
 
 function googleDriveFileId(u) {
@@ -32782,6 +33404,7 @@ function showResult(v, png, reviewPlan = "", usedPhoto = false) {
   else { $("fbAnswerKeyImage").removeAttribute("src"); $("answerKeyImageBlock").style.display = "none"; }
   renderAnnotationModel(questionBank[qIndex] || {});
   renderVideoExplanation(questionBank[qIndex] || {});
+  xaShowReveal(questionBank[qIndex] || {});   // 🧩 the explanation apps, now and only now
   const capWrap = $("capturedImg").closest(".captured");
   if (png) {
     if (capWrap) capWrap.style.display = "";
@@ -33189,6 +33812,9 @@ $("submitBtn").addEventListener("click", async () => {
     q.videoOverlays = Array.isArray(out.videoOverlays) ? out.videoOverlays : [];
     if (out.answerKeyImageUrl) q.answerKeyImageUrl = out.answerKeyImageUrl;
     q.annotationAnswers = Array.isArray(out.annotationAnswers) ? out.annotationAnswers : [];
+    // 🧩 Handed over by the marker with the video. Marked on this device, a
+    // pupil has none (the apps are in the admin-only half); a teacher keeps theirs.
+    if (Array.isArray(out.explanationApps)) q.explanationApps = out.explanationApps;
     const reviewPlan = await recordLearningAttempt(q, v, out.progress);
     if (!_practiceRequestCurrent(request)) return;
     try { rpgOnMarked(q, v, onDevice ? {} : { server: out }); } catch (err) { console.warn("rpg reward", err); }
@@ -33349,6 +33975,7 @@ async function aiMarkRun(opts = {}) {
         const v = await clientMarkVerdict(q, { media, photoOnly: true });
         const out = {
           ok: true, verdict: v, videoExplanationUrl: q.videoExplanationUrl || "", answerKeyImageUrl: q.answerKeyImageUrl || "",
+          explanationApps: Array.isArray(q.explanationApps) ? q.explanationApps : [],
           matched: { source: questionSource(q), id: q.id, title: q.title || "", level: q.level || "", topics: studentTopicsLabel(q), concept: conceptLabel(q), difficulty: q.difficulty || 0, confidence: 1 }
         };
         aiMarkSetStatus("");
@@ -33454,6 +34081,7 @@ function aiMarkRenderResult(out, reviewPlan) {
   html += aiMarkAnswerKeyImageHtml(out.answerKeyImageUrl);
   html += aiMarkAnnotationHtml(out.annotationAnswers);
   html += aiMarkVideoHtml(out.videoExplanationUrl, out.videoOverlays);
+  html += xaFeedbackBlockHtml(out.explanationApps);   // 🧩 the explanation apps
   if (aiMarkMedia && !aiMarkMedia.isPdf && aiMarkMedia.previewUrl) {
     html += `<div class="feedback-block"><h4>📸 What you submitted</h4><div class="captured"><img src="${aiMarkMedia.previewUrl}" alt="Your worksheet photo"></div></div>`;
   }
@@ -37454,7 +38082,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.116.0 · 2026-11-11";
+const APP_VERSION = "v1.117.0 · 2026-11-11";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -39613,6 +40241,7 @@ function qcSpawnEditor(sourceKey, tier) {
   setAnswerKeyImage("");
   $("qVideoInput").value = "";
   editorVideoOverlays = []; voSyncButton();
+  xaEditorSet([]);   // 🧩 the source's apps solve the SOURCE, not this new step
   $("createHeading").textContent = tier ? "Next question for the chart" : "Easier step for the chart";
   const tt = $("topbarTitle"); if (tt) tt.textContent = "Create Question";   // it was titled while the copy still had its source's id
   $("saveQBtn").textContent = "💾 Save and add to the chart";
@@ -60478,6 +61107,7 @@ async function psleEditSaveVetting() {
   // coming back from the vetting copy.
   if (!edited.options) { delete merged.options; delete merged.correctOption; }
   if (!edited.variantOf) delete merged.variantOf;
+  if (!(edited.explanationApps || []).length) delete merged.explanationApps;   // 🧩 removed in the editor = removed
   if (!edited.psle && orig.psle && psleClean(orig.psle)) merged.psle = psleClean(orig.psle);
   delete merged.duplicateOf;
   const btn = $("saveQBtn"); const label = btn.textContent; btn.disabled = true; btn.textContent = "Saving…";
