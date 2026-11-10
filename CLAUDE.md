@@ -2,6 +2,46 @@
 
 Guidance for Claude when working in this repo.
 
+## 🎓 PSLE Papers — every past PSLE Maths paper by year and topic (v1.113.0)
+
+`psle-math.js` (pure engine, ES module: `psleClean`, `psleDetect`, `psleBuildIndex`, `psleTrends`,
+`pslePrintPlan`, `psleProgress`, `psleParseHash`, …) + `psle-math.css`, and in `index.html` the block
+`🎓 PSLE MATH — THE PAPERS PAGE` … `🎓 END PSLE MATH` (`renderPslePage`, `psleWrite`, `psleAutoFile`,
+`psleImportFiles`, `psleExport`, `psleStartExam`, the timer), `#page-psle`, the 🎓 **PSLE Papers** nav item
+(every role; employees are redirected as usual), `#psleOverlay` / `#psleEditOverlay` / `#psleFileOverlay` and
+the `#psleTimer` pill. The Mathematics twin of the Science portal's 🎓 PSLE Papers / Science PSLE pages
+(polymathlc/cer, `SCIENCE PSLE — THE SIMPLE VIEW`).
+
+- **A PSLE question is a BANK question carrying `q.psle`** = `{ year, paper: "P1A"|"P1B"|"P2", n, marks,
+  diff?, topic?, marksGuess? }`, always read through `psleClean`. It is NOT a settings document: the Science
+  app keeps its papers in `users/{admin}/settings/paperData` in the same Firebase project under the same admin
+  uid, so writing that id here would wipe the Science papers (the novaArt lesson), and a new id would need a
+  whole-project rules deploy. `psle` is printed on the paper, so it lives on the PUBLIC half and every pupil's
+  browser builds the page from the bank it already loads.
+- **`psleWrite` is the ONE write**: a `{ psle }` MERGE on `mathQuestions/{id}` (never `saveQuestionDoc` — the
+  key half is not in hand), or a whole `saveVettingDoc` for a vetting draft. `collectQuestion` carries `psle`
+  through an editor save (from the bank OR vetting) — drop that and fixing a typo takes a question off its paper.
+- **Loading a paper** (🛠 Manage, admin): the PDF is renamed `PSLE-<year>-<P1A|P1B|P2|ALL> — <name>.pdf`
+  (`psleCanonicalFileName`) and handed to `startRapidJob(file, "P6", { release: "" })`. Both the browser route
+  and the cloud worker keep `sourcePdf` and `sourceQuestionNumber`, so `psleDetect` files each question from
+  its name and number. **Canonical names are filed on sight** (`psleAfterRapid` after each page,
+  `psleAutoFile(true)` on page open); a name that merely mentions "PSLE 2019" is only PROPOSED and filed
+  on ✓ File. No number → never filed; a slot already held → a conflict for a person to settle.
+  A whole sitting (`ALL`): MCQs are Booklet A, the rest Booklet B, and a numbering restart starts Paper 2.
+- Marks: printed `[n]` brackets win; otherwise Booklet A 1 (Q1–10) / 2, Booklet B 2, Paper 2 Q1–5 2 and
+  4 for the rest **as a guess** (`marksGuess`, listed under ❓ marks to confirm).
+- **📄 Export** prints through Custom Paper's exam layout (`wsBuildDocumentHtml` with `paper.psle`). It borrows
+  `cpbMeta` for that ONE synchronous build and puts it back in `finally` — the teacher's own draft must not come
+  back wearing "PSLE". One sitting keeps the paper's numbers; a mixed set is renumbered (Paper 2 restarts at 1).
+- **📈 My progress** reads the pupil's own `mathPerformanceAttempts` in one read; the BEST attempt counts
+  (right ≥ 0.95, the tracker's floor). **⏱ Exam clock** state is in sessionStorage (`mathPsleExam_v1`).
+- Deep links: `#psle`, `#psle/2019`, `#psle/2019/p2`, `#psle/topic/circles`, `#psle/trends`; `psleRouteFromHash`
+  runs after sign-in for admins and pupils, and the hash is cleared when the page is left.
+- **No PSLE paper ships in this repo.** Questions only arrive through the importer or by filing bank questions.
+- Run `node --test tools/psle-math-tests.mjs` and `PW=…/playwright/index.mjs node tools/psle-math-browser.mjs`
+  (real styles + markup + the shipped block, synthetic questions, computer and phone). CI:
+  `.github/workflows/psle-math.yml`.
+
 ## 🚦 Traffic lights on the vetting cards, and 🔍± sizes in the 👁 peek (v1.111.0)
 
 `aicRunCheck` / `aicEntryFromResult` / `aicAppend` / `aicHistory` / `aicLightOf` / `aicCardHtml` /

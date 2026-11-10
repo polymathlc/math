@@ -5049,6 +5049,7 @@ body.role-employee #emailBellBtn { display: none !important; }
 </style>
 <link rel="stylesheet" href="arcade-ui.css?v=2">
 <link rel="stylesheet" href="consult-answer.css?v=1">
+<link rel="stylesheet" href="psle-math.css?v=1">
 <link rel="stylesheet" href="./tcg-combat.css?v=1">
 <!-- 🎨 The Big M worksheet cover (window.WorksheetCover): the printed cover and
      its editor. A classic script, so it is defined before the module below runs
@@ -5102,6 +5103,7 @@ body.role-employee #emailBellBtn { display: none !important; }
       <div class="nav-item active" data-page="practice"><span class="ico">✍️</span> Practice</div>
       <div class="nav-item" id="navAiMark"><span class="ico">📸</span> AI Marking</div>
       <div class="nav-item" data-page="syllabus" title="The MOE Primary Mathematics syllabus — every learning objective, and the questions filed under each one"><span class="ico">📐</span> Syllabus</div>
+      <div class="nav-item" data-page="psle" title="Every past PSLE Mathematics paper — by year or by topic. Practise it, sit it against the clock, or print it in the exam layout"><span class="ico">🎓</span> PSLE Papers</div>
       <!-- 🕹️ Arcade — every game in one dropdown so the sidebar stays short.
            Closed by default; it remembers the pupil's choice on this device and
            opens by itself when the page on screen is one of its games
@@ -5823,6 +5825,13 @@ arcadeSyncOpen();
          filed under the learning objective it assesses. Click an objective to
          open it. Foundation is excluded — this app serves the standard
          syllabus, so a Foundation objective would be one nobody can fill. -->
+    <!-- ================= 🎓 PSLE PAPERS (every role but employees) =================
+         The Mathematics twin of the Science portal's PSLE pages. Drawn entirely
+         from JS — see `🎓 PSLE MATH — THE PAPERS PAGE` and psle-math.js. -->
+    <div class="page" id="page-psle">
+      <div class="psle-wrap" id="psleBody"><div class="empty-note">Loading the papers…</div></div>
+    </div>
+
     <div class="page" id="page-syllabus">
       <div class="page-head"><h3>📐 Syllabus</h3><p>Every learning objective in the MOE Primary Mathematics syllabus (P1–P6). Click one to see the questions filed under it.</p></div>
       <div class="syl-wrap" id="syllabusBody"><div class="empty-note">Loading the syllabus…</div></div>
@@ -6077,6 +6086,39 @@ arcadeSyncOpen();
     </div>
     <div class="overlay-foot"><button class="btn btn-primary" data-close="qTagOverlay">Done</button></div>
   </div>
+</div>
+
+<!-- 🎓 PSLE: the sheet a year or topic opens, the teacher's edit dialog, the
+     "file a question" picker and the exam clock. Top-level on purpose: nothing
+     appended near an overlay may sit INSIDE one (see the subject switcher). -->
+<div class="overlay psle-overlay" id="psleOverlay" role="dialog" aria-modal="true" aria-labelledby="psleSheetTitle">
+  <div class="overlay-card psle-sheet">
+    <div class="overlay-head"><h3 id="psleSheetTitle">🎓 PSLE</h3><button class="close" id="psleSheetClose" type="button" aria-label="Close">×</button></div>
+    <div class="overlay-body" id="psleSheetBody"></div>
+  </div>
+</div>
+<div class="overlay" id="psleEditOverlay" role="dialog" aria-modal="true" aria-labelledby="psleEditTitle">
+  <div class="overlay-card">
+    <div class="overlay-head"><h3>🎓 <span id="psleEditTitle">Question</span></h3><button class="close" data-close="psleEditOverlay" type="button" aria-label="Close">×</button></div>
+    <div class="overlay-body" id="psleEditBody"></div>
+    <div class="overlay-foot"><button class="btn btn-danger" id="psleEditUntag" type="button" hidden>Take off the papers</button><span style="flex:1"></span><button class="btn btn-ghost" data-close="psleEditOverlay" type="button">Cancel</button><button class="btn btn-primary" id="psleEditSave" type="button">Save</button></div>
+  </div>
+</div>
+<div class="overlay" id="psleFileOverlay" role="dialog" aria-modal="true">
+  <div class="overlay-card">
+    <div class="overlay-head"><h3>＋ File a question under a PSLE paper</h3><button class="close" data-close="psleFileOverlay" type="button" aria-label="Close">×</button></div>
+    <div class="overlay-body">
+      <p class="psle-note" id="psleFileSub"></p>
+      <div class="lop-bar"><input type="text" id="psleFileSearch" placeholder="Search your bank and vetting…" autocomplete="off"></div>
+      <div class="psle-file-list" id="psleFileList"></div>
+    </div>
+    <div class="overlay-foot"><button class="btn btn-ghost" data-close="psleFileOverlay" type="button">Close</button></div>
+  </div>
+</div>
+<div class="psle-timer" id="psleTimer" hidden role="timer" aria-live="off">
+  <button type="button" class="psle-timer-main" data-psle-timer="go" title="Back to the questions"><span class="psle-timer-ico">⏱</span><span class="psle-timer-label" id="psleTimerLabel">PSLE exam</span><b class="psle-timer-clock" id="psleTimerClock">0:00</b></button>
+  <button type="button" class="psle-timer-btn" id="psleTimerPause" data-psle-timer="pause" title="Pause the clock">⏸</button>
+  <button type="button" class="psle-timer-btn" data-psle-timer="stop" title="Stop the clock">⏹</button>
 </div>
 
 <div class="overlay" id="aiEngineOverlay">
@@ -6980,6 +7022,10 @@ import { PRACTICE_FAMILY_COOLDOWN_MS, practiceContentKey, buildPracticeCatalog, 
 import { createStudentQuestionHistory } from "./student-question-history.js?v=1";
 import { buildPracticeMasteryContext, evaluatePracticeFit, practiceQuestionLevel, parsePracticeLevel } from "./practice-mastery.js";
 import { evaluateQuestionQuality, buildQuestionQualitySummary, questionQualitySignature, questionHasUnresolvedStudentFlag } from "./practice-quality.js";
+import { PSLE_PAPERS, PSLE_DIFFS, PSLE_TOPICS, pslePaper, psleOf, psleClean, psleLabel, psleTopic, psleTopicOf, psleParseSource, psleCanonicalFileName, psleQuestionNumber,
+  psleMarksFromText, psleDefaultMarks, psleDetect, psleAutoFileable, psleBuildIndex, psleEntriesFor, psleTopicGroups, psleGaps, psleTrends, pslePrintPlan,
+  psleExamMinutes, psleFormatClock, psleTimerRemaining, psleTimerPause, psleTimerResume, psleTimerValid, psleProgress, psleProgressSummary, psleWeakTopics,
+  psleSearch, psleEditValidate, psleParseHash, psleHash, psleYearOptions, psleNowYear, psleDiffInfo } from "./psle-math.js?v=1";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
   updateProfile, GoogleAuthProvider, signInWithPopup, signOut, signInAnonymously, browserPopupRedirectResolver }
@@ -12122,6 +12168,7 @@ async function enterApp(user, authEpoch = _studentAuthEpoch) {
     await loadFlagNotifications();
     await loadSavedWorksheets();
     navigateTo("create");
+    psleRouteFromHash();   // 🎓 a #psle link survives sign-in
   } else if (isEmployee) {
     // 👩‍💻 Employee: an AUTHOR working directly on the teacher's bank. The
     // config/mathAdmin pointer, the student roster, the learning profile, the
@@ -12174,6 +12221,7 @@ async function enterApp(user, authEpoch = _studentAuthEpoch) {
     await loadSavedWorksheets();
     prioritizeReviewQuestions();
     navigateTo("practice");
+    psleRouteFromHash();   // 🎓 a #psle link survives sign-in
   }
   // The hero, the leaderboard and the game doors are a PUPIL's. An employee's
   // menu is locked down above, and starting the RPG would only spend reads on
@@ -12462,7 +12510,7 @@ function navigateTo(page) {
   // everything else is CSS, which is what makes the swap instant and
   // impossible to leave half-applied.
   document.body.classList.toggle("nova-protocol", page === "tcg");
-  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", bin: "Bin", vetting: "Vetting", graph: "Dependency Board", qchart: "Dependency Chart", worksheet: "Create Worksheet", myworksheets: "My Worksheets", worksheetview: "Worksheet Overview", students: "Student Results", diagnostic: "Diagnostic Test", answerkeys: "Answer Key Scanner", custompaper: "Custom Paper", worksession: "Work Sessions", character: "Character", leaderboard: "Leaderboard", adventure: "Dungeon", tcg: "Aetherfall", syllabus: "Syllabus" };
+  const titles = { practice: "Practice", create: currentEditingId ? "Edit Question" : "Create Question", bank: "Question Bank", bin: "Bin", vetting: "Vetting", graph: "Dependency Board", qchart: "Dependency Chart", worksheet: "Create Worksheet", myworksheets: "My Worksheets", worksheetview: "Worksheet Overview", students: "Student Results", diagnostic: "Diagnostic Test", answerkeys: "Answer Key Scanner", custompaper: "Custom Paper", worksession: "Work Sessions", character: "Character", leaderboard: "Leaderboard", adventure: "Dungeon", tcg: "Aetherfall", syllabus: "Syllabus", psle: "PSLE Papers" };
   $("topbarTitle").textContent = titles[page] || "";
   $("sidebar").classList.remove("open");
   if (page === "character") rpgRenderCharacterPage();
@@ -12490,6 +12538,7 @@ function navigateTo(page) {
   if (page === "tcg") { try { tcgRenderBody(); tcgUpdateGoldChip(); } catch (e) { console.warn("tcg render", e); } }
   if (page === "syllabus") renderSyllabusPage();
   if (page === "diagnostic") renderDiagnosticPage();
+  psleOnNavigate(page);   // 🎓 draws the PSLE page, and keeps #psle in the bar only while it is open
 }
 // Keep the sticky battle strip pinned right under the (also-sticky) topbar,
 // whatever the topbar's real height ends up being on this viewport.
@@ -19308,6 +19357,10 @@ function collectQuestion() {
     createdBy: currentUser ? currentUser.name : "Admin"
   };
   if (variantOf && variantOf !== q.id) q.variantOf = variantOf;
+  // 🎓 A PSLE question stays on its paper through an edit — from the bank, or
+  // from vetting (which `existing` does not look in). See 🎓 PSLE MATH.
+  const psleCarry = existing.psle || (currentEditingId ? ((vettingList || []).find(v => v.id === currentEditingId) || {}).psle : null);
+  if (psleClean(psleCarry)) q.psle = psleClean(psleCarry);
   // 🚦 The traffic-light history — every check run on a vetting card or in
   // this editor — is carried through a save rather than dropped by it.
   if (Array.isArray(editorAiChecks) && editorAiChecks.length) q.aiChecks = editorAiChecks.slice(-AIC_KEEP);
@@ -20256,7 +20309,7 @@ function renderVettingList() {
       <div class="vet-meta">
         <span class="vet-badge">${escapeHtml(q.level || "no level")}</span>
         <span class="vet-badge">${escapeHtml(adminTopicsLabel(q))}</span>
-        ${scanBadge}${qReleaseChipHtml(q, "vet-badge")}${los}${loGap}${noAns}${gap}${wholePic}${dup}
+        ${scanBadge}${psleVetBadge(q)}${qReleaseChipHtml(q, "vet-badge")}${los}${loGap}${noAns}${gap}${wholePic}${dup}
       </div>
       ${mathImportSources(q)}
       <div class="vet-preview">${vetPreviewHtml(q)}</div>
@@ -21559,6 +21612,9 @@ async function _rapidPublishMathQuestions(questions) {
     else vettingList[i]=q;
   }
   updateRapidCounts();renderVettingList();
+  // 🎓 A PSLE paper's questions file themselves as they land. Guarded: a harness
+  // that cuts this function out on its own has no PSLE block beside it.
+  if (typeof psleAfterRapid === "function") { try { psleAfterRapid(questions); } catch (e) { console.warn("psle filing", e); } }
 }
 // Browser mode uses the same boundary assembler as the online worker. The
 // final question remains private until the following page resolves its end.
@@ -37317,7 +37373,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.112.0 · 2026-11-06";
+const APP_VERSION = "v1.113.0 · 2026-11-10";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -58791,6 +58847,928 @@ window.cpbLibDelete = cpbLibDelete;
 window.cpbNewPaper = cpbNewPaper;
 window.cpbDraftTake = cpbDraftTake;
 window.cpbDraftDiscard = cpbDraftDiscard;
+
+// =====================================================================
+// 🎓 PSLE MATH — THE PAPERS PAGE (v1.113.0)
+//
+// The Mathematics twin of the Science portal's 🎓 PSLE Papers / Science PSLE
+// pages (polymathlc/cer, `SCIENCE PSLE — THE SIMPLE VIEW`). Big buttons, one
+// per YEAR and one per TOPIC; each opens a sheet with the actions a pupil
+// actually wants: ▶ Practise, ⏱ Sit it as an exam, 📄 Export the paper, and the
+// list of its questions. Then three things the Science page does not have:
+// 📊 Trends (which topics carry the marks, year on year), 📈 My progress (read
+// off the pupil's own marked attempts, with the weakest topics to practise
+// next) and 🛠 Manage (the teacher loads whole papers here and files them).
+//
+// All the logic is in psle-math.js, which is pure and tested on its own; this
+// block only draws and writes. The data is the BANK — a PSLE question is an
+// ordinary question carrying `q.psle` (see the top of psle-math.js for why it
+// is not a settings document: that id is the Science app's, in the same
+// Firebase project).
+//
+// - WRITING `psle` NEVER RE-SAVES THE QUESTION. On the bank it is a merge onto
+//   the public half (`psleWrite` → `setDoc(…, { psle }, { merge: true })`),
+//   exactly as `sylSaveLos` writes `los`: the answer key lives in its own
+//   document and is never in hand here, so a whole-question save could only
+//   ever lose something. A vetting draft is one document and is saved whole.
+// - THE EDITOR CARRIES IT. `collectQuestion` copies `psle` from the question
+//   being edited (bank or vetting), or a fix to the wording would quietly take
+//   the question off its paper.
+// - THE IMPORTER NAMES THE FILE, AND THE NAME IS THE CONTRACT. A paper loaded
+//   from 🛠 Manage is renamed `PSLE-<year>-<P1A|P1B|P2|ALL> — <original>.pdf`
+//   and handed to ⚡ Rapid add's ONE door (`startRapidJob`). Both the browser
+//   route and the cloud worker keep the file name on every question
+//   (`sourcePdf`) and the paper's own number (`sourceQuestionNumber`), so the
+//   detector (`psleDetect`) can file each question when it lands — no change
+//   to either pipeline, and nothing that has to be kept in step with them.
+// - A NAME TYPED BY HAND IS ONLY A SUGGESTION. Questions whose file or title
+//   merely mentions "PSLE 2019" are proposed on 🛠 Manage and filed when the
+//   teacher presses ✓ File; only the importer's own canonical names are filed
+//   on sight (`psleAutoFile(true)`).
+// - EVERYTHING IS DELEGATED. One click handler on the page, one on each
+//   overlay, `data-psle-*` attributes, never a topic name quoted into onclick.
+// =====================================================================
+var _psle = {
+  tab: "", search: "", sel: null, open: {}, showList: false, withKey: false,
+  progress: null, progressFor: "", progressBusy: false, progressErr: "",
+  importYear: "", importPaper: "P1A", autoRan: false, autoBusy: false,
+  editId: "", editDraft: null, fileSlot: null, fileSearch: "", bound: false,
+  examMinutes: 0, searchTimer: 0, manageShowAll: false
+};
+var PSLE_TAB_KEY = "mathPsleTab_v1";
+var PSLE_TIMER_KEY = "mathPsleExam_v1";
+var _psleTimer = null, _psleTimerTick = 0, _psleAutoTimer = 0;
+
+function psleLoOf(id) { return (typeof SYL_LO_BY_ID !== "undefined" && SYL_LO_BY_ID[id]) || null; }
+function psleTextOf(q) { try { return questionText(q); } catch (e) { return String((q && q.title) || ""); } }
+function psleIndexNow() { return psleBuildIndex(questionBank || [], { loOf: psleLoOf, textOf: psleTextOf }); }
+function psleCanManage() { return !!(currentUser && canManageQuestions()); }
+function psleIsStudent() { return !!(currentUser && currentUser.role === "student"); }
+function psleTabs() {
+  const tabs = [["years", "📅 Years"], ["topics", "📚 Topics"], ["trends", "📊 Trends"]];
+  if (psleIsStudent()) tabs.push(["progress", "📈 My progress"]);
+  if (psleCanManage()) tabs.push(["manage", "🛠 Manage"]);
+  return tabs;
+}
+function psleSavedTab() { try { return localStorage.getItem(PSLE_TAB_KEY) || ""; } catch (e) { return ""; } }
+function psleSetTab(tab) {
+  const ok = psleTabs().some(t => t[0] === tab);
+  _psle.tab = ok ? tab : "years";
+  try { localStorage.setItem(PSLE_TAB_KEY, _psle.tab); } catch (e) { /* private window: the tab is simply not remembered */ }
+  psleSetHash(_psle.tab === "years" ? { view: "home" } : { view: _psle.tab });
+  renderPslePage();
+}
+function psleSetHash(sel) {
+  try {
+    const h = psleHash(sel);
+    if (location.hash !== h) history.replaceState(null, "", location.pathname + location.search + h);
+  } catch (e) { /* a sandboxed frame — the link simply isn't shareable from here */ }
+}
+function psleClearHash() {
+  try { if (/^#psle\b/i.test(location.hash)) history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+}
+function psleShareUrl(sel) { return location.origin + location.pathname + psleHash(sel); }
+
+// ---- The page -----------------------------------------------------------
+function renderPslePage() {
+  const body = $("psleBody");
+  if (!body) return;
+  const author = psleCanManage();
+  if (!_psle.tab) _psle.tab = psleSavedTab() || "years";
+  if (!psleTabs().some(t => t[0] === _psle.tab)) _psle.tab = "years";
+  psleBindOnce();
+  if (!body.querySelector("#psleMain")) {
+    body.innerHTML = `<div id="psleHero"></div>
+      <div class="psle-searchbar">
+        <span class="psle-search-ico" aria-hidden="true">🔍</span>
+        <input type="search" id="psleSearch" placeholder="Search every PSLE question — try “2019 p2”, “circle”, “speed”…" autocomplete="off" aria-label="Search PSLE questions">
+        <button type="button" class="psle-search-clear" data-psle-act="search-clear" aria-label="Clear the search" hidden>×</button>
+      </div>
+      <div id="psleMain"></div>`;
+    const input = body.querySelector("#psleSearch");
+    input.value = _psle.search;
+    input.addEventListener("input", () => {
+      clearTimeout(_psle.searchTimer);
+      _psle.searchTimer = setTimeout(() => { _psle.search = input.value; psleRenderMain(); }, 140);
+    });
+    input.addEventListener("keydown", e => { if (e.key === "Escape") { input.value = ""; _psle.search = ""; psleRenderMain(); } });
+  }
+  // A teacher's own imports are filed the first time the page is opened in a
+  // session — quietly, in the background, never blocking the page.
+  if (author && !_psle.autoRan) { _psle.autoRan = true; psleAutoFile(true, { quiet: true }); }
+  if (psleIsStudent() && !_psle.progress && !_psle.progressBusy && _psle.progressFor !== currentUser.uid) psleLoadProgress();
+  psleRenderMain();
+}
+function psleRenderMain() {
+  const hero = $("psleHero"), main = $("psleMain");
+  if (!hero || !main) return;
+  const index = psleIndexNow();
+  hero.innerHTML = psleHeroHtml(index);
+  const clear = document.querySelector("#psleBody .psle-search-clear");
+  if (clear) clear.hidden = !_psle.search.trim();
+  if (_psle.search.trim()) { main.innerHTML = psleSearchResultsHtml(index); return; }
+  const tabs = psleTabs().map(([k, label]) =>
+    `<button type="button" class="psle-tab${_psle.tab === k ? " on" : ""}" data-psle-act="tab" data-tab="${k}" role="tab" aria-selected="${_psle.tab === k}">${label}</button>`).join("");
+  let inner = "";
+  if (_psle.tab === "topics") inner = psleTopicsHtml(index);
+  else if (_psle.tab === "trends") inner = psleTrendsHtml(index);
+  else if (_psle.tab === "progress") inner = psleProgressHtml(index);
+  else if (_psle.tab === "manage") inner = psleManageHtml(index);
+  else inner = psleYearsHtml(index);
+  main.innerHTML = `<div class="psle-tabs" role="tablist">${tabs}</div><div class="psle-tabbody">${inner}</div>`;
+}
+function psleHeroHtml(index) {
+  const papers = index.years.length;
+  const stat = (n, label) => `<div class="psle-stat"><b>${n}</b><span>${label}</span></div>`;
+  let mine = "";
+  if (psleIsStudent() && _psle.progress && index.total) {
+    const s = psleProgressSummary(index.entries, _psle.progress);
+    mine = `<div class="psle-hero-ring" style="--p:${s.pctDone}" title="${s.done} of ${s.total} PSLE questions tried">
+      <svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15.5" class="psle-ring-bg"/><circle cx="18" cy="18" r="15.5" class="psle-ring-fg" stroke-dasharray="${(s.pctDone * 97.4 / 100).toFixed(1)} 97.4"/></svg>
+      <div><b>${s.pctDone}%</b><span>tried</span></div></div>`;
+  }
+  return `<div class="psle-hero">
+    <div class="psle-hero-text">
+      <div class="psle-eyebrow">PSLE Mathematics</div>
+      <h2>Every past paper, one tap away</h2>
+      <p>Pick a year or a topic, then practise it here, sit it against the clock, or print it in the real exam layout.</p>
+      <div class="psle-stats">${stat(papers, papers === 1 ? "year" : "years")}${stat(index.total, "questions")}${stat(index.marks, "marks")}${stat(index.topics.length, "topics")}</div>
+    </div>${mine}
+  </div>`;
+}
+
+// ---- 📅 Years -----------------------------------------------------------
+function psleYearCardHtml(y) {
+  const p = _psle.progress;
+  const sum = p ? psleProgressSummary(psleEntriesFor(psleIndexNow(), { year: y.year }), p) : null;
+  const papers = PSLE_PAPERS.map(pp => {
+    const c = y.papers[pp.key];
+    return `<span class="psle-pp${c ? " on" : ""}" title="${escapeHtml(pp.label)}${c ? ": " + c.count + " questions, " + c.marks + " marks" : ": not loaded"}">${escapeHtml(pp.key)}</span>`;
+  }).join("");
+  const bar = sum && sum.done ? `<div class="psle-mini-bar" title="${sum.done} of ${sum.total} tried, ${sum.right} right"><i style="width:${sum.pctDone}%"></i></div>` : "";
+  return `<button type="button" class="psle-pick psle-pick-year" data-psle-act="open-year" data-year="${escapeHtml(y.year)}">
+    <span class="psle-pick-eyebrow">PSLE</span>
+    <span class="psle-pick-title">${escapeHtml(y.year)}</span>
+    <span class="psle-pick-meta">${y.count} questions · ${y.marks} marks</span>
+    <span class="psle-pps">${papers}</span>${bar}
+  </button>`;
+}
+function psleYearsHtml(index) {
+  if (!index.total) return psleEmptyHtml();
+  const cards = index.years.map(psleYearCardHtml).join("");
+  let missing = "";
+  if (psleCanManage()) {
+    const have = new Set(index.years.map(y => y.year));
+    const gaps = psleYearOptions().filter(y => !have.has(y));
+    if (gaps.length) missing = `<div class="psle-missing"><span>Papers not loaded yet:</span> ${gaps.map(y =>
+      `<button type="button" class="psle-chip" data-psle-act="import-year" data-year="${y}" title="Load the ${y} paper">＋ ${y}</button>`).join("")}</div>`;
+  }
+  return `<section class="psle-section">
+      <div class="psle-section-head"><h3>Choose a year</h3><p>Newest first. Each year opens Paper 1 (Booklets A and B) and Paper 2 together, or one at a time.</p></div>
+      <div class="psle-grid psle-grid-years">${cards}</div>${missing}
+    </section>`;
+}
+function psleEmptyHtml() {
+  if (psleCanManage()) {
+    return `<div class="psle-empty card">
+      <div class="psle-empty-ico">🎓</div>
+      <h3>No PSLE papers loaded yet</h3>
+      <p>Load each paper as a PDF in 🛠 Manage: pick the year and the booklet, drop the file in, and every question is read, cropped and filed under its year, paper and number automatically. Questions already in your bank whose file or title says “PSLE 2019” are found for you too.</p>
+      <button type="button" class="btn btn-primary" data-psle-act="tab" data-tab="manage">🛠 Load PSLE papers</button>
+    </div>`;
+  }
+  return `<div class="psle-empty card"><div class="psle-empty-ico">🎓</div><h3>PSLE papers are on their way</h3>
+    <p>Your teacher hasn't loaded any past PSLE papers here yet. Until then, ✍️ Practice and the 📐 Syllabus page have plenty of P6 questions to work on.</p></div>`;
+}
+
+// ---- 📚 Topics ----------------------------------------------------------
+function psleTopicsHtml(index) {
+  if (!index.total) return psleEmptyHtml();
+  const p = _psle.progress;
+  const groups = psleTopicGroups(index).map(g => {
+    const cards = g.topics.map(t => {
+      const years = Object.keys(t.years).sort();
+      const span = years.length ? (years.length === 1 ? years[0] : years[0] + "–" + years[years.length - 1]) : "";
+      const sum = p ? psleProgressSummary(psleEntriesFor(index, { topic: t.key }), p) : null;
+      const score = sum && sum.done ? `<span class="psle-score ${sum.score >= 85 ? "good" : sum.score >= 60 ? "ok" : "low"}" title="Your score on the ${sum.done} you have tried">${sum.score}%</span>` : "";
+      return `<button type="button" class="psle-pick psle-pick-topic" style="--psle-accent:${g.colour}" data-psle-act="open-topic" data-topic="${escapeHtml(t.key)}">
+        <span class="psle-pick-icon" aria-hidden="true">${t.icon}</span>
+        <span class="psle-pick-title">${escapeHtml(t.name)}</span>
+        <span class="psle-pick-meta">${t.count} question${t.count === 1 ? "" : "s"} · ${t.marks} marks${span ? " · " + span : ""}</span>${score}
+      </button>`;
+    }).join("");
+    return `<div class="psle-group"><div class="psle-group-head"><span class="psle-group-dot" style="background:${g.colour}"></span>${escapeHtml(g.name)}</div>
+      <div class="psle-grid psle-grid-topics">${cards}</div></div>`;
+  }).join("");
+  return `<section class="psle-section">
+    <div class="psle-section-head"><h3>Choose a topic</h3><p>Every PSLE question on one topic, across every year. A topic's sheet can narrow it to a single year.</p></div>
+    ${groups}
+  </section>`;
+}
+
+// ---- 📊 Trends ----------------------------------------------------------
+function psleTrendsHtml(index) {
+  if (!index.total) return psleEmptyHtml();
+  const tr = psleTrends(index);
+  if (tr.years.length < 1) return psleEmptyHtml();
+  const pct = x => Math.round(x * 100) + "%";
+  const pill = r => `<button type="button" class="psle-insight-pill" data-psle-act="open-topic" data-topic="${escapeHtml(r.key)}">${r.icon} ${escapeHtml(r.name)}</button>`;
+  const insight = (title, list, blurb) => list.length ? `<div class="psle-insight"><h4>${title}</h4><p>${blurb}</p><div>${list.map(pill).join("")}</div></div>` : "";
+  const insights = insight("🧱 Every single year", tr.staples, "Tested in every paper loaded here — these are the marks to bank first.")
+    + (tr.years.length >= 4 ? insight("📈 On the rise", tr.hot, "A bigger share of the marks in the last three years than before.")
+      + insight("📉 Cooling off", tr.cooling, "A smaller share lately — still worth revising, but not first.") : "");
+  const head = tr.years.map(y => `<th scope="col"><button type="button" class="psle-linkbtn" data-psle-act="open-year" data-year="${y}">${y}</button></th>`).join("");
+  const rows = tr.rows.map(r => {
+    const cells = r.cells.map(c => {
+      const a = tr.maxShare ? c.share / tr.maxShare : 0;
+      return `<td title="${escapeHtml(r.name)}, ${c.year}: ${c.marks} marks (${pct(c.share)} of the paper)" style="--a:${a.toFixed(3)}">${c.marks || ""}</td>`;
+    }).join("");
+    return `<tr><th scope="row"><button type="button" class="psle-linkbtn" data-psle-act="open-topic" data-topic="${escapeHtml(r.key)}">${r.icon} ${escapeHtml(r.name)}</button></th>${cells}
+      <td class="psle-heat-total">${r.total}<small>${pct(r.share)}</small></td></tr>`;
+  }).join("");
+  const bars = tr.rows.slice(0, 10).map(r => `<div class="psle-bar-row"><span>${r.icon} ${escapeHtml(r.name)}</span>
+    <div class="psle-bar"><i style="width:${Math.max(2, Math.round(r.share * 100 / (tr.rows[0].share || 1)))}%"></i></div><b>${pct(r.share)}</b></div>`).join("");
+  return `<section class="psle-section">
+    <div class="psle-section-head"><h3>Where the marks are</h3><p>Worked out from the ${index.total} questions filed here (${tr.years.length} year${tr.years.length === 1 ? "" : "s"}). Each number is the marks that topic carried that year; the darker the cell, the bigger its share of the paper.</p></div>
+    ${insights ? `<div class="psle-insights">${insights}</div>` : ""}
+    <div class="card psle-bars">${bars}</div>
+    <div class="psle-heat-wrap"><table class="psle-heat"><thead><tr><th></th>${head}<th scope="col">All</th></tr></thead><tbody>${rows}</tbody></table></div>
+  </section>`;
+}
+
+// ---- 📈 My progress -----------------------------------------------------
+async function psleLoadProgress(force) {
+  if (!currentUser || !psleIsStudent()) return;
+  const uid = currentUser.uid;
+  if (_psle.progressBusy && !force) return;
+  _psle.progressBusy = true; _psle.progressErr = "";
+  try {
+    // The whole of the pupil's own marked record in ONE read, then matched to
+    // the PSLE questions here. Asking per question would be one query per ten
+    // questions — fifty reads for a full set of papers.
+    const snap = await getDocs(collection(db, "users", uid, "mathPerformanceAttempts"));
+    if (!currentUser || currentUser.uid !== uid) return;
+    const rows = [];
+    snap.forEach(d => rows.push(d.data()));
+    _psle.progress = psleProgress(rows);
+    _psle.progressFor = uid;
+  } catch (e) {
+    console.warn("psle progress", e);
+    _psle.progressErr = "Your results couldn't be loaded just now.";
+    _psle.progress = _psle.progress || {};
+    _psle.progressFor = uid;
+  } finally {
+    _psle.progressBusy = false;
+    if ($("page-psle") && $("page-psle").classList.contains("active")) psleRenderMain();
+  }
+}
+function psleProgressHtml(index) {
+  if (!index.total) return psleEmptyHtml();
+  if (_psle.progressBusy && !_psle.progress) return `<div class="empty-note"><span class="spinner dark"></span> Reading your results…</div>`;
+  const p = _psle.progress || {};
+  const all = psleProgressSummary(index.entries, p);
+  const err = _psle.progressErr ? `<p class="psle-note warn">${escapeHtml(_psle.progressErr)} <button type="button" class="psle-linkbtn" data-psle-act="progress-reload">Try again</button></p>` : "";
+  const w = psleWeakTopics(index, p);
+  const topicRow = (t, cls) => `<div class="psle-prog-topic ${cls}">
+      <span>${t.icon} ${escapeHtml(t.name)}</span>
+      ${t.score != null ? `<b>${t.score}%</b><small>${t.done} tried</small>` : `<small>${t.total} to try</small>`}
+      <button type="button" class="btn btn-ghost btn-sm" data-psle-act="practise-topic" data-topic="${escapeHtml(t.key)}">▶ Practise</button>
+    </div>`;
+  const years = index.years.map(y => {
+    const s = psleProgressSummary(psleEntriesFor(index, { year: y.year }), p);
+    return `<tr><th scope="row"><button type="button" class="psle-linkbtn" data-psle-act="open-year" data-year="${y.year}">${y.year}</button></th>
+      <td><div class="psle-mini-bar wide"><i style="width:${s.pctDone}%"></i></div></td>
+      <td>${s.done}/${s.total}</td><td>${s.done ? s.score + "%" : "—"}</td></tr>`;
+  }).join("");
+  return `<section class="psle-section">
+    ${err}
+    <div class="psle-prog-head card">
+      <div><b>${all.done}</b><span>of ${all.total} tried</span></div>
+      <div><b>${all.right}</b><span>right first time or since</span></div>
+      <div><b>${all.done ? all.score + "%" : "—"}</b><span>score on what you've tried</span></div>
+      <button type="button" class="btn btn-ghost btn-sm" data-psle-act="progress-reload" title="Read your results again">↻ Refresh</button>
+    </div>
+    ${w.weak.length ? `<h3 class="psle-h3">💪 Work on these next</h3><div class="psle-prog-list">${w.weak.map(t => topicRow(t, "weak")).join("")}</div>` : ""}
+    ${w.strong.length ? `<h3 class="psle-h3">⭐ Your strongest</h3><div class="psle-prog-list">${w.strong.map(t => topicRow(t, "strong")).join("")}</div>` : ""}
+    ${w.untried.length ? `<h3 class="psle-h3">🧭 Not tried yet</h3><div class="psle-untried">${w.untried.map(t =>
+      `<button type="button" class="psle-insight-pill" data-psle-act="practise-topic" data-topic="${escapeHtml(t.key)}" title="Practise all ${t.total}">▶ ${t.icon} ${escapeHtml(t.name)} <small>${t.total}</small></button>`).join("")}</div>` : ""}
+    <h3 class="psle-h3">📅 By year</h3>
+    <div class="psle-heat-wrap"><table class="psle-prog-table"><thead><tr><th>Year</th><th>Tried</th><th></th><th>Score</th></tr></thead><tbody>${years}</tbody></table></div>
+    <p class="psle-note">Your best attempt at each question counts — getting one right on the second go means you've learnt it.</p>
+  </section>`;
+}
+
+// ---- 🔍 Search ----------------------------------------------------------
+function psleSearchResultsHtml(index) {
+  const hits = psleSearch(index.entries, _psle.search, psleTextOf);
+  if (!hits.length) return `<div class="empty-note">No PSLE question matches “${escapeHtml(_psle.search.trim())}”.</div>`;
+  const shown = hits.slice(0, 60);
+  return `<section class="psle-section">
+    <div class="psle-section-head psle-row-head"><h3>${hits.length} question${hits.length === 1 ? "" : "s"} found</h3>
+      <button type="button" class="btn btn-blue btn-sm" data-psle-act="practise-search">▶ Practise all ${hits.length}</button></div>
+    <div class="psle-rows">${shown.map(e => psleRowHtml(e, { showYear: true })).join("")}</div>
+    ${hits.length > shown.length ? `<p class="psle-note">Showing the first ${shown.length}. Type a little more to narrow it down.</p>` : ""}
+  </section>`;
+}
+
+// ---- One question, as a row ---------------------------------------------
+function psleRowHtml(e, opts = {}) {
+  const t = psleTopic(e.topic), paper = pslePaper(e.meta.paper);
+  const st = _psle.progress && _psle.progress[e.id];
+  const status = st ? ({ right: ["✓", "Right"], part: ["◐", "Part right"], wrong: ["✗", "Not yet right"], tried: ["•", "Tried"] }[st.status] || ["•", "Tried"]) : null;
+  const diff = psleDiffInfo(e.meta.diff);
+  const open = !!_psle.open[e.id];
+  const bits = [opts.showYear ? e.meta.year + " " + paper.short : paper.short, e.marks + " mark" + (e.marks === 1 ? "" : "s") + (e.meta.marksGuess ? "?" : ""), t.name];
+  const edit = psleCanManage() ? `<button type="button" class="psle-icon-btn" data-psle-act="edit" data-id="${escapeHtml(e.id)}" title="Change its year, paper, number, marks or difficulty">✏️</button>` : "";
+  return `<div class="psle-row${status ? " st-" + st.status : ""}${open ? " open" : ""}">
+    <div class="psle-row-line">
+      <span class="psle-row-n">Q${e.meta.n || "?"}</span>
+      <button type="button" class="psle-row-main" data-psle-act="toggle-row" data-id="${escapeHtml(e.id)}" aria-expanded="${open}">
+        <b>${escapeHtml(e.q.title || "Question")}</b>
+        <small>${bits.map(escapeHtml).join(" · ")}${diff ? ` · <span class="psle-diff" style="--c:${diff.colour}">${diff.label}</span>` : ""}</small>
+      </button>
+      ${status ? `<span class="psle-status" title="${status[1]}">${status[0]}</span>` : ""}
+      <button type="button" class="psle-icon-btn" data-psle-act="practise-one" data-id="${escapeHtml(e.id)}" title="Practise just this question">▶</button>
+      ${edit}
+    </div>
+    ${open ? `<div class="psle-row-preview">${psleQuestionPreviewHtml(e.q)}</div>` : ""}
+  </div>`;
+}
+function psleQuestionPreviewHtml(q) {
+  try { return `<div class="q-body">${renderQuestionBlocksHtml(q.blocks || [], q)}</div>${mcqOptionsPreviewHtml(q)}`; }
+  catch (e) { return `<p class="psle-note">This question can't be previewed here — open it with ▶ to see it.</p>`; }
+}
+
+// ---- The sheet: a year, or a topic --------------------------------------
+function psleOpenYear(year, paper) {
+  _psle.sel = { kind: "year", year: String(year), paper: paper || "", diff: "" };
+  _psle.showList = false; _psle.examMinutes = 0;
+  psleRenderSheet();
+  $("psleOverlay").classList.add("show");
+  psleSetHash({ view: "year", year, paper });
+}
+function psleOpenTopic(topic, year) {
+  _psle.sel = { kind: "topic", topic, year: year || "", diff: "" };
+  _psle.showList = false; _psle.examMinutes = 0;
+  psleRenderSheet();
+  $("psleOverlay").classList.add("show");
+  psleSetHash({ view: "topic", topic });
+}
+function psleCloseSheet() {
+  $("psleOverlay").classList.remove("show");
+  _psle.sel = null;
+  if ($("page-psle") && $("page-psle").classList.contains("active")) psleSetHash(_psle.tab === "years" ? { view: "home" } : { view: _psle.tab });
+}
+function psleSheetEntries(index) {
+  const s = _psle.sel;
+  if (!s) return [];
+  return s.kind === "year"
+    ? psleEntriesFor(index, { year: s.year, paper: s.paper, diff: s.diff })
+    : psleEntriesFor(index, { topic: s.topic, year: s.year, diff: s.diff });
+}
+function psleSheetTitle() {
+  const s = _psle.sel;
+  if (!s) return "";
+  if (s.kind === "year") return "PSLE " + s.year + (s.paper ? " · " + (s.paper === "P1" ? "Paper 1" : pslePaper(s.paper).label) : "");
+  return psleTopic(s.topic).name + (s.year ? " · PSLE " + s.year : " · PSLE");
+}
+function psleRenderSheet() {
+  const host = $("psleSheetBody"), titleEl = $("psleSheetTitle");
+  const s = _psle.sel;
+  if (!host || !s) return;
+  const index = psleIndexNow();
+  const entries = psleSheetEntries(index);
+  titleEl.textContent = s.kind === "year" ? "🎓 PSLE " + s.year : psleTopic(s.topic).icon + " " + psleTopic(s.topic).name;
+  const marks = entries.reduce((n, e) => n + e.marks, 0);
+  const topics = [...new Set(entries.map(e => psleTopic(e.topic).name))];
+  // Chips: a year's papers, or a topic's years.
+  let chips = "";
+  if (s.kind === "year") {
+    const have = index.years.find(y => y.year === s.year) || { papers: {} };
+    const opts = [["", "Whole paper"]].concat(
+      (have.papers.P1A || have.papers.P1B) && have.papers.P2 ? [["P1", "Paper 1"]] : [],
+      PSLE_PAPERS.filter(p => have.papers[p.key]).map(p => [p.key, p.short]));
+    chips = opts.map(([k, label]) => `<button type="button" class="psle-chip${s.paper === k ? " on" : ""}" data-psle-act="sheet-paper" data-paper="${k}">${escapeHtml(label)}</button>`).join("");
+  } else {
+    const t = index.topics.find(x => x.key === s.topic);
+    const yrs = t ? Object.keys(t.years).sort((a, b) => b - a) : [];
+    chips = [`<button type="button" class="psle-chip${!s.year ? " on" : ""}" data-psle-act="sheet-year" data-year="">All years</button>`]
+      .concat(yrs.map(y => `<button type="button" class="psle-chip${s.year === y ? " on" : ""}" data-psle-act="sheet-year" data-year="${y}">${y} <small>${t.years[y]}</small></button>`)).join("");
+  }
+  const baseForDiff = s.kind === "year" ? psleEntriesFor(index, { year: s.year, paper: s.paper }) : psleEntriesFor(index, { topic: s.topic, year: s.year });
+  const diffs = PSLE_DIFFS.filter(d => baseForDiff.some(e => e.meta.diff === d.key));
+  const diffChips = diffs.length ? `<div class="psle-chips psle-chips-diff"><span>Difficulty</span>
+    <button type="button" class="psle-chip${!s.diff ? " on" : ""}" data-psle-act="sheet-diff" data-diff="">Any</button>
+    ${diffs.map(d => `<button type="button" class="psle-chip${s.diff === d.key ? " on" : ""}" style="--c:${d.colour}" data-psle-act="sheet-diff" data-diff="${d.key}">${d.label}</button>`).join("")}</div>` : "";
+  const sum = _psle.progress ? psleProgressSummary(entries, _psle.progress) : null;
+  const mins = _psle.examMinutes || psleExamMinutes(entries);
+  const n = entries.length;
+  const action = (act, icon, title, blurb, extra = "") => `<button type="button" class="psle-action" data-psle-act="${act}"${n ? "" : " disabled"}>
+      <span class="psle-action-icon" aria-hidden="true">${icon}</span><span class="psle-action-title">${title}</span><span class="psle-action-blurb">${blurb}</span>${extra}</button>`;
+  host.innerHTML = `
+    <p class="psle-sheet-sub">${n} question${n === 1 ? "" : "s"} · ${marks} marks${topics.length && s.kind === "year" ? " · " + topics.length + " topics" : ""}${sum && sum.done ? ` · <b>${sum.done} tried, ${sum.score}% score</b>` : ""}</p>
+    <div class="psle-chips">${chips}</div>
+    ${diffChips}
+    <div class="psle-actions">
+      ${action("practise", "▶", "Practise", "One question at a time, marked as you go.")}
+      <div class="psle-action psle-action-exam${n ? "" : " is-off"}">
+        <span class="psle-action-icon" aria-hidden="true">⏱</span>
+        <span class="psle-action-title">Sit it as an exam</span>
+        <span class="psle-action-blurb">A clock counts down while you work, the way it will on the day.</span>
+        <span class="psle-exam-ctl">
+          <label class="psle-exam-mins">Minutes <input type="number" min="5" max="300" step="5" value="${mins}" data-psle-input="exam-mins" aria-label="Minutes on the clock"></label>
+          <button type="button" class="btn btn-primary btn-sm" data-psle-act="exam"${n ? "" : " disabled"}>Start the clock</button>
+        </span>
+      </div>
+      ${action("pdf", "📄", "Export PDF", "The real exam layout — covers, booklets and marks. Choose “Save as PDF” in the print window.",
+        psleCanManage() ? `<label class="psle-key-tick" data-psle-stop><input type="checkbox" data-psle-input="with-key"${_psle.withKey ? " checked" : ""}> answer key at the back</label>` : "")}
+      ${action("list", "📋", _psle.showList ? "Hide the questions" : "See the questions", "Read each one, practise it alone" + (psleCanManage() ? ", or fix its details." : "."))}
+    </div>
+    ${_psle.showList ? `<div class="psle-rows psle-sheet-rows">${entries.map(e => psleRowHtml(e, { showYear: s.kind === "topic" && !s.year })).join("")}</div>` : ""}
+    <div class="psle-sheet-foot">
+      <button type="button" class="psle-linkbtn" data-psle-act="copy-link">🔗 Copy a link to this</button>
+      ${s.kind === "topic" && psleIsStudent() ? "" : ""}
+    </div>`;
+}
+
+// ---- Doing things -------------------------------------------------------
+function pslePractise(entries, label) {
+  if (typeof _isEmployee === "function" && _isEmployee()) { toast("Practice is for students — use 👁 to read the questions", ""); return; }
+  const qs = (entries || []).map(e => e.q).filter(Boolean);
+  if (!qs.length) { toast("Nothing to practise here yet", "error"); return false; }
+  const allowed = _studentManualQuestions(qs);
+  if (!allowed.length) return false;
+  _practiceSetMode(true, allowed);
+  const ids = new Set(allowed.map(q => q.id));
+  questionBank = allowed.concat(questionBank.filter(q => !ids.has(q.id)));
+  qIndex = 0;
+  $("psleOverlay").classList.remove("show");
+  navigateTo("practice");
+  renderQuestion();
+  toast(`Practising ${label || "PSLE questions"} — ${allowed.length} question${allowed.length === 1 ? "" : "s"}`, "success");
+  return true;
+}
+function psleStartExam(entries, label, minutes) {
+  const mins = Math.max(5, Math.min(300, Math.round(Number(minutes) || psleExamMinutes(entries))));
+  if (_psleTimer && !confirm("A PSLE clock is already running. Stop it and start this one?")) return;
+  const started = pslePractise(entries, label + " as an exam");
+  if (!started) return;
+  _psleTimer = { startedAt: Date.now(), minutes: mins, pausedMs: 0, label, count: entries.length };
+  psleTimerSave();
+  psleTimerShow();
+  toast(`⏱ ${mins} minutes on the clock — good luck!`, "success");
+}
+async function psleExport(entries, title, withKey) {
+  const plan = pslePrintPlan(entries);
+  if (!plan.list.length) { toast("Nothing to print here yet", "error"); return; }
+  const w = window.open("", "_blank");
+  if (!w) { toast("Please allow pop-ups so the paper can open", "error"); return; }
+  w.document.write('<!doctype html><meta charset="utf-8"><title>Preparing…</title><body style="font-family:Arial,sans-serif;padding:28px;color:#555;">Preparing the paper…</body>');
+  const year = [...new Set(entries.map(e => e.meta.year))];
+  // The exam printer reads its cover wording from Custom Paper's meta. It is
+  // borrowed for this ONE synchronous build and put back — the teacher's own
+  // half-built paper on that page must not come back wearing "PSLE".
+  const saved = cpbMeta;
+  cpbMeta = Object.assign({}, CPB_META_DEFAULTS, {
+    exam: "PSLE PAST PAPER", year: year.length === 1 ? year[0] : "", level: "PRIMARY 6", subject: "MATHEMATICS",
+    code: "", code2: "", classLabel: "Class", date: "", mcqOnPaper: true, answerSheet: false, answerKey: !!withKey,
+  });
+  let html = "";
+  try {
+    html = await wsBuildDocumentHtml(plan.list, title, {
+      cover: false, fields: false, withQr: false, withAnswers: !!withKey && canManageQuestions(),
+      paper: { psle: true, groups: plan.groups.map(g => ({ book: g.book, questions: g.questions })),
+        numbers: plan.numbers, allocations: plan.allocations, noBracketIds: null, tail: "" },
+    });
+  } catch (e) {
+    console.error("psle export", e);
+    try { w.close(); } catch (_) {}
+    toast("Couldn't build the paper: " + (e && e.message ? e.message : e), "error");
+    return;
+  } finally { cpbMeta = saved; }
+  w.document.open(); w.document.write(html); w.document.close();
+}
+async function psleCopyLink(sel) {
+  const url = psleShareUrl(sel);
+  try { await navigator.clipboard.writeText(url); toast("Link copied — it opens this straight after sign-in", "success"); }
+  catch (e) { prompt("Copy this link:", url); }
+}
+
+// ---- ⏱ The exam clock ----------------------------------------------------
+function psleTimerSave() {
+  try { if (_psleTimer) sessionStorage.setItem(PSLE_TIMER_KEY, JSON.stringify(_psleTimer)); else sessionStorage.removeItem(PSLE_TIMER_KEY); } catch (e) {}
+}
+function psleTimerRestore() {
+  try {
+    const t = JSON.parse(sessionStorage.getItem(PSLE_TIMER_KEY) || "null");
+    if (psleTimerValid(t)) { _psleTimer = t; psleTimerShow(); }
+  } catch (e) { /* nothing saved */ }
+}
+function psleTimerShow() {
+  const el = $("psleTimer");
+  if (!el) return;
+  if (!_psleTimer) { el.hidden = true; clearInterval(_psleTimerTick); _psleTimerTick = 0; return; }
+  el.hidden = false;
+  psleTimerPaint();
+  if (!_psleTimerTick) _psleTimerTick = setInterval(psleTimerPaint, 1000);
+}
+function psleTimerPaint() {
+  const el = $("psleTimer");
+  if (!el || !_psleTimer) return;
+  const left = psleTimerRemaining(_psleTimer);
+  const over = left < 0;
+  el.classList.toggle("over", over);
+  el.classList.toggle("low", !over && left < 5 * 60000);
+  el.classList.toggle("paused", !!_psleTimer.pausedAt);
+  $("psleTimerLabel").textContent = _psleTimer.label || "PSLE exam";
+  $("psleTimerClock").textContent = (over ? "+" : "") + psleFormatClock(Math.abs(left));
+  $("psleTimerPause").textContent = _psleTimer.pausedAt ? "▶" : "⏸";
+  $("psleTimerPause").title = _psleTimer.pausedAt ? "Carry on" : "Pause the clock";
+  if (over && !_psleTimer.warned) { _psleTimer.warned = true; psleTimerSave(); toast("⏱ Time's up! Finish the question you're on, then stop the clock.", "error"); }
+}
+function psleTimerAct(act) {
+  if (!_psleTimer) return;
+  if (act === "pause") _psleTimer = _psleTimer.pausedAt ? psleTimerResume(_psleTimer) : psleTimerPause(_psleTimer);
+  else if (act === "stop") {
+    const used = _psleTimer.minutes * 60000 - psleTimerRemaining(_psleTimer);
+    if (!confirm("Stop the clock?")) return;
+    toast(`⏱ Clock stopped at ${psleFormatClock(used)} of ${_psleTimer.minutes}:00.`, "success");
+    _psleTimer = null;
+  } else if (act === "go") { navigateTo("practice"); return; }
+  psleTimerSave();
+  psleTimerShow();
+}
+
+// ---- 🛠 Manage (teacher) -------------------------------------------------
+function psleAllForDetect() { return (questionBank || []).concat(canManageQuestions() ? (vettingList || []) : []); }
+function psleDetectNow() {
+  return psleDetect(psleAllForDetect(), { textOf: psleTextOf, sourceOf: q => String((q && q.sourcePdf) || "") });
+}
+function psleWhere(id) {
+  if ((vettingList || []).some(q => q.id === id)) return "vetting";
+  if ((questionBank || []).some(q => q.id === id)) return "bank";
+  return "";
+}
+function psleFind(id) { return (questionBank || []).find(q => q.id === id) || (vettingList || []).find(q => q.id === id) || null; }
+// THE ONE WRITE. `meta` null takes the question off its paper.
+async function psleWrite(q, meta) {
+  if (!canManageQuestions()) throw new Error("Only teachers can file PSLE questions");
+  const clean = meta ? psleClean(meta) : null;
+  if (psleWhere(q.id) === "vetting") {
+    if (clean) q.psle = clean; else delete q.psle;
+    await saveVettingDoc(q, { quiet: true });
+    return;
+  }
+  await setDoc(doc(db, "users", _bankOwnerOrThrow(), "mathQuestions", q.id), { psle: clean || deleteField() }, { merge: true });
+  if (clean) q.psle = clean; else delete q.psle;
+}
+async function psleAutoFile(canonicalOnly, opts = {}) {
+  if (!canManageQuestions() || _psle.autoBusy) return 0;
+  const todo = psleDetectNow().filter(p => psleAutoFileable(p) && (!canonicalOnly || p.canonical));
+  if (!todo.length) return 0;
+  _psle.autoBusy = true;
+  let done = 0, failed = 0;
+  try {
+    for (const p of todo) {
+      const q = psleFind(p.id);
+      if (!q || psleOf(q)) continue;
+      try { await psleWrite(q, p.psle); done++; } catch (e) { failed++; console.warn("psle file", p.id, e); }
+    }
+  } finally { _psle.autoBusy = false; }
+  if (done && !opts.silent) toast(`🎓 Filed ${done} PSLE question${done === 1 ? "" : "s"} under their paper${failed ? " (" + failed + " couldn't be saved)" : ""}`, "success");
+  else if (failed) toast(failed + " PSLE question(s) couldn't be filed — try again from 🛠 Manage", "error");
+  if ($("page-psle") && $("page-psle").classList.contains("active")) psleRenderMain();
+  return done;
+}
+// Called by ⚡ Rapid add after every page lands in vetting — debounced, so a
+// forty-page paper files itself once a second rather than forty times at once.
+function psleAfterRapid(questions) {
+  if (!canManageQuestions() || !(questions || []).some(q => psleParseSource(q && q.sourcePdf))) return;
+  clearTimeout(_psleAutoTimer);
+  _psleAutoTimer = setTimeout(() => psleAutoFile(true, { silent: true }), 1200);
+}
+function psleVetBadge(q) {
+  const m = psleOf(q);
+  if (m) return `<span class="vet-badge psle" title="Filed as PSLE ${escapeHtml(m.year)}, ${escapeHtml(pslePaper(m.paper).label)}${m.n ? ", question " + m.n : ""}">🎓 ${escapeHtml(psleLabel(m, { noPsle: true }))}</span>`;
+  const src = psleParseSource(q && q.sourcePdf);
+  return src ? `<span class="vet-badge busy" title="This came from a PSLE paper — it is filed under its year and number once its number is read">🎓 PSLE ${escapeHtml(src.year)}</span>` : "";
+}
+function psleManageHtml(index) {
+  if (!psleCanManage()) return "";
+  const years = psleYearOptions();
+  const yearSel = _psle.importYear || years[1] || years[0];
+  const yearOpts = years.map(y => `<option value="${y}"${y === yearSel ? " selected" : ""}>${y}</option>`).join("");
+  const paperOpts = PSLE_PAPERS.map(p => [p.key, p.label]).concat([["ALL", "Whole sitting (both papers in one file)"]])
+    .map(([k, l]) => `<option value="${k}"${_psle.importPaper === k ? " selected" : ""}>${escapeHtml(l)}</option>`).join("");
+  const running = (rapidJobs || []).filter(j => /PSLE-\d{4}-/i.test(String(j.source || j.title || "")));
+  const proposals = psleDetectNow();
+  const ready = proposals.filter(psleAutoFileable);
+  const blocked = proposals.filter(p => !psleAutoFileable(p));
+  const rowOf = p => {
+    const q = psleFind(p.id) || { title: p.id };
+    const where = psleWhere(p.id);
+    const conflict = p.conflict ? psleFind(p.conflict) : null;
+    return `<div class="psle-detect-row${p.conflict ? " conflict" : ""}">
+      <span class="psle-row-n">${escapeHtml(psleLabel(p.psle, { noPsle: true }))}</span>
+      <div class="psle-detect-main"><b>${escapeHtml(q.title || "Question")}</b>
+        <small>${where === "vetting" ? "📋 in Vetting · " : "📚 in the bank · "}${escapeHtml(p.reason)}${p.psle.marksGuess ? " · marks guessed" : ""}${conflict ? ` · ⚠ slot already holds “${escapeHtml(conflict.title || conflict.id)}”` : ""}</small></div>
+      ${psleAutoFileable(p) ? `<button type="button" class="btn btn-ghost btn-sm" data-psle-act="file-one" data-id="${escapeHtml(p.id)}">✓ File</button>` : ""}
+      <button type="button" class="btn btn-ghost btn-sm" data-psle-act="edit-proposal" data-id="${escapeHtml(p.id)}">✏️ Set…</button>
+    </div>`;
+  };
+  const detectCard = proposals.length ? `<div class="card card-pad psle-card">
+      <div class="psle-card-head"><h4>🔎 PSLE questions found in your bank and vetting</h4>
+        ${ready.length ? `<button type="button" class="btn btn-primary btn-sm" data-psle-act="file-all">✓ File all ${ready.length}</button>` : ""}</div>
+      <p class="psle-note">Read off each question's file name or title. ${ready.length} can be filed straight away${blocked.length ? `; ${blocked.length} need${blocked.length === 1 ? "s" : ""} a number or a decision first` : ""}.</p>
+      <div class="psle-detect">${proposals.slice(0, _psle.manageShowAll ? 400 : 25).map(rowOf).join("")}</div>
+      ${proposals.length > 25 && !_psle.manageShowAll ? `<button type="button" class="psle-linkbtn" data-psle-act="manage-all">Show all ${proposals.length}</button>` : ""}
+    </div>` : "";
+  const vettingPsle = (vettingList || []).filter(q => psleOf(q));
+  const vetCard = vettingPsle.length ? `<div class="card card-pad psle-card psle-card-vet">
+      <div class="psle-card-head"><h4>📋 ${vettingPsle.length} filed PSLE question${vettingPsle.length === 1 ? " is" : "s are"} still in Vetting</h4>
+        <div class="psle-card-btns"><button type="button" class="btn btn-ghost btn-sm" data-psle-act="go-vetting">Check them</button>
+        <button type="button" class="btn btn-primary btn-sm" data-psle-act="approve-vetting">✅ Approve all ${vettingPsle.length}</button></div></div>
+      <p class="psle-note">Pupils see a PSLE question once it is approved into the bank. Check the 🚦 lights and the cropped figures first — a whole page in a picture slot is badged 🖼.</p>
+    </div>` : "";
+  const guesses = index.entries.filter(e => e.meta.marksGuess);
+  const guessCard = guesses.length ? `<div class="card card-pad psle-card">
+      <div class="psle-card-head"><h4>❓ ${guesses.length} mark${guesses.length === 1 ? "" : "s"} to confirm</h4></div>
+      <p class="psle-note">Paper 2's longer questions are worth 3, 4 or 5 marks and the number could not be read off the page, so 4 was put in. Type the real mark and it saves.</p>
+      <div class="psle-guess">${guesses.slice(0, 40).map(e => `<label class="psle-guess-row"><span>${escapeHtml(psleLabel(e.meta, { noPsle: true }))} · ${escapeHtml(e.q.title || "")}</span>
+        <input type="number" min="1" max="6" value="${e.marks}" data-psle-input="guess-marks" data-id="${escapeHtml(e.id)}" aria-label="Marks"></label>`).join("")}</div>
+    </div>` : "";
+  const table = index.years.map(y => {
+    const gaps = psleGaps(index, y.year);
+    const cell = k => { const c = y.papers[k]; return c ? `${c.count}<small> · ${c.marks}m</small>` : `<span class="psle-dim">—</span>`; };
+    const gapTxt = Object.entries(gaps).map(([k, g]) => (g.missing.length ? `${k} missing Q${g.missing.slice(0, 6).join(", Q")}${g.missing.length > 6 ? "…" : ""}` : "")
+      + (g.dupes.length ? ` ${k} Q${g.dupes.join(", Q")} filed twice` : "")).filter(Boolean).join("; ");
+    return `<tr><th scope="row"><button type="button" class="psle-linkbtn" data-psle-act="open-year" data-year="${y.year}">${y.year}</button></th>
+      <td>${cell("P1A")}</td><td>${cell("P1B")}</td><td>${cell("P2")}</td><td><b>${y.marks}</b></td>
+      <td class="psle-gaps">${gapTxt ? "⚠ " + escapeHtml(gapTxt) : "✓"}</td>
+      <td><button type="button" class="btn btn-ghost btn-sm" data-psle-act="file-pick" data-year="${y.year}">＋ File a question</button></td></tr>`;
+  }).join("");
+  return `<section class="psle-section psle-manage">
+    <div class="card card-pad psle-card psle-import">
+      <div class="psle-card-head"><h4>📥 Load a PSLE paper</h4></div>
+      <p class="psle-note">One PDF per booklet works best. Every page is read as its own screenshot by ⚡ Rapid add, each figure is cropped, and every question lands in 📋 Vetting already filed under its year, paper and number. A whole sitting in one file works too — the booklets are worked out from the options and from where the numbering restarts.</p>
+      <div class="psle-import-row">
+        <label>Year <select data-psle-input="import-year">${yearOpts}</select></label>
+        <label>Paper <select data-psle-input="import-paper">${paperOpts}</select></label>
+        <label class="btn btn-primary psle-import-btn">📄 Choose PDF${"s"}<input type="file" accept="application/pdf,.pdf" multiple hidden data-psle-input="import-files"></label>
+      </div>
+      <div class="psle-drop" data-psle-drop tabindex="0">or drop the PDF here</div>
+      ${running.length ? `<div class="psle-running"><span class="spinner dark"></span> ${running.length} PSLE paper${running.length === 1 ? " is" : "s are"} being read — <button type="button" class="psle-linkbtn" data-psle-act="go-vetting">watch in 📋 Vetting</button></div>` : ""}
+    </div>
+    ${vetCard}${detectCard}${guessCard}
+    <div class="card card-pad psle-card">
+      <div class="psle-card-head"><h4>📚 Papers filed</h4><button type="button" class="btn btn-ghost btn-sm" data-psle-act="file-pick" data-year="">＋ File any bank question</button></div>
+      ${index.years.length ? `<div class="psle-heat-wrap"><table class="psle-manage-table"><thead><tr><th>Year</th><th>P1 · A</th><th>P1 · B</th><th>Paper 2</th><th>Marks</th><th>Checks</th><th></th></tr></thead><tbody>${table}</tbody></table></div>`
+        : `<p class="psle-note">Nothing filed yet. Load a paper above, or file questions already in your bank one at a time.</p>`}
+    </div>
+  </section>`;
+}
+async function psleImportFiles(files) {
+  if (!canManageQuestions()) return;
+  const list = Array.from(files || []).filter(f => f && (f.type === "application/pdf" || /\.pdf$/i.test(f.name || "")));
+  if (!list.length) { toast("Please choose a PDF of the paper", "error"); return; }
+  const year = _psle.importYear || psleYearOptions()[1];
+  const paper = _psle.importPaper || "P1A";
+  for (const f of list) {
+    let file = f;
+    try { file = new File([f], psleCanonicalFileName(year, paper, f.name), { type: "application/pdf" }); }
+    catch (e) { /* an old browser without the File constructor: the original name still files by year */ }
+    // P6 is the PSLE's level; the release date is deliberately NOT the pad's —
+    // a paper loaded from here is not part of whatever batch is being held back.
+    startRapidJob(file, "P6", { release: "" });
+  }
+  toast(`📥 Reading ${list.length} PSLE ${year} paper${list.length === 1 ? "" : "s"} — the questions land in 📋 Vetting, filed as they arrive`, "success");
+  setTimeout(psleRenderMain, 300);
+}
+// ✏️ The edit dialog: one question's year, paper, number, marks, difficulty
+// and (optionally) the topic it is shown under.
+function psleOpenEdit(id, preset) {
+  const q = psleFind(id);
+  if (!q || !canManageQuestions()) return;
+  const m = psleOf(q) || preset || {};
+  _psle.editId = id;
+  const years = psleYearOptions();
+  const year = m.year || _psle.importYear || years[1];
+  const paperOpts = PSLE_PAPERS.map(p => `<option value="${p.key}"${(m.paper || "P1A") === p.key ? " selected" : ""}>${escapeHtml(p.label)}</option>`).join("");
+  const diffOpts = [["", "Not set"]].concat(PSLE_DIFFS.map(d => [d.key, d.label])).map(([k, l]) => `<option value="${k}"${(m.diff || "") === k ? " selected" : ""}>${l}</option>`).join("");
+  const autoTopic = psleTopic(psleTopicOf(Object.assign({}, q, { psle: null }), { loOf: psleLoOf, textOf: psleTextOf })).name;
+  const topicOpts = [["", "Automatic (" + autoTopic + ")"]].concat(PSLE_TOPICS.filter(t => t.key !== "other").map(t => [t.key, t.icon + " " + t.name]))
+    .map(([k, l]) => `<option value="${k}"${(m.topic || "") === k ? " selected" : ""}>${escapeHtml(l)}</option>`).join("");
+  const n = m.n || psleQuestionNumber(q) || "";
+  const marks = m.marks || psleMarksFromText(psleTextOf(q)) || psleDefaultMarks(m.paper || "P1A", n).marks;
+  $("psleEditTitle").textContent = q.title || "Question";
+  $("psleEditBody").innerHTML = `
+    <div class="psle-edit-grid">
+      <label>Year <input type="number" id="psleEdYear" min="1990" max="${psleNowYear() + 1}" value="${escapeHtml(year)}" list="psleYearList"></label>
+      <label>Paper <select id="psleEdPaper">${paperOpts}</select></label>
+      <label>Question number <input type="number" id="psleEdN" min="1" max="60" value="${escapeHtml(String(n))}"></label>
+      <label>Marks <input type="number" id="psleEdMarks" min="1" max="6" value="${escapeHtml(String(marks))}"></label>
+      <label>Difficulty <select id="psleEdDiff">${diffOpts}</select></label>
+      <label>Shown under <select id="psleEdTopic">${topicOpts}</select></label>
+    </div>
+    <datalist id="psleYearList">${years.map(y => `<option value="${y}">`).join("")}</datalist>
+    <p class="psle-edit-err" id="psleEditErr" role="alert"></p>
+    <details class="psle-edit-peek"><summary>👁 The question</summary>${psleQuestionPreviewHtml(q)}</details>`;
+  $("psleEditUntag").hidden = !psleOf(q);
+  $("psleEditOverlay").classList.add("show");
+  setTimeout(() => { const el = $(n ? "psleEdMarks" : "psleEdN"); if (el) el.focus(); }, 30);
+}
+async function psleEditSave() {
+  const q = psleFind(_psle.editId);
+  if (!q) return;
+  const res = psleEditValidate({
+    year: $("psleEdYear").value, paper: $("psleEdPaper").value, n: $("psleEdN").value,
+    marks: $("psleEdMarks").value, diff: $("psleEdDiff").value, topic: $("psleEdTopic").value,
+  }, { id: q.id, others: psleAllForDetect() });
+  if (!res.ok) { $("psleEditErr").textContent = res.error; return; }
+  const btn = $("psleEditSave"); btn.disabled = true;
+  try {
+    await psleWrite(q, res.meta);
+    closeOverlay("psleEditOverlay");
+    toast("Filed as " + psleLabel(res.meta), "success");
+    psleRenderMain();
+    if (_psle.sel) psleRenderSheet();
+    if ($("page-vetting") && $("page-vetting").classList.contains("active")) renderVettingList();
+  } catch (e) { $("psleEditErr").textContent = "Couldn't save: " + (e && e.message ? e.message : e); }
+  finally { btn.disabled = false; }
+}
+async function psleEditUntag() {
+  const q = psleFind(_psle.editId);
+  if (!q || !psleOf(q)) return;
+  if (!confirm(`Take “${q.title || "this question"}” off ${psleLabel(psleOf(q))}? The question itself stays in the bank.`)) return;
+  try {
+    await psleWrite(q, null);
+    closeOverlay("psleEditOverlay");
+    toast("Taken off the PSLE papers", "success");
+    psleRenderMain();
+    if (_psle.sel) psleRenderSheet();
+  } catch (e) { toast("Couldn't save: " + (e && e.message ? e.message : e), "error"); }
+}
+// ＋ File a question: pick ANY bank or vetting question and give it a slot.
+function psleOpenFilePicker(year) {
+  _psle.fileSlot = { year: year || "" };
+  _psle.fileSearch = "";
+  $("psleFileSearch").value = "";
+  $("psleFileSub").textContent = year ? `Choose a question to file under PSLE ${year}. You'll set its paper and number next.` : "Choose a question to file under a PSLE paper. You'll set its year, paper and number next.";
+  psleRenderFileList();
+  $("psleFileOverlay").classList.add("show");
+  setTimeout(() => $("psleFileSearch").focus(), 30);
+}
+function psleRenderFileList() {
+  const words = String(_psle.fileSearch || "").toLowerCase().split(/\s+/).filter(Boolean);
+  const pool = psleAllForDetect().filter(q => !psleOf(q));
+  const hits = pool.filter(q => { const hay = (String(q.title || "") + " " + psleTextOf(q) + " " + String(q.sourcePdf || "")).toLowerCase(); return words.every(w => hay.includes(w)); });
+  const shown = hits.slice(0, 50);
+  $("psleFileList").innerHTML = shown.length ? shown.map(q => `<button type="button" class="psle-file-row" data-psle-act="file-choose" data-id="${escapeHtml(q.id)}">
+      <b>${escapeHtml(q.title || "Untitled")}</b><small>${psleWhere(q.id) === "vetting" ? "📋 Vetting" : "📚 Bank"}${q.level ? " · " + escapeHtml(q.level) : ""}${q.sourcePdf ? " · " + escapeHtml(q.sourcePdf) : ""}</small></button>`).join("")
+    + (hits.length > shown.length ? `<p class="psle-note">${hits.length - shown.length} more — type to narrow it down.</p>` : "")
+    : `<div class="empty-note">${pool.length ? "Nothing matches that." : "Every question is already filed."}</div>`;
+}
+
+// ---- Wiring ---------------------------------------------------------------
+function psleBindOnce() {
+  if (_psle.bound) return;
+  _psle.bound = true;
+  const page = $("page-psle"), sheet = $("psleOverlay");
+  const onClick = e => {
+    if (e.target.closest("[data-psle-stop]")) return;
+    const b = e.target.closest("[data-psle-act]");
+    if (!b) return;
+    const act = b.dataset.psleAct, index = psleIndexNow();
+    if (act === "tab") return psleSetTab(b.dataset.tab);
+    if (act === "search-clear") { _psle.search = ""; const i = $("psleSearch"); if (i) { i.value = ""; i.focus(); } return psleRenderMain(); }
+    if (act === "open-year") return psleOpenYear(b.dataset.year, "");
+    if (act === "open-topic") return psleOpenTopic(b.dataset.topic, "");
+    if (act === "import-year") { _psle.importYear = b.dataset.year; return psleSetTab("manage"); }
+    if (act === "practise-topic") return pslePractise(psleEntriesFor(index, { topic: b.dataset.topic }), psleTopic(b.dataset.topic).name);
+    if (act === "practise-search") return pslePractise(psleSearch(index.entries, _psle.search, psleTextOf), "your search");
+    if (act === "practise-one") { const e1 = index.byId.get(b.dataset.id); return e1 && pslePractise([e1], psleLabel(e1.meta)); }
+    if (act === "toggle-row") { _psle.open[b.dataset.id] = !_psle.open[b.dataset.id]; return _psle.sel && sheet.contains(b) ? psleRenderSheet() : psleRenderMain(); }
+    if (act === "edit") return psleOpenEdit(b.dataset.id);
+    if (act === "progress-reload") { _psle.progress = null; psleLoadProgress(true); return psleRenderMain(); }
+    if (act === "file-all") return psleAutoFile(false);
+    if (act === "file-one") {
+      const p = psleDetectNow().find(x => x.id === b.dataset.id), q = psleFind(b.dataset.id);
+      if (p && q) psleWrite(q, p.psle).then(() => { toast("Filed as " + psleLabel(p.psle), "success"); psleRenderMain(); }).catch(err => toast("Couldn't save: " + err.message, "error"));
+      return;
+    }
+    if (act === "edit-proposal") { const p = psleDetectNow().find(x => x.id === b.dataset.id); return psleOpenEdit(b.dataset.id, p && p.psle); }
+    if (act === "manage-all") { _psle.manageShowAll = true; return psleRenderMain(); }
+    if (act === "go-vetting") { closeOverlay("psleOverlay"); return navigateTo("vetting"); }
+    if (act === "approve-vetting") return psleApproveVetting();
+    if (act === "file-pick") return psleOpenFilePicker(b.dataset.year);
+    // The sheet
+    const s = _psle.sel;
+    if (!s) return;
+    const entries = psleSheetEntries(index);
+    if (act === "sheet-paper") { s.paper = b.dataset.paper; psleSetHash({ view: "year", year: s.year, paper: s.paper }); _psle.examMinutes = 0; return psleRenderSheet(); }
+    if (act === "sheet-year") { s.year = b.dataset.year; _psle.examMinutes = 0; return psleRenderSheet(); }
+    if (act === "sheet-diff") { s.diff = b.dataset.diff; _psle.examMinutes = 0; return psleRenderSheet(); }
+    if (act === "practise") return pslePractise(entries, psleSheetTitle());
+    if (act === "exam") return psleStartExam(entries, psleSheetTitle(), _psle.examMinutes || psleExamMinutes(entries));
+    if (act === "pdf") return psleExport(entries, psleSheetTitle(), _psle.withKey);
+    if (act === "list") { _psle.showList = !_psle.showList; return psleRenderSheet(); }
+    if (act === "copy-link") return psleCopyLink(s.kind === "year" ? { view: "year", year: s.year, paper: s.paper } : { view: "topic", topic: s.topic });
+  };
+  const onInput = e => {
+    const el = e.target.closest("[data-psle-input]");
+    if (!el) return;
+    const k = el.dataset.psleInput;
+    if (k === "exam-mins") _psle.examMinutes = Math.max(5, Math.min(300, Number(el.value) || 0));
+    else if (k === "with-key") _psle.withKey = !!el.checked;
+    else if (k === "import-year") _psle.importYear = el.value;
+    else if (k === "import-paper") _psle.importPaper = el.value;
+    else if (k === "import-files" && e.type === "change") { const files = Array.from(el.files || []); el.value = ""; psleImportFiles(files); }
+    else if (k === "guess-marks" && e.type === "change") {
+      const q = psleFind(el.dataset.id), m = q && psleOf(q), v = Number(el.value);
+      if (!m || !(v >= 1 && v <= 6)) return;
+      const next = Object.assign({}, m, { marks: v }); delete next.marksGuess;
+      psleWrite(q, next).then(() => { toast("Saved — " + psleLabel(next) + " is " + v + " mark" + (v === 1 ? "" : "s"), "success"); psleRenderMain(); })
+        .catch(err => toast("Couldn't save: " + err.message, "error"));
+    }
+  };
+  [page, sheet].forEach(host => {
+    if (!host) return;
+    host.addEventListener("click", onClick);
+    host.addEventListener("change", onInput);
+    host.addEventListener("input", onInput);
+  });
+  // Drag a PDF onto the drop zone (or anywhere on 🛠 Manage).
+  if (page) {
+    page.addEventListener("dragover", e => { if (_psle.tab === "manage" && psleCanManage()) { e.preventDefault(); const z = page.querySelector("[data-psle-drop]"); if (z) z.classList.add("over"); } });
+    page.addEventListener("dragleave", e => { const z = page.querySelector("[data-psle-drop]"); if (z && !page.contains(e.relatedTarget)) z.classList.remove("over"); });
+    page.addEventListener("drop", e => {
+      if (_psle.tab !== "manage" || !psleCanManage()) return;
+      e.preventDefault();
+      const z = page.querySelector("[data-psle-drop]"); if (z) z.classList.remove("over");
+      psleImportFiles(e.dataTransfer && e.dataTransfer.files);
+    });
+  }
+  const close = $("psleSheetClose");
+  if (close) close.addEventListener("click", psleCloseSheet);
+  if (sheet) sheet.addEventListener("click", e => { if (e.target === sheet) psleCloseSheet(); });
+  document.addEventListener("keydown", e => {
+    if (e.key !== "Escape") return;
+    if ($("psleEditOverlay") && $("psleEditOverlay").classList.contains("show")) return closeOverlay("psleEditOverlay");
+    if ($("psleFileOverlay") && $("psleFileOverlay").classList.contains("show")) return closeOverlay("psleFileOverlay");
+    if (sheet && sheet.classList.contains("show")) psleCloseSheet();
+  });
+  $("psleEditSave").addEventListener("click", psleEditSave);
+  $("psleEditUntag").addEventListener("click", psleEditUntag);
+  $("psleEditBody").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.tagName === "INPUT") { e.preventDefault(); psleEditSave(); } });
+  $("psleFileSearch").addEventListener("input", e => { _psle.fileSearch = e.target.value; psleRenderFileList(); });
+  $("psleFileList").addEventListener("click", e => {
+    const b = e.target.closest("[data-psle-act='file-choose']");
+    if (!b) return;
+    closeOverlay("psleFileOverlay");
+    const q = psleFind(b.dataset.id);
+    const fromName = q && (psleParseSource(q.sourcePdf) || psleParseSource(q.title));
+    psleOpenEdit(b.dataset.id, { year: (_psle.fileSlot && _psle.fileSlot.year) || (fromName && fromName.year) || "", paper: (fromName && fromName.paper && fromName.paper !== "P1" && fromName.paper) || "P1A" });
+  });
+}
+async function psleApproveVetting() {
+  const list = (vettingList || []).filter(q => psleOf(q));
+  if (!list.length) return;
+  if (!confirm(`Send all ${list.length} filed PSLE question(s) from Vetting to the bank? Pupils can practise them straight away.`)) return;
+  let ok = 0, failed = 0;
+  for (const q of list) { try { await vetApprove(q.id, { quiet: true }); ok++; } catch (e) { failed++; } }
+  renderVettingList();
+  toast(`✅ ${ok} PSLE question${ok === 1 ? "" : "s"} approved${failed ? " — " + failed + " couldn't be (see Vetting)" : ""}`, failed ? "error" : "success");
+  psleRenderMain();
+}
+// The timer pill is outside the page, so it gets its own handlers.
+(function psleTimerBind() {
+  const el = $("psleTimer");
+  if (!el) return;
+  el.addEventListener("click", e => { const b = e.target.closest("[data-psle-timer]"); if (b) psleTimerAct(b.dataset.psleTimer); });
+})();
+
+// ---- Arriving by link ------------------------------------------------------
+// `#psle…` survives sign-in (the hash is never touched by the auth flow), so
+// enterApp asks here once the bank is loaded. Returns true when it navigated.
+function psleRouteFromHash() {
+  const r = psleParseHash(location.hash);
+  if (!r || !currentUser || (typeof _isEmployee === "function" && _isEmployee())) return false;
+  if (["trends", "manage", "progress", "topics", "years"].includes(r.view)) _psle.tab = r.view;
+  navigateTo("psle");
+  if (r.view === "year") psleOpenYear(r.year, r.paper);
+  else if (r.view === "topic") psleOpenTopic(r.topic, "");
+  return true;
+}
+window.addEventListener("hashchange", () => { if (currentUser && psleParseHash(location.hash) && !($("psleOverlay") && $("psleOverlay").classList.contains("show") && _psle.sel)) psleRouteFromHash(); });
+function psleOnNavigate(page) {
+  if (page === "psle") { renderPslePage(); if (!/^#psle/i.test(location.hash)) psleSetHash(_psle.tab === "years" || !_psle.tab ? { view: "home" } : { view: _psle.tab }); }
+  else { const o = $("psleOverlay"); if (o) o.classList.remove("show"); psleClearHash(); }
+}
+psleTimerRestore();
+window.renderPslePage = renderPslePage;
+window.psleOpenYear = psleOpenYear;
+window.psleOpenTopic = psleOpenTopic;
+// 🎓 END PSLE MATH
 
 // 🧪 A printed app QR: open the app alone. LAST, so every const it reaches
 // (the chart block's prefixes and caps) has been initialised.
