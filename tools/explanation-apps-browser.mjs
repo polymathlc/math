@@ -222,7 +222,9 @@ await scenario('⌨ the teacher pastes code, runs it, uploads an .html file, pas
   await page.click('#xaAddBtn');
   const [a1] = await edits(page);
   assert.ok(a1 && /^xa_/.test(a1), 'an app was added: ' + a1);
-  assert.equal(await page.evaluate(() => document.activeElement && document.activeElement.matches('[data-xa-code]')), true, 'the caret is put in the code box');
+  // The editor focuses the code box once it has drawn it: wait for that, rather than asking once.
+  const focused = await page.waitForFunction(() => document.activeElement && document.activeElement.matches('[data-xa-code]'), null, { timeout: 5000 }).then(() => true, () => false);
+  assert.equal(focused, true, 'the caret is put in the code box');
   const runBtn = `[data-xa-run="${a1}"].btn`;
   assert.equal(await page.$eval(runBtn, b => b.disabled), true, 'nothing to run yet');
 
