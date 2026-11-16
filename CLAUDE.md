@@ -2,6 +2,32 @@
 
 Guidance for Claude when working in this repo.
 
+## 🔢 Number from — a worksheet whose first question is not Question 1 (v1.118.0)
+
+`WS_START_MAX` / `wsStartNumberClean` / `wsStartOf` / `wsNumberAt` / `wsNumberRangeText` / `wsBuilderStart` /
+`wsSyncStartUi` / `qcOffsetPlan` / `qcPlanFirstNo` / `wseSyncStart` / `wseSetStart` (search `🔢 NUMBER FROM`),
+`#wsStartNumber` under the extras on 📝 Create Worksheet and `#wseStartNumber` in the ✎ Questions drawer.
+
+Zhi Kai prints a PORTION of work to slot into another worksheet, so the portion has to be numbered where it
+lands: a sheet ending at Q20 is continued by one that starts at Q21.
+
+- **One number, `startNumber`, the number the FIRST question prints as.** Nothing is stored per question, so
+  reordering / adding / removing renumbers the sheet from that first number exactly as before. Saved on the
+  worksheet doc only when it is not 1 (the drawer DELETES it at 1), so an ordinary sheet's doc is unchanged.
+- **FAILS TO 1**: missing, empty, negative or junk is the ordinary sheet; capped at 999. A sheet saved before
+  v1.118.0 prints byte-for-byte as it did.
+- **Every number reads it — they must agree**: the printed chunk and the 🔑 answer key
+  (`wsBuildDocumentHtml` → `wsNumberAt(i, startAt)`, `wsAnswerKeyHtml(questions, numbers, start)`), the 🧩
+  related booklet (`qcRelatedDocumentOpts` shifts the plan with `qcOffsetPlan` BEFORE any ✗ / ✓ line is written,
+  and the old hard-coded "Question 1" lines read `qcPlanFirstNo`), the 🎬 overview page (chips, `#wvq<n>` jump
+  links, the reel's `no`), the builder's order badges and the drawer rows.
+- **Reprints use the sheet's own value** (`openSavedWorksheet` → `po.startNumber = wsStartOf(ws)`); My Worksheets
+  shows a `🔢 Q21–Q30` chip on such a sheet.
+- **A paper's own `paper.numbers` still wins** (🗂️ Custom Paper, 🎓 PSLE export), so a booklet-numbered paper is
+  never moved. **QR codes encode the question id, never its number**, so they need no change.
+- Diagnostics do not use it (their marks record numbers off the printed questions as before).
+- Run **`node tools/worksheet-start-number-tests.mjs`** (CI: `.github/workflows/worksheet-cover.yml`).
+
 ## 🧩 Explanation apps — shown to a pupil after their answer is marked (v1.117.0)
 
 `explanation-apps.js` (classic script, `window.ExplanationApps`: `fromCode`, `fromFile`, `fromModelText`,

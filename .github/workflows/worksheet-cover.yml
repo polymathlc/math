@@ -1,10 +1,10 @@
 name: Big M worksheet cover
 on:
   pull_request:
-    paths: ['index.html', 'worksheet-cover.js', 'assets/worksheet-covers/**', 'assets/branding/**', 'practice-mastery.js', 'tools/worksheet-cover*.mjs', 'tools/worksheet-header-tests.mjs', '.github/workflows/worksheet-cover.yml']
+    paths: ['index.html', 'worksheet-cover.js', 'assets/worksheet-covers/**', 'assets/branding/**', 'practice-mastery.js', 'tools/worksheet-cover*.mjs', 'tools/worksheet-header-tests.mjs', 'tools/worksheet-start-number-tests.mjs', '.github/workflows/worksheet-cover.yml']
   push:
     branches: [main]
-    paths: ['index.html', 'worksheet-cover.js', 'assets/worksheet-covers/**', 'assets/branding/**', 'practice-mastery.js', 'tools/worksheet-cover*.mjs', 'tools/worksheet-header-tests.mjs', '.github/workflows/worksheet-cover.yml']
+    paths: ['index.html', 'worksheet-cover.js', 'assets/worksheet-covers/**', 'assets/branding/**', 'practice-mastery.js', 'tools/worksheet-cover*.mjs', 'tools/worksheet-header-tests.mjs', 'tools/worksheet-start-number-tests.mjs', '.github/workflows/worksheet-cover.yml']
 permissions:
   contents: read
 jobs:
@@ -20,6 +20,7 @@ jobs:
         run: |
           node tools/worksheet-cover-tests.mjs
           node tools/worksheet-header-tests.mjs
+          node tools/worksheet-start-number-tests.mjs
       - name: Install browser and PDF rasteriser
         run: |
           npm install --prefix /tmp/cover-browser --no-audit --no-fund playwright@1.62.1
