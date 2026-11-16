@@ -312,7 +312,10 @@ const build = cut("async function wsBuildDocumentHtml(questions, title, opts) {"
                   "\n// ---- Editing the header ON the preview", "wsBuildDocumentHtml");
 const chunkFn = cut("function wsQuestionChunkHtml(q, n, qrSvg, reserveMm, noBracket, objBoxAll, exam, appQr) {",
                     "\nfunction wsAnswerKeyHtml(", "wsQuestionChunkHtml");
-const keyFn = cut("function wsAnswerKeyHtml(questions, numbers) {", "\nfunction wsPrintCss(", "wsAnswerKeyHtml");
+const keyFn = cut("function wsAnswerKeyHtml(questions, numbers, start) {", "\nfunction wsPrintCss(", "wsAnswerKeyHtml");
+// 🔢 Number from (v1.118.0): the builder and the key number through these.
+const numberingFn = cut("// 🔢 NUMBER FROM — a worksheet whose first question is not Question 1",
+                        "function wsCurrentOptions() {", "numbering helpers");
 const doc = new Function(`
   const escapeHtml = s => String(s == null ? "" : s).replace(/[&<>"']/g,
     c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -341,6 +344,7 @@ const doc = new Function(`
   // Custom Paper print does — a mock exam paper is not where a pupil reflects.
   const objBoxAutoHtml = (q, on) => on ? '<div class="obx-box"></div>' : '';
   ${chunkFn}
+  ${numberingFn}
   ${keyFn}
   ${build}
   return wsBuildDocumentHtml;

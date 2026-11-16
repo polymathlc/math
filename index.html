@@ -817,6 +817,28 @@ html.app-share-open, html.app-share-open body { overflow: hidden; }
 .ws-cover-pick .btn { padding: 6px 12px; font-size: 0.8rem; }
 .ws-cover-pick .btn.ws-cover-own { border-color: var(--primary); color: var(--primary); font-weight: 700; }
 .ws-actions-bar { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; padding-bottom: 10px; }
+/* 🔢 Number from — the sheet can start at any question number, so a printed
+   portion slots into the middle of another worksheet (v1.118.0). Its own
+   rounded strip under the extras, centred, with room to breathe. */
+.ws-numbering {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+  gap: 10px 16px; max-width: 760px; margin: -6px auto 18px; padding: 14px 22px;
+  border: 1.5px solid var(--border); border-radius: var(--radius-lg); background: var(--surface);
+}
+.ws-numbering label { display: inline-flex; align-items: center; gap: 10px; font-size: 0.88rem; font-weight: 600; cursor: pointer; }
+.ws-start-input {
+  width: 84px; padding: 7px 10px; border: 1.5px solid var(--border); border-radius: 10px;
+  font: inherit; font-size: 0.92rem; font-weight: 700; text-align: center; background: #fff; color: var(--text);
+}
+.ws-start-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(74,124,89,0.14); }
+.ws-start-note { font-size: 0.84rem; line-height: 1.55; color: var(--text-muted); }
+.ws-start-note b { color: var(--text); }
+.ws-start-note.on b { color: var(--primary); }
+.ws-start-reset { padding: 5px 12px; font-size: 0.78rem; }
+/* The same control in the ✎ Questions drawer of a saved sheet. */
+.wse-start { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 0 0 18px; padding: 12px 16px; border: 1.5px dashed var(--border); border-radius: var(--radius-md); }
+.wse-start label { display: inline-flex; align-items: center; gap: 10px; font-size: 0.86rem; font-weight: 600; }
+.ws-saved-meta .ws-start-chip { color: var(--primary); font-weight: 700; }
 
 /* My Worksheets */
 .ws-saved-grid { display: grid; gap: 16px; }
@@ -5118,7 +5140,7 @@ body.role-employee #emailBellBtn { display: none !important; }
      frame every app runs in. A classic script for the same reason as the cover:
      resetEditor() runs while the module is still being evaluated and draws the
      editor's 🧩 card, so the helpers must already be there. -->
-<script src="explanation-apps.js?v=1.117.0"></script>
+<script src="explanation-apps.js?v=1.118.0"></script>
 </head>
 <body>
 
@@ -6000,6 +6022,18 @@ arcadeSyncOpen();
 
         <div class="ws-related-note admin-only" id="wsRelatedNote" hidden></div>
 
+        <!-- 🔢 Number from: the first question prints as this number, the rest
+             follow on — so a sheet printed as Q21–Q30 slots straight into the
+             middle of another worksheet. Saved with the sheet. -->
+        <div class="ws-numbering" id="wsNumbering">
+          <label for="wsStartNumber" title="The number the FIRST question prints as. The rest follow on from it, on the sheet, the answer key and the overview page. Use it to print a portion that slots into another worksheet — e.g. start at 21 to continue a sheet that ends at Question 20.">
+            🔢 Number the questions from
+            <input type="number" id="wsStartNumber" class="ws-start-input" min="1" max="999" step="1" value="1" inputmode="numeric">
+          </label>
+          <span class="ws-start-note" id="wsStartNote">Questions print as <b>1, 2, 3…</b></span>
+          <button type="button" class="btn btn-ghost btn-sm ws-start-reset" id="wsStartReset" hidden title="Number from 1 again">↺ Back to 1</button>
+        </div>
+
         <div class="ws-actions-bar">
           <button class="btn btn-ghost" id="wsPreviewBtn" title="See the sheet before you commit paper to it">👁️ Preview</button>
           <button class="btn btn-ghost" id="wsSaveBtn" title="Save this worksheet so you (and your students) can reprint or practise it later">💾 Save worksheet</button>
@@ -6505,6 +6539,12 @@ arcadeSyncOpen();
     <div class="overlay-head"><h3>✎ Worksheet questions</h3><button class="close" data-close="wsEditOverlay">×</button></div>
     <div class="overlay-body">
       <p style="color:var(--text-muted);font-size:0.88rem;margin-bottom:6px;line-height:1.65;" id="wseSubtitle"></p>
+      <div class="wse-start" id="wseStartWrap">
+        <label for="wseStartNumber" title="The number this sheet's FIRST question prints as. Saved straight away.">🔢 Number the questions from
+          <input type="number" id="wseStartNumber" class="ws-start-input" min="1" max="999" step="1" value="1" inputmode="numeric">
+        </label>
+        <span class="ws-start-note" id="wseStartNote"></span>
+      </div>
       <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:18px;line-height:1.6;">Adding, removing and reordering here only changes what is <em>on this sheet</em>, and saves straight away. Tap a question to read it. <b>✎ Edit</b> opens it in the question bank — that changes the question itself, everywhere it is used — and saving brings you straight back here.</p>
       <div class="wse-cols">
         <div>
@@ -13345,7 +13385,7 @@ function _qTileText(q) {
 function bankTileHtml(q) {
   const id = escapeHtml(String(q.id));
   const picked = wsSelectedIds.has(q.id);
-  const pos = picked ? wsOrder.indexOf(q.id) + 1 : 0;
+  const pos = picked ? wsOrder.indexOf(q.id) + wsBuilderStart() : 0;
   const thumb = _qThumbUrl(q);
   return `<div class="qb-tile${picked ? " picked" : ""}" data-qb-tile="${id}"
        title="Click to add this question to your worksheet selection · double-click to edit · rest on it to read it">
@@ -13478,7 +13518,7 @@ function _qbSyncPicks() {
     const on = wsSelectedIds.has(id);
     tile.classList.toggle("picked", on);
     const badge = tile.querySelector(".qb-tile-check");
-    if (badge) badge.textContent = on ? String(wsOrder.indexOf(id) + 1) : "✓";
+    if (badge) badge.textContent = on ? String(wsOrder.indexOf(id) + wsBuilderStart()) : "✓";
   });
 }
 function clearBankPicks() {
@@ -27344,7 +27384,8 @@ function renderWsQuestions() {
   }
   grid.innerHTML = list.map(q => {
     const on = wsSelectedIds.has(q.id);
-    const pos = on ? wsOrder.indexOf(q.id) + 1 : 0;
+    // 🔢 The badge is the number this question will PRINT as.
+    const pos = on ? wsOrder.indexOf(q.id) + wsBuilderStart() : 0;
     return `<div class="ws-q-card${on ? " selected" : ""}" data-ws-card="${escapeHtml(q.id)}">
       <div class="ws-q-top">
         <input type="checkbox" ${on ? "checked" : ""} data-ws-check="${escapeHtml(q.id)}">
@@ -27413,6 +27454,7 @@ function toggleWsSelectAll(on) {
 function updateWsCount() {
   const el = $("wsSelectedCount");
   if (el) el.textContent = `${wsSelectedIds.size} selected`;
+  wsSyncStartUi();
   wsSyncRelatedUi();
   const all = $("wsSelectAll");
   if (all) {
@@ -27420,8 +27462,89 @@ function updateWsCount() {
     all.checked = shown.length > 0 && shown.every(q => wsSelectedIds.has(q.id));
   }
 }
+// =====================================================================
+// 🔢 NUMBER FROM — a worksheet whose first question is not Question 1 (v1.118.0)
+// =====================================================================
+// A teacher printing a PORTION of work that goes into the middle of another
+// worksheet needs it numbered where it lands: the sheet that ends at Q20 is
+// continued by a sheet that starts at Q21, not by a second Question 1.
+//
+// `startNumber` is the number the FIRST question prints as; every other number
+// on the sheet follows on from it. It is ONE number and nothing is stored per
+// question, so reordering, adding or removing a question renumbers the sheet
+// exactly as it always did — just from a different first number.
+//
+// WHERE A NUMBER APPEARS, and every one of them reads it (they must agree, or
+// the answer key marks question 23 against question 3):
+//   • the printed question (`wsBuildDocumentHtml` → `wsQuestionChunkHtml`)
+//   • the 🔑 answer key page (`wsAnswerKeyHtml`)
+//   • 🧩 the related-questions booklet's numbers AND its ✗ / ✓ lines, which
+//     say "Go on to Question 22" (`qcRelatedDocumentOpts` → `qcOffsetPlan`)
+//   • the 🎬 overview page: the jump links, the Q chips, the video reel
+//   • the builder's order badges and the ✎ Questions drawer, so what the
+//     teacher sees while building is what prints.
+// The per-question QR codes encode the question's ID, never its number, so a
+// scanned code still opens the right question wherever the sheet started.
+//
+// 🗂️ Custom Paper and 🎓 PSLE exports pass their own `paper.numbers` map, and
+// a number in that map ALWAYS wins — those papers are numbered by booklet.
+//
+// FAILS TO 1. A missing, empty, negative or junk value is the sheet every
+// worksheet was before this existed. A sheet saved without the field prints
+// exactly as it did.
+const WS_START_MAX = 999;
+function wsStartNumberClean(v) {
+  if (v === null || v === undefined || v === "") return 1;
+  const n = typeof v === "number" ? v : parseInt(String(v).trim(), 10);
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.min(Math.floor(n), WS_START_MAX);
+}
+// A saved worksheet's own first number.
+function wsStartOf(ws) { return wsStartNumberClean(ws && ws.startNumber); }
+// The number printed for the question at 0-based position `i`.
+function wsNumberAt(i, start) { return String((i | 0) + wsStartNumberClean(start)); }
+// "1, 2, 3…" / "21–30" — the words used beside the control and on a card.
+function wsNumberRangeText(count, start) {
+  const a = wsStartNumberClean(start);
+  const n = Math.max(0, count | 0);
+  if (!n) return a === 1 ? "1, 2, 3…" : `${a}, ${a + 1}, ${a + 2}…`;
+  if (n === 1) return String(a);
+  return `${a}–${a + n - 1}`;
+}
+// The builder's own control, read every time (never cached), cleaned.
+function wsBuilderStart() { return wsStartNumberClean(($("wsStartNumber") || {}).value); }
+// Keep the line beside the control honest about what will print, and the
+// order badges on the picked questions in step with it.
+function wsSyncStartUi() {
+  const start = wsBuilderStart();
+  const note = $("wsStartNote");
+  const count = wsOrder.filter(id => wsSelectedIds.has(id)).length;
+  if (note) {
+    note.classList.toggle("on", start !== 1);
+    note.innerHTML = count
+      ? `${count === 1 ? "This question prints as" : "These " + count + " questions print as"} <b>Q${escapeHtml(wsNumberRangeText(count, start).replace("–", "–Q"))}</b>${start !== 1 ? " — on the sheet, the answer key and the overview page" : ""}`
+      : `Questions print as <b>${escapeHtml(wsNumberRangeText(0, start))}</b>`;
+  }
+  const reset = $("wsStartReset");
+  if (reset) reset.hidden = start === 1;
+}
+// Shift every number a 🧩 related-questions plan holds so its first question
+// prints as `start`. The plan's numbers are what the ✗ / ✓ lines read, so the
+// "Go on to Question N" sentences move with the printed numbers.
+function qcOffsetPlan(plan, start) {
+  const shift = wsStartNumberClean(start) - 1;
+  if (!plan || !shift || !plan.numbers) return plan;
+  const numbers = {};
+  Object.keys(plan.numbers).forEach(id => {
+    const n = parseInt(plan.numbers[id], 10);
+    numbers[id] = Number.isFinite(n) ? String(n + shift) : plan.numbers[id];
+  });
+  return Object.assign({}, plan, { numbers, startNumber: shift + 1 });
+}
 function wsCurrentOptions() {
   return {
+    // 🔢 The number the first question prints as (1 unless the teacher chose).
+    startNumber: wsBuilderStart(),
     cover: !!($("wsIncludeCover") || {}).checked,
     fields: !!($("wsIncludeFields") || {}).checked,
     withAnswers: !!($("wsIncludeAnswers") || {}).checked,
@@ -27475,6 +27598,8 @@ function wsRelatedBuild(ids, title, o) {
   return qcRelatedDocumentOpts(ids, {
     title, fields: o.fields, cover: o.cover, answers: o.withAnswers, qr: o.withQr,
     objBox: o.objBox, appQr: o.appQr, next: true,
+    // 🔢 The booklet's numbers (and its ✗ / ✓ lines) start where the sheet does.
+    startNumber: wsStartNumberClean(o.startNumber),
     coverSettings: o.coverSettings || null,
     // The heading printed with the title, when the sheet has its own
     // (🎨 Edit cover, or retyped on a saved sheet's preview).
@@ -27927,10 +28052,12 @@ function wsQuestionChunkHtml(q, n, qrSvg, reserveMm, noBracket, objBoxAll, exam,
 // `numbers` is 🗂️ Custom Paper's map of question id → the number PRINTED on
 // the paper, which is NOT the question's position in this list: the two
 // booklets are numbered as one run and the teacher can reorder either of them.
-// Absent, the key numbers by position exactly as it always did.
-function wsAnswerKeyHtml(questions, numbers) {
+// Absent, the key numbers by position exactly as it always did — from
+// `start` (🔢 Number from), which is 1 unless the sheet chose otherwise, so the
+// key's numbers are always the numbers printed on the questions.
+function wsAnswerKeyHtml(questions, numbers, start) {
   const rows = questions.map((q, i) => {
-    const no = (numbers && numbers[q.id]) || String(i + 1);
+    const no = (numbers && numbers[q.id]) || wsNumberAt(i, start);
     const ans = String(q.expected || "").trim();
     const guide = String(q.markingGuide || "").trim();
     const mcq = wsHasMcq(q) && Number.isInteger(q.correctOption)
@@ -28311,8 +28438,11 @@ async function wsBuildDocumentHtml(questions, title, opts) {
   // question that has not got one already. It is a RENDERING option and writes
   // nothing to any question, so ticking it changes no document.
   const objBoxAll = !!opts.objBox;
+  // 🔢 The number the first question prints as. A paper's own `numbers` map
+  // still wins for every question it names; this only moves the fallback.
+  const startAt = wsStartNumberClean(opts.startNumber);
   const chunk = (q, i, reserve) =>
-    wsQuestionChunkHtml(q, (numbers && numbers[q.id]) || String(i + 1), qrMap[q.id] || "", reserve, noBracket(q), objBoxAll, undefined, appQrMap[q.id] || "");
+    wsQuestionChunkHtml(q, (numbers && numbers[q.id]) || wsNumberAt(i, startAt), qrMap[q.id] || "", reserve, noBracket(q), objBoxAll, undefined, appQrMap[q.id] || "");
   // 📄 A PAPER: each booklet's cover is its own page section (so it starts a
   // sheet of its own), then its lead line and its questions. 📝 EVERYTHING
   // ELSE: the one section this app has always built.
@@ -28348,7 +28478,7 @@ async function wsBuildDocumentHtml(questions, title, opts) {
     ...(coverHtml && !coverSheet ? [coverHtml] : []),
     ...body,
     ...(scoreTable ? [scoreTable] : []),
-    ...(opts.withAnswers ? [wsAnswerKeyHtml(questions, numbers)] : []),
+    ...(opts.withAnswers ? [wsAnswerKeyHtml(questions, numbers, startAt)] : []),
   ];
   const doc = `<table class="ws-doc">
     <tfoot><tr><td>${wsFooterHtml()}</td></tr></tfoot>
@@ -31284,6 +31414,8 @@ async function saveCurrentWorksheet() {
   // so each is only written when there is one.
   if (opts.coverSettings) ws.cover = Object.assign({}, opts.coverSettings);
   if (typeof opts.headerOrg === "string") ws.headerOrg = opts.headerOrg;
+  // 🔢 Only written when it is not 1, so an ordinary sheet's doc is unchanged.
+  if (wsStartNumberClean(opts.startNumber) !== 1) ws.startNumber = wsStartNumberClean(opts.startNumber);
   try {
     await persistWorksheet(ws);
     savedWorksheets.unshift(ws);
@@ -31324,6 +31456,7 @@ function renderSavedWorksheets() {
       <div class="ws-saved-meta">
         ${ws.kind === "diagnostic" ? `<span title="Built objective by objective on the Diagnostic page — every question belongs to a segment there">Diagnostic test</span>` : ""}
         <span>${total} question${total === 1 ? "" : "s"}</span>
+        ${wsStartOf(ws) !== 1 ? `<span class="ws-start-chip" title="This sheet is numbered from ${wsStartOf(ws)}, so it slots into another worksheet">🔢 Q${escapeHtml(wsNumberRangeText(total, wsStartOf(ws)).replace("–", "–Q"))}</span>` : ""}
         ${shutIds.length ? `<span style="color:#4338ca;" title="${escapeHtml(wsLockNote(shutIds))}. They stay on this worksheet and appear by themselves on the day.">🔒 ${shutIds.length} not open yet</span>` : ""}
         ${missing > 0 ? `<span style="color:var(--accent-red);">${missing} no longer in the bank</span>` : ""}
         ${when ? `<span>Saved ${escapeHtml(when)}</span>` : ""}
@@ -31473,7 +31606,8 @@ function wvReelList(questions) {
     const s = _wvSolutions[q.id] || {};
     const url = String(s.videoExplanationUrl || "").trim();
     if (!url || !normalizeVideoExplanationUrl(url)) return;
-    out.push({ qid: q.id, no: i + 1, title: q.title || "Question", url, overlays: s.videoOverlays });
+    // 🔢 The printed number, from the sheet's own first number.
+    out.push({ qid: q.id, no: Number(wsNumberAt(i, wsStartOf(_wvWs))), title: q.title || "Question", url, overlays: s.videoOverlays });
   });
   return out;
 }
@@ -31482,7 +31616,7 @@ function wvReelHtml(questions) {
   if (_wvSolutionState !== "ready") return "";
   const list = wvReelList(questions);
   if (!list.length) return "";
-  const without = questions.map((q, i) => i + 1).filter(n => !list.some(v => v.no === n));
+  const without = questions.map((q, i) => Number(wsNumberAt(i, wsStartOf(_wvWs)))).filter(n => !list.some(v => v.no === n));
   const missingNote = without.length
     ? `<div class="wv-reel-note">No video yet on ${without.length === 1 ? "Q" + without[0] : "Q" + without.slice(0, -1).join(", Q") + " and Q" + without[without.length - 1]} — ${without.length === 1 ? "that question still has its" : "those questions still have their"} written answer key below.</div>`
     : "";
@@ -31606,6 +31740,9 @@ function renderWorksheetOverview() {
   const missing = (ws.questionIds || []).length - allQuestions.length - shutIds.length;
   const when = ws.createdAt ? new Date(ws.createdAt).toLocaleDateString() : "";
   const owned = wsMine(ws) || canManageQuestions();
+  // 🔢 The page's numbers are the PRINTED numbers, so a pupil holding Q23 on
+  // paper finds Q23 here.
+  const wvStart = wsStartOf(ws);
   const share = owned ? `<div class="wv-share">
       <div class="wv-sol-lbl">Share this worksheet — one code for the whole sheet</div>
       <div class="wv-share-row"><input id="wvLink" type="text" readonly value="${escapeHtml(worksheetShareUrl(ws))}"><button class="btn btn-ghost btn-sm" type="button" id="wvCopyBtn">Copy</button></div>
@@ -31630,13 +31767,13 @@ function renderWorksheetOverview() {
         <button class="btn btn-ghost btn-sm" type="button" id="wvBackBtn">← My Worksheets</button>
       </div>
       <div class="wv-note">Everything on this sheet is on this one page — press play on the reel to watch every video solution in order, or tap a question's own button to read its answer key. No scanning a code per question. The link below opens exactly this page.</div>
-      ${questions.length > 1 ? `<div class="wv-jump">${questions.map((q, i) => `<a href="#wvq${i + 1}">${i + 1}</a>`).join("")}</div>` : ""}
+      ${questions.length > 1 ? `<div class="wv-jump">${questions.map((q, i) => `<a href="#wvq${wsNumberAt(i, wvStart)}">${wsNumberAt(i, wvStart)}</a>`).join("")}</div>` : ""}
       ${share}
     </div>
     ${wvReelHtml(questions)}
-    ${questions.length ? questions.map((q, i) => `<div class="wv-q" id="wvq${i + 1}">
+    ${questions.length ? questions.map((q, i) => `<div class="wv-q" id="wvq${wsNumberAt(i, wvStart)}">
       <div class="wv-q-head">
-        <span class="wv-q-no">Q${i + 1}</span>
+        <span class="wv-q-no">Q${wsNumberAt(i, wvStart)}</span>
         <span class="wv-q-title">${escapeHtml(q.title || "Question")}</span>
       </div>
       <div class="q-body">${renderQuestionBlocksHtml(q.blocks || [])}</div>
@@ -31752,6 +31889,9 @@ async function openSavedWorksheet(id, autoPrint) {
   // chosen questions on their own, which is the sheet without its extra pages.
   // 🎨 The sheet's own Big M cover choices ride with every reprint of it.
   po.coverSettings = ws.cover || null;
+  // 🔢 The sheet's own first number — a property of the SHEET, so every
+  // reprint, preview and booklet of it numbers the same way.
+  po.startNumber = wsStartOf(ws);
   if (ws.includeRelated && _isAdmin() && qcLoaded) {
     const b = wsRelatedBuild(questions.map(q => q.id), ws.title || "Math Worksheet", Object.assign({}, po, { headerOrg: wsHeaderOrgOf(ws) }));
     if (b) { await wsOpenDocument(b.list, b.title, Object.assign(b.opts, { autoPrint: !!autoPrint })); return; }
@@ -31883,11 +32023,46 @@ function wseOpen(id) {
   if (_wseId !== id) _wseOpenIds = new Set();
   _wseId = id;
   $("wseSubtitle").textContent = `“${ws.title || "Untitled worksheet"}” — ${(ws.questionIds || []).length} question(s) on the sheet.`;
+  wseSyncStart(ws);
   wsePopulateFilters();
   wseRender();
   $("wsEditOverlay").classList.add("show");
 }
 function wseWs() { return _wseId ? wsFind(_wseId) : null; }
+// 🔢 The drawer's Number-from box mirrors the open sheet.
+function wseSyncStart(ws) {
+  const box = $("wseStartNumber"), note = $("wseStartNote");
+  const start = wsStartOf(ws);
+  if (box && document.activeElement !== box) box.value = String(start);
+  if (note) {
+    const n = ((ws && ws.questionIds) || []).length;
+    note.classList.toggle("on", start !== 1);
+    note.innerHTML = n ? `Prints as <b>Q${escapeHtml(wsNumberRangeText(n, start).replace("–", "–Q"))}</b>` : "";
+  }
+}
+// Saved straight away, like every other change in this drawer. 1 REMOVES the
+// field, so the doc goes back to exactly what an ordinary sheet holds. A
+// failed write puts the old number back, so the drawer and the database agree.
+async function wseSetStart(value) {
+  const ws = wseWs(); if (!ws) return;
+  if (!wsMine(ws)) return;
+  const next = wsStartNumberClean(value);
+  const was = ws.startNumber;
+  if (next === wsStartOf(ws)) { wseSyncStart(ws); return; }
+  if (next === 1) delete ws.startNumber; else ws.startNumber = next;
+  try {
+    await persistWorksheet(ws);
+  } catch (e) {
+    if (was === undefined) delete ws.startNumber; else ws.startNumber = was;
+    console.error(e);
+    toast("Couldn't save the numbering: " + ((e && e.message) || e), "error");
+  }
+  wseSyncStart(ws);
+  wseRender();
+  renderSavedWorksheets();
+  if (_wvWs && _wvWs.id === ws.id) renderWorksheetOverview();
+  if (wsStartOf(ws) === next) toast(next === 1 ? "🔢 Numbered from 1 again" : `🔢 This sheet now starts at Question ${next}`, "success");
+}
 function wsePopulateFilters() {
   const bank = wsBank();
   const fill = (id, values, allLabel) => {
@@ -32055,7 +32230,7 @@ function wseRender() {
         <div class="wse-row-tools"><button class="btn btn-danger btn-sm" data-wse-rm="${escapeHtml(id)}" title="Drop it from this sheet">✕</button></div>
       </div>`;
     }
-    return wseRowHtml(q, i + 1,
+    return wseRowHtml(q, i + wsStartOf(ws),
       `<button class="mini-btn" data-wse-up="${escapeHtml(id)}" title="Move up"${i === 0 ? " disabled" : ""}>↑</button>
        <button class="mini-btn" data-wse-down="${escapeHtml(id)}" title="Move down"${i === ids.length - 1 ? " disabled" : ""}>↓</button>
        <button class="mini-btn" data-wse-rm="${escapeHtml(id)}" title="Remove from this worksheet">✕</button>`);
@@ -32095,6 +32270,27 @@ function wseRender() {
 $("wsSearch").addEventListener("input", renderWsQuestions);
 $("wsSelectAll").addEventListener("change", e => toggleWsSelectAll(e.target.checked));
 $("wsPreviewBtn").addEventListener("click", () => printCurrentWorksheet(false));
+// 🔢 Number from: every keystroke re-labels the badges and the note; leaving
+// the box tidies junk back to a real number.
+(function wireWsStartNumber() {
+  const box = $("wsStartNumber");
+  if (!box) return;
+  const redraw = () => {
+    wsSyncStartUi();
+    if (typeof renderWsQuestions === "function" && $("wsQuestionGrid")) renderWsQuestions();
+    if (typeof _qbSyncPicks === "function") _qbSyncPicks();
+  };
+  box.addEventListener("input", redraw);
+  box.addEventListener("change", () => { box.value = String(wsBuilderStart()); redraw(); });
+  const reset = $("wsStartReset");
+  if (reset) reset.addEventListener("click", () => { box.value = "1"; redraw(); });
+  const wse = $("wseStartNumber");
+  if (wse) {
+    wse.addEventListener("change", () => { wse.value = String(wsStartNumberClean(wse.value)); wseSetStart(wse.value); });
+    wse.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); wse.blur(); } });
+  }
+  wsSyncStartUi();
+})();
 // 🎨 The builder's Big M cover — see wsEditCover.
 if ($("wsEditCoverBtn")) $("wsEditCoverBtn").addEventListener("click", () => wsEditCover("builder"));
 ["wsIncludeRelated", "wsIncludeAppQr"].forEach(id => { const el = $(id); if (el) el.addEventListener("change", wsSyncRelatedUi); });
@@ -38082,7 +38278,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.117.0 · 2026-11-11";
+const APP_VERSION = "v1.118.0 · 2026-11-16";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -39529,6 +39725,13 @@ function qcAppShareUrl(base, appId, ownerUid) {
   if (ownerUid) p.set("owner", String(ownerUid));
   return String(base || "") + "?" + p.toString();
 }
+// The number the booklet's FIRST question prints as — "1" unless the sheet
+// was numbered from somewhere else (🔢, qcOffsetPlan).
+function qcPlanFirstNo(plan) {
+  const first = plan && plan.pages && plan.pages[0] && plan.pages[0].keys && plan.pages[0].keys[0];
+  const n = first && plan.numbers ? plan.numbers[qcParseKey(first).id] : "";
+  return n || "1";
+}
 // The two lines printed under one question, as plain text (the caller escapes).
 // The LAST step on a page gets no ✓ line: the page's own foot says where to go
 // next, in larger type, and the same sentence twice reads as two instructions.
@@ -39542,7 +39745,7 @@ function qcBranchNotes(plan, key) {
   if (pg.kind === "next") {
     const i = pg.keys.indexOf(key);
     if (i < pg.keys.length - 1) out.right = "✓ Done? Go on to Question " + num(pg.keys[i + 1]) + " below.";
-    out.wrong = "✗ Stuck? Look back at Question 1 on Page 1, then ask your teacher.";
+    out.wrong = "✗ Stuck? Look back at Question " + qcPlanFirstNo(plan) + " on Page 1, then ask your teacher.";
     return out;
   }
   out.wrong = sp
@@ -39570,7 +39773,7 @@ function qcBranchPageText(plan, pg) {
   if (pg.kind === "start") return { label: "Start here", intro: "", foot: "" };
   if (pg.kind === "next") return {
     label: "Your next challenge",
-    intro: "You can do Question 1. Now try these on your own.",
+    intro: "You can do Question " + qcPlanFirstNo(plan) + ". Now try these on your own.",
     foot: "You have finished the worksheet. Well done!",
   };
   return {
@@ -40778,7 +40981,9 @@ function qcRelatedPlan(ids, o) {
   return qcBranchPlanMany(items, id => !!qcPrintableQ(id), { next: !o || o.next !== false });
 }
 function qcRelatedDocumentOpts(ids, o) {
-  const plan = qcRelatedPlan(ids, o);
+  // 🔢 A sheet numbered from 21 prints its booklet from 21 too — the plan's
+  // numbers are shifted BEFORE any ✗ / ✓ line is written from them.
+  const plan = qcOffsetPlan(qcRelatedPlan(ids, o), o && o.startNumber);
   return qcBookletDocumentOpts(plan, String(o.title || "").trim() || "Math Worksheet", o);
 }
 // How many questions the related pages ADD to the ones the teacher picked —
@@ -40794,8 +40999,8 @@ function qcBookletDocumentOpts(plan, title, o) {
   const list = plan.order.map(k => qcPrintableQ(qcParseKey(k).id));
   const many = plan.pages[0] && plan.pages[0].keys.length > 1;
   const guideLines = many
-    ? ["Start with Question 1 on this page and work down the page in order. Try each question on your own first and show all your working."].concat(QC_SHEET_GUIDE.slice(1))
-    : QC_SHEET_GUIDE;
+    ? ["Start with Question " + qcPlanFirstNo(plan) + " on this page and work down the page in order. Try each question on your own first and show all your working."].concat(QC_SHEET_GUIDE.slice(1))
+    : QC_SHEET_GUIDE.map(g => qcPlanFirstNo(plan) === "1" ? g : g.replace(/\bQuestion 1\b/g, "Question " + qcPlanFirstNo(plan)));
   const label = (n, words) => `<div class="qcb-label"><b>Page ${n}</b><span>${escapeHtml(words)}</span></div>`;
   const guide = `<div class="qcb-guide"><h2>How to use this worksheet</h2><ol>${guideLines.map(g => `<li>${escapeHtml(g)}</li>`).join("")}</ol>` +
     `<div class="qcb-path">Pages I went to:${"<span></span>".repeat(6)}</div></div>`;
@@ -40833,6 +41038,7 @@ function qcBookletDocumentOpts(plan, title, o) {
       qrFilter: q => !qIsFoundation(q),
       appLinks: o.appQr ? qcAppLinksFor(list) : null,
       paper: { groups, numbers: plan.numbers, after },
+      startNumber: plan.startNumber || 1,
     },
   };
 }
