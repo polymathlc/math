@@ -2,6 +2,31 @@
 
 Guidance for Claude when working in this repo.
 
+## ☑️ Picking questions across searches — then a practice or a worksheet (v1.119.0)
+
+`bankOnlyPicked` / `_bankPick` / `_bankUnpick` / `_bankPickedQuestions` / `toggleBankPick(id, ev)` /
+`_bankSelectionChanged` / `_qbSyncPicks` / `_bankSyncSelectAll` / `pickAllBankVisible` / `unpickAllBankVisible` /
+`setBankOnlyPicked` / `_bankSuggestTitle` / `bankPicksToWorksheet` / `bankPicksToPractice` / `_renderBankPickBar` /
+`_bankSyncPickSub` (search `☑️ PICKING QUESTIONS ACROSS SEARCHES`), `#bankSelectRow` (`#bankSelectAll`,
+`#bankOnlyPicked`) and `#bankPickBar` on the Question Bank, `#wsOnlyPicked` on 📝 Create Worksheet.
+
+Zhi Kai searches and filters the bank several times, ticking as he goes, then builds ONE practice or ONE
+worksheet from everything ticked.
+- **There is ONE selection: the builder's `wsSelectedIds` + `wsOrder`.** Searches, filters, sort and the
+  list/grid switch only change what is SHOWN, never the picks. Tick order is print order.
+- **"Shown" is always `_bankFilteredQuestions()`** (which also applies "Show selected only"). Select all
+  (three-state, labelled with its count), ＋ Add all shown, − Untick shown and Shift-click ranges act on it only.
+- **After any change call `_bankSelectionChanged()`**: it repaints ticks/badges in place (no list rebuild,
+  thumbnails and scroll survive), except in "selected only", where it re-renders so an untick leaves the list.
+- **The list row's checkbox click must NOT `preventDefault`** — a cancelled checkbox click restores the old
+  state after the handler and undoes the repaint. Action buttons sit outside the pick targets.
+- **The bar's 🔢 `#bankStartNumber` writes through to `#wsStartNumber`** and fires its events, so the two
+  can never disagree; badges read `wsBuilderStart()`. The bar is not rebuilt while that box has focus.
+- **📝 Create worksheet** ticks `#wsOnlyPicked`, offers a title from the shared level/topic/concept only into
+  an EMPTY title box, and opens the builder. **✍️ Create practice** is `practiseCurrentWorksheet()`.
+- The bar is sticky on a computer and in the flow on a phone (the phone's top bar wraps to two rows).
+- Run `PLAYWRIGHT_MODULE=… node tools/bank-pick-browser.mjs` (CI: `.github/workflows/bank-picking.yml`).
+
 ## 🔢 Number from — a worksheet whose first question is not Question 1 (v1.118.0)
 
 `WS_START_MAX` / `wsStartNumberClean` / `wsStartOf` / `wsNumberAt` / `wsNumberRangeText` / `wsBuilderStart` /

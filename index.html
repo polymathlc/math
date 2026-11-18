@@ -1674,6 +1674,56 @@ body.drawing-active { overscroll-behavior: none; touch-action: none; }
 .bank-pick-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; padding: 14px 18px; border: 1.5px solid var(--primary); border-radius: var(--radius-md); background: var(--primary-light); }
 .bank-pick-count { font-size: 0.88rem; font-weight: 700; color: var(--primary); }
 
+/* ☑️ Picking questions across searches (v1.119.0). The row above the list is
+   always there; the bar under it follows the reader down the page once a
+   question is ticked, so Create practice / Create worksheet is never a scroll
+   away from the question just ticked. */
+.bank-select-row {
+  display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+  margin: 4px 0 14px; padding: 12px 16px;
+  border: 1px dashed var(--border); border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.bank-select-row label { display: inline-flex; align-items: center; gap: 9px; cursor: pointer; font-size: 0.86rem; font-weight: 600; color: var(--text); user-select: none; }
+.bank-select-row input[type="checkbox"], .bank-item-pick input[type="checkbox"], .ws-only-picked input[type="checkbox"] {
+  appearance: auto; -webkit-appearance: checkbox;
+  width: 18px; height: 18px; margin: 0; accent-color: var(--primary); cursor: pointer; flex: 0 0 auto;
+}
+.bank-select-hint { flex: 1 1 260px; font-size: 0.78rem; line-height: 1.55; color: var(--text-muted); }
+.ws-only-picked { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.86rem; font-weight: 500; }
+
+.bank-pick-bar { position: sticky; top: 72px; z-index: 30; box-shadow: var(--shadow-sm); row-gap: 10px; }
+.bank-pick-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.bank-pick-sub { font-size: 0.76rem; color: var(--text-muted); line-height: 1.45; }
+.bank-pick-start { display: inline-flex; align-items: center; gap: 8px; font-size: 0.82rem; font-weight: 600; color: var(--text); }
+.bank-pick-start input {
+  width: 64px; padding: 6px 8px; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  font-family: inherit; font-size: 0.85rem; background: var(--surface); color: var(--text); text-align: center;
+}
+.bank-pick-start input:focus { outline: none; border-color: var(--border-focus); }
+.bank-pick-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+
+/* The list row carries its own tick and, once ticked, the number it prints as. */
+.bank-item { cursor: default; transition: border-color var(--transition), background var(--transition); }
+.bank-item.picked { border-color: var(--primary); background: var(--primary-light); }
+.bank-item-pick { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 0 0 auto; align-self: flex-start; padding-top: 3px; cursor: pointer; }
+.bank-item-order {
+  min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px;
+  background: var(--primary); color: #fff; font-size: 0.72rem; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.bank-item-order[hidden] { display: none; }
+.bank-item-main { cursor: pointer; }
+@media (max-width: 720px) {
+  /* The phone's top bar wraps to two rows and the bar itself is tall, so a
+     sticky bar would cover half the list — it stays in the flow instead. */
+  .bank-pick-bar { position: static; }
+  .bank-pick-actions { margin-left: 0; width: 100%; }
+  .bank-pick-actions .btn { flex: 1 1 auto; }
+  .bank-item { flex-wrap: wrap; }
+  .bank-item-actions { width: 100%; justify-content: flex-start; }
+}
+
 .bank-list.as-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 18px; }
 .qb-tile { display: flex; flex-direction: column; background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-md); overflow: hidden; cursor: pointer; transition: all var(--transition); }
 .qb-tile:hover { border-color: var(--primary); box-shadow: var(--shadow-sm); transform: translateY(-2px); }
@@ -5140,7 +5190,7 @@ body.role-employee #emailBellBtn { display: none !important; }
      frame every app runs in. A classic script for the same reason as the cover:
      resetEditor() runs while the module is still being evaluated and draws the
      editor's 🧩 card, so the helpers must already be there. -->
-<script src="explanation-apps.js?v=1.118.0"></script>
+<script src="explanation-apps.js?v=1.119.0"></script>
 </head>
 <body>
 
@@ -5688,7 +5738,22 @@ arcadeSyncOpen();
              renderBankScheduled() fills it, and writes '' when nothing is
              scheduled. -->
         <div id="bankScheduledContainer"></div>
-        <div class="bank-pick-bar" id="bankPickBar" style="display:none;"></div>
+        <!-- ☑️ PICK QUESTIONS ACROSS SEARCHES. One selection (the worksheet
+             builder's own wsSelectedIds + wsOrder) that survives every search,
+             filter, sort and view change. The row is always there; the bar
+             under it appears once something is ticked. See the ☑️ block. -->
+        <div class="bank-select-row" id="bankSelectRow">
+          <label class="bank-select-all" title="Tick (or untick) every question the search and filters are showing right now. Questions you ticked under another search stay ticked.">
+            <input type="checkbox" id="bankSelectAll">
+            <span id="bankSelectAllLabel">Select all shown</span>
+          </label>
+          <label class="bank-only-picked" title="Show only the questions you have ticked — handy for checking your selection before you build from it">
+            <input type="checkbox" id="bankOnlyPicked">
+            <span>Show selected only</span>
+          </label>
+          <span class="bank-select-hint">Tick questions as you search and filter — ticks are kept when you change them. Shift-click ticks a whole range.</span>
+        </div>
+        <div class="bank-pick-bar" id="bankPickBar" style="display:none;" role="region" aria-label="Selected questions"></div>
         <div class="bank-list" id="bankList"></div>
       </div>
     </div>
@@ -5983,6 +6048,10 @@ arcadeSyncOpen();
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.86rem;font-weight:500;">
             <input type="checkbox" id="wsSelectAll" style="width:16px;height:16px;accent-color:var(--primary);">
             Select all shown
+          </label>
+          <label class="ws-only-picked" title="Show only the questions on this sheet, in the order they print">
+            <input type="checkbox" id="wsOnlyPicked">
+            Show selected only (print order)
           </label>
           <span class="ws-selected-count" id="wsSelectedCount">0 selected</span>
         </div>
@@ -13357,6 +13426,9 @@ function _bankFilteredQuestions() {
     if (format === "mcq" && !wsHasMcq(q)) return false;
     if (format === "written" && !wsHasWritten(q)) return false;
     if (term && !bankSearchHaystack(q).includes(term)) return false;
+    // ☑️ "Show selected only" narrows what is SHOWN to the picks; the picks
+    // themselves are never touched by any filter.
+    if (bankOnlyPicked && !wsSelectedIds.has(q.id)) return false;
     return true;
   });
   if (bankSort === "newest") out.sort((a, b) => _questionRecency(b) - _questionRecency(a));
@@ -13419,7 +13491,7 @@ function renderBankTiles(list, matches) {
   }));
   list.querySelectorAll("[data-qb-tile]").forEach(tile => {
     const id = tile.dataset.qbTile;
-    tile.addEventListener("click", () => toggleBankPick(id));
+    tile.addEventListener("click", e => toggleBankPick(id, e));
     tile.addEventListener("dblclick", () => { qbHoverHide(); editQuestion(id); });
     tile.addEventListener("mouseenter", e => qbHoverEnter(e, id));
     tile.addEventListener("mousemove", qbHoverMove);
@@ -13502,17 +13574,85 @@ function _qbHoverPlace(card) {
   card.style.top = top + "px";
 }
 
-// Clicking a tile adds the question to — or takes it out of — the selection the
-// worksheet builder uses. Only the badges are repainted, never the whole grid:
-// re-rendering would reload every thumbnail under the cursor.
-function toggleBankPick(id) {
-  if (wsSelectedIds.has(id)) { wsSelectedIds.delete(id); wsOrder = wsOrder.filter(x => x !== id); }
-  else { wsSelectedIds.add(id); wsOrder.push(id); }
+// =====================================================================
+// ☑️ PICKING QUESTIONS ACROSS SEARCHES (v1.119.0)
+// =====================================================================
+// Search "excess and shortage", tick three; search "remainder", tick two;
+// filter to P5 MCQs, tick all of them — then build ONE practice or ONE
+// worksheet out of everything ticked. That is the whole job of this block.
+//
+// THERE IS ONE SELECTION, and it is the worksheet builder's own
+// (`wsSelectedIds` + `wsOrder`). It is never filtered, never cleared by a
+// search, a filter, a sort or a view switch — those only change what is SHOWN.
+// Because it is the builder's selection, 📝 Create Worksheet opens with every
+// tick already in place, in the order it was ticked (the order it prints in),
+// numbered from the 🔢 start number — the same number the bar here edits.
+//
+// "Shown" always means `_bankFilteredQuestions()`, the one function the list,
+// the tiles, the 🔍 answer-key window and every "…shown" button read, so a
+// button can never act on a different set than the eye sees.
+//
+// After ANY change to the selection call `_bankSelectionChanged()`. It
+// repaints the ticks and badges in place (never the whole list — that would
+// reload every thumbnail and lose the scroll), the select-all box, the bar and
+// the builder's count. The one exception is "Show selected only": an unticked
+// question has to leave that list, so it re-renders.
+let bankOnlyPicked = false;   // "Show selected only" on the bank
+let _bankLastPickId = null;   // the anchor a Shift-click range runs from
+
+function _bankPick(id) {
+  if (!id || wsSelectedIds.has(id)) return false;
+  wsSelectedIds.add(id);
+  wsOrder.push(id);
+  return true;
+}
+function _bankUnpick(id) {
+  if (!id || !wsSelectedIds.has(id)) return false;
+  wsSelectedIds.delete(id);
+  wsOrder = wsOrder.filter(x => x !== id);
+  return true;
+}
+// Picked questions that are no longer in the bank (deleted, or the bank
+// reloaded without them) are dropped from the count the bar shows, but the
+// ids are left alone: wsSelectedQuestions already skips an id it cannot find.
+function _bankPickedQuestions() {
+  return wsOrder.filter(id => wsSelectedIds.has(id)).map(id => wsQuestionById(id)).filter(Boolean);
+}
+
+// Clicking a tile, a row or a tick adds the question to — or takes it out of —
+// the selection. Shift-click ticks (or unticks) everything SHOWN between the
+// last question clicked and this one, the way a file list does.
+function toggleBankPick(id, ev) {
+  const shown = _bankFilteredQuestions();
+  if (ev && ev.shiftKey && _bankLastPickId && _bankLastPickId !== id) {
+    const ids = shown.map(q => q.id);
+    const a = ids.indexOf(_bankLastPickId);
+    const b = ids.indexOf(id);
+    if (a !== -1 && b !== -1) {
+      const on = !wsSelectedIds.has(id);
+      const [from, to] = a < b ? [a, b] : [b, a];
+      // Walk the range in the order the eye reads it, so the printed order
+      // follows the list rather than the direction the mouse travelled.
+      for (let i = from; i <= to; i++) { if (on) _bankPick(ids[i]); else _bankUnpick(ids[i]); }
+      _bankLastPickId = id;
+      _bankSelectionChanged();
+      return;
+    }
+  }
+  if (wsSelectedIds.has(id)) _bankUnpick(id); else _bankPick(id);
+  _bankLastPickId = id;
+  _bankSelectionChanged();
+}
+function _bankSelectionChanged() {
+  if (bankOnlyPicked && $("page-bank") && $("page-bank").classList.contains("active")) { renderBank(); updateWsCount(); return; }
   _qbSyncPicks();
   _renderBankPickBar();
   updateWsCount();
 }
+// Repaint every tick and order badge in place — tiles AND list rows — plus
+// the select-all box. Called on every pick and on every 🔢 start-number edit.
 function _qbSyncPicks() {
+  const start = wsBuilderStart();
   document.querySelectorAll("#bankList .qb-tile").forEach(tile => {
     const id = tile.dataset.qbTile;
     const on = wsSelectedIds.has(id);
@@ -13520,32 +13660,106 @@ function _qbSyncPicks() {
     const badge = tile.querySelector(".qb-tile-check");
     if (badge) badge.textContent = on ? String(wsOrder.indexOf(id) + wsBuilderStart()) : "✓";
   });
+  document.querySelectorAll("#bankList .bank-item[data-bank-row]").forEach(row => {
+    const id = row.dataset.bankRow;
+    const on = wsSelectedIds.has(id);
+    row.classList.toggle("picked", on);
+    const cb = row.querySelector("[data-bank-check]");
+    if (cb) cb.checked = on;
+    const badge = row.querySelector(".bank-item-order");
+    if (badge) {
+      badge.hidden = !on;
+      badge.textContent = on ? String(wsOrder.indexOf(id) + start) : "";
+      badge.title = on ? `Prints as Question ${wsOrder.indexOf(id) + start}` : "";
+    }
+  });
+  _bankSyncSelectAll();
+}
+// The select-all box is three-state: ticked when every question shown is
+// picked, a dash when some are, empty when none are. Its label carries the
+// number it will act on, so "Select all 3 shown" can't surprise anybody.
+function _bankSyncSelectAll(filtered) {
+  const box = $("bankSelectAll");
+  const label = $("bankSelectAllLabel");
+  if (!box) return;
+  const shown = filtered || _bankFilteredQuestions();
+  const pickedShown = shown.filter(q => wsSelectedIds.has(q.id)).length;
+  box.disabled = !shown.length;
+  box.checked = shown.length > 0 && pickedShown === shown.length;
+  box.indeterminate = pickedShown > 0 && pickedShown < shown.length;
+  if (label) {
+    label.textContent = !shown.length ? "Nothing shown to select"
+      : box.checked ? `All ${shown.length} shown selected`
+      : `Select all ${shown.length} shown`;
+  }
+  const only = $("bankOnlyPicked");
+  if (only && only.checked !== bankOnlyPicked) only.checked = bankOnlyPicked;
 }
 function clearBankPicks() {
   wsSelectedIds.clear();
   wsOrder = [];
+  _bankLastPickId = null;
   // A cleared selection is a new sheet, so its 🎨 cover starts afresh too.
   wsCoverSettings = null;
   wsBuilderOrg = null;
   if (typeof wsSyncCoverBtn === "function") wsSyncCoverBtn();
-  _qbSyncPicks();
-  _renderBankPickBar();
-  updateWsCount();
+  // Nothing is picked, so "selected only" would be an empty page.
+  if (bankOnlyPicked) { bankOnlyPicked = false; renderBank(); updateWsCount(); return; }
+  _bankSelectionChanged();
 }
 // Take everything currently on screen, so a filtered search can be picked whole.
 function pickAllBankVisible() {
-  _bankFilteredQuestions().forEach(q => {
-    if (!wsSelectedIds.has(q.id)) { wsSelectedIds.add(q.id); wsOrder.push(q.id); }
-  });
-  _qbSyncPicks();
-  _renderBankPickBar();
-  updateWsCount();
+  _bankFilteredQuestions().forEach(q => _bankPick(q.id));
+  _bankSelectionChanged();
 }
+// …and the opposite: untick what is on screen, keep every tick made under
+// another search.
+function unpickAllBankVisible() {
+  _bankFilteredQuestions().forEach(q => _bankUnpick(q.id));
+  if (bankOnlyPicked && !wsSelectedIds.size) bankOnlyPicked = false;
+  _bankSelectionChanged();
+}
+function setBankOnlyPicked(on) {
+  bankOnlyPicked = !!on && wsSelectedIds.size > 0;
+  if (on && !wsSelectedIds.size) toast("Tick some questions first", "");
+  renderBank();
+}
+
+// A worksheet title built from what the teacher was looking at: the level,
+// topic and concept filters when they are set, otherwise whatever ALL the
+// picked questions share. Only ever offered into an EMPTY title box.
+function _bankSuggestTitle() {
+  const picked = _bankPickedQuestions();
+  if (!picked.length) return "";
+  const shared = vals => {
+    const set = new Set(vals.map(v => String(v || "").trim()).filter(Boolean));
+    return set.size === 1 ? [...set][0] : "";
+  };
+  const firstTopic = q => (questionTopics(q) || [])[0] || "";
+  const level = shared(picked.map(q => q.level)) || (($("bankFilterLevel") || {}).value || "");
+  const topic = shared(picked.map(firstTopic)) || (($("bankFilterTopic") || {}).value || "");
+  const concept = shared(picked.map(conceptLabel)) || (($("bankFilterConcept") || {}).value || "");
+  const head = [level, topic].filter(Boolean).join(" ");
+  const parts = [head, concept && concept !== topic ? concept : ""].filter(Boolean);
+  return parts.length ? parts.join(" — ") : "";
+}
+
+// 📝 Create worksheet: the builder already holds the selection, so this opens
+// it showing ONLY what was picked, in print order, with a title to start from.
 function bankPicksToWorksheet() {
   if (!wsSelectedIds.size) { toast("Pick some questions first", "error"); return; }
   qbHoverHide();
+  const title = $("wsTitle");
+  if (title && !title.value.trim()) title.value = _bankSuggestTitle();
+  const only = $("wsOnlyPicked");
+  if (only) only.checked = true;
   navigateTo("worksheet");
+  const n = _bankPickedQuestions().length;
+  const start = wsBuilderStart();
+  toast(`${n} question${n === 1 ? "" : "s"} on the sheet${start !== 1 ? `, numbered from Q${start}` : ""} — check the title, then print or save`, "success");
+  if (title) setTimeout(() => { try { title.focus(); title.select(); } catch (_) {} }, 60);
 }
+// ✍️ Create practice: the existing on-screen practice, over the picks in order.
 function bankPicksToPractice() {
   if (!wsSelectedIds.size) { toast("Pick some questions first", "error"); return; }
   qbHoverHide();
@@ -13554,27 +13768,84 @@ function bankPicksToPractice() {
 
 // The bar that says what you have picked and what you can do with it. It shows
 // in BOTH views — switching back to the list must not make a selection you can
-// no longer see feel lost.
+// no longer see feel lost — and it says how many picks the current search is
+// HIDING, which is the reassurance that changing the search lost nothing.
 function _renderBankPickBar(filtered) {
   const bar = $("bankPickBar");
   if (!bar) return;
-  const n = wsSelectedIds.size;
-  if (!n) { bar.style.display = "none"; bar.innerHTML = ""; return; }
   const shown = filtered || _bankFilteredQuestions();
-  const allPicked = shown.length > 0 && shown.every(q => wsSelectedIds.has(q.id));
+  _bankSyncSelectAll(shown);
+  const n = _bankPickedQuestions().length;
+  if (!n) { bar.style.display = "none"; bar.innerHTML = ""; return; }
+  // Typing in the 🔢 box must not be interrupted by a rebuild of the bar.
+  if (bar.contains(document.activeElement) && document.activeElement && document.activeElement.id === "bankStartNumber") {
+    const c = bar.querySelector(".bank-pick-count");
+    if (c) c.textContent = `${n} question${n === 1 ? "" : "s"} selected`;
+    return;
+  }
+  const shownIds = new Set(shown.map(q => q.id));
+  const pickedShown = shown.filter(q => wsSelectedIds.has(q.id)).length;
+  const hidden = _bankPickedQuestions().filter(q => !shownIds.has(q.id)).length;
+  const unpicked = shown.length - pickedShown;
+  const start = wsBuilderStart();
+  const sub = [
+    `Prints as Q${escapeHtml(wsNumberRangeText(n, start).replace("–", "–Q"))}`,
+    hidden ? `${hidden} not shown by this search — still selected` : "",
+  ].filter(Boolean).join(" · ");
   bar.style.display = "";
   bar.innerHTML =
-    `<span class="bank-pick-count">${n} question${n === 1 ? "" : "s"} picked</span>
-     ${allPicked ? "" : `<button class="btn btn-ghost btn-sm" type="button" data-bank-pickall>Pick all ${shown.length} shown</button>`}
-     <button class="btn btn-ghost btn-sm" type="button" data-bank-clearpicks>Clear</button>
-     <span style="flex:1;"></span>
-     <button class="btn btn-blue btn-sm" type="button" data-bank-practise>✍️ Practise these</button>
-     <button class="btn btn-primary btn-sm" type="button" data-bank-worksheet>📄 Build worksheet</button>`;
+    `<div class="bank-pick-info">
+       <span class="bank-pick-count">${n} question${n === 1 ? "" : "s"} selected</span>
+       <span class="bank-pick-sub">${sub}</span>
+     </div>
+     ${unpicked > 0 ? `<button class="btn btn-ghost btn-sm" type="button" data-bank-pickall title="Add every question this search shows">＋ Add all ${shown.length} shown</button>` : ""}
+     ${pickedShown > 0 && hidden > 0 ? `<button class="btn btn-ghost btn-sm" type="button" data-bank-unpickshown title="Untick the questions on screen; picks from other searches stay">− Untick ${pickedShown} shown</button>` : ""}
+     <button class="btn btn-ghost btn-sm" type="button" data-bank-onlypicked>${bankOnlyPicked ? "👁 Show all" : "👁 Review selected"}</button>
+     <button class="btn btn-ghost btn-sm" type="button" data-bank-clearpicks title="Untick everything, in every search">✕ Clear</button>
+     <label class="bank-pick-start" title="The number the FIRST question prints as on the worksheet — the rest follow on. Use it for a portion that slots into another worksheet.">
+       🔢 Number from
+       <input type="number" id="bankStartNumber" min="1" max="${WS_START_MAX}" step="1" inputmode="numeric" value="${start}">
+     </label>
+     <span class="bank-pick-actions">
+       <button class="btn btn-blue btn-sm" type="button" data-bank-practise title="Practise the selected questions on screen, in this order">✍️ Create practice</button>
+       <button class="btn btn-primary btn-sm" type="button" data-bank-worksheet title="Open Create Worksheet with these questions on the sheet">📝 Create worksheet</button>
+     </span>`;
   const on = (sel, fn) => { const b = bar.querySelector(sel); if (b) b.addEventListener("click", fn); };
   on("[data-bank-pickall]", pickAllBankVisible);
+  on("[data-bank-unpickshown]", unpickAllBankVisible);
+  on("[data-bank-onlypicked]", () => setBankOnlyPicked(!bankOnlyPicked));
   on("[data-bank-clearpicks]", clearBankPicks);
   on("[data-bank-practise]", bankPicksToPractice);
   on("[data-bank-worksheet]", bankPicksToWorksheet);
+  // 🔢 This box IS the builder's #wsStartNumber, in a second place: it writes
+  // there and lets the builder's own listener do the redraw, so the two can
+  // never hold different numbers.
+  const startBox = bar.querySelector("#bankStartNumber");
+  const ws = $("wsStartNumber");
+  if (startBox && ws) {
+    const push = () => { ws.value = startBox.value; ws.dispatchEvent(new Event("input")); _bankSyncPickSub(); };
+    startBox.addEventListener("input", push);
+    startBox.addEventListener("change", () => {
+      startBox.value = String(wsStartNumberClean(startBox.value));
+      ws.value = startBox.value;
+      ws.dispatchEvent(new Event("change"));
+      _bankSyncPickSub();
+    });
+    startBox.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); startBox.blur(); } });
+  }
+}
+// Only the "Prints as Q…" line, rewritten while the 🔢 box is being typed in.
+function _bankSyncPickSub() {
+  const bar = $("bankPickBar");
+  const sub = bar && bar.querySelector(".bank-pick-sub");
+  if (!sub) return;
+  const n = _bankPickedQuestions().length;
+  const shownIds = new Set(_bankFilteredQuestions().map(q => q.id));
+  const hidden = _bankPickedQuestions().filter(q => !shownIds.has(q.id)).length;
+  sub.innerHTML = [
+    `Prints as Q${escapeHtml(wsNumberRangeText(n, wsBuilderStart()).replace("–", "–Q"))}`,
+    hidden ? `${hidden} not shown by this search — still selected` : "",
+  ].filter(Boolean).join(" · ");
 }
 
 function renderBank() {
@@ -13596,14 +13867,22 @@ function renderBank() {
     : matches.length === total ? `${total} question${total > 1 ? "s" : ""}.`
     : `${matches.length} of ${total} shown.`;
   if (!total) { list.innerHTML = `<div class="empty-note">No questions yet. Go to <b>Create Question</b> to add one ✦</div>`; return; }
-  if (!matches.length) { list.innerHTML = `<div class="empty-note">No questions match these filters.</div>`; return; }
+  if (!matches.length) {
+    list.innerHTML = bankOnlyPicked
+      ? `<div class="empty-note">No selected questions match this search. Clear the search, or press 👁 Show all.</div>`
+      : `<div class="empty-note">No questions match these filters.${wsSelectedIds.size ? " Your ticked questions are still selected." : ""}</div>`;
+    return;
+  }
   if (bankView === "grid") { renderBankTiles(list, matches); return; }
   list.innerHTML = "";
   matches.forEach(q => {
     const firstText = (q.blocks || []).find(b => b.type === "text");
     const preview = firstText ? stripHtml(firstText.content).slice(0, 90) : "(no text)";
     const el = document.createElement("div");
-    el.className = "bank-item";
+    const picked = wsSelectedIds.has(q.id);
+    const order = picked ? wsOrder.indexOf(q.id) + wsBuilderStart() : 0;
+    el.className = "bank-item" + (picked ? " picked" : "");
+    el.dataset.bankRow = q.id;
     const answerKeyBadge = q.answerKeyImageUrl ? `<span>Answer key image</span>` : "";
     // Flag an annotation question that has no answer screenshot yet — it will
     // still mark, but against words alone, which is the unreliable way round.
@@ -13616,7 +13895,11 @@ function renderBank() {
     const appBadge = xaCount(q) ? `<span title="Shown to the student after their answer is marked">${escapeHtml(xaSummary(q))}</span>` : "";
     const conceptBadge = conceptLabel(q) ? `<span>Concept: ${escapeHtml(conceptLabel(q))}</span>` : "";
     el.innerHTML =
-      `<div class="bank-item-main"><h4>${escapeHtml(q.title || "Untitled")}</h4>
+      `<label class="bank-item-pick" title="Tick to add this question to your selection · Shift-click ticks a range">
+         <input type="checkbox" data-bank-check="${escapeHtml(q.id)}" ${picked ? "checked" : ""} aria-label="Select “${escapeHtml(q.title || "Untitled")}”">
+         <span class="bank-item-order" ${picked ? "" : "hidden"} title="${picked ? `Prints as Question ${order}` : ""}">${picked ? order : ""}</span>
+       </label>
+       <div class="bank-item-main" data-bank-main="${escapeHtml(q.id)}" title="Click to tick or untick this question"><h4>${escapeHtml(q.title || "Untitled")}</h4>
         <div class="meta"><span class="chip">${escapeHtml(q.level || "—")}</span><span class="chip topic">${escapeHtml(adminTopicsLabel(q))}</span>${qReleaseChipHtml(q)}${conceptBadge}${annotBadge}${videoBadge}${appBadge}${answerKeyBadge}<span>${escapeHtml(preview)}</span></div></div>
        <div class="bank-item-actions">
         <button class="btn btn-ghost btn-sm" data-preview="${q.id}">Preview</button>
@@ -13626,6 +13909,22 @@ function renderBank() {
         <button class="btn btn-danger btn-sm" data-del="${q.id}">Delete</button></div>`;
     list.appendChild(el);
   });
+  // ☑️ The tick, and the row's title/text, both toggle the pick. The action
+  // buttons sit outside both, so Preview / Edit / Delete never tick anything.
+  list.querySelectorAll("[data-bank-check]").forEach(cb => {
+    cb.addEventListener("click", e => {
+      // No preventDefault: a cancelled checkbox click puts the OLD state back
+      // after the handler, undoing the repaint. The repaint agrees anyway.
+      e.stopPropagation();
+      toggleBankPick(cb.dataset.bankCheck, e);
+    });
+  });
+  list.querySelectorAll("[data-bank-main]").forEach(m => m.addEventListener("click", e => {
+    // Selecting text to copy it is not a click on the row.
+    const sel = window.getSelection && window.getSelection();
+    if (sel && String(sel).trim()) return;
+    toggleBankPick(m.dataset.bankMain, e);
+  }));
   list.querySelectorAll("[data-preview]").forEach(b => b.addEventListener("click", () => {
     const q = questionBank.find(x => x.id === b.dataset.preview);
     if (q) openQuestionPreview(q, "Practice preview — as students see it");
@@ -27363,6 +27662,21 @@ function wsFilteredQuestions() {
   const concept = ($("wsFilterConcept") || {}).value || "";
   const format = ($("wsFilterFormat") || {}).value || "";
   const term = (($("wsSearch") || {}).value || "").trim().toLowerCase();
+  // ☑️ "Show selected only (print order)": the picks, in the order they print —
+  // what a teacher arriving from the bank's 📝 Create worksheet wants to see.
+  const onlyPicked = !!($("wsOnlyPicked") || {}).checked;
+  if (onlyPicked) {
+    return wsOrder.filter(id => wsSelectedIds.has(id)).map(wsQuestionById).filter(q => {
+      if (!q) return false;
+      if (level && String(q.level || "").trim() !== level) return false;
+      if (topic && !questionTopics(q).includes(topic)) return false;
+      if (concept && conceptLabel(q) !== concept) return false;
+      if (format === "mcq" && !wsHasMcq(q)) return false;
+      if (format === "written" && !wsHasWritten(q)) return false;
+      if (term && !bankSearchHaystack(q).includes(term)) return false;
+      return true;
+    });
+  }
   return wsBank().filter(q => {
     if (level && String(q.level || "").trim() !== level) return false;
     if (topic && !questionTopics(q).includes(topic)) return false;
@@ -27378,7 +27692,9 @@ function renderWsQuestions() {
   if (!grid) return;
   const list = wsFilteredQuestions();
   if (!list.length) {
-    grid.innerHTML = `<div class="empty-note">No questions match these filters.</div>`;
+    grid.innerHTML = (($("wsOnlyPicked") || {}).checked)
+      ? `<div class="empty-note">${wsSelectedIds.size ? "No selected question matches these filters." : "No questions selected yet."} Untick <b>Show selected only</b> to see the whole bank.</div>`
+      : `<div class="empty-note">No questions match these filters.</div>`;
     updateWsCount();
     return;
   }
@@ -32269,6 +32585,7 @@ function wseRender() {
 });
 $("wsSearch").addEventListener("input", renderWsQuestions);
 $("wsSelectAll").addEventListener("change", e => toggleWsSelectAll(e.target.checked));
+if ($("wsOnlyPicked")) $("wsOnlyPicked").addEventListener("change", renderWsQuestions);
 $("wsPreviewBtn").addEventListener("click", () => printCurrentWorksheet(false));
 // 🔢 Number from: every keystroke re-labels the badges and the note; leaving
 // the box tidies junk back to a real number.
@@ -38278,7 +38595,7 @@ resetEditor();
 refreshAiStatus(); setTimeout(refreshAiStatus, 1500);
 
 // Build version — bump this on every change so it's easy to see what's deployed.
-const APP_VERSION = "v1.118.0 · 2026-11-16";
+const APP_VERSION = "v1.119.0 · 2026-11-18";
 
 // =====================================================================
 // THE SUBJECT SWITCHER — one student, four subjects (v1.36.0)
@@ -38437,6 +38754,17 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') subjectClose
 
 // Question Bank search — filter as you type
 { const _bs = $("bankSearch"); if (_bs) _bs.addEventListener("input", e => { bankSearchTerm = e.target.value; renderBank(); }); }
+// ☑️ Select all shown (three-state) and Show selected only.
+{
+  const _all = $("bankSelectAll");
+  if (_all) _all.addEventListener("change", () => {
+    const shown = _bankFilteredQuestions();
+    const every = shown.length > 0 && shown.every(q => wsSelectedIds.has(q.id));
+    if (every) unpickAllBankVisible(); else pickAllBankVisible();
+  });
+  const _only = $("bankOnlyPicked");
+  if (_only) _only.addEventListener("change", () => setBankOnlyPicked(_only.checked));
+}
 ["bankFilterLevel", "bankFilterTopic", "bankFilterConcept", "bankFilterFormat"].forEach(id => {
   const el = $(id); if (el) el.addEventListener("change", renderBank);
 });
