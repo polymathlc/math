@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<!-- ✉️ This page has its own email sign-in and sign-up form, so the shared "Sign in with email" button (polymathlc/cer student/email-sign-in.js, loaded by the access gate) is switched off here. "Forgot your password?" opens its reset dialog, and the access gate still asks new email accounts to confirm their address. -->
+<meta name="polymath-email-sign-in" content="off">
 <title>Math Practice — Polymath Learning Centre</title>
 <!-- 📲 Installable app (Polymath install kit v2.0.0): manifest + icons make "Install" / "Add to Home Screen"
      work on PC, Android and iPhone/iPad. pwa-install.js registers sw.js and drives every [data-pwa-install] control. -->
@@ -5224,6 +5226,7 @@ body.role-employee #emailBellBtn { display: none !important; }
     </div>
     <button class="btn btn-primary btn-block" id="authSubmit">Sign in</button>
     <div class="auth-toggle" id="authToggle">New here? <a id="toggleLink">Create an account</a></div>
+    <div class="auth-toggle" id="authForgot" style="margin-top:8px"><a id="forgotLink" href="#" onclick="event.preventDefault();var e=document.getElementById('authEmail');if(window.PolymathEmailSignIn)PolymathEmailSignIn.open('reset',{email:e?e.value:''});else alert('Please try again in a moment.');">Forgot your password?</a></div>
   </div>
 </div>
 
